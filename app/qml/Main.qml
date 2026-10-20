@@ -20,8 +20,13 @@ ApplicationWindow {
     StackView {
         id: stack
         anchors.fill: parent
-        initialItem: homeComponent
-        Component.onCompleted: if (startOnSettings) push(settingsComponent)
+        Component.onCompleted: {
+            if (startOnSettings) {
+                stack.push(settingsComponent)
+            } else {
+                stack.push(homeComponent)
+            }
+        }
     }
 
     Component {
