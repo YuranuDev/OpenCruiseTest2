@@ -24,10 +24,18 @@ Rectangle {
             anchors.centerIn: parent
         }
 
-        ActionButton {
-            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-            text: "設定"
-            onClicked: root.openSettings()
+        Row {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 10
+            ActionButton {
+                text: "終了"
+                onClicked: Qt.quit()
+            }
+            ActionButton {
+                text: "設定"
+                onClicked: root.openSettings()
+            }
         }
     }
 
