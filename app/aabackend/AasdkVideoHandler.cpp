@@ -125,13 +125,13 @@ void AasdkVideoHandler::onMediaChannelStopIndication(const proto::service::media
  */
 void AasdkVideoHandler::onMediaWithTimestampIndication(aasdk::messenger::Timestamp::ValueType,
                                                        const aasdk::common::DataConstBuffer &buffer) {
-    handleMediaData(buffer);
+    handleMediaData(buffer, true);
 }
 
 /**
  * @brief コーデック設定(SPS/PPS 等, MEDIA_MESSAGE_CODEC_CONFIG)を処理する。
  */
-void AasdkVideoHandler::onMediaIndication(const aasdk::common::DataConstBuffer &buffer) { handleMediaData(buffer); }
+void AasdkVideoHandler::onMediaIndication(const aasdk::common::DataConstBuffer &buffer) { handleMediaData(buffer, false); }
 
 /**
  * @brief 映像フォーカス要求に、要求されたモードをそのまま通知する。
@@ -162,6 +162,21 @@ void AasdkVideoHandler::onChannelError(const aasdk::error::Error &e) {
 }
 
 /**
+ * @brief スマートフォン側の映像にフォーカスを移す通知（VIDEO_FOCUS_PROJECTED）を送る。
+ *
+ * セットアップ応答の後に明示的に送る使い方を想定している。現時点では呼び出し箇所が
+ * 未確定のため、どこからも呼んでいない（実機での挙動確認後に接続する）。
+ */
+void AasdkVideoHandler::sendVideoFocus() {
+    using proto::service::media::video::message::VideoFocusMode;
+
+    proto::service::media::video::message::VideoFocusNotification indication;
+    indication.set_focus(VideoFocusMode::VIDEO_FOCUS_PROJECTED);
+    indication.set_unsolicited(true);
+    channel_->sendVideoFocusIndication(indication, makeSendPromise("VideoFocusNotification"));
+}
+
+/**
  * @brief 送信失敗をセッション終了エラーとして通知する Promise を作る。
  */
 aasdk::channel::SendPromise::Pointer AasdkVideoHandler::makeSendPromise(const char *what) {
@@ -180,8 +195,10 @@ aasdk::channel::SendPromise::Pointer AasdkVideoHandler::makeSendPromise(const ch
  *
  * ACK を返さないとスマートフォン側が max_unacked に達して送信を止めるため必須。
  */
-void AasdkVideoHandler::handleMediaData(const aasdk::common::DataConstBuffer &buffer) {
-    if (!streaming_) {
+void AasdkVideoHandler::handleMediaData(const aasdk::common::DataConstBuffer &buffer, bool isFrame) {
+    // コーデック設定（SPS/PPS 等）では Streaming に遷移せず、実際の映像フレームを
+    // 受信した時点で状態遷移する。
+    if (isFrame && !streaming_) {
         streaming_ = true;
         if (callbacks_.onStateChanged) {
             callbacks_.onStateChanged(LinkState::Streaming, "映像を受信中");
