@@ -1,0 +1,28 @@
+--- a/aasdk/src/USB/USBWrapper.cpp	2026-10-19 02:02:50.351966672 +0000
++++ b/aasdk/src/USB/USBWrapper.cpp	2026-10-19 02:02:50.405117626 +0000
+@@ -135,12 +135,20 @@
+     USBWrapper::hotplugRegisterCallback(libusb_hotplug_event events, libusb_hotplug_flag flags, int vendor_id,
+                                         int product_id, int dev_class,
+                                         libusb_hotplug_callback_fn cb_fn, void *user_data) {
+-      libusb_hotplug_callback_handle raw_handle;
+-      libusb_hotplug_register_callback(usbContext_, events, flags, vendor_id, product_id, dev_class, cb_fn, user_data,
+-                                       &raw_handle);
++      // OpenCruise fix: the handle used to be a stack local whose address was kept by the shared_ptr,
++      // so the deleter read a dangling pointer and never deregistered the real callback.
++      // Keep the handle on the heap for the lifetime of the shared_ptr instead.
++      auto *raw_handle = new libusb_hotplug_callback_handle();
++      const int result = libusb_hotplug_register_callback(usbContext_, events, flags, vendor_id, product_id,
++                                                          dev_class, cb_fn, user_data, raw_handle);
++      if (result != LIBUSB_SUCCESS) {
++        delete raw_handle;
++        return HotplugCallbackHandle();
++      }
+ 
+-      HotplugCallbackHandle handle(&raw_handle, [this](auto raw_handle) {
+-        libusb_hotplug_deregister_callback(usbContext_, *raw_handle);
++      HotplugCallbackHandle handle(raw_handle, [this](libusb_hotplug_callback_handle *rawHandle) {
++        libusb_hotplug_deregister_callback(usbContext_, *rawHandle);
++        delete rawHandle;
+       });
+       return handle;
+     }

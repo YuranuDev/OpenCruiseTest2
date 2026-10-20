@@ -1,0 +1,120 @@
+/**
+ * @file AasdkSession.h
+ * @brief スマートフォン1台ぶんの Android Auto セッション（制御チャネルを担当）。
+ *
+ * AOAP で確立した USB デバイスから、Transport → Cryptor → Messenger → 各チャネルを組み立て、
+ * バージョン確認 → SSL ハンドシェイク → 認証完了 → サービス探索応答 までを進める。
+ * 映像チャネルは AasdkVideoHandler に委譲する。
+ */
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <string>
+
+#include <boost/asio.hpp>
+
+#include <aasdk/Channel/Control/ControlServiceChannel.hpp>
+#include <aasdk/Channel/Control/IControlServiceChannelEventHandler.hpp>
+#include <aasdk/Messenger/ICryptor.hpp>
+#include <aasdk/Messenger/IMessenger.hpp>
+#include <aasdk/Transport/ITransport.hpp>
+#include <aasdk/USB/IAOAPDevice.hpp>
+
+#include "AasdkVideoHandler.h"
+#include "LinkState.h"
+
+namespace opencruise::aa {
+
+/**
+ * @brief セッションから接続層(AasdkBackend)への通知先。
+ */
+struct SessionCallbacks {
+    std::function<void(LinkState, const std::string &)> onStateChanged; ///< 状態変化
+    std::function<void(const std::uint8_t *, std::size_t)> onVideoData;  ///< 映像データ受信
+    std::function<void(const std::string &)> onLog;                      ///< 診断ログ
+    std::function<void(const std::string &)> onFinished; ///< セッション終了（理由つき、1回だけ呼ばれる）
+};
+
+/**
+ * @brief 1回の接続（切断まで）を表すオブジェクト。
+ *
+ * 使い捨て。終了したら onFinished が呼ばれるので、呼び出し側は破棄して新しく作り直す。
+ */
+class AasdkSession : public aasdk::channel::control::IControlServiceChannelEventHandler,
+                     public std::enable_shared_from_this<AasdkSession> {
+public:
+    /**
+     * @brief セッションを組み立てる（まだ通信は始めない）。
+     * @param ioService aasdk 共通の io_service
+     * @param aoapDevice AOAP 確立済みの USB デバイス
+     * @param callbacks 通知先
+     * @throws aasdk::error::Error / std::exception 下位オブジェクトの生成に失敗した場合
+     */
+    AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
+                 SessionCallbacks callbacks);
+
+    /**
+     * @brief 通信を開始する（SSL 初期化 → 受信ループ開始 → バージョン要求送信）。
+     * @note shared_ptr で管理されている必要がある（shared_from_this を使うため）。
+     */
+    void start();
+
+    /**
+     * @brief アプリ側の都合でセッションを終了する。何度呼んでもよい。
+     */
+    void stop();
+
+    // ---- IControlServiceChannelEventHandler ----
+    void onVersionResponse(uint16_t majorCode, uint16_t minorCode, aap_protobuf::shared::MessageStatus status) override;
+    void onHandshake(const aasdk::common::DataConstBuffer &payload) override;
+    void onServiceDiscoveryRequest(
+        const aap_protobuf::service::control::message::ServiceDiscoveryRequest &request) override;
+    void onAudioFocusRequest(const aap_protobuf::service::control::message::AudioFocusRequest &request) override;
+    void onByeByeRequest(const aap_protobuf::service::control::message::ByeByeRequest &request) override;
+    void onByeByeResponse(const aap_protobuf::service::control::message::ByeByeResponse &response) override;
+    void onBatteryStatusNotification(
+        const aap_protobuf::service::control::message::BatteryStatusNotification &notification) override;
+    void onNavigationFocusRequest(
+        const aap_protobuf::service::control::message::NavFocusRequestNotification &request) override;
+    void onVoiceSessionRequest(const aap_protobuf::service::control::message::VoiceSessionNotification &request) override;
+    void onPingRequest(const aap_protobuf::service::control::message::PingRequest &request) override;
+    void onPingResponse(const aap_protobuf::service::control::message::PingResponse &response) override;
+    void onChannelError(const aasdk::error::Error &e) override;
+
+private:
+    /**
+     * @brief 送信完了を待つ Promise を作る。失敗時はセッションを終了する。
+     * @param what 失敗時ログ用の送信内容の説明
+     */
+    aasdk::channel::SendPromise::Pointer makeSendPromise(const char *what);
+
+    /**
+     * @brief セッション終了処理を strand 上で行う。冪等。
+     * @param reason 終了理由（UI に表示される）
+     */
+    void terminate(const std::string &reason);
+
+    /**
+     * @brief terminate の本体（strand 上で実行される）。
+     */
+    void doTerminate(const std::string &reason);
+
+    /**
+     * @brief 診断ログを上位へ流す。
+     */
+    void log(const std::string &message) const;
+
+    std::shared_ptr<boost::asio::io_service::strand> strand_; ///< 全チャネル共通。ハンドラ側と共有所有
+    aasdk::transport::ITransport::Pointer transport_;
+    aasdk::messenger::ICryptor::Pointer cryptor_;
+    aasdk::messenger::IMessenger::Pointer messenger_;
+    std::shared_ptr<aasdk::channel::control::ControlServiceChannel> controlChannel_;
+    std::shared_ptr<AasdkVideoHandler> videoHandler_;
+    SessionCallbacks callbacks_;
+    bool finished_ = false; ///< strand 上でのみ読み書きする
+};
+
+} // namespace opencruise::aa

@@ -1,0 +1,128 @@
+# OpenCruise — Qt + aasdk 車載システム 簡易プロトタイプ
+
+x86_64 PC 向けの車載システム試作。Qt Quick(QML) + C++ + CMake。Android Auto の接続・映像は同梱の `aasdk` を利用する。
+**完成品ではなく、各機能を最低限つないだ動作確認用の仮システム**。
+
+## 構成
+
+```
+OpenCruise/
+├── CMakeLists.txt            トップ。aasdk をサブプロジェクトとして取り込み、app/ をビルド
+├── aasdk/                    既存の aasdk（※ USB/USBWrapper.cpp のみ 1 か所修正。後述）
+├── patches/                  aasdk に当てた修正の diff
+├── scripts/make_test_stream.sh   開発用テスト映像(H.264)の生成
+└── app/
+    ├── main.cpp              起動・モデル生成・QML 公開・開発用オプション
+    ├── core/                 ClockModel(時計) / DummyCanModel(ダミーCAN)
+    ├── androidauto/          Qt 側: AndroidAutoController / H264Decoder / VideoSurfaceItem / TestVideoFeeder
+    ├── aabackend/            Qt 非依存の aasdk 接続層（UI と分離。無効時はスタブ）
+    │   ├── AasdkBackend.*    libusb・ioスレッド・USBHub、待機→接続→切断→待機のループ
+    │   ├── AasdkSession.*    1接続ぶん。制御チャネル(バージョン/SSL/認証/サービス探索/Ping/切断)
+    │   ├── AasdkVideoHandler.* 映像チャネル(Open/Setup/Start/データ受信/ACK/フォーカス)
+    │   └── AasdkConfig.h     車載機として申告する値（解像度 dpi 等、暫定値を1か所に集約）
+    └── qml/                  Main / HomeScreen / SettingsScreen / CanPanel / ConnectionBadge / ActionButton / Theme
+```
+
+接続層 (`aabackend`) は Qt を一切含まず、UI は `AasdkBackend` の公開ヘッダだけを見る。
+そのため aasdk が無い/接続できない環境でもアプリ全体が起動する（状態は「利用不可」「待機中」と表示）。
+
+## ビルド
+
+Ubuntu 24.04 で確認。必要パッケージ:
+
+```bash
+sudo apt install build-essential cmake ninja-build pkg-config \
+  qt6-base-dev qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls \
+  qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates \
+  qml6-module-qtqml qml6-module-qtqml-workerscript \
+  libavcodec-dev libavutil-dev libswscale-dev \
+  libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev
+# 日本語表示用フォント（例）
+sudo apt install fonts-noto-cjk
+
+cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
+ninja -C build            # aasdk(約300ファイル)を含むため初回は数分〜十数分
+./build/app/opencruise
+```
+
+- aasdk なしで UI だけビルド: `-DOPENCRUISE_ENABLE_AASDK=OFF`（Boost/libusb/protobuf 不要）
+- aasdk は同梱のものを `SKIP_BUILD_PROTOBUF=ON` / `SKIP_BUILD_ABSL=ON`（システムの protobuf 3.21 を使用）でビルドする。
+  Abseil が必要な新しい protobuf を使う場合はこの設定の見直しが必要。
+- 実機接続には USB 権限が必要。aasdk の `DOCUMENTATION.md` にある udev ルール
+  (`SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"`) を設定する。
+  権限が無い場合、aasdk の `USBHub` は **エラーを出さず黙って無視する**ため、「待機中」のまま進まない。
+
+### 開発用オプション
+
+| オプション | 内容 |
+|---|---|
+| `--test-video <file>` | H.264 ファイルを映像として表示（スマホ無しでデコード/表示を確認）。`scripts/make_test_stream.sh` で生成 |
+| `--screenshot <png> [--screenshot-delay <ms>]` | 画面を保存して終了 |
+| `--open-settings` | 設定画面を開いた状態で起動 |
+| `--fullscreen` | 全画面 |
+
+ヘッドレス確認例: `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software ./build/app/opencruise --screenshot out.png`
+
+## 実装状況
+
+### 実装済み
+
+| 機能 | 状態 | 検証 |
+|---|---|---|
+| Qt Quick メイン画面（暗色、時計、接続状態、AA表示領域、CANパネル、設定ボタン） | 実装 | ビルド・起動・画面保存で確認 |
+| 現在時刻表示 | 実装 | 画面で確認 |
+| CAN 情報の仮表示（速度/回転数/水温/燃料、「ダミーデータ」と明示） | 実装 | 画面で確認 |
+| 設定画面への遷移（StackView） | 実装 | 設定画面の描画を確認。ボタンのタップ操作は未確認 |
+| 接続状態表示（利用不可/待機中/接続中/接続済み/映像受信中、切断理由の保持） | 実装 | 「利用不可」「待機中」「映像受信中(テスト)」を画面で確認 |
+| 未接続・失敗時でもアプリ全体が起動 | 実装 | aasdk 無効/有効(USB機器なし)の両方で確認 |
+| H.264 デコード → QImage → QML 表示 | 実装 | テスト映像(800x480)で表示を確認（aasdk 非経由） |
+| aasdk 接続層（USBHub→AOAP→Messenger→制御/映像チャネル→切断→待機復帰） | **コード実装・ビルド成功** | **実機未検証** |
+| 終了処理（スレッド停止・libusb 解放） | 実装 | 待機中の終了(約0.2秒)を確認。セッション中の終了は未検証 |
+
+### 検証できたこと / できていないこと
+
+確認できた: aasdk を含むフルビルド成功(自作コードの警告 0)、起動と待機状態への遷移、10秒間の待機稼働、
+サービス探索応答が protobuf として必須フィールドを満たすこと(`IsInitialized()`)、デコード/表示経路。
+
+**未検証（実機が必要。「動作済み」とは扱わない）**: スマートフォンの検出、AOAP 切替、SSL ハンドシェイク、サービス探索の受理、
+映像チャネルのセットアップ、実際の H.264 受信と表示、ACK の運用、切断時の復帰、再接続。
+
+### aasdk が提供するもの / 追加実装したもの
+
+| aasdk が提供 | 本プロジェクトで追加実装 |
+|---|---|
+| USB ホットプラグ検出・AOAP 切替 (`USBHub`) | libusb の初期化と **イベントループ専用スレッド**、io スレッド、待機⇄接続のループ |
+| USB 転送・フレーム化・SSL 暗号化 (`USBTransport`/`Messenger`/`Cryptor`) | セッションの組み立てと終了処理 |
+| チャネルの送受信と protobuf デコード（制御/映像） | **各メッセージへの応答ロジック**（ハンドシェイク手順、サービス探索応答の内容、Open/Setup/Start 応答、ACK、フォーカス応答、Ping） |
+| 映像データの受信（H.264 の生バイト列まで） | **H.264 デコード**（FFmpeg）と画面表示 |
+
+同梱の `aasdk/tools/simple` は AOAP ハンドシェイクのスタブで、Messenger/映像は含まない。完全なセッションの手順は
+ヘッダ・実装・`.proto` から読み取った（根拠は各 `.cpp` 冒頭のコメントに記載）。
+
+### 未実装
+
+- 実 CAN 通信（ダミーのみ）
+- タッチ入力・ステアリング操作の転送（InputSource）、センサー(走行状態等)、音声（再生/マイク）、Bluetooth、無線接続(Wi-Fi/TCP)
+- 車載機側からの Ping 送信・タイムアウト検出
+- 解像度/dpi の最適化（800x480・140dpi の暫定値。`AasdkConfig.h`）、GPU 描画（現状は `QQuickPaintedItem` のソフトウェア描画）
+- 設定の保存、画面の多言語化（UI 文字列は日本語直書き）
+
+## aasdk で見つけた問題と対処
+
+1. **`USBWrapper::hotplugRegisterCallback` のダングリングポインタ（修正済み）**
+   スタック上のハンドルのアドレスを `shared_ptr` に渡していたため、`USBHub::cancel()` でホットプラグコールバックが解除されず、
+   破棄済みの `USBHub` に通知が飛ぶ恐れがあった。切断後に `USBHub` を作り直す設計に必須のため、ヒープ確保に修正
+   （`patches/aasdk-usb-hotplug-handle.patch`。aasdk を更新する場合は再適用が必要）。
+2. `Messenger::stop()` は受信キューを空にするだけで保留中の Promise を失敗させない → `transport->stop()` によるキャンセル経由で終了を伝播させている。
+3. `Cryptor::deinit()` 後に `encrypt()` が呼ばれると `SSL*` が null でクラッシュし得る → 最後の参照者が消えた時に `deinit()` する（カスタムデリータ）。
+4. バージョン応答の status は `uint16` を `MessageStatus` に単純キャストしており不一致値が `-1` にならない → 「`STATUS_SUCCESS` 以外は失敗」で判定。
+5. `USBHub` は USB 機器の open 失敗を黙殺し、非 AOAP 機器の検出ごとに 1 秒 sleep する → io スレッドを 2 本にして影響を緩和。権限エラーは UI から判別できない。
+6. `ControlServiceChannel::sendVoiceSessionFocusResponse` は実装が空（Promise が解決されない）→ 使っていない。
+
+## 実機検証の際の見どころ（リスク）
+
+- サービス探索で**映像サービスのみ**申告している。センサー/入力サービスが無いとスマートフォンが接続を維持しない可能性がある（未確認）。
+  切断された場合は `AasdkVideoHandler::fillFeatures` と同様に `SensorSource`/`InputSource` の追加を検討する。
+- `driver_position` は右ハンドル、音声フォーカス要求には「喪失」、ナビフォーカスには PROJECTED を返す暫定実装。
+- ログは `[aa] [session] ...` `[aa] [video] ...` として標準エラーに出る。どこまで進んだかの切り分けに使える。
+- `--test-video` で映像が出ても aasdk の受信が動いた証拠にはならない（状態表示に「aasdk 経由ではありません」と出る）。

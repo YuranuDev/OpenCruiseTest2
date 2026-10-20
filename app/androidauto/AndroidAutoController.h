@@ -1,0 +1,127 @@
+/**
+ * @file AndroidAutoController.h
+ * @brief Android Auto の接続状態・映像を QML へ橋渡しする Qt 側の窓口。
+ *
+ * 接続処理そのもの(aabackend/)とは分離している。接続層が使えない/接続できない場合でも
+ * このクラスは正常に動作し、状態として「利用不可」「待機中」を UI に出し続ける。
+ */
+#pragma once
+
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+
+#include <QObject>
+#include <QString>
+
+#include "AasdkBackend.h"
+#include "H264Decoder.h"
+#include "TestVideoFeeder.h"
+
+namespace opencruise {
+
+class VideoSurfaceItem;
+
+/**
+ * @brief QML 向けの Android Auto 状態モデル兼コントローラ。
+ */
+class AndroidAutoController : public QObject {
+    Q_OBJECT
+    /** "unavailable" / "waiting" / "connecting" / "connected" / "streaming"（色分け等に使う） */
+    Q_PROPERTY(QString stateKey READ stateKey NOTIFY stateChanged)
+    Q_PROPERTY(QString stateText READ stateText NOTIFY stateChanged)
+    Q_PROPERTY(QString detailText READ detailText NOTIFY stateChanged)
+    /** 直近の切断理由/エラー。無ければ空 */
+    Q_PROPERTY(QString lastIssue READ lastIssue NOTIFY lastIssueChanged)
+    Q_PROPERTY(qulonglong frameCount READ frameCount NOTIFY videoStatsChanged)
+    Q_PROPERTY(QString videoInfo READ videoInfo NOTIFY videoStatsChanged)
+    Q_PROPERTY(bool aasdkEnabled READ aasdkEnabled CONSTANT)
+
+public:
+    /**
+     * @brief 状態を「待機準備中(利用不可)」で初期化する。まだ接続処理は始めない。
+     * @param parent 親オブジェクト
+     */
+    explicit AndroidAutoController(QObject *parent = nullptr);
+
+    /** @brief 接続処理を停止してから破棄する。 */
+    ~AndroidAutoController() override;
+
+    QString stateKey() const { return stateKey_; }
+    QString stateText() const { return stateText_; }
+    QString detailText() const { return detailText_; }
+    QString lastIssue() const { return lastIssue_; }
+    qulonglong frameCount() const { return frameCount_; }
+    QString videoInfo() const { return videoInfo_; }
+
+    /** @brief aasdk 接続層がビルドに含まれているか。 */
+    bool aasdkEnabled() const;
+
+    /**
+     * @brief 映像を描画するアイテムを登録する。QML から呼ぶ。
+     * @param surface 描画先
+     */
+    Q_INVOKABLE void attachSurface(opencruise::VideoSurfaceItem *surface);
+
+    /**
+     * @brief スマートフォンの接続待ちを開始する。失敗しても状態に反映するだけで例外は投げない。
+     */
+    Q_INVOKABLE void start();
+
+    /**
+     * @brief 接続待ち・セッションを停止する。アプリ終了時に呼ばれる。
+     */
+    Q_INVOKABLE void stop();
+
+    /**
+     * @brief 開発用: H.264 ファイルを映像として流し込む（aasdk 経由ではない）。
+     * @param path H.264 Annex-B ファイル
+     */
+    void playTestStream(const QString &path);
+
+signals:
+    /** @brief 接続状態(stateKey/stateText/detailText)が変わったとき。 */
+    void stateChanged();
+    /** @brief lastIssue が変わったとき。 */
+    void lastIssueChanged();
+    /** @brief 受信フレーム数または映像サイズ表示が変わったとき。 */
+    void videoStatsChanged();
+
+private:
+    /**
+     * @brief 状態を UI スレッドで反映する。
+     * @param state 接続層の状態(aa::LinkState を int 化したもの)
+     * @param detail 詳細メッセージ
+     */
+    void applyState(int state, const QString &detail);
+
+    /**
+     * @brief 接続層のスレッドから受け取った映像データをデコーダへ渡す。
+     */
+    void handleVideoData(const std::uint8_t *data, std::size_t size);
+
+    /**
+     * @brief デコード済みフレームを描画アイテムへ渡し、統計を更新する（デコードしたスレッドで呼ばれる）。
+     */
+    void handleDecodedFrame(const QImage &image);
+
+    QString stateKey_;
+    QString stateText_;
+    QString detailText_;
+    QString lastIssue_;
+    QString videoInfo_ = QStringLiteral("-");
+    std::atomic<qulonglong> frameCount_{0};
+    std::atomic<bool> decoderErrorReported_{false};
+    int currentState_ = static_cast<int>(aa::LinkState::Unavailable);
+
+    std::mutex surfaceMutex_;
+    VideoSurfaceItem *surface_ = nullptr; ///< surfaceMutex_ で保護
+
+    std::unique_ptr<aa::AasdkBackend> backend_;
+    H264Decoder decoder_;
+    TestVideoFeeder testFeeder_;
+};
+
+} // namespace opencruise
