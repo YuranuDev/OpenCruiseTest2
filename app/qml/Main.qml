@@ -8,7 +8,6 @@ ApplicationWindow {
     height: 720
     visible: true
     visibility: startFullscreen ? Window.FullScreen : Window.Windowed
-    cursorVisible: true
     title: "OpenCruise"
     color: Theme.background
 
