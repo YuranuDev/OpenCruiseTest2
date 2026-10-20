@@ -11,6 +11,11 @@ ApplicationWindow {
     title: "OpenCruise"
     color: Theme.background
 
+    Shortcut {
+        sequence: "Esc"
+        onActivated: Qt.quit()
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
