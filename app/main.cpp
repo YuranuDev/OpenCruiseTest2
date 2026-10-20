@@ -28,6 +28,7 @@
  */
 int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
+    QGuiApplication::setOverrideCursor(Qt::ArrowCursor);
     QGuiApplication::setApplicationName(QStringLiteral("OpenCruise"));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
