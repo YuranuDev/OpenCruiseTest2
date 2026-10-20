@@ -88,9 +88,15 @@ private:
     aasdk::channel::SendPromise::Pointer makeSendPromise(const char *what);
 
     /**
-     * @brief 映像データ（コーデック設定/フレーム共通）を上位へ渡し、ACK を返して受信を再開する。
+     * @brief 映像データ（コーデック設定/フレーム）を上位へ渡し、ACK を返して受信を再開する。
+     * @param isFrame タイムスタンプ付きの実フレームなら true、コーデック設定なら false
      */
-    void handleMediaData(const aasdk::common::DataConstBuffer &buffer);
+    void handleMediaData(const aasdk::common::DataConstBuffer &buffer, bool isFrame);
+
+    /**
+     * @brief スマートフォン映像にフォーカスを移す通知を送る（VIDEO_FOCUS_PROJECTED）。
+     */
+    void sendVideoFocus();
 
     /**
      * @brief ログ出力のヘルパー。
