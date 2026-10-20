@@ -4,6 +4,7 @@
  */
 #include "AndroidAutoController.h"
 
+#include <QDateTime>
 #include <QDebug>
 #include <QImage>
 #include <QMetaObject>
@@ -57,6 +58,17 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
     if (!decoder_.isReady()) {
         lastIssue_ = QStringLiteral("映像デコーダ: ") + decoder_.errorString();
     }
+
+    // 接続中/接続済みのまま何も起きない場合に気付けるよう、経過を定期的に記録する。
+    connect(&watchdog_, &QTimer::timeout, this, [this]() {
+        const auto link = static_cast<aa::LinkState>(currentState_);
+        // 接続待ちのままでも「アプリは動いていて状態が変わっていない」ことを記録する
+        const qint64 elapsed = startedAtMs_ > 0 ? QDateTime::currentMSecsSinceEpoch() - startedAtMs_ : -1;
+        qInfo().noquote() << "[aa] 監視:" << textFor(link) << "のまま" << elapsed << "ms 経過 (受信映像"
+                          << videoPackets_.load() << "通 /" << videoBytes_.load() << "バイト, デコード済み"
+                          << frameCount_ << "フレーム)";
+    });
+    watchdog_.start(30000);
 }
 
 /**
@@ -151,6 +163,18 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
     const auto previous = static_cast<aa::LinkState>(currentState_);
     currentState_ = state;
 
+    if (link == aa::LinkState::Connecting && previous != aa::LinkState::Connecting) {
+        ++attemptCount_;
+        startedAtMs_ = QDateTime::currentMSecsSinceEpoch();
+        videoPackets_ = 0;
+        videoBytes_ = 0;
+        qInfo().noquote() << "[aa] 接続処理を開始します (試行" << attemptCount_ << "回目)";
+    } else if (link == aa::LinkState::Waiting && previous != aa::LinkState::Waiting) {
+        videoPackets_ = 0;
+        videoBytes_ = 0;
+        qInfo().noquote() << "[aa] 待機に戻りました (前回:" << textFor(previous) << ")";
+    }
+
     const bool wasActive = previous == aa::LinkState::Connecting || previous == aa::LinkState::Connected ||
                            previous == aa::LinkState::Streaming;
     const bool dropped = (link == aa::LinkState::Waiting && wasActive) || link == aa::LinkState::Unavailable;
@@ -174,7 +198,10 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
     stateKey_ = keyFor(link);
     stateText_ = textFor(link);
     detailText_ = detail;
-    qInfo().noquote() << "[aa] 状態:" << stateText_ << "-" << detail;
+    qInfo().noquote() << "[aa] 状態:" << stateText_ << "-" << detail
+                      << (startedAtMs_ > 0 ? QStringLiteral("(接続開始から %1 ms)")
+                                                 .arg(QDateTime::currentMSecsSinceEpoch() - startedAtMs_)
+                                           : QString());
     emit stateChanged();
 }
 
@@ -182,6 +209,12 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
  * @brief 映像データをデコーダへ渡す（接続層スレッド/テスト送出スレッドで実行される）。
  */
 void AndroidAutoController::handleVideoData(const std::uint8_t *data, std::size_t size) {
+    const qulonglong packets = ++videoPackets_;
+    videoBytes_ += static_cast<qulonglong>(size);
+    if (packets == 1 || packets % 60 == 0) {
+        qInfo().noquote() << "[aa] 映像データを受信しました (累計" << packets << "通 /" << videoBytes_
+                          << "バイト, 今回" << size << "バイト)";
+    }
     if (!decoder_.isReady()) {
         if (!decoderErrorReported_.exchange(true)) {
             qWarning().noquote() << "[aa] 映像デコーダが使えません:" << decoder_.errorString();
@@ -203,6 +236,8 @@ void AndroidAutoController::handleDecodedFrame(const QImage &image) {
     }
     const qulonglong count = ++frameCount_;
     if (count == 1 || count % 30 == 0) {
+        qInfo().noquote() << "[aa] デコード済みフレーム:" << count << "枚目" << image.width() << "x"
+                          << image.height();
         const QString info = QStringLiteral("%1 x %2").arg(image.width()).arg(image.height());
         QMetaObject::invokeMethod(
             this,

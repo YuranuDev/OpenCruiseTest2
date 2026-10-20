@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -107,6 +108,14 @@ private:
      */
     void log(const std::string &message) const;
 
+    /**
+     * @brief セッション開始からの経過ミリ秒（所要時間ログ用）。
+     */
+    long long elapsedMs() const {
+        return static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - startedAt_).count());
+    }
+
     std::shared_ptr<boost::asio::io_service::strand> strand_; ///< 全チャネル共通。ハンドラ側と共有所有
     aasdk::transport::ITransport::Pointer transport_;
     aasdk::messenger::ICryptor::Pointer cryptor_;
@@ -115,6 +124,7 @@ private:
     std::shared_ptr<AasdkVideoHandler> videoHandler_;
     SessionCallbacks callbacks_;
     bool finished_ = false; ///< strand 上でのみ読み書きする
+    std::chrono::steady_clock::time_point startedAt_ = std::chrono::steady_clock::now(); ///< 接続開始時刻（所要時間ログ用）
 };
 
 } // namespace opencruise::aa

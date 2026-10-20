@@ -98,6 +98,15 @@ Rectangle {
                     color: Theme.textSecondary
                     font.pixelSize: 18
                 }
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    visible: androidAuto.stateKey === "waiting" || androidAuto.stateKey === "connecting"
+                    text: "接続試行 " + androidAuto.attemptCount + " 回 / 受信映像 "
+                          + androidAuto.videoPacketCount + " 通"
+                    color: Theme.textSecondary
+                    font.pixelSize: 16
+                }
             }
         }
 

@@ -151,7 +151,8 @@ void AasdkSession::onHandshake(const aasdk::common::DataConstBuffer &payload) {
         if (!cryptor_->doHandshake()) {
             controlChannel_->sendHandshake(cryptor_->readHandshakeBuffer(), makeSendPromise("Handshake"));
         } else {
-            log("SSL ハンドシェイク完了");
+            log("[session] SSL ハンドシェイク完了 (経過 " + std::to_string(elapsedMs()) +
+                " ms) → 認証完了を送信します");
             proto::service::control::message::AuthResponse authResponse;
             authResponse.set_status(static_cast<std::int32_t>(proto::shared::MessageStatus::STATUS_SUCCESS));
             controlChannel_->sendAuthComplete(authResponse, makeSendPromise("AuthComplete"));
@@ -170,7 +171,8 @@ void AasdkSession::onHandshake(const aasdk::common::DataConstBuffer &payload) {
  */
 void AasdkSession::onServiceDiscoveryRequest(
     const proto::service::control::message::ServiceDiscoveryRequest &request) {
-    log("サービス探索要求" + (request.has_device_name() ? " (端末名: " + request.device_name() + ")" : std::string()));
+    log("[session] サービス探索要求を受信 (経過 " + std::to_string(elapsedMs()) + " ms)" +
+        (request.has_device_name() ? " (端末名: " + request.device_name() + ")" : std::string()));
 
     proto::service::control::message::ServiceDiscoveryResponse response;
     response.set_display_name(config::kDisplayName);

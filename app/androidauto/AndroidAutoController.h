@@ -13,8 +13,11 @@
 #include <memory>
 #include <mutex>
 
+#include <atomic>
+
 #include <QObject>
 #include <QString>
+#include <QTimer>
 
 #include "AasdkBackend.h"
 #include "H264Decoder.h"
@@ -38,6 +41,10 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(qulonglong frameCount READ frameCount NOTIFY videoStatsChanged)
     Q_PROPERTY(QString videoInfo READ videoInfo NOTIFY videoStatsChanged)
     Q_PROPERTY(bool aasdkEnabled READ aasdkEnabled CONSTANT)
+    /** 接続処理を試みた回数（待機に戻るたびに増える） */
+    Q_PROPERTY(int attemptCount READ attemptCount NOTIFY stateChanged)
+    /** デコード前に受信した映像メッセージ数 */
+    Q_PROPERTY(qulonglong videoPacketCount READ videoPacketCount NOTIFY videoStatsChanged)
 
 public:
     /**
@@ -55,6 +62,8 @@ public:
     QString lastIssue() const { return lastIssue_; }
     qulonglong frameCount() const { return frameCount_; }
     QString videoInfo() const { return videoInfo_; }
+    int attemptCount() const { return attemptCount_; }
+    qulonglong videoPacketCount() const { return videoPackets_.load(); }
 
     /** @brief aasdk 接続層がビルドに含まれているか。 */
     bool aasdkEnabled() const;
@@ -115,6 +124,12 @@ private:
     std::atomic<qulonglong> frameCount_{0};
     std::atomic<bool> decoderErrorReported_{false};
     int currentState_ = static_cast<int>(aa::LinkState::Unavailable);
+
+    std::atomic<qulonglong> videoPackets_{0}; ///< デコード前に受信した映像メッセージ数
+    std::atomic<qulonglong> videoBytes_{0};   ///< 受信した映像データの累計バイト数
+    int attemptCount_ = 0;                    ///< 接続処理を開始/再試行した回数
+    qint64 startedAtMs_ = 0;                  ///< 接続処理を開始した実時刻 (エポックミリ秒)
+    QTimer watchdog_;                         ///< 進まない状態を記録する定期タイマー
 
     std::mutex surfaceMutex_;
     VideoSurfaceItem *surface_ = nullptr; ///< surfaceMutex_ で保護

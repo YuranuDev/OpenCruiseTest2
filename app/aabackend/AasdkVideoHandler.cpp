@@ -74,7 +74,8 @@ void AasdkVideoHandler::fillFeatures(proto::service::control::message::ServiceDi
  * @brief チャネルオープン要求に成功を返す。
  */
 void AasdkVideoHandler::onChannelOpenRequest(const proto::service::control::message::ChannelOpenRequest &request) {
-    log("映像チャネルのオープン要求 (service_id=" + std::to_string(request.service_id()) + ")");
+    log("[video] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) +
+        ") → STATUS_SUCCESS を返します");
 
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -86,7 +87,9 @@ void AasdkVideoHandler::onChannelOpenRequest(const proto::service::control::mess
  * @brief メディアのセットアップ要求に「準備完了」を返す。
  */
 void AasdkVideoHandler::onMediaChannelSetupRequest(const proto::service::media::shared::message::Setup &request) {
-    log("映像セットアップ要求 (codec type=" + std::to_string(static_cast<int>(request.type())) + ")");
+    log("[video] メディアセットアップ要求を受信 (codec type=" +
+        std::to_string(static_cast<int>(request.type())) + ") → STATUS_READY / max_unacked=" +
+        std::to_string(config::kVideoMaxUnacked) + " を返します");
 
     proto::service::media::shared::message::Config response;
     response.set_status(proto::service::media::shared::message::Config::STATUS_READY);

@@ -33,6 +33,8 @@
 #include <aasdk/USB/USBHub.hpp>
 #include <aasdk/USB/USBWrapper.hpp>
 
+#include <cstdio>
+
 #include "AasdkConfig.h"
 #include "AasdkSession.h"
 
@@ -151,12 +153,41 @@ struct AasdkBackend::Impl {
     }
 
     /**
+     * @brief 現在の USB デバイス一覧をログに出す（スマートフォンが見えているかの確認用）。
+     */
+    void logUsbDevices() {
+        libusb_device **list = nullptr;
+        const ssize_t count = libusb_get_device_list(usbContext_, &list);
+        if (count < 0) {
+            log(std::string("[backend] USB デバイス一覧の取得に失敗: ") +
+                libusb_error_name(static_cast<int>(count)));
+            return;
+        }
+
+        std::string summary = "[backend] USB デバイス " + std::to_string(count) + " 台:";
+        for (ssize_t i = 0; i < count; ++i) {
+            libusb_device_descriptor descriptor{};
+            if (libusb_get_device_descriptor(list[i], &descriptor) != LIBUSB_SUCCESS) {
+                summary += " (不明)";
+                continue;
+            }
+            char buffer[32]{};
+            std::snprintf(buffer, sizeof(buffer), " %04x:%04x", descriptor.idVendor, descriptor.idProduct);
+            summary += buffer;
+        }
+        libusb_free_device_list(list, 1);
+        log(summary);
+    }
+
+    /**
      * @brief USB デバイスの検出待ちを開始する（strand 上で実行）。
      */
     void beginWaiting() {
         if (stopping_) {
             return;
         }
+        log("[backend] USB 検出待ちを開始します: " + waitingDetail_);
+        logUsbDevices();
         hub_ = std::make_shared<aasdk::usb::USBHub>(*usbWrapper_, ioService_, *chainFactory_);
 
         auto promise = aasdk::usb::IUSBHub::Promise::defer(*strand_);
@@ -175,6 +206,7 @@ struct AasdkBackend::Impl {
             return;
         }
         report(LinkState::Connecting, "スマートフォンを検出しました。接続処理中です");
+        log("[backend] AOAP デバイスを検出しました → セッションを生成します");
 
         try {
             auto aoapDevice = aasdk::usb::AOAPDevice::create(*usbWrapper_, ioService_, std::move(handle));
@@ -281,9 +313,24 @@ struct AasdkBackend::Impl {
     }
 
     /**
-     * @brief 状態をコールバックへ通知する。
+     * @brief 状態を列挙名にする（ログ用）。
+     */
+    static const char *stateName(LinkState state) {
+        switch (state) {
+        case LinkState::Unavailable: return "unavailable";
+        case LinkState::Waiting: return "waiting";
+        case LinkState::Connecting: return "connecting";
+        case LinkState::Connected: return "connected";
+        case LinkState::Streaming: return "streaming";
+        }
+        return "unknown";
+    }
+
+    /**
+     * @brief 状態をコールバックへ通知する。通知自体もログに残す。
      */
     void report(LinkState state, const std::string &detail) {
+        log(std::string("[backend] 状態通知: ") + stateName(state) + " - " + detail);
         if (callbacks.onStateChanged) {
             callbacks.onStateChanged(state, detail);
         }

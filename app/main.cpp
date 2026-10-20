@@ -74,10 +74,19 @@ int main(int argc, char *argv[]) {
         qWarning().noquote() << "ファイルへのログ出力を開始できません:" << logError;
     }
     opencruise::log::info("APP", QStringLiteral("OpenCruise を起動しました"));
+    opencruise::log::info("APP", opencruise::log::describeEnvironment());
+    opencruise::log::info("APP", QStringLiteral("ログ出力先: ") + opencruise::log::currentFilePath());
+    opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
 
     opencruise::ClockModel clock;
     opencruise::DummyCanModel can;
     opencruise::AndroidAutoController androidAuto;
+    opencruise::log::info("APP", QStringLiteral("aasdk 接続層: ") +
+                                      (androidAuto.aasdkEnabled() ? QStringLiteral("有効")
+                                                                  : QStringLiteral("無効(スタブ)")));
+    if (!androidAuto.lastIssue().isEmpty()) {
+        opencruise::log::warn("APP", QStringLiteral("初期化時の問題: ") + androidAuto.lastIssue());
+    }
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
