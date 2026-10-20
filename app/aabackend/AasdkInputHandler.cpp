@@ -12,7 +12,7 @@
 #include <aap_protobuf/service/Service.pb.h>
 #include <aap_protobuf/service/control/message/ChannelOpenResponse.pb.h>
 #include <aap_protobuf/service/inputsource/InputSourceService.pb.h>
-#include <aap_protobuf/service/inputsource/message/KeyCode.pb.h>
+#include <aap_protobuf/service/media/sink/message/KeyCode.pb.h>
 #include <aap_protobuf/service/media/sink/message/KeyBindingResponse.pb.h>
 #include <aap_protobuf/shared/MessageStatus.pb.h>
 
@@ -52,13 +52,13 @@ void AasdkInputHandler::fillFeatures(proto::service::control::message::ServiceDi
 
     auto *input = service->mutable_input_source_service();
     const std::int32_t keycodes[] = {
-        proto::service::inputsource::KEYCODE_HOME,
-        proto::service::inputsource::KEYCODE_BACK,
-        proto::service::inputsource::KEYCODE_DPAD_UP,
-        proto::service::inputsource::KEYCODE_DPAD_DOWN,
-        proto::service::inputsource::KEYCODE_DPAD_LEFT,
-        proto::service::inputsource::KEYCODE_DPAD_RIGHT,
-        proto::service::inputsource::KEYCODE_DPAD_CENTER,
+        proto::service::media::sink::message::KEYCODE_HOME,
+        proto::service::media::sink::message::KEYCODE_BACK,
+        proto::service::media::sink::message::KEYCODE_DPAD_UP,
+        proto::service::media::sink::message::KEYCODE_DPAD_DOWN,
+        proto::service::media::sink::message::KEYCODE_DPAD_LEFT,
+        proto::service::media::sink::message::KEYCODE_DPAD_RIGHT,
+        proto::service::media::sink::message::KEYCODE_DPAD_CENTER,
     };
     for (const auto keycode : keycodes) {
         input->add_keycodes_supported(keycode);

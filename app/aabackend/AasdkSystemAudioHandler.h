@@ -15,6 +15,9 @@
 
 #include <boost/asio.hpp>
 
+#include <aasdk/Channel/MediaSink/Audio/AudioMediaSinkService.hpp>
+#include <aasdk/Channel/MediaSink/Audio/Channel/GuidanceAudioChannel.hpp>
+#include <aasdk/Channel/MediaSink/Audio/Channel/MediaAudioChannel.hpp>
 #include <aasdk/Channel/MediaSink/Audio/Channel/SystemAudioChannel.hpp>
 #include <aasdk/Channel/MediaSink/Audio/IAudioMediaSinkServiceEventHandler.hpp>
 #include <aasdk/Channel/Promise.hpp>
@@ -42,8 +45,12 @@ public:
     /**
      * @brief System audio チャネルを生成する(受信ループはまだ開始しない)。
      */
+    /// 音声チャネルの種類(OpenAuto の ServiceFactory と同じ 3 種)
+    enum class Kind { System, Media, Guidance };
+
     AasdkSystemAudioHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
-                            aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks);
+                            aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
+                            Kind kind = Kind::System);
 
     /**
      * @brief 音声チャネルの受信ループを開始する。
@@ -82,7 +89,8 @@ private:
     void log(const std::string &message) const;
 
     std::shared_ptr<boost::asio::io_service::strand> strand_;
-    std::shared_ptr<aasdk::channel::mediasink::audio::channel::SystemAudioChannel> channel_;
+    std::shared_ptr<aasdk::channel::mediasink::audio::AudioMediaSinkService> channel_;
+    Kind kind_;
     Callbacks callbacks_;
     std::int32_t sessionId_ = 0; ///< Start 指示で通知されたセッションID(ACK に必要)
 };

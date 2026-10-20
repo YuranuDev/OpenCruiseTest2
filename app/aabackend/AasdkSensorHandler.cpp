@@ -12,7 +12,7 @@
 #include <aap_protobuf/service/control/message/ChannelOpenResponse.pb.h>
 #include <aap_protobuf/service/sensorsource/SensorSourceService.pb.h>
 #include <aap_protobuf/service/sensorsource/message/DrivingStatus.pb.h>
-#include <aap_protobuf/service/sensorsource/message/NightMode.pb.h>
+#include <aap_protobuf/service/sensorsource/message/NightModeData.pb.h>
 #include <aap_protobuf/service/sensorsource/message/Sensor.pb.h>
 #include <aap_protobuf/service/sensorsource/message/SensorBatch.pb.h>
 #include <aap_protobuf/service/sensorsource/message/SensorStartResponseMessage.pb.h>
@@ -49,8 +49,10 @@ void AasdkSensorHandler::fillFeatures(proto::service::control::message::ServiceD
     service->set_id(static_cast<std::int32_t>(channel_->getId()));
 
     auto *sensor = service->mutable_sensor_source_service();
-    sensor->add_sensors()->set_type(SENSOR_DRIVING_STATUS_DATA);
-    sensor->add_sensors()->set_type(SENSOR_NIGHT_MODE);
+    // OpenAuto の SensorService と同じ 3 種(走行状態 / 位置 / 夜間モード)を申告する
+    sensor->add_sensors()->set_sensor_type(SENSOR_DRIVING_STATUS_DATA);
+    sensor->add_sensors()->set_sensor_type(proto::service::sensorsource::message::SENSOR_LOCATION);
+    sensor->add_sensors()->set_sensor_type(SENSOR_NIGHT_MODE);
 }
 
 /**

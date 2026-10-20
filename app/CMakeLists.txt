@@ -19,7 +19,11 @@ if(OPENCRUISE_ENABLE_AASDK)
     target_sources(opencruise_aa PRIVATE
         aabackend/AasdkBackend.cpp
         aabackend/AasdkSession.cpp
-        aabackend/AasdkVideoHandler.cpp)
+        aabackend/AasdkVideoHandler.cpp
+        aabackend/AasdkSensorHandler.cpp
+        aabackend/AasdkInputHandler.cpp
+        aabackend/AasdkSystemAudioHandler.cpp
+        aabackend/AasdkMicrophoneHandler.cpp)
 
     # aasdk の include ディレクトリは aasdk 側ではターゲット属性でなくディレクトリ属性で設定されているため、ここで明示する
     target_include_directories(opencruise_aa PRIVATE

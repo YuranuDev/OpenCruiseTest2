@@ -10,7 +10,7 @@
 #include <aap_protobuf/service/media/shared/message/Config.pb.h>
 #include <aap_protobuf/service/media/shared/message/MediaCodecType.pb.h>
 #include <aap_protobuf/service/media/sink/MediaSinkService.pb.h>
-#include <aap_protobuf/service/media/sink/message/AudioConfiguration.pb.h>
+#include <aap_protobuf/service/media/shared/message/AudioConfiguration.pb.h>
 #include <aap_protobuf/service/media/sink/message/AudioStreamType.pb.h>
 #include <aap_protobuf/service/media/source/message/Ack.pb.h>
 #include <aap_protobuf/shared/MessageStatus.pb.h>
@@ -20,22 +20,43 @@ namespace opencruise::aa {
 namespace proto = aap_protobuf;
 
 namespace {
-constexpr std::int32_t kSystemAudioSampleRate = 16000;
-constexpr std::int32_t kSystemAudioBitDepth = 16;
-constexpr std::int32_t kSystemAudioChannelCount = 1;
-constexpr std::int32_t kSystemAudioMaxUnacked = 1;
+constexpr std::int32_t kAudioBitDepth = 16;
+constexpr std::int32_t kAudioMaxUnacked = 1;
+
+struct AudioParams {
+    std::int32_t sampleRate;
+    std::int32_t channelCount;
+};
+
+// OpenAuto の ServiceFactory と同じ値: Media 48kHz/2ch、Guidance/System 16kHz/1ch
+AudioParams paramsFor(AasdkSystemAudioHandler::Kind kind) {
+    return kind == AasdkSystemAudioHandler::Kind::Media ? AudioParams{48000, 2} : AudioParams{16000, 1};
+}
+
+std::shared_ptr<aasdk::channel::mediasink::audio::AudioMediaSinkService>
+makeChannel(AasdkSystemAudioHandler::Kind kind, boost::asio::io_service::strand &strand,
+            aasdk::messenger::IMessenger::Pointer messenger) {
+    using namespace aasdk::channel::mediasink::audio::channel;
+    switch (kind) {
+    case AasdkSystemAudioHandler::Kind::Media:
+        return std::make_shared<MediaAudioChannel>(strand, std::move(messenger));
+    case AasdkSystemAudioHandler::Kind::Guidance:
+        return std::make_shared<GuidanceAudioChannel>(strand, std::move(messenger));
+    case AasdkSystemAudioHandler::Kind::System:
+        break;
+    }
+    return std::make_shared<SystemAudioChannel>(strand, std::move(messenger));
+}
 } // namespace
 
 /**
- * @brief System audio チャネルを生成する。
+ * @brief 音声チャネルを生成する。
  */
 AasdkSystemAudioHandler::AasdkSystemAudioHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
                                                  aasdk::messenger::IMessenger::Pointer messenger,
-                                                 Callbacks callbacks)
-    : strand_(std::move(strand)),
-      channel_(std::make_shared<aasdk::channel::mediasink::audio::channel::SystemAudioChannel>(
-          *strand_, std::move(messenger))),
-      callbacks_(std::move(callbacks)) {}
+                                                 Callbacks callbacks, Kind kind)
+    : strand_(std::move(strand)), channel_(makeChannel(kind, *strand_, std::move(messenger))),
+      callbacks_(std::move(callbacks)), kind_(kind) {}
 
 /**
  * @brief 音声チャネルの受信ループを開始する。
@@ -55,13 +76,17 @@ void AasdkSystemAudioHandler::fillFeatures(
 
     auto *sink = service->mutable_media_sink_service();
     sink->set_available_type(MediaCodecType::MEDIA_CODEC_AUDIO_PCM);
-    sink->set_audio_type(AUDIO_STREAM_SYSTEM_AUDIO);
+    using proto::service::media::sink::message::AUDIO_STREAM_GUIDANCE;
+    using proto::service::media::sink::message::AUDIO_STREAM_MEDIA;
+    sink->set_audio_type(kind_ == Kind::Media      ? AUDIO_STREAM_MEDIA
+                         : kind_ == Kind::Guidance ? AUDIO_STREAM_GUIDANCE
+                                                   : AUDIO_STREAM_SYSTEM_AUDIO);
     sink->set_available_while_in_call(true);
 
     auto *audio = sink->add_audio_configs();
-    audio->set_sample_rate(kSystemAudioSampleRate);
-    audio->set_bit_depth(kSystemAudioBitDepth);
-    audio->set_channel_count(kSystemAudioChannelCount);
+    audio->set_sampling_rate(paramsFor(kind_).sampleRate);
+    audio->set_number_of_bits(kAudioBitDepth);
+    audio->set_number_of_channels(paramsFor(kind_).channelCount);
 }
 
 /**
@@ -88,7 +113,7 @@ void AasdkSystemAudioHandler::onMediaChannelSetupRequest(
 
     proto::service::media::shared::message::Config response;
     response.set_status(proto::service::media::shared::message::Config::STATUS_READY);
-    response.set_max_unacked(kSystemAudioMaxUnacked);
+    response.set_max_unacked(kAudioMaxUnacked);
     response.add_configuration_indices(0);
     channel_->sendChannelSetupResponse(response, makeSendPromise("Config(setup response)"));
     channel_->receive(shared_from_this());
@@ -171,7 +196,7 @@ aasdk::channel::SendPromise::Pointer AasdkSystemAudioHandler::makeSendPromise(co
  */
 void AasdkSystemAudioHandler::log(const std::string &message) const {
     if (callbacks_.onLog) {
-        callbacks_.onLog("[audio] " + message);
+        callbacks_.onLog(std::string("[audio:") + (kind_ == Kind::Media ? "media" : kind_ == Kind::Guidance ? "guidance" : "system") + "] " + message);
     }
 }
 

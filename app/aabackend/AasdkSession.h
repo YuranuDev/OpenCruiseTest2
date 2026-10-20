@@ -4,7 +4,7 @@
  *
  * AOAP で確立した USB デバイスから、Transport → Cryptor → Messenger → 各チャネルを組み立て、
  * バージョン確認 → SSL ハンドシェイク → 認証完了 → サービス探索応答 までを進める。
- * 映像チャネルは AasdkVideoHandler に委譲する。
+ * 映像/センサー/入力/System audio の各チャネルはそれぞれのハンドラに委譲する。
  */
 #pragma once
 
@@ -24,6 +24,10 @@
 #include <aasdk/Transport/ITransport.hpp>
 #include <aasdk/USB/IAOAPDevice.hpp>
 
+#include "AasdkInputHandler.h"
+#include "AasdkMicrophoneHandler.h"
+#include "AasdkSensorHandler.h"
+#include "AasdkSystemAudioHandler.h"
 #include "AasdkVideoHandler.h"
 #include "LinkState.h"
 
@@ -86,6 +90,9 @@ public:
     void onChannelError(const aasdk::error::Error &e) override;
 
 private:
+    /// 車載機側から定期的に PingRequest を送る(strand 上で実行)
+    void schedulePing();
+
     /**
      * @brief 送信完了を待つ Promise を作る。失敗時はセッションを終了する。
      * @param what 失敗時ログ用の送信内容の説明
@@ -122,6 +129,14 @@ private:
     aasdk::messenger::IMessenger::Pointer messenger_;
     std::shared_ptr<aasdk::channel::control::ControlServiceChannel> controlChannel_;
     std::shared_ptr<AasdkVideoHandler> videoHandler_;
+    std::shared_ptr<AasdkSensorHandler> sensorHandler_;
+    std::shared_ptr<AasdkInputHandler> inputHandler_;
+    std::shared_ptr<AasdkSystemAudioHandler> systemAudioHandler_;
+    std::shared_ptr<AasdkSystemAudioHandler> mediaAudioHandler_;
+    std::shared_ptr<AasdkSystemAudioHandler> guidanceAudioHandler_;
+    std::shared_ptr<AasdkMicrophoneHandler> microphoneHandler_;
+    std::shared_ptr<boost::asio::steady_timer> pingTimer_; ///< 車載機発の Ping 用
+    std::uint64_t lastPingSentMs_ = 0;
     SessionCallbacks callbacks_;
     bool finished_ = false; ///< strand 上でのみ読み書きする
     std::chrono::steady_clock::time_point startedAt_ = std::chrono::steady_clock::now(); ///< 接続開始時刻（所要時間ログ用）

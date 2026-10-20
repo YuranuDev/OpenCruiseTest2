@@ -16,6 +16,8 @@
 
 #include <boost/asio.hpp>
 
+// aasdk の同ヘッダは Error を自前で include していないため、先に読み込む
+#include <aasdk/Error/Error.hpp>
 #include <aasdk/Channel/InputSource/IInputSourceServiceEventHandler.hpp>
 #include <aasdk/Channel/InputSource/InputSourceService.hpp>
 #include <aasdk/Channel/Promise.hpp>
