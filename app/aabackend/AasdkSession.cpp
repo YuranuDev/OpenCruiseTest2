@@ -234,6 +234,13 @@ void AasdkSession::onServiceDiscoveryRequest(
 
     proto::service::control::message::ServiceDiscoveryResponse response;
     response.set_display_name(config::kDisplayName);
+    // サポートプローブは行わず、OpenAuto と同じ Ping の監視値を通知する。
+    response.set_probe_for_support(false);
+    auto *ping = response.mutable_connection_configuration()->mutable_ping_configuration();
+    ping->set_tracked_ping_count(5);
+    ping->set_timeout_ms(3000);
+    ping->set_interval_ms(1000);
+    ping->set_high_latency_threshold_ms(200);
     // 日本は右ハンドル
     response.set_driver_position(proto::service::control::message::DriverPosition::DRIVER_POSITION_RIGHT);
 
