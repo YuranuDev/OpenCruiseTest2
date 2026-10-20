@@ -14,13 +14,18 @@
 #include <QImage>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlError>
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QTimer>
 
+#include <cstdlib>
+#include <exception>
+
 #include "androidauto/AndroidAutoController.h"
 #include "core/ClockModel.h"
 #include "core/DummyCanModel.h"
+#include "core/Log.h"
 
 /**
  * @brief アプリを起動する。
@@ -42,8 +47,33 @@ int main(int argc, char *argv[]) {
                                              QStringLiteral("ms"), QStringLiteral("3000"));
     const QCommandLineOption fullscreen(QStringLiteral("fullscreen"), QStringLiteral("全画面表示"));
     const QCommandLineOption openSettings(QStringLiteral("open-settings"), QStringLiteral("設定画面を開いた状態で起動"));
-    parser.addOptions({testVideo, screenshot, screenshotDelay, fullscreen, openSettings});
+    const QCommandLineOption logDir(QStringLiteral("log-dir"), QStringLiteral("ログの保存先ディレクトリ"),
+                                    QStringLiteral("path"));
+    const QCommandLineOption logLevel(QStringLiteral("log-level"),
+                                      QStringLiteral("記録する最小レベル (debug/info/warn/error/fatal)"),
+                                      QStringLiteral("level"));
+    parser.addOptions({testVideo, screenshot, screenshotDelay, fullscreen, openSettings, logDir, logLevel});
     parser.process(app);
+
+    // ログ基盤を最初に立ち上げる。以降の qDebug/qInfo/qWarning も同じ形式でファイルに残る。
+    opencruise::log::Options logOptions = opencruise::log::defaultOptions();
+    if (parser.isSet(logDir)) {
+        logOptions.directory = parser.value(logDir);
+    }
+    if (parser.isSet(logLevel)) {
+        bool levelOk = false;
+        const opencruise::log::Level level = opencruise::log::parseLevel(parser.value(logLevel), &levelOk);
+        if (levelOk) {
+            logOptions.minLevel = level;
+        } else {
+            qWarning().noquote() << "--log-level の値が不正です:" << parser.value(logLevel) << "(info を使用します)";
+        }
+    }
+    QString logError;
+    if (!opencruise::log::initialize(logOptions, &logError)) {
+        qWarning().noquote() << "ファイルへのログ出力を開始できません:" << logError;
+    }
+    opencruise::log::info("APP", QStringLiteral("OpenCruise を起動しました"));
 
     opencruise::ClockModel clock;
     opencruise::DummyCanModel can;
@@ -56,10 +86,39 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
 
+    // QML の警告もファイルに残す（バインディング・描画まわりの失敗を追跡するため）
+    QObject::connect(&engine, &QQmlApplicationEngine::warnings, &app, [](const QList<QQmlError> &warnings) {
+        for (const QQmlError &warning : warnings) {
+            opencruise::log::warn("QML", warning.toString());
+        }
+    });
+
     QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreationFailed, &app, []() { QCoreApplication::exit(-1); },
+        &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+        []() {
+            opencruise::log::error("QML", QStringLiteral("ルートオブジェクトの生成に失敗しました"));
+            QCoreApplication::exit(-1);
+        },
         Qt::QueuedConnection);
+
+    const opencruise::log::Stopwatch qmlLoadTimer;
     engine.load(QUrl(QStringLiteral("qrc:/OpenCruise/qml/Main.qml")));
+    if (engine.rootObjects().isEmpty()) {
+        opencruise::log::error("QML", QStringLiteral("QML の読み込みに失敗しました (qrc:/OpenCruise/qml/Main.qml)"));
+    } else {
+        opencruise::log::info("QML", QStringLiteral("メイン画面を読み込みました (%1 ms)").arg(qmlLoadTimer.elapsedMs()));
+    }
+
+    // 捕捉されない例外で異常終了する場合も、理由をログに残してから停止する
+    std::set_terminate([]() {
+        opencruise::log::fatal("APP", QStringLiteral("捕捉されない例外により異常終了します"));
+        opencruise::log::shutdown();
+        std::abort();
+    });
+
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &app, []() {
+        opencruise::log::info("APP", QStringLiteral("終了要求を受け取りました"));
+    });
 
     // 終了時は、接続層のスレッドを先に止めてから QML/ウィンドウを破棄する
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &androidAuto, &opencruise::AndroidAutoController::stop);
@@ -67,8 +126,10 @@ int main(int argc, char *argv[]) {
     // UI が出た後に接続処理を始める（接続できなくても UI は動作する）
     QTimer::singleShot(0, &androidAuto, [&]() {
         if (parser.isSet(testVideo)) {
+            opencruise::log::info("APP", QStringLiteral("テスト映像を再生します: %1").arg(parser.value(testVideo)));
             androidAuto.playTestStream(parser.value(testVideo));
         } else {
+            opencruise::log::info("APP", QStringLiteral("Android Auto の接続待ちを開始します"));
             androidAuto.start();
         }
     });
@@ -85,5 +146,9 @@ int main(int argc, char *argv[]) {
         });
     }
 
-    return app.exec();
+    const int exitCode = app.exec();
+
+    opencruise::log::info("APP", QStringLiteral("イベントループを終了しました (コード %1)").arg(exitCode));
+    opencruise::log::shutdown();
+    return exitCode;
 }
