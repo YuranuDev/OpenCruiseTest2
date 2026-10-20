@@ -16,6 +16,11 @@ inline constexpr const char *kHeadUnitMake = "OpenCruise";
 inline constexpr const char *kHeadUnitModel = "OpenCruise Prototype";
 /// 車載機のソフトウェアバージョン
 inline constexpr const char *kHeadUnitSoftwareVersion = "0.1.0";
+/// 車載機のソフトウェアビルド
+inline constexpr const char *kHeadUnitSoftwareBuild = "1";
+/// 車両の年式 / 識別子（OpenAuto と同様に申告する）
+inline constexpr const char *kVehicleYear = "2018";
+inline constexpr const char *kVehicleId = "OpenCruise-0001";
 /// スマートフォン側に表示される名称
 inline constexpr const char *kDisplayName = "OpenCruise";
 

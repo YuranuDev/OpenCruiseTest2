@@ -10,7 +10,7 @@
 #include <aap_protobuf/service/media/shared/message/Config.pb.h>
 #include <aap_protobuf/service/media/shared/message/MediaCodecType.pb.h>
 #include <aap_protobuf/service/media/sink/MediaSinkService.pb.h>
-#include <aap_protobuf/service/media/sink/message/AudioConfiguration.pb.h>
+#include <aap_protobuf/service/media/shared/message/AudioConfiguration.pb.h>
 #include <aap_protobuf/service/media/sink/message/AudioStreamType.pb.h>
 #include <aap_protobuf/service/media/source/message/Ack.pb.h>
 #include <aap_protobuf/shared/MessageStatus.pb.h>
@@ -59,9 +59,9 @@ void AasdkSystemAudioHandler::fillFeatures(
     sink->set_available_while_in_call(true);
 
     auto *audio = sink->add_audio_configs();
-    audio->set_sample_rate(kSystemAudioSampleRate);
-    audio->set_bit_depth(kSystemAudioBitDepth);
-    audio->set_channel_count(kSystemAudioChannelCount);
+    audio->set_sampling_rate(kSystemAudioSampleRate);
+    audio->set_number_of_bits(kSystemAudioBitDepth);
+    audio->set_number_of_channels(kSystemAudioChannelCount);
 }
 
 /**

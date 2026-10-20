@@ -60,6 +60,7 @@ void AasdkVideoHandler::fillFeatures(proto::service::control::message::ServiceDi
 
     auto *sink = service->mutable_media_sink_service();
     sink->set_available_type(MediaCodecType::MEDIA_CODEC_VIDEO_H264_BP);
+    sink->set_available_while_in_call(true);
 
     auto *video = sink->add_video_configs();
     video->set_codec_resolution(VideoCodecResolutionType::VIDEO_800x480);
@@ -95,7 +96,15 @@ void AasdkVideoHandler::onMediaChannelSetupRequest(const proto::service::media::
     response.set_status(proto::service::media::shared::message::Config::STATUS_READY);
     response.set_max_unacked(config::kVideoMaxUnacked);
     response.add_configuration_indices(0);
-    channel_->sendChannelSetupResponse(response, makeSendPromise("Config(setup response)"));
+    // OpenAuto と同様、Config の送信成功後に VIDEO_FOCUS_PROJECTED を通知する
+    auto promise = aasdk::channel::SendPromise::defer(*strand_);
+    promise->then([self = shared_from_this()]() { self->sendVideoFocus(); },
+                  [self = shared_from_this()](const aasdk::error::Error &e) {
+                      if (self->callbacks_.onFatalError) {
+                          self->callbacks_.onFatalError(std::string("映像チャネル送信失敗(Config): ") + e.what());
+                      }
+                  });
+    channel_->sendChannelSetupResponse(response, std::move(promise));
     channel_->receive(shared_from_this());
 }
 
@@ -172,7 +181,7 @@ void AasdkVideoHandler::sendVideoFocus() {
 
     proto::service::media::video::message::VideoFocusNotification indication;
     indication.set_focus(VideoFocusMode::VIDEO_FOCUS_PROJECTED);
-    indication.set_unsolicited(true);
+    indication.set_unsolicited(false);
     channel_->sendVideoFocusIndication(indication, makeSendPromise("VideoFocusNotification"));
 }
 

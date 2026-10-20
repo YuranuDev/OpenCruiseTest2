@@ -4,7 +4,7 @@
  *
  * AOAP で確立した USB デバイスから、Transport → Cryptor → Messenger → 各チャネルを組み立て、
  * バージョン確認 → SSL ハンドシェイク → 認証完了 → サービス探索応答 までを進める。
- * 映像チャネルは AasdkVideoHandler に委譲する。
+ * 映像/センサー/入力/System audio の各チャネルはそれぞれのハンドラに委譲する。
  */
 #pragma once
 
@@ -24,6 +24,9 @@
 #include <aasdk/Transport/ITransport.hpp>
 #include <aasdk/USB/IAOAPDevice.hpp>
 
+#include "AasdkInputHandler.h"
+#include "AasdkSensorHandler.h"
+#include "AasdkSystemAudioHandler.h"
 #include "AasdkVideoHandler.h"
 #include "LinkState.h"
 
@@ -122,6 +125,9 @@ private:
     aasdk::messenger::IMessenger::Pointer messenger_;
     std::shared_ptr<aasdk::channel::control::ControlServiceChannel> controlChannel_;
     std::shared_ptr<AasdkVideoHandler> videoHandler_;
+    std::shared_ptr<AasdkSensorHandler> sensorHandler_;
+    std::shared_ptr<AasdkInputHandler> inputHandler_;
+    std::shared_ptr<AasdkSystemAudioHandler> systemAudioHandler_;
     SessionCallbacks callbacks_;
     bool finished_ = false; ///< strand 上でのみ読み書きする
     std::chrono::steady_clock::time_point startedAt_ = std::chrono::steady_clock::now(); ///< 接続開始時刻（所要時間ログ用）

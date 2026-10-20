@@ -22,6 +22,8 @@
 #include <aasdk/Transport/USBTransport.hpp>
 
 #include <aap_protobuf/service/control/message/AudioFocusNotification.pb.h>
+#include <aap_protobuf/service/control/message/AudioFocusRequest.pb.h>
+#include <aap_protobuf/service/control/message/AudioFocusRequestType.pb.h>
 #include <aap_protobuf/service/control/message/AudioFocusStateType.pb.h>
 #include <aap_protobuf/service/control/message/AuthResponse.pb.h>
 #include <aap_protobuf/service/control/message/ByeByeResponse.pb.h>
@@ -160,6 +162,40 @@ void AasdkSession::start() {
             std::make_shared<AasdkVideoHandler>(self->strand_, self->messenger_, std::move(videoCallbacks));
         self->videoHandler_->start();
 
+        // センサー/入力/System audio。スマートフォン(Android Auto)はこれらが Service Discovery に無いと
+        // 接続を拒否することがある(「通信エラー: 2」)。いずれも致命的エラーはセッション終了として扱う。
+        auto onFatal = [weak](const std::string &reason) {
+            if (auto s = weak.lock()) {
+                s->terminate(reason);
+            }
+        };
+        auto onLog = [weak](const std::string &message) {
+            if (auto s = weak.lock()) {
+                s->log(message);
+            }
+        };
+
+        AasdkSensorHandler::Callbacks sensorCallbacks;
+        sensorCallbacks.onFatalError = onFatal;
+        sensorCallbacks.onLog = onLog;
+        self->sensorHandler_ =
+            std::make_shared<AasdkSensorHandler>(self->strand_, self->messenger_, std::move(sensorCallbacks));
+        self->sensorHandler_->start();
+
+        AasdkInputHandler::Callbacks inputCallbacks;
+        inputCallbacks.onFatalError = onFatal;
+        inputCallbacks.onLog = onLog;
+        self->inputHandler_ =
+            std::make_shared<AasdkInputHandler>(self->strand_, self->messenger_, std::move(inputCallbacks));
+        self->inputHandler_->start();
+
+        AasdkSystemAudioHandler::Callbacks audioCallbacks;
+        audioCallbacks.onFatalError = onFatal;
+        audioCallbacks.onLog = onLog;
+        self->systemAudioHandler_ = std::make_shared<AasdkSystemAudioHandler>(self->strand_, self->messenger_,
+                                                                              std::move(audioCallbacks));
+        self->systemAudioHandler_->start();
+
         self->controlChannel_->receive(self);
         self->log("VersionRequest 送信開始");
         self->controlChannel_->sendVersionRequest(self->makeSendPromise("VersionRequest"));
@@ -222,10 +258,11 @@ void AasdkSession::onHandshake(const aasdk::common::DataConstBuffer &payload) {
 }
 
 /**
- * @brief サービス探索要求に、車載機の情報と映像サービスだけを載せた応答を返す。
+ * @brief サービス探索要求に、車載機の情報と 映像/センサー/入力/System audio を載せた応答を返す。
  *
- * 現状は映像サービスのみ申告する最小構成。センサー/入力/音声などを申告しない場合に
- * スマートフォンが接続を維持するかは実機で未確認。
+ * OpenAuto の ServiceFactory と同じ最小構成(Video + Sensor + Input + System audio)。
+ * 映像だけを申告した場合、スマートフォンは ChannelOpenRequest を一切送らず
+ * 「通信エラー: 2」で接続を打ち切った(実機ログで確認)。
  */
 void AasdkSession::onServiceDiscoveryRequest(
     const proto::service::control::message::ServiceDiscoveryRequest &request) {
@@ -249,9 +286,17 @@ void AasdkSession::onServiceDiscoveryRequest(
     info->set_model(config::kHeadUnitModel);
     info->set_head_unit_make(config::kHeadUnitMake);
     info->set_head_unit_model(config::kHeadUnitModel);
+    info->set_year(config::kVehicleYear);
+    info->set_vehicle_id(config::kVehicleId);
+    info->set_head_unit_software_build(config::kHeadUnitSoftwareBuild);
     info->set_head_unit_software_version(config::kHeadUnitSoftwareVersion);
 
+    // チャネルの追加順は OpenAuto(ServiceFactory)に合わせる: 音声 → 映像 → センサー → 入力
+    systemAudioHandler_->fillFeatures(response);
     videoHandler_->fillFeatures(response);
+    sensorHandler_->fillFeatures(response);
+    inputHandler_->fillFeatures(response);
+    log("サービス探索応答を作成 (チャネル数=" + std::to_string(response.channels_size()) + ")");
 
     auto promise = aasdk::channel::SendPromise::defer(*strand_);
     promise->then(
@@ -269,11 +314,16 @@ void AasdkSession::onServiceDiscoveryRequest(
 }
 
 /**
- * @brief 音声フォーカス要求。音声チャネルを持たないため「フォーカス喪失」を返す（暫定）。
+ * @brief 音声フォーカス要求。OpenAuto と同じく、解放要求なら LOSS、それ以外は GAIN を返す。
  */
-void AasdkSession::onAudioFocusRequest(const proto::service::control::message::AudioFocusRequest &) {
+void AasdkSession::onAudioFocusRequest(const proto::service::control::message::AudioFocusRequest &request) {
+    using proto::service::control::message::AudioFocusRequestType;
+    using proto::service::control::message::AudioFocusStateType;
+
     proto::service::control::message::AudioFocusNotification response;
-    response.set_focus_state(proto::service::control::message::AudioFocusStateType::AUDIO_FOCUS_STATE_LOSS);
+    response.set_focus_state(request.audio_focus_type() == AudioFocusRequestType::AUDIO_FOCUS_RELEASE
+                                 ? AudioFocusStateType::AUDIO_FOCUS_STATE_LOSS
+                                 : AudioFocusStateType::AUDIO_FOCUS_STATE_GAIN);
     controlChannel_->sendAudioFocusResponse(response, makeSendPromise("AudioFocusNotification"));
     controlChannel_->receive(shared_from_this());
 }
