@@ -17,6 +17,7 @@
 #include <aasdk/Messenger/MessageInStream.hpp>
 #include <aasdk/Messenger/MessageOutStream.hpp>
 #include <aasdk/Messenger/Messenger.hpp>
+#include <aasdk/Error/ErrorCode.hpp>
 #include <aasdk/Transport/SSLWrapper.hpp>
 #include <aasdk/Transport/USBTransport.hpp>
 
@@ -38,6 +39,57 @@
 namespace opencruise::aa {
 
 namespace proto = aap_protobuf;
+
+namespace {
+
+const char *aasdkErrorCodeName(aasdk::error::ErrorCode code) {
+    using aasdk::error::ErrorCode;
+    switch (code) {
+    case ErrorCode::NONE: return "NONE";
+    case ErrorCode::USB_CLAIM_INTERFACE: return "USB_CLAIM_INTERFACE";
+    case ErrorCode::USB_INVALID_CONFIG_DESCRIPTOR: return "USB_INVALID_CONFIG_DESCRIPTOR";
+    case ErrorCode::USB_OBTAIN_INTERFACE_DESCRIPTOR: return "USB_OBTAIN_INTERFACE_DESCRIPTOR";
+    case ErrorCode::USB_EMPTY_INTERFACES: return "USB_EMPTY_INTERFACES";
+    case ErrorCode::USB_INVALID_DEVICE_ENDPOINTS: return "USB_INVALID_DEVICE_ENDPOINTS";
+    case ErrorCode::USB_INVALID_TRANSFER_METHOD: return "USB_INVALID_TRANSFER_METHOD";
+    case ErrorCode::USB_TRANSFER_ALLOCATION: return "USB_TRANSFER_ALLOCATION";
+    case ErrorCode::USB_LIST_DEVICES: return "USB_LIST_DEVICES";
+    case ErrorCode::USB_OBTAIN_CONFIG_DESCRIPTOR: return "USB_OBTAIN_CONFIG_DESCRIPTOR";
+    case ErrorCode::USB_TRANSFER: return "USB_TRANSFER";
+    case ErrorCode::DATA_SINK_COMMIT_OVERFLOW: return "DATA_SINK_COMMIT_OVERFLOW";
+    case ErrorCode::DATA_SINK_CONSUME_UNDERFLOW: return "DATA_SINK_CONSUME_UNDERFLOW";
+    case ErrorCode::USB_AOAP_PROTOCOL_VERSION: return "USB_AOAP_PROTOCOL_VERSION";
+    case ErrorCode::USB_AOAP_DEVICE_NOT_FOUND: return "USB_AOAP_DEVICE_NOT_FOUND";
+    case ErrorCode::SSL_READ_CERTIFICATE: return "SSL_READ_CERTIFICATE";
+    case ErrorCode::SSL_READ_PRIVATE_KEY: return "SSL_READ_PRIVATE_KEY";
+    case ErrorCode::SSL_METHOD: return "SSL_METHOD";
+    case ErrorCode::SSL_CONTEXT_CREATION: return "SSL_CONTEXT_CREATION";
+    case ErrorCode::SSL_USE_CERTIFICATE: return "SSL_USE_CERTIFICATE";
+    case ErrorCode::SSL_USE_PRIVATE_KEY: return "SSL_USE_PRIVATE_KEY";
+    case ErrorCode::SSL_HANDLER_CREATION: return "SSL_HANDLER_CREATION";
+    case ErrorCode::SSL_READ_BIO_CREATION: return "SSL_READ_BIO_CREATION";
+    case ErrorCode::SSL_WRITE_BIO_CREATION: return "SSL_WRITE_BIO_CREATION";
+    case ErrorCode::SSL_HANDSHAKE: return "SSL_HANDSHAKE";
+    case ErrorCode::SSL_WRITE: return "SSL_WRITE";
+    case ErrorCode::SSL_READ: return "SSL_READ";
+    case ErrorCode::SSL_BIO_READ: return "SSL_BIO_READ";
+    case ErrorCode::SSL_BIO_WRITE: return "SSL_BIO_WRITE";
+    case ErrorCode::MESSENGER_INTERTWINED_CHANNELS: return "MESSENGER_INTERTWINED_CHANNELS";
+    case ErrorCode::OPERATION_ABORTED: return "OPERATION_ABORTED";
+    case ErrorCode::OPERATION_IN_PROGRESS: return "OPERATION_IN_PROGRESS";
+    case ErrorCode::PARSE_PAYLOAD: return "PARSE_PAYLOAD";
+    case ErrorCode::TCP_TRANSFER: return "TCP_TRANSFER";
+    }
+    return "UNKNOWN";
+}
+
+std::string describeAasdkError(const aasdk::error::Error &error) {
+    return std::string(aasdkErrorCodeName(error.getCode())) + " (aasdk_code=" +
+           std::to_string(static_cast<std::uint32_t>(error.getCode())) + ", native_code=" +
+           std::to_string(error.getNativeCode()) + "): " + error.what();
+}
+
+} // namespace
 
 /**
  * @brief USB 転送〜Messenger〜制御チャネルを組み立てる。
@@ -71,8 +123,10 @@ AasdkSession::AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAP
 void AasdkSession::start() {
     auto self = shared_from_this();
     strand_->dispatch([self]() {
+        self->log("USB/AOAP セッション開始");
         try {
             self->cryptor_->init();
+            self->log("TLS コンテキスト初期化完了");
         } catch (const aasdk::error::Error &e) {
             self->doTerminate(std::string("SSL 初期化に失敗: ") + e.what());
             return;
@@ -107,6 +161,7 @@ void AasdkSession::start() {
         self->videoHandler_->start();
 
         self->controlChannel_->receive(self);
+        self->log("VersionRequest 送信開始");
         self->controlChannel_->sendVersionRequest(self->makeSendPromise("VersionRequest"));
     });
 }
@@ -124,7 +179,8 @@ void AasdkSession::stop() { terminate("アプリが停止要求を出しまし�
  * major/minor は aasdk がエンディアン変換せずに渡してくるため、ログには生値として出す。
  */
 void AasdkSession::onVersionResponse(uint16_t majorCode, uint16_t minorCode, proto::shared::MessageStatus status) {
-    log("バージョン応答 (生値 major=" + std::to_string(majorCode) + ", minor=" + std::to_string(minorCode) +
+    log("バージョン応答 (経過 " + std::to_string(elapsedMs()) + " ms, 生値 major=" +
+        std::to_string(majorCode) + ", minor=" + std::to_string(minorCode) +
         ", status=" + std::to_string(static_cast<int>(status)) + ")");
 
     if (status != proto::shared::MessageStatus::STATUS_SUCCESS) {
@@ -145,10 +201,12 @@ void AasdkSession::onVersionResponse(uint16_t majorCode, uint16_t minorCode, pro
  * @brief SSL ハンドシェイクの受信データを処理し、未完了なら続きを送り、完了なら認証完了を送る。
  */
 void AasdkSession::onHandshake(const aasdk::common::DataConstBuffer &payload) {
+    log("TLS ハンドシェイクデータ受信 (経過 " + std::to_string(elapsedMs()) + " ms)");
     try {
         cryptor_->writeHandshakeBuffer(payload);
 
         if (!cryptor_->doHandshake()) {
+            log("TLS ハンドシェイク継続データを送信");
             controlChannel_->sendHandshake(cryptor_->readHandshakeBuffer(), makeSendPromise("Handshake"));
         } else {
             log("[session] SSL ハンドシェイク完了 (経過 " + std::to_string(elapsedMs()) +
@@ -191,6 +249,7 @@ void AasdkSession::onServiceDiscoveryRequest(
     auto promise = aasdk::channel::SendPromise::defer(*strand_);
     promise->then(
         [self = shared_from_this()]() {
+            self->log("サービス探索応答の送信完了");
             if (!self->finished_ && self->callbacks_.onStateChanged) {
                 self->callbacks_.onStateChanged(LinkState::Connected, "接続済み（映像の開始を待っています）");
             }
@@ -277,7 +336,7 @@ void AasdkSession::onPingResponse(const proto::service::control::message::PingRe
  * @brief 制御チャネルのエラー（受信失敗/パース失敗/USB切断など）でセッションを終了する。
  */
 void AasdkSession::onChannelError(const aasdk::error::Error &e) {
-    terminate(std::string("制御チャネルエラー: ") + e.what());
+    terminate("制御チャネルエラー: " + describeAasdkError(e));
 }
 
 /**
@@ -285,9 +344,11 @@ void AasdkSession::onChannelError(const aasdk::error::Error &e) {
  */
 aasdk::channel::SendPromise::Pointer AasdkSession::makeSendPromise(const char *what) {
     auto promise = aasdk::channel::SendPromise::defer(*strand_);
-    promise->then([]() {},
+    promise->then([self = shared_from_this(), what = std::string(what)]() {
+                      self->log(what + " 送信完了");
+                  },
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
-                      self->terminate("制御チャネル送信失敗(" + what + "): " + e.what());
+                      self->terminate("制御チャネル送信失敗(" + what + "): " + describeAasdkError(e));
                   });
     return promise;
 }
@@ -324,7 +385,7 @@ void AasdkSession::doTerminate(const std::string &reason) {
  */
 void AasdkSession::log(const std::string &message) const {
     if (callbacks_.onLog) {
-        callbacks_.onLog("[session] " + message);
+        callbacks_.onLog("[session][+" + std::to_string(elapsedMs()) + "ms] " + message);
     }
 }
 
