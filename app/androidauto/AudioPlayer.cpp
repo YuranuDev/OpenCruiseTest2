@@ -32,6 +32,17 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
         format.setSampleRate(kind == 1 ? 48000 : 16000);
         format.setChannelCount(kind == 1 ? 2 : 1);
         format.setSampleFormat(QAudioFormat::Int16);
+
+        const auto devices = QMediaDevices::audioOutputs();
+
+        qInfo() << "[audio] output device count:" << devices.size();
+
+        for (const auto &d : devices) {
+            qInfo() << "[audio] output:"
+                    << d.description()
+                    << "id:" << d.id();
+        }
+
         const QAudioDevice device = QMediaDevices::defaultAudioOutput();
 
         qInfo() << "[audio] device valid:" << !device.isNull();
