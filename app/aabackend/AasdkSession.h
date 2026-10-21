@@ -30,7 +30,7 @@
 #include "AasdkSystemAudioHandler.h"
 #include "AasdkVideoHandler.h"
 #include "LinkState.h"
-#include "VehicleDataManager.h"
+#include "../core/VehicleDataManager.h"
 
 namespace opencruise::aa {
 
