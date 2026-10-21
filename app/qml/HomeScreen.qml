@@ -187,7 +187,7 @@ Rectangle {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Esc / F10 / Menu キーでも開閉できます"
+                text: "Esc / F10 / Menu / Windows キーでも開閉できます"
                 color: Theme.textSecondary
                 font.pixelSize: 15
             }

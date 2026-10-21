@@ -99,7 +99,7 @@ Rectangle {
                     width: 860
                     wrapMode: Text.WordWrap
                     text: "解像度・fps を変更すると、接続中の場合は一度正規に切断してから再接続待機になります。"
-                          + "フルスクリーン中は、画面右端を左へスワイプ、または Esc / F10 / Menu キーでメニューを開けます。"
+                          + "フルスクリーン中は、画面右端を左へスワイプ、または Esc / F10 / Menu / Windows キーでメニューを開けます。"
                     color: Theme.textSecondary
                     font.pixelSize: 16
                 }

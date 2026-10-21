@@ -31,6 +31,21 @@ ApplicationWindow {
         onActivated: if (stack.currentItem) stack.currentItem.menuOpen = !stack.currentItem.menuOpen
     }
 
+    // Windows キー(Meta / Super)でもメニューを開閉する（フルスクリーン中のみ）
+    Item {
+        id: keyCatcher
+        anchors.fill: parent
+        focus: true
+        Component.onCompleted: forceActiveFocus()
+        Keys.onPressed: (event) => {
+            if (!event.isAutoRepeat && window.immersive && stack.currentItem
+                    && (event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R)) {
+                stack.currentItem.menuOpen = !stack.currentItem.menuOpen
+                event.accepted = true
+            }
+        }
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
