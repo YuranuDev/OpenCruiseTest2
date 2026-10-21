@@ -30,11 +30,13 @@ namespace proto = aap_protobuf;
  * @brief 入力チャネルを生成する。
  */
 AasdkInputHandler::AasdkInputHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
-                                     aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks)
+                                     aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
+                                     StreamSettings settings)
     : strand_(std::move(strand)),
       channel_(std::make_shared<aasdk::channel::inputsource::InputSourceService>(*strand_,
                                                                                 std::move(messenger))),
-      callbacks_(std::move(callbacks)) {}
+      callbacks_(std::move(callbacks)),
+      settings_(settings.sanitized()) {}
 
 /**
  * @brief 入力チャネルの受信ループを開始する。
@@ -66,8 +68,8 @@ void AasdkInputHandler::fillFeatures(proto::service::control::message::ServiceDi
 
     // タッチ領域は映像解像度(VIDEO_800x480)と一致させる。値は TouchEvent.h で共有している。
     auto *touch = input->add_touchscreen();
-    touch->set_width(kTouchWidth);
-    touch->set_height(kTouchHeight);
+    touch->set_width(settings_.width());
+    touch->set_height(settings_.height());
 }
 
 /**
@@ -107,8 +109,8 @@ void AasdkInputHandler::sendTouch(const TouchEvent &event) {
     auto *touch = report.mutable_touch_event();
     for (const TouchPoint &point : event.points) {
         auto *data = touch->add_pointer_data();
-        data->set_x(static_cast<std::uint32_t>(std::clamp<std::int32_t>(point.x, 0, kTouchWidth - 1)));
-        data->set_y(static_cast<std::uint32_t>(std::clamp<std::int32_t>(point.y, 0, kTouchHeight - 1)));
+        data->set_x(static_cast<std::uint32_t>(std::clamp<std::int32_t>(point.x, 0, settings_.width() - 1)));
+        data->set_y(static_cast<std::uint32_t>(std::clamp<std::int32_t>(point.y, 0, settings_.height() - 1)));
         data->set_pointer_id(point.id);
     }
     touch->set_action_index(event.actionIndex);

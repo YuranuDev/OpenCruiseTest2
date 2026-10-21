@@ -14,6 +14,7 @@
 #include <string>
 
 #include "LinkState.h"
+#include "StreamSettings.h"
 #include "TouchEvent.h"
 
 namespace opencruise::aa {
@@ -41,8 +42,9 @@ public:
     /**
      * @brief コールバックを登録してインスタンスを作る。まだ何も開始しない。
      * @param callbacks 通知先
+     * @param settings 映像設定（解像度・fps）。このインスタンスの寿命の間は固定。変更時は作り直す
      */
-    explicit AasdkBackend(BackendCallbacks callbacks);
+    explicit AasdkBackend(BackendCallbacks callbacks, StreamSettings settings = {});
 
     /**
      * @brief 実行中なら停止してから破棄する。

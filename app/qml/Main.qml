@@ -7,13 +7,28 @@ ApplicationWindow {
     width: 1280
     height: 720
     visible: true
-    visibility: startFullscreen ? Window.FullScreen : Window.Windowed
+    // 映像表示中かつ「接続後フルスクリーン」設定が有効で、メイン画面を見ているとき
+    readonly property bool immersive: androidAuto.fullscreenOnStream && androidAuto.stateKey === "streaming"
+                                      && stack.depth === 1
+    visibility: (startFullscreen || immersive) ? Window.FullScreen : Window.Windowed
     title: "OpenCruise"
     color: Theme.background
 
+    // フルスクリーン中は Esc / F10 / Menu キーでスライドメニューを開閉する（Esc で即終了しない）
     Shortcut {
         sequence: "Esc"
-        onActivated: Qt.quit()
+        onActivated: {
+            if (window.immersive && stack.currentItem) {
+                stack.currentItem.menuOpen = !stack.currentItem.menuOpen
+            } else {
+                Qt.quit()
+            }
+        }
+    }
+    Shortcut {
+        sequences: ["F10", "Menu"]
+        enabled: window.immersive
+        onActivated: if (stack.currentItem) stack.currentItem.menuOpen = !stack.currentItem.menuOpen
     }
 
     StackView {
@@ -31,6 +46,7 @@ ApplicationWindow {
     Component {
         id: homeComponent
         HomeScreen {
+            immersive: window.immersive
             onOpenSettings: stack.push(settingsComponent)
         }
     }

@@ -15,7 +15,7 @@ struct AasdkBackend::Impl {
 /**
  * @brief コールバックを保持するだけ。
  */
-AasdkBackend::AasdkBackend(BackendCallbacks callbacks)
+AasdkBackend::AasdkBackend(BackendCallbacks callbacks, StreamSettings)
     : impl_(std::make_unique<Impl>(Impl{std::move(callbacks)})) {}
 
 /**

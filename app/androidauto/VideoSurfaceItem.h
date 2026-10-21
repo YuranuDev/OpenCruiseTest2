@@ -77,6 +77,17 @@ public:
      */
     QRectF videoRect() const;
 
+public:
+    /** @brief タッチ座標系の大きさ(=映像解像度)を設定する。解像度設定の変更時に呼ぶ。 */
+    void setTouchSize(int width, int height) {
+        touchW_ = width;
+        touchH_ = height;
+    }
+
+private:
+    std::atomic<int> touchW_{aa::kTouchWidth};
+    std::atomic<int> touchH_{aa::kTouchHeight};
+
     /**
      * @brief アイテム上の位置を Android Auto のタッチ座標へ変換する。
      * @param position アイテム座標での位置

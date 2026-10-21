@@ -49,7 +49,7 @@ struct AasdkBackend::Impl {
     /**
      * @brief コールバックを保持する。
      */
-    explicit Impl(BackendCallbacks cb) : callbacks(std::move(cb)) {}
+    Impl(BackendCallbacks cb, StreamSettings s) : callbacks(std::move(cb)), settings(s.sanitized()) {}
 
     /**
      * @brief 破棄時に確実に停止する。
@@ -102,7 +102,7 @@ struct AasdkBackend::Impl {
     /**
      * @brief セッションと USB 基盤を停止して解放する。何度呼んでもよい。
      *
-     * 手順: 停止要求を strand に投げる → セッション終了通知を最大1.5秒待つ →
+     * 手順: 停止要求を strand に投げる → セッション終了通知(ByeBye 送信→応答待ち→終了)を最大2.5秒待つ →
      * io スレッドを終了 → USB イベントスレッドを終了 → libusb 解放。
      * 終了待ちは「上限つきのベストエフォート」。
      */
@@ -127,7 +127,7 @@ struct AasdkBackend::Impl {
 
         {
             std::unique_lock<std::mutex> lock(goneMutex_);
-            goneCv_.wait_for(lock, std::chrono::milliseconds(1500), [this]() { return sessionGone_; });
+            goneCv_.wait_for(lock, std::chrono::milliseconds(2500), [this]() { return sessionGone_; });
         }
         // USB 転送のキャンセル完了通知(libusb スレッド→io)が流れる時間を少し与える
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -233,7 +233,7 @@ struct AasdkBackend::Impl {
                 strand_->post([this, reason]() { onSessionFinished(reason); });
             };
 
-            session_ = std::make_shared<AasdkSession>(ioService_, std::move(aoapDevice), std::move(sessionCallbacks));
+            session_ = std::make_shared<AasdkSession>(ioService_, std::move(aoapDevice), std::move(sessionCallbacks), settings);
             session_->start();
         } catch (const aasdk::error::Error &e) {
             session_.reset();
@@ -362,6 +362,7 @@ struct AasdkBackend::Impl {
     using WorkGuard = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
 
     BackendCallbacks callbacks;
+    StreamSettings settings;
     std::atomic<bool> running_{false};
     std::atomic<bool> stopping_{false};
     std::string waitingDetail_ = "スマートフォンの接続を待っています";
@@ -390,7 +391,8 @@ struct AasdkBackend::Impl {
 /**
  * @brief 内部実装を生成する。
  */
-AasdkBackend::AasdkBackend(BackendCallbacks callbacks) : impl_(std::make_unique<Impl>(std::move(callbacks))) {}
+AasdkBackend::AasdkBackend(BackendCallbacks callbacks, StreamSettings settings)
+    : impl_(std::make_unique<Impl>(std::move(callbacks), settings)) {}
 
 /**
  * @brief 停止してから破棄する（Impl のデストラクタが stop を呼ぶ）。

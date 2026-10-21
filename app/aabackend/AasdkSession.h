@@ -29,6 +29,7 @@
 #include "AasdkSensorHandler.h"
 #include "AasdkSystemAudioHandler.h"
 #include "AasdkVideoHandler.h"
+#include "StreamSettings.h"
 #include "LinkState.h"
 #include "TouchEvent.h"
 
@@ -60,7 +61,7 @@ public:
      * @throws aasdk::error::Error / std::exception 下位オブジェクトの生成に失敗した場合
      */
     AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
-                 SessionCallbacks callbacks);
+                 SessionCallbacks callbacks, StreamSettings settings = {});
 
     /**
      * @brief 通信を開始する（SSL 初期化 → 受信ループ開始 → バージョン要求送信）。
@@ -147,6 +148,9 @@ private:
     std::uint64_t lastPingSentMs_ = 0;
     SessionCallbacks callbacks_;
     bool finished_ = false; ///< strand 上でのみ読み書きする
+    bool stopRequested_ = false; ///< stop() による ByeBye 送信済み(strand 上でのみ触る)
+    StreamSettings settings_;    ///< 映像設定
+    std::shared_ptr<boost::asio::steady_timer> shutdownTimer_; ///< ByeBye 応答待ちの上限
     std::chrono::steady_clock::time_point startedAt_ = std::chrono::steady_clock::now(); ///< 接続開始時刻（所要時間ログ用）
 };
 

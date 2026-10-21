@@ -43,7 +43,7 @@ void VideoSurfaceItem::paint(QPainter *painter) {
  * @brief 縦横比を保ってアイテムの中央に収めた映像の矩形を返す。
  */
 QRectF VideoSurfaceItem::videoRect() const {
-    const QSizeF source = current_.isNull() ? QSizeF(aa::kTouchWidth, aa::kTouchHeight) : QSizeF(current_.size());
+    const QSizeF source = current_.isNull() ? QSizeF(touchW_.load(), touchH_.load()) : QSizeF(current_.size());
     const QSizeF scaled = source.scaled(size(), Qt::KeepAspectRatio);
     return QRectF(QPointF((width() - scaled.width()) / 2.0, (height() - scaled.height()) / 2.0), scaled);
 }
@@ -61,8 +61,10 @@ bool VideoSurfaceItem::mapToTouch(const QPointF &position, bool allowOutside, in
     }
     const double nx = std::clamp((position.x() - rect.left()) / rect.width(), 0.0, 1.0);
     const double ny = std::clamp((position.y() - rect.top()) / rect.height(), 0.0, 1.0);
-    x = std::min(static_cast<int>(nx * aa::kTouchWidth), aa::kTouchWidth - 1);
-    y = std::min(static_cast<int>(ny * aa::kTouchHeight), aa::kTouchHeight - 1);
+    const int tw = touchW_.load();
+    const int th = touchH_.load();
+    x = std::min(static_cast<int>(nx * tw), tw - 1);
+    y = std::min(static_cast<int>(ny * th), th - 1);
     return true;
 }
 

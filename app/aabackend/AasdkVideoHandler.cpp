@@ -35,8 +35,10 @@ namespace proto = aap_protobuf;
  * @brief 映像チャネルを生成する（受信ループはまだ開始しない）。
  */
 AasdkVideoHandler::AasdkVideoHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
-                                     aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks)
+                                     aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
+                                     StreamSettings settings)
     : strand_(std::move(strand)),
+      settings_(settings.sanitized()),
       channel_(std::make_shared<aasdk::channel::mediasink::video::channel::VideoChannel>(*strand_,
                                                                                          std::move(messenger))),
       callbacks_(std::move(callbacks)) {}
@@ -47,7 +49,7 @@ AasdkVideoHandler::AasdkVideoHandler(std::shared_ptr<boost::asio::io_service::st
 void AasdkVideoHandler::start() { channel_->receive(shared_from_this()); }
 
 /**
- * @brief ServiceDiscoveryResponse に H.264 / 800x480 / 30fps の映像サービスを追記する。
+ * @brief ServiceDiscoveryResponse に H.264 / 設定された解像度・fps の映像サービスを追記する。
  */
 void AasdkVideoHandler::fillFeatures(proto::service::control::message::ServiceDiscoveryResponse &response) {
     using proto::service::media::shared::message::MediaCodecType;
@@ -63,11 +65,15 @@ void AasdkVideoHandler::fillFeatures(proto::service::control::message::ServiceDi
     sink->set_available_while_in_call(true);
 
     auto *video = sink->add_video_configs();
-    video->set_codec_resolution(VideoCodecResolutionType::VIDEO_800x480);
-    video->set_frame_rate(VideoFrameRateType::VIDEO_FPS_30);
+    switch (settings_.resolution) {
+    case 1: video->set_codec_resolution(VideoCodecResolutionType::VIDEO_1280x720); break;
+    case 2: video->set_codec_resolution(VideoCodecResolutionType::VIDEO_1920x1080); break;
+    default: video->set_codec_resolution(VideoCodecResolutionType::VIDEO_800x480); break;
+    }
+    video->set_frame_rate(settings_.fps == 60 ? VideoFrameRateType::VIDEO_FPS_60 : VideoFrameRateType::VIDEO_FPS_30);
     video->set_width_margin(0);
     video->set_height_margin(0);
-    video->set_density(config::kVideoDensityDpi);
+    video->set_density(settings_.densityDpi());
     video->set_video_codec_type(MediaCodecType::MEDIA_CODEC_VIDEO_H264_BP);
 }
 

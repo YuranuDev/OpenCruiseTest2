@@ -34,9 +34,77 @@ Rectangle {
         }
     }
 
+    Flickable {
+        anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.margin }
+        contentHeight: content.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
     Column {
-        anchors { top: header.bottom; left: parent.left; right: parent.right; margins: Theme.margin }
+        id: content
+        width: parent.width
         spacing: Theme.margin
+
+        Rectangle {
+            width: parent.width
+            height: videoColumn.implicitHeight + 36
+            color: Theme.panel
+            radius: Theme.radius
+            border.color: Theme.panelBorder
+
+            Column {
+                id: videoColumn
+                x: 20; y: 18
+                spacing: 12
+                Text { text: "映像・表示"; color: Theme.textPrimary; font.pixelSize: 26 }
+                Row {
+                    spacing: 10
+                    Text { width: 220; anchors.verticalCenter: parent.verticalCenter; text: "解像度"; color: Theme.textSecondary; font.pixelSize: 20 }
+                    Repeater {
+                        model: ["800x480", "1280x720", "1920x1080"]
+                        ActionButton {
+                            text: modelData
+                            selected: androidAuto.resolutionIndex === index
+                            onClicked: androidAuto.resolutionIndex = index
+                        }
+                    }
+                }
+                Row {
+                    spacing: 10
+                    Text { width: 220; anchors.verticalCenter: parent.verticalCenter; text: "フレームレート"; color: Theme.textSecondary; font.pixelSize: 20 }
+                    Repeater {
+                        model: [30, 60]
+                        ActionButton {
+                            text: modelData + " fps"
+                            selected: androidAuto.fps === modelData
+                            onClicked: androidAuto.fps = modelData
+                        }
+                    }
+                }
+                Row {
+                    spacing: 10
+                    Text { width: 220; anchors.verticalCenter: parent.verticalCenter; text: "接続後フルスクリーン"; color: Theme.textSecondary; font.pixelSize: 20 }
+                    ActionButton {
+                        text: "ON"
+                        selected: androidAuto.fullscreenOnStream
+                        onClicked: androidAuto.fullscreenOnStream = true
+                    }
+                    ActionButton {
+                        text: "OFF"
+                        selected: !androidAuto.fullscreenOnStream
+                        onClicked: androidAuto.fullscreenOnStream = false
+                    }
+                }
+                Text {
+                    width: 860
+                    wrapMode: Text.WordWrap
+                    text: "解像度・fps を変更すると、接続中の場合は一度正規に切断してから再接続待機になります。"
+                          + "フルスクリーン中は、画面右端を左へスワイプ、または Esc / F10 / Menu キーでメニューを開けます。"
+                    color: Theme.textSecondary
+                    font.pixelSize: 16
+                }
+            }
+        }
 
         Rectangle {
             width: parent.width
@@ -80,5 +148,6 @@ Rectangle {
             color: Theme.textSecondary
             font.pixelSize: 16
         }
+    }
     }
 }

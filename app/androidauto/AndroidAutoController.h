@@ -20,6 +20,7 @@
 #include <QTimer>
 
 #include "AasdkBackend.h"
+#include "StreamSettings.h"
 #include "H264Decoder.h"
 #include "TestVideoFeeder.h"
 
@@ -45,6 +46,12 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(int attemptCount READ attemptCount NOTIFY stateChanged)
     /** デコード前に受信した映像メッセージ数 */
     Q_PROPERTY(qulonglong videoPacketCount READ videoPacketCount NOTIFY videoStatsChanged)
+    /** 解像度の選択肢番号 (0=800x480 / 1=1280x720 / 2=1920x1080)。変更すると接続中でも切断→再接続待機する */
+    Q_PROPERTY(int resolutionIndex READ resolutionIndex WRITE setResolutionIndex NOTIFY settingsChanged)
+    /** フレームレート (30 / 60)。変更時の挙動は resolutionIndex と同じ */
+    Q_PROPERTY(int fps READ fps WRITE setFps NOTIFY settingsChanged)
+    /** 映像表示中にウィンドウ全体を映像にする */
+    Q_PROPERTY(bool fullscreenOnStream READ fullscreenOnStream WRITE setFullscreenOnStream NOTIFY settingsChanged)
 
 public:
     /**
@@ -64,6 +71,16 @@ public:
     QString videoInfo() const { return videoInfo_; }
     int attemptCount() const { return attemptCount_; }
     qulonglong videoPacketCount() const { return videoPackets_.load(); }
+
+    int resolutionIndex() const { return settings_.resolution; }
+    int fps() const { return settings_.fps; }
+    bool fullscreenOnStream() const { return fullscreenOnStream_; }
+    /** @brief 解像度を変更して保存する。接続処理が動作中なら切断して再接続待機へ入る。 */
+    void setResolutionIndex(int index);
+    /** @brief fps(30/60)を変更して保存する。接続処理が動作中なら切断して再接続待機へ入る。 */
+    void setFps(int fps);
+    /** @brief 接続後フルスクリーン表示の設定を変更して保存する（再接続は不要）。 */
+    void setFullscreenOnStream(bool enabled);
 
     /** @brief aasdk 接続層がビルドに含まれているか。 */
     bool aasdkEnabled() const;
@@ -99,6 +116,8 @@ signals:
     void lastIssueChanged();
     /** @brief 受信フレーム数または映像サイズ表示が変わったとき。 */
     void videoStatsChanged();
+    /** @brief 解像度・fps・フルスクリーン設定が変わったとき。 */
+    void settingsChanged();
 
 private:
     /**
@@ -122,6 +141,14 @@ private:
      * @brief デコード済みフレームを描画アイテムへ渡し、統計を更新する（デコードしたスレッドで呼ばれる）。
      */
     void handleDecodedFrame(const QImage &image);
+
+    /**
+     * @brief 映像設定を変更する。接続処理が動作中なら ByeBye で正規に切断してから、新設定で待機を再開する。
+     */
+    void changeStreamSettings(const aa::StreamSettings &next);
+
+    aa::StreamSettings settings_;
+    bool fullscreenOnStream_ = false;
 
     QString stateKey_;
     QString stateText_;

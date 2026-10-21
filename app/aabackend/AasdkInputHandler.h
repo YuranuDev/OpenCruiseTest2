@@ -19,6 +19,7 @@
 #include "TouchEvent.h"
 
 // aasdk の同ヘッダは Error を自前で include していないため、先に読み込む
+#include "StreamSettings.h"
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Channel/InputSource/IInputSourceServiceEventHandler.hpp>
 #include <aasdk/Channel/InputSource/InputSourceService.hpp>
@@ -48,7 +49,8 @@ public:
      * @brief 入力チャネルを生成する(受信ループはまだ開始しない)。
      */
     AasdkInputHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
-                      aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks);
+                      aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
+                      StreamSettings settings = {});
 
     /**
      * @brief 入力チャネルの受信ループを開始する。
@@ -89,6 +91,7 @@ private:
     std::shared_ptr<boost::asio::io_service::strand> strand_;
     std::shared_ptr<aasdk::channel::inputsource::InputSourceService> channel_;
     Callbacks callbacks_;
+    StreamSettings settings_;       ///< タッチ領域の大きさ(=映像解像度)の元
     bool ready_ = false;            ///< KeyBindingRequest に応答済み。以降は入力を送ってよい(strand 上でのみ触る)
     bool notReadyLogged_ = false;   ///< 準備前に入力を捨てたことを 1 回だけ記録するため
     bool firstTouchLogged_ = false; ///< 最初のタッチ送信を 1 回だけ記録するため

@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QImage>
 #include <QMetaObject>
+#include <QSettings>
 
 #include "VideoSurfaceItem.h"
 
@@ -52,6 +53,14 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
     : QObject(parent),
       decoder_([this](const QImage &image) { handleDecodedFrame(image); }),
       testFeeder_([this](const std::uint8_t *data, std::size_t size) { handleVideoData(data, size); }) {
+    {
+        QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                        QStringLiteral("OpenCruise"));
+        settings_.resolution = store.value(QStringLiteral("stream/resolution"), 0).toInt();
+        settings_.fps = store.value(QStringLiteral("stream/fps"), 30).toInt();
+        settings_ = settings_.sanitized();
+        fullscreenOnStream_ = store.value(QStringLiteral("ui/fullscreenOnStream"), false).toBool();
+    }
     stateKey_ = keyFor(aa::LinkState::Unavailable);
     stateText_ = textFor(aa::LinkState::Unavailable);
     detailText_ = QStringLiteral("接続処理は開始されていません");
@@ -113,6 +122,7 @@ void AndroidAutoController::attachSurface(VideoSurfaceItem *surface) {
         previous->setTouchSink(nullptr);
     }
     if (surface != nullptr) {
+        surface->setTouchSize(settings_.width(), settings_.height());
         surface->setTouchSink([this](const aa::TouchEvent &event) { sendTouch(event); });
         connect(surface, &QObject::destroyed, this, [this]() {
             std::lock_guard<std::mutex> lock(surfaceMutex_);
@@ -149,11 +159,77 @@ void AndroidAutoController::start() {
     callbacks.onVideoData = [this](const std::uint8_t *data, std::size_t size) { handleVideoData(data, size); };
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
-    backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks));
+    backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks), settings_);
     std::string error;
     if (!backend_->start(error)) {
         qWarning().noquote() << "[aa] 接続処理を開始できません:" << QString::fromStdString(error);
         applyState(static_cast<int>(aa::LinkState::Unavailable), QString::fromStdString(error));
+    }
+}
+
+/**
+ * @brief 解像度を変更する。
+ */
+void AndroidAutoController::setResolutionIndex(int index) {
+    aa::StreamSettings next = settings_;
+    next.resolution = index;
+    changeStreamSettings(next);
+}
+
+/**
+ * @brief fps を変更する。
+ */
+void AndroidAutoController::setFps(int fps) {
+    aa::StreamSettings next = settings_;
+    next.fps = fps;
+    changeStreamSettings(next);
+}
+
+/**
+ * @brief フルスクリーン設定を保存する。
+ */
+void AndroidAutoController::setFullscreenOnStream(bool enabled) {
+    if (fullscreenOnStream_ == enabled) {
+        return;
+    }
+    fullscreenOnStream_ = enabled;
+    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
+        .setValue(QStringLiteral("ui/fullscreenOnStream"), enabled);
+    emit settingsChanged();
+}
+
+/**
+ * @brief 映像設定を保存して反映する。動作中の接続層は stop()（ByeBye 送信→応答待ち→切断）してから作り直す。
+ *
+ * @note stop() は最大 2.5 秒ほど UI スレッドを待たせる。設定変更時のみ。
+ */
+void AndroidAutoController::changeStreamSettings(const aa::StreamSettings &requested) {
+    const aa::StreamSettings next = requested.sanitized();
+    if (next == settings_) {
+        return;
+    }
+    settings_ = next;
+    {
+        QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                        QStringLiteral("OpenCruise"));
+        store.setValue(QStringLiteral("stream/resolution"), settings_.resolution);
+        store.setValue(QStringLiteral("stream/fps"), settings_.fps);
+    }
+    {
+        std::lock_guard<std::mutex> lock(surfaceMutex_);
+        if (surface_ != nullptr) {
+            surface_->setTouchSize(settings_.width(), settings_.height());
+        }
+    }
+    emit settingsChanged();
+
+    if (backend_ && backend_->isRunning()) {
+        qInfo().noquote() << "[aa] 映像設定の変更のため、切断して再接続待機します:" << settings_.width() << "x"
+                          << settings_.height() << "@" << settings_.fps << "fps";
+        stop(); // 正規の切断手順を経て接続層を解放する
+        applyState(static_cast<int>(aa::LinkState::Waiting),
+                   QStringLiteral("映像設定の変更のため切断しました。再接続を待機します"));
+        start();
     }
 }
 

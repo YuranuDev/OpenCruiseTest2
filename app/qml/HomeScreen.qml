@@ -7,12 +7,19 @@ Rectangle {
     color: Theme.background
     signal openSettings()
 
+    // フルスクリーン表示(映像だけを全面表示)か。Main.qml から渡される
+    property bool immersive: false
+    // フルスクリーン中のスライドメニューが開いているか
+    property bool menuOpen: false
+    onImmersiveChanged: if (!immersive) menuOpen = false
+
     // ---- ヘッダー ----
     Item {
         id: header
         anchors { top: parent.top; left: parent.left; right: parent.right }
         anchors.margins: Theme.margin
         height: 76
+        visible: !root.immersive
 
         Column {
             anchors.verticalCenter: parent.verticalCenter
@@ -42,17 +49,17 @@ Rectangle {
     // ---- 本体 ----
     Item {
         anchors {
-            top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
-            margins: Theme.margin
+            top: root.immersive ? parent.top : header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
+            margins: root.immersive ? 0 : Theme.margin
         }
 
         // Android Auto 表示領域
         Rectangle {
             id: aaFrame
-            anchors { top: parent.top; bottom: parent.bottom; left: parent.left; right: canPanel.left; rightMargin: Theme.margin }
+            anchors { top: parent.top; bottom: parent.bottom; left: parent.left; right: root.immersive ? parent.right : canPanel.left; rightMargin: root.immersive ? 0 : Theme.margin }
             color: "black"
-            radius: Theme.radius
-            border.color: Theme.panelBorder
+            radius: root.immersive ? 0 : Theme.radius
+            border.color: root.immersive ? "transparent" : Theme.panelBorder
             clip: true
 
             VideoSurfaceItem {
@@ -114,6 +121,76 @@ Rectangle {
             id: canPanel
             anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
             width: 320
+            visible: !root.immersive
+        }
+    }
+
+    // ---- フルスクリーン時のメニュー ----
+    // 右端の細いつまみを左へスワイプ(またはタップ)、もしくは Esc / F10 / Menu キーで開く。
+    // つまみの幅の分だけ、映像の右端はタッチが届かない。
+    MouseArea {
+        id: edgeHandle
+        anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
+        width: 28
+        z: 10
+        visible: root.immersive && !root.menuOpen
+        onPositionChanged: (mouse) => { if (pressed && mouse.x < -30) root.menuOpen = true }
+        onClicked: root.menuOpen = true
+
+        Rectangle {
+            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            width: 6; height: 90; radius: 3
+            color: Theme.textSecondary
+            opacity: 0.6
+        }
+    }
+
+    // メニュー外タップで閉じる
+    MouseArea {
+        anchors.fill: parent
+        z: 11
+        visible: root.immersive && root.menuOpen
+        onClicked: root.menuOpen = false
+    }
+
+    Rectangle {
+        id: slideMenu
+        z: 12
+        width: 300
+        height: parent.height
+        x: (root.immersive && root.menuOpen) ? parent.width - width : parent.width
+        visible: x < parent.width
+        color: Theme.panel
+        border.color: Theme.panelBorder
+        Behavior on x { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+        Column {
+            anchors { fill: parent; margins: Theme.margin }
+            spacing: 14
+            Text { text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 40; font.bold: true }
+            ConnectionBadge {}
+            ActionButton {
+                width: parent.width
+                text: "設定"
+                onClicked: { root.menuOpen = false; root.openSettings() }
+            }
+            ActionButton {
+                width: parent.width
+                text: "メニューを閉じる"
+                onClicked: root.menuOpen = false
+            }
+            ActionButton {
+                width: parent.width
+                text: "終了"
+                onClicked: Qt.quit()
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: "Esc / F10 / Menu キーでも開閉できます"
+                color: Theme.textSecondary
+                font.pixelSize: 15
+            }
         }
     }
 }

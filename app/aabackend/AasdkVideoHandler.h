@@ -19,6 +19,7 @@
 #include <boost/asio.hpp>
 
 #include <aasdk/Channel/MediaSink/Video/Channel/VideoChannel.hpp>
+#include "StreamSettings.h"
 #include <aasdk/Channel/MediaSink/Video/IVideoMediaSinkServiceEventHandler.hpp>
 #include <aasdk/Channel/Promise.hpp>
 #include <aasdk/Messenger/IMessenger.hpp>
@@ -55,7 +56,8 @@ public:
      * @param callbacks 通知先
      */
     AasdkVideoHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
-                      aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks);
+                      aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
+                      StreamSettings settings = {});
 
     /**
      * @brief 映像チャネルの受信ループを開始する。
@@ -104,6 +106,7 @@ private:
     void log(const std::string &message) const;
 
     std::shared_ptr<boost::asio::io_service::strand> strand_;
+    StreamSettings settings_;
     std::shared_ptr<aasdk::channel::mediasink::video::channel::VideoChannel> channel_;
     Callbacks callbacks_;
     std::int32_t sessionId_ = 0; ///< Start 指示で通知されたセッションID（ACK に必要）

@@ -26,6 +26,8 @@
 #include <aap_protobuf/service/control/message/AudioFocusRequestType.pb.h>
 #include <aap_protobuf/service/control/message/AudioFocusStateType.pb.h>
 #include <aap_protobuf/service/control/message/AuthResponse.pb.h>
+#include <aap_protobuf/service/control/message/ByeByeReason.pb.h>
+#include <aap_protobuf/service/control/message/ByeByeRequest.pb.h>
 #include <aap_protobuf/service/control/message/ByeByeResponse.pb.h>
 #include <aap_protobuf/service/control/message/DriverPosition.pb.h>
 #include <aap_protobuf/service/control/message/HeadUnitInfo.pb.h>
@@ -97,8 +99,10 @@ std::string describeAasdkError(const aasdk::error::Error &error) {
  * @brief USB 転送〜Messenger〜制御チャネルを組み立てる。
  */
 AasdkSession::AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
-                           SessionCallbacks callbacks)
-    : strand_(std::make_shared<boost::asio::io_service::strand>(ioService)), callbacks_(std::move(callbacks)) {
+                           SessionCallbacks callbacks, StreamSettings settings)
+    : strand_(std::make_shared<boost::asio::io_service::strand>(ioService)),
+      callbacks_(std::move(callbacks)),
+      settings_(settings.sanitized()) {
     transport_ = std::make_shared<aasdk::transport::USBTransport>(ioService, std::move(aoapDevice));
 
     // Cryptor::deinit() は SSL* を nullptr にするため、まだ encrypt()/decrypt() を呼ぶ者がいる間に
@@ -159,7 +163,7 @@ void AasdkSession::start() {
         };
 
         self->videoHandler_ =
-            std::make_shared<AasdkVideoHandler>(self->strand_, self->messenger_, std::move(videoCallbacks));
+            std::make_shared<AasdkVideoHandler>(self->strand_, self->messenger_, std::move(videoCallbacks), self->settings_);
         self->videoHandler_->start();
 
         // センサー/入力/System audio。スマートフォン(Android Auto)はこれらが Service Discovery に無いと
@@ -186,7 +190,7 @@ void AasdkSession::start() {
         inputCallbacks.onFatalError = onFatal;
         inputCallbacks.onLog = onLog;
         self->inputHandler_ =
-            std::make_shared<AasdkInputHandler>(self->strand_, self->messenger_, std::move(inputCallbacks));
+            std::make_shared<AasdkInputHandler>(self->strand_, self->messenger_, std::move(inputCallbacks), self->settings_);
         self->inputHandler_->start();
 
         AasdkSystemAudioHandler::Callbacks audioCallbacks;
@@ -227,7 +231,31 @@ void AasdkSession::start() {
 /**
  * @brief アプリ側の都合でセッションを終了する。
  */
-void AasdkSession::stop() { terminate("アプリが停止要求を出しました"); }
+void AasdkSession::stop() {
+    auto self = shared_from_this();
+    strand_->dispatch([self]() {
+        if (self->finished_ || self->stopRequested_) {
+            return;
+        }
+        self->stopRequested_ = true;
+        // 正規の切断手順: ByeByeRequest を送り、応答(onByeByeResponse)で終了する。応答が無くても上限で終了する
+        self->shutdownTimer_ = std::make_shared<boost::asio::steady_timer>(self->strand_->context());
+        self->shutdownTimer_->expires_from_now(std::chrono::milliseconds(1000));
+        self->shutdownTimer_->async_wait(self->strand_->wrap([self](const boost::system::error_code &ec) {
+            if (!ec) {
+                self->doTerminate("アプリが停止要求を出しました（切断応答の待機がタイムアウト）");
+            }
+        }));
+        proto::service::control::message::ByeByeRequest request;
+        request.set_reason(proto::service::control::message::ByeByeReason::USER_SELECTION);
+        auto promise = aasdk::channel::SendPromise::defer(*self->strand_);
+        promise->then([self]() { self->log("ByeByeRequest を送信しました。応答を待ちます"); },
+                      [self](const aasdk::error::Error &e) {
+                          self->doTerminate("アプリが停止要求を出しました（ByeBye 送信失敗: " + describeAasdkError(e) + "）");
+                      });
+        self->controlChannel_->sendShutdownRequest(request, std::move(promise));
+    });
+}
 
 /**
  * @brief タッチ入力を strand 上で入力ハンドラへ渡す。終了済みなら捨てる。
@@ -504,6 +532,9 @@ void AasdkSession::doTerminate(const std::string &reason) {
     log("セッション終了: " + reason);
     if (pingTimer_) {
         pingTimer_->cancel();
+    }
+    if (shutdownTimer_) {
+        shutdownTimer_->cancel();
     }
 
     transport_->stop();
