@@ -45,7 +45,7 @@ qt_add_executable(opencruise
     main.cpp
     core/ClockModel.cpp
     core/Log.cpp
-    core/DummyCanModel.cpp
+    core/VehicleDataManager.cpp
     androidauto/AndroidAutoController.cpp
     androidauto/H264Decoder.cpp
     androidauto/TestVideoFeeder.cpp)
