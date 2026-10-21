@@ -74,7 +74,19 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
 /**
  * @brief 停止してから破棄する。
  */
-AndroidAutoController::~AndroidAutoController() { stop(); }
+AndroidAutoController::~AndroidAutoController() {
+    // 描画アイテムが先に破棄されていなければ、this を指すタッチの送り先を外しておく
+    VideoSurfaceItem *surface = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(surfaceMutex_);
+        surface = surface_;
+        surface_ = nullptr;
+    }
+    if (surface != nullptr) {
+        surface->setTouchSink(nullptr);
+    }
+    stop();
+}
 
 /**
  * @brief ビルド時に aasdk が有効かを返す。
@@ -91,15 +103,30 @@ bool AndroidAutoController::aasdkEnabled() const {
  * @brief 描画アイテムを登録する。アイテム破棄時に参照を外す。
  */
 void AndroidAutoController::attachSurface(VideoSurfaceItem *surface) {
+    VideoSurfaceItem *previous = nullptr;
     {
         std::lock_guard<std::mutex> lock(surfaceMutex_);
+        previous = surface_;
         surface_ = surface;
     }
+    if (previous != nullptr && previous != surface) {
+        previous->setTouchSink(nullptr);
+    }
     if (surface != nullptr) {
+        surface->setTouchSink([this](const aa::TouchEvent &event) { sendTouch(event); });
         connect(surface, &QObject::destroyed, this, [this]() {
             std::lock_guard<std::mutex> lock(surfaceMutex_);
             surface_ = nullptr;
         });
+    }
+}
+
+/**
+ * @brief タッチ操作を接続層へ渡す。接続層が動いていなければ接続層側で捨てられる。
+ */
+void AndroidAutoController::sendTouch(const aa::TouchEvent &event) {
+    if (backend_) {
+        backend_->sendTouch(event);
     }
 }
 

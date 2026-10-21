@@ -230,6 +230,18 @@ void AasdkSession::start() {
 void AasdkSession::stop() { terminate("アプリが停止要求を出しました"); }
 
 /**
+ * @brief タッチ入力を strand 上で入力ハンドラへ渡す。終了済みなら捨てる。
+ */
+void AasdkSession::sendTouch(const TouchEvent &event) {
+    strand_->dispatch([self = shared_from_this(), event]() {
+        if (self->finished_ || !self->inputHandler_) {
+            return;
+        }
+        self->inputHandler_->sendTouch(event);
+    });
+}
+
+/**
  * @brief バージョン応答。問題なければ SSL ハンドシェイクの最初のデータ(ClientHello)を送る。
  *
  * aasdk は応答の status を MessageStatus へ単純キャストする(0xFFFF が -1 にならず 65535 になる)ため、

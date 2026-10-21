@@ -14,6 +14,7 @@
 #include <string>
 
 #include "LinkState.h"
+#include "TouchEvent.h"
 
 namespace opencruise::aa {
 
@@ -67,6 +68,15 @@ public:
      * @brief start() 済みで stop() されていなければ true。
      */
     bool isRunning() const;
+
+    /**
+     * @brief タッチ入力を、接続中のスマートフォンへ送る。
+     *
+     * 座標は kTouchWidth x kTouchHeight の座標系で渡すこと。UI スレッドなど任意のスレッドから呼べる。
+     * 停止中・未接続・入力チャネルの準備前に呼ばれた入力は、エラーにせず捨てる。
+     * @param event タッチ入力
+     */
+    void sendTouch(const TouchEvent &event);
 
 private:
     struct Impl;

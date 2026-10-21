@@ -41,4 +41,9 @@ void AasdkBackend::stop() {}
  */
 bool AasdkBackend::isRunning() const { return false; }
 
+/**
+ * @brief 何もしない（送る相手がいない）。
+ */
+void AasdkBackend::sendTouch(const TouchEvent &) {}
+
 } // namespace opencruise::aa

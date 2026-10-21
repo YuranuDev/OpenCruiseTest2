@@ -3,15 +3,21 @@
  * @brief 入力(InputSource)チャネルの最小実装。
  *
  * 映像解像度と同じタッチスクリーンを宣言し、スマートフォンからの
- * KeyBindingRequest に STATUS_SUCCESS を返す。入力イベントの送信は
- * 将来 Qt 側のタッチ/キー処理から行う。
+ * KeyBindingRequest に STATUS_SUCCESS を返す。UI 側から渡されたタッチ入力は
+ * InputReport(touch_event) として送る。キー入力の送信は未実装。
  */
 #include "AasdkInputHandler.h"
+
+#include <algorithm>
+#include <chrono>
 
 #include <aasdk/Error/Error.hpp>
 #include <aap_protobuf/service/Service.pb.h>
 #include <aap_protobuf/service/control/message/ChannelOpenResponse.pb.h>
 #include <aap_protobuf/service/inputsource/InputSourceService.pb.h>
+#include <aap_protobuf/service/inputsource/message/InputReport.pb.h>
+#include <aap_protobuf/service/inputsource/message/PointerAction.pb.h>
+#include <aap_protobuf/service/inputsource/message/TouchEvent.pb.h>
 #include <aap_protobuf/service/media/sink/message/KeyCode.pb.h>
 #include <aap_protobuf/service/media/sink/message/KeyBindingResponse.pb.h>
 #include <aap_protobuf/shared/MessageStatus.pb.h>
@@ -19,12 +25,6 @@
 namespace opencruise::aa {
 
 namespace proto = aap_protobuf;
-
-namespace {
-// 映像サービス(VIDEO_800x480)とタッチ座標系を一致させる。
-constexpr std::int32_t kTouchWidth = 800;
-constexpr std::int32_t kTouchHeight = 480;
-} // namespace
 
 /**
  * @brief 入力チャネルを生成する。
@@ -64,9 +64,62 @@ void AasdkInputHandler::fillFeatures(proto::service::control::message::ServiceDi
         input->add_keycodes_supported(keycode);
     }
 
+    // タッチ領域は映像解像度(VIDEO_800x480)と一致させる。値は TouchEvent.h で共有している。
     auto *touch = input->add_touchscreen();
     touch->set_width(kTouchWidth);
     touch->set_height(kTouchHeight);
+}
+
+/**
+ * @brief タッチ入力を InputReport(touch_event) にして送る。
+ */
+void AasdkInputHandler::sendTouch(const TouchEvent &event) {
+    using proto::service::inputsource::message::InputReport;
+    using proto::service::inputsource::message::PointerAction;
+
+    if (!ready_) {
+        if (!notReadyLogged_) {
+            notReadyLogged_ = true;
+            log("[input] KeyBindingRequest への応答前なので、タッチ入力を送らずに捨てます");
+        }
+        return;
+    }
+    if (event.points.empty() || event.actionIndex >= event.points.size()) {
+        log("[input] 不正なタッチ入力を破棄しました (指=" + std::to_string(event.points.size()) +
+            ", action_index=" + std::to_string(event.actionIndex) + ")");
+        return;
+    }
+
+    PointerAction action = PointerAction::ACTION_MOVED;
+    switch (event.action) {
+    case TouchAction::Down: action = PointerAction::ACTION_DOWN; break;
+    case TouchAction::Up: action = PointerAction::ACTION_UP; break;
+    case TouchAction::Move: action = PointerAction::ACTION_MOVED; break;
+    case TouchAction::PointerDown: action = PointerAction::ACTION_POINTER_DOWN; break;
+    case TouchAction::PointerUp: action = PointerAction::ACTION_POINTER_UP; break;
+    }
+
+    InputReport report;
+    // 単位は µs(openauto と同じ。プロジェクトの資料に従う)。実機での確認は未実施。
+    report.set_timestamp(static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count()));
+    auto *touch = report.mutable_touch_event();
+    for (const TouchPoint &point : event.points) {
+        auto *data = touch->add_pointer_data();
+        data->set_x(static_cast<std::uint32_t>(std::clamp<std::int32_t>(point.x, 0, kTouchWidth - 1)));
+        data->set_y(static_cast<std::uint32_t>(std::clamp<std::int32_t>(point.y, 0, kTouchHeight - 1)));
+        data->set_pointer_id(point.id);
+    }
+    touch->set_action_index(event.actionIndex);
+    touch->set_action(action);
+
+    if (!firstTouchLogged_) {
+        firstTouchLogged_ = true;
+        log("[input] 最初のタッチ入力を送信します (action=" + std::to_string(static_cast<int>(event.action)) +
+            ", 指=" + std::to_string(event.points.size()) + ")");
+    }
+    channel_->sendInputReport(report, makeSendPromise("InputReport"));
 }
 
 /**
@@ -95,6 +148,7 @@ void AasdkInputHandler::onKeyBindingRequest(
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
     channel_->sendKeyBindingResponse(response, makeSendPromise("KeyBindingResponse"));
     channel_->receive(shared_from_this());
+    ready_ = true; // 以降はタッチ入力を送ってよい
 }
 
 /**

@@ -4,8 +4,8 @@
  *
  * Android Auto の入力サービスは、車載機側がタッチ/キー入力を受け付けることを
  * Service Discovery で宣言し、スマートフォンからの KeyBindingRequest に応答する。
- * 実際の入力イベント送信は Qt 側から行う想定だが、最小構成では
- * 「チャネルを開いてキーバインドを受け付ける」ところまでを担当する。
+ * チャネルを開いてキーバインドを受け付けるほか、UI 側から渡されたタッチ入力を
+ * InputReport としてスマートフォンへ送る（sendTouch）。キー入力の送信は未実装。
  */
 #pragma once
 
@@ -15,6 +15,8 @@
 #include <string>
 
 #include <boost/asio.hpp>
+
+#include "TouchEvent.h"
 
 // aasdk の同ヘッダは Error を自前で include していないため、先に読み込む
 #include <aasdk/Error/Error.hpp>
@@ -54,6 +56,15 @@ public:
     void start();
 
     /**
+     * @brief タッチ入力を InputReport としてスマートフォンへ送る。
+     *
+     * strand 上で呼ぶこと。KeyBindingRequest に応答する前（スマートフォンが入力を
+     * 受け付ける準備をする前）に届いた入力は、送らずに捨てる。
+     * 不正な入力（指が 0 本、actionIndex が範囲外）も捨てる。座標は申告したタッチ領域に収める。
+     */
+    void sendTouch(const TouchEvent &event);
+
+    /**
      * @brief ServiceDiscoveryResponse に入力サービス(キー/タッチ)を追記する。
      */
     void fillFeatures(aap_protobuf::service::control::message::ServiceDiscoveryResponse &response);
@@ -78,6 +89,9 @@ private:
     std::shared_ptr<boost::asio::io_service::strand> strand_;
     std::shared_ptr<aasdk::channel::inputsource::InputSourceService> channel_;
     Callbacks callbacks_;
+    bool ready_ = false;            ///< KeyBindingRequest に応答済み。以降は入力を送ってよい(strand 上でのみ触る)
+    bool notReadyLogged_ = false;   ///< 準備前に入力を捨てたことを 1 回だけ記録するため
+    bool firstTouchLogged_ = false; ///< 最初のタッチ送信を 1 回だけ記録するため
 };
 
 } // namespace opencruise::aa

@@ -153,6 +153,20 @@ struct AasdkBackend::Impl {
     }
 
     /**
+     * @brief タッチ入力を strand 経由で現在のセッションへ渡す。セッションが無ければ捨てる。
+     */
+    void sendTouch(const TouchEvent &event) {
+        if (!running_ || stopping_) {
+            return;
+        }
+        strand_->post([this, event]() {
+            if (session_) {
+                session_->sendTouch(event);
+            }
+        });
+    }
+
+    /**
      * @brief 現在の USB デバイス一覧をログに出す（スマートフォンが見えているかの確認用）。
      */
     void logUsbDevices() {
@@ -397,5 +411,10 @@ void AasdkBackend::stop() { impl_->stop(); }
  * @brief 動作中か。
  */
 bool AasdkBackend::isRunning() const { return impl_->running_; }
+
+/**
+ * @brief タッチ入力を送る。
+ */
+void AasdkBackend::sendTouch(const TouchEvent &event) { impl_->sendTouch(event); }
 
 } // namespace opencruise::aa

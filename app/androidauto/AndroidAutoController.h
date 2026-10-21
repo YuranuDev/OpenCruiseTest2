@@ -70,6 +70,8 @@ public:
 
     /**
      * @brief 映像を描画するアイテムを登録する。QML から呼ぶ。
+     *
+     * あわせて、そのアイテム上のタッチ操作をスマートフォンへ送る経路もつなぐ。
      * @param surface 描画先
      */
     Q_INVOKABLE void attachSurface(opencruise::VideoSurfaceItem *surface);
@@ -105,6 +107,11 @@ private:
      * @param detail 詳細メッセージ
      */
     void applyState(int state, const QString &detail);
+
+    /**
+     * @brief アイテム上のタッチ操作を接続層へ渡す。接続層が無ければ捨てる。GUI スレッドから呼ばれる。
+     */
+    void sendTouch(const aa::TouchEvent &event);
 
     /**
      * @brief 接続層のスレッドから受け取った映像データをデコーダへ渡す。

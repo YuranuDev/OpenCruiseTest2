@@ -30,6 +30,7 @@
 #include "AasdkSystemAudioHandler.h"
 #include "AasdkVideoHandler.h"
 #include "LinkState.h"
+#include "TouchEvent.h"
 
 namespace opencruise::aa {
 
@@ -71,6 +72,13 @@ public:
      * @brief アプリ側の都合でセッションを終了する。何度呼んでもよい。
      */
     void stop();
+
+    /**
+     * @brief タッチ入力をスマートフォンへ送る。どのスレッドから呼んでもよい。
+     *
+     * 実際の送信は strand 上で行う。セッション終了後や入力チャネルの準備前に呼んだ場合は何もしない。
+     */
+    void sendTouch(const TouchEvent &event);
 
     // ---- IControlServiceChannelEventHandler ----
     void onVersionResponse(uint16_t majorCode, uint16_t minorCode, aap_protobuf::shared::MessageStatus status) override;
