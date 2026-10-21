@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cmath>
 
+namespace opencruise {
+
 /**
  * @brief 100ms 周期で値を更新する。
  */
@@ -68,3 +70,5 @@ void VehicleDataManager::update() {
     fuelPercent_ = static_cast<int>(std::max(0.0, 68.0 - t * 0.01));
     emit changed();
 }
+
+} // namespace opencruise

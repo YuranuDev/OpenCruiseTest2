@@ -13,6 +13,8 @@
 #include <QElapsedTimer>
 #include <memory>
 
+namespace opencruise {
+
 /**
  * @brief ヘッドライト状態の列挙型
  */
@@ -137,3 +139,5 @@ private:
      */
     int fuelPercent_ = 0;
 };
+
+} // namespace opencruise
