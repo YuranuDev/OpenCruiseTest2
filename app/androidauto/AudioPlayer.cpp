@@ -77,17 +77,14 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
     if (freeBytes >= pcm.size()) {
         const qint64 written = ch.device->write(pcm);
 
-        if (written != pcm.size()) {
+        if (written < 0) {
             qWarning() << "[audio]" << nameOf(kind)
-                    << "short write:"
-                    << written << "/" << pcm.size()
-                    << "bytes";
+                    << "write failed:" << ch.device->errorString();
+        } else if (written != pcm.size()) {
+            qWarning() << "[audio]" << nameOf(kind)
+                    << "partial write:" << written
+                    << "/" << pcm.size();
         }
-    } else {
-        qWarning() << "[audio]" << nameOf(kind)
-                << "buffer full; dropping PCM:"
-                << pcm.size() << "bytes, free:"
-                << freeBytes << "bytes";
     }
 }
 
