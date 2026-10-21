@@ -85,6 +85,7 @@ struct AasdkBackend::Impl {
             std::make_unique<aasdk::usb::AccessoryModeQueryChainFactory>(*usbWrapper_, ioService_, *queryFactory_);
         strand_ = std::make_unique<boost::asio::io_service::strand>(ioService_);
         retryTimer_ = std::make_unique<boost::asio::steady_timer>(ioService_);
+        rescanTimer_ = std::make_unique<boost::asio::steady_timer>(ioService_);
         workGuard_ = std::make_unique<WorkGuard>(boost::asio::make_work_guard(ioService_));
 
         stopping_ = false;
@@ -114,6 +115,7 @@ struct AasdkBackend::Impl {
 
         strand_->post([this]() {
             retryTimer_->cancel();
+            rescanTimer_->cancel();
             if (hub_) {
                 hub_->cancel();
                 hub_.reset();
@@ -132,6 +134,8 @@ struct AasdkBackend::Impl {
         // USB 転送のキャンセル完了通知(libusb スレッド→io)が流れる時間を少し与える
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+        // 終了していないハンドラがあっても io スレッドが必ず戻るよう、猶予後に強制停止してから join する
+        ioService_.stop();
         workGuard_.reset();
         for (auto &thread : ioThreads_) {
             thread.join();
@@ -142,6 +146,7 @@ struct AasdkBackend::Impl {
         usbEventThread_.join();
 
         session_.reset();
+        currentHandle_.reset(); // libusb_exit の前に USB ハンドルを閉じる
         hub_.reset();
         chainFactory_.reset();
         queryFactory_.reset();
@@ -210,6 +215,40 @@ struct AasdkBackend::Impl {
         hub_->start(std::move(promise));
 
         report(LinkState::Waiting, waitingDetail_);
+        armRescan();
+    }
+
+    /**
+     * @brief 待機中に一定時間デバイスが見つからなければ、検出を作り直して再列挙する（strand 上）。
+     *
+     * 切断直後に挿し直した場合など、デバイスが一度 open に失敗するとホットプラグ通知だけでは
+     * 二度と拾えないため、定期的に ENUMERATE をやり直す。
+     */
+    void armRescan() {
+        rescanTimer_->expires_after(std::chrono::seconds(10));
+        rescanTimer_->async_wait([this](const boost::system::error_code &ec) {
+            if (ec) {
+                return;
+            }
+            strand_->post([this]() {
+                if (stopping_ || session_ || !hub_) {
+                    return;
+                }
+                log("[backend] デバイスが見つからないため、USB 検出をやり直します");
+                hub_->cancel();
+                hub_.reset();
+                beginWaiting();
+            });
+        });
+    }
+
+    /**
+     * @brief スマートフォン側が切断を認識できていない可能性のある終了か。
+     *
+     * 正規の ByeBye 手順を経た終了(スマートフォン発の切断要求・こちら発への応答受信)以外は true。
+     */
+    static bool needsUsbReset(const std::string &reason) {
+        return reason.rfind("スマートフォンからの切断要求", 0) != 0 && reason.rfind("切断応答を受信", 0) != 0;
     }
 
     /**
@@ -219,6 +258,11 @@ struct AasdkBackend::Impl {
         if (stopping_) {
             return;
         }
+        if (session_) {
+            return; // 再列挙で二重に見つかった場合は、接続中のセッションを優先する
+        }
+        rescanTimer_->cancel();
+        currentHandle_ = handle; // 切断後の USB リセット用に控えておく
         report(LinkState::Connecting, "スマートフォンを検出しました。接続処理中です");
         log("[backend] AOAP デバイスを検出しました → セッションを生成します");
 
@@ -263,6 +307,13 @@ struct AasdkBackend::Impl {
      */
     void onSessionFinished(const std::string &reason) {
         session_.reset();
+        // 正規の切断手順を経ていない場合、スマートフォンは前の接続が続いていると思い込んだままになり得る。
+        // USB をリセットして再列挙させ、次の接続で無応答にならないようにする。
+        if (currentHandle_ && needsUsbReset(reason)) {
+            const int rc = libusb_reset_device(currentHandle_.get());
+            log(std::string("[backend] 異常終了のため USB デバイスをリセットしました: ") + libusb_error_name(rc));
+        }
+        currentHandle_.reset();
         if (hub_) {
             hub_->cancel(); // 修正済みの hotplug 解除により、次の beginWaiting で再列挙できる
             hub_.reset();
@@ -376,6 +427,8 @@ struct AasdkBackend::Impl {
     std::unique_ptr<WorkGuard> workGuard_;
     std::unique_ptr<boost::asio::io_service::strand> strand_;
     std::unique_ptr<boost::asio::steady_timer> retryTimer_;
+    std::unique_ptr<boost::asio::steady_timer> rescanTimer_;
+    aasdk::usb::DeviceHandle currentHandle_; ///< 接続中の USB デバイス（切断後のリセット用。strand_ 上でのみ触る）
     std::vector<std::thread> ioThreads_;
     std::thread usbEventThread_;
     std::atomic<bool> usbEventStop_{false};

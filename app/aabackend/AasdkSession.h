@@ -148,6 +148,9 @@ private:
     std::uint64_t lastPingSentMs_ = 0;
     SessionCallbacks callbacks_;
     bool finished_ = false; ///< strand 上でのみ読み書きする
+    std::shared_ptr<boost::asio::steady_timer> handshakeTimer_; ///< 接続確立の上限時間
+    bool discoveryDone_ = false;                                ///< サービス探索応答の送信完了(strand 上でのみ触る)
+    std::chrono::steady_clock::time_point lastRx_;              ///< 最後にスマートフォンの生存を確認した時刻
     bool stopRequested_ = false; ///< stop() による ByeBye 送信済み(strand 上でのみ触る)
     StreamSettings settings_;    ///< 映像設定
     std::shared_ptr<boost::asio::steady_timer> shutdownTimer_; ///< ByeBye 応答待ちの上限

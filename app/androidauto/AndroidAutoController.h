@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <thread>
 
 #include <atomic>
 
@@ -147,8 +148,16 @@ private:
      */
     void changeStreamSettings(const aa::StreamSettings &next);
 
+    /**
+     * @brief 接続層の停止(ByeBye 待ち)を別スレッドで行い、終わったら UI スレッドで待機を再開する。
+     *        UI を止めないための処理。
+     */
+    void restartBackendAsync();
+
     aa::StreamSettings settings_;
     bool fullscreenOnStream_ = false;
+    bool restarting_ = false;       ///< 非同期の再起動中(UI スレッドでのみ触る)
+    std::thread restartThread_;     ///< 再起動中の停止処理スレッド
 
     QString stateKey_;
     QString stateText_;

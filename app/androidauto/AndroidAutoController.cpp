@@ -94,6 +94,9 @@ AndroidAutoController::~AndroidAutoController() {
     if (surface != nullptr) {
         surface->setTouchSink(nullptr);
     }
+    if (restartThread_.joinable()) {
+        restartThread_.join();
+    }
     stop();
 }
 
@@ -144,7 +147,7 @@ void AndroidAutoController::sendTouch(const aa::TouchEvent &event) {
  * @brief 接続層を生成して接続待ちを開始する。失敗時は「利用不可」として UI に出す。
  */
 void AndroidAutoController::start() {
-    if (backend_ && backend_->isRunning()) {
+    if (restarting_ || (backend_ && backend_->isRunning())) {
         return;
     }
 
@@ -201,7 +204,7 @@ void AndroidAutoController::setFullscreenOnStream(bool enabled) {
 /**
  * @brief 映像設定を保存して反映する。動作中の接続層は stop()（ByeBye 送信→応答待ち→切断）してから作り直す。
  *
- * @note stop() は最大 2.5 秒ほど UI スレッドを待たせる。設定変更時のみ。
+ * @note 接続層の停止は別スレッドで行うので UI は止まらない。
  */
 void AndroidAutoController::changeStreamSettings(const aa::StreamSettings &requested) {
     const aa::StreamSettings next = requested.sanitized();
@@ -226,11 +229,35 @@ void AndroidAutoController::changeStreamSettings(const aa::StreamSettings &reque
     if (backend_ && backend_->isRunning()) {
         qInfo().noquote() << "[aa] 映像設定の変更のため、切断して再接続待機します:" << settings_.width() << "x"
                           << settings_.height() << "@" << settings_.fps << "fps";
-        stop(); // 正規の切断手順を経て接続層を解放する
-        applyState(static_cast<int>(aa::LinkState::Waiting),
-                   QStringLiteral("映像設定の変更のため切断しました。再接続を待機します"));
-        start();
+        restartBackendAsync();
     }
+}
+
+/**
+ * @brief 古い接続層を別スレッドで正規に停止し、完了後に最新の設定で接続待ちを再開する。
+ */
+void AndroidAutoController::restartBackendAsync() {
+    if (restarting_ || !backend_) {
+        return; // 再起動中なら、完了時の start() が最新の settings_ を使う
+    }
+    restarting_ = true;
+    applyState(static_cast<int>(aa::LinkState::Waiting),
+               QStringLiteral("映像設定の変更のため切断しています。再接続を待機します"));
+    std::shared_ptr<aa::AasdkBackend> old = std::move(backend_);
+    restartThread_ = std::thread([this, old]() mutable {
+        old->stop(); // ByeBye 送信→応答待ち→切断（最大数秒）
+        old.reset();
+        QMetaObject::invokeMethod(
+            this,
+            [this]() {
+                if (restartThread_.joinable()) {
+                    restartThread_.join();
+                }
+                restarting_ = false;
+                start();
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 /**

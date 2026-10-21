@@ -225,6 +225,16 @@ void AasdkSession::start() {
         self->controlChannel_->receive(self);
         self->log("VersionRequest 送信開始");
         self->controlChannel_->sendVersionRequest(self->makeSendPromise("VersionRequest"));
+
+        // スマートフォンが前回の接続状態のまま無応答だと、受信待ちで永久に止まる。上限時間で打ち切る
+        self->lastRx_ = std::chrono::steady_clock::now();
+        self->handshakeTimer_ = std::make_shared<boost::asio::steady_timer>(self->strand_->context());
+        self->handshakeTimer_->expires_from_now(std::chrono::seconds(15));
+        self->handshakeTimer_->async_wait(self->strand_->wrap([self](const boost::system::error_code &ec) {
+            if (!ec && !self->discoveryDone_) {
+                self->doTerminate("接続確立がタイムアウトしました（スマートフォンが応答しません）");
+            }
+        }));
     });
 }
 
@@ -369,6 +379,11 @@ void AasdkSession::onServiceDiscoveryRequest(
     promise->then(
         [self = shared_from_this()]() {
             self->log("サービス探索応答の送信完了");
+            self->discoveryDone_ = true;
+            self->lastRx_ = std::chrono::steady_clock::now();
+            if (self->handshakeTimer_) {
+                self->handshakeTimer_->cancel();
+            }
             if (!self->finished_ && self->callbacks_.onStateChanged) {
                 self->callbacks_.onStateChanged(LinkState::Connected, "接続済み（映像の開始を待っています）");
             }
@@ -445,6 +460,7 @@ void AasdkSession::onVoiceSessionRequest(const proto::service::control::message:
  */
 void AasdkSession::onPingRequest(const proto::service::control::message::PingRequest &request) {
     log("PingRequest を受信");
+    lastRx_ = std::chrono::steady_clock::now();
     proto::service::control::message::PingResponse response;
     response.set_timestamp(request.timestamp());
     controlChannel_->sendPingResponse(response, makeSendPromise("PingResponse"));
@@ -456,6 +472,7 @@ void AasdkSession::onPingRequest(const proto::service::control::message::PingReq
  */
 void AasdkSession::onPingResponse(const proto::service::control::message::PingResponse &) {
     log("PingResponse を受信");
+    lastRx_ = std::chrono::steady_clock::now();
     controlChannel_->receive(shared_from_this());
 }
 
@@ -475,6 +492,11 @@ void AasdkSession::schedulePing() {
     pingTimer_->expires_from_now(std::chrono::milliseconds(1000));
     pingTimer_->async_wait(strand_->wrap([self = shared_from_this()](const boost::system::error_code &ec) {
         if (ec || self->finished_) {
+            return;
+        }
+        // 通知した Ping タイムアウト(3秒)の倍の間、何も返ってこなければ切断扱いにする
+        if (std::chrono::steady_clock::now() - self->lastRx_ > std::chrono::seconds(6)) {
+            self->doTerminate("スマートフォンから応答がありません（Ping タイムアウト）");
             return;
         }
         proto::service::control::message::PingRequest request;
@@ -535,6 +557,9 @@ void AasdkSession::doTerminate(const std::string &reason) {
     }
     if (shutdownTimer_) {
         shutdownTimer_->cancel();
+    }
+    if (handshakeTimer_) {
+        handshakeTimer_->cancel();
     }
 
     transport_->stop();
