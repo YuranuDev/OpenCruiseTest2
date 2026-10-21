@@ -40,6 +40,8 @@ public:
     struct Callbacks {
         std::function<void(const std::string &)> onFatalError; ///< セッションを終了すべきエラー
         std::function<void(const std::string &)> onLog;        ///< 診断ログ
+        std::function<void(const std::uint8_t *, std::size_t)> onAudioData; ///< PCM データ受信
+        std::function<void()> onAudioStop;                                  ///< ストリーム停止通知
     };
 
     /**

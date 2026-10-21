@@ -22,6 +22,7 @@
 
 #include "AasdkBackend.h"
 #include "StreamSettings.h"
+#include "AudioPlayer.h"
 #include "H264Decoder.h"
 #include "TestVideoFeeder.h"
 
@@ -179,6 +180,7 @@ private:
 
     std::unique_ptr<aa::AasdkBackend> backend_;
     H264Decoder decoder_;
+    AudioPlayer audioPlayer_; ///< 音声出力（UI スレッド専用）
     TestVideoFeeder testFeeder_;
 };
 

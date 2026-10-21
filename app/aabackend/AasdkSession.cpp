@@ -193,23 +193,35 @@ void AasdkSession::start() {
             std::make_shared<AasdkInputHandler>(self->strand_, self->messenger_, std::move(inputCallbacks), self->settings_);
         self->inputHandler_->start();
 
-        AasdkSystemAudioHandler::Callbacks audioCallbacks;
-        audioCallbacks.onFatalError = onFatal;
-        audioCallbacks.onLog = onLog;
+        // 音声データはセッション終了後に届いても無視する（弱参照 + finished_ 判定）
+        auto audioCallbacksFor = [weak, onFatal, onLog](int kind) {
+            AasdkSystemAudioHandler::Callbacks cb;
+            cb.onFatalError = onFatal;
+            cb.onLog = onLog;
+            cb.onAudioData = [weak, kind](const std::uint8_t *data, std::size_t size) {
+                if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onAudioData) {
+                    s->callbacks_.onAudioData(kind, data, size);
+                }
+            };
+            cb.onAudioStop = [weak, kind]() {
+                if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onAudioStop) {
+                    s->callbacks_.onAudioStop(kind);
+                }
+            };
+            return cb;
+        };
+
+        AasdkSystemAudioHandler::Callbacks audioCallbacks = audioCallbacksFor(0);
         self->systemAudioHandler_ = std::make_shared<AasdkSystemAudioHandler>(self->strand_, self->messenger_,
                                                                               std::move(audioCallbacks));
         self->systemAudioHandler_->start();
 
-        AasdkSystemAudioHandler::Callbacks mediaCallbacks;
-        mediaCallbacks.onFatalError = onFatal;
-        mediaCallbacks.onLog = onLog;
+        AasdkSystemAudioHandler::Callbacks mediaCallbacks = audioCallbacksFor(1);
         self->mediaAudioHandler_ = std::make_shared<AasdkSystemAudioHandler>(
             self->strand_, self->messenger_, std::move(mediaCallbacks), AasdkSystemAudioHandler::Kind::Media);
         self->mediaAudioHandler_->start();
 
-        AasdkSystemAudioHandler::Callbacks guidanceCallbacks;
-        guidanceCallbacks.onFatalError = onFatal;
-        guidanceCallbacks.onLog = onLog;
+        AasdkSystemAudioHandler::Callbacks guidanceCallbacks = audioCallbacksFor(2);
         self->guidanceAudioHandler_ = std::make_shared<AasdkSystemAudioHandler>(
             self->strand_, self->messenger_, std::move(guidanceCallbacks),
             AasdkSystemAudioHandler::Kind::Guidance);

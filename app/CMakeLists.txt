@@ -1,4 +1,4 @@
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Multimedia)
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavutil libswscale)
@@ -47,6 +47,7 @@ qt_add_executable(opencruise
     core/Log.cpp
     core/VehicleDataManager.cpp
     androidauto/AndroidAutoController.cpp
+    androidauto/AudioPlayer.cpp
     androidauto/H264Decoder.cpp
     androidauto/TestVideoFeeder.cpp)
 
@@ -72,7 +73,7 @@ target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/androidauto
     ${CMAKE_CURRENT_SOURCE_DIR}/aabackend)
 target_link_libraries(opencruise PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia
     opencruise_aa
     PkgConfig::FFMPEG)
 if(OPENCRUISE_ENABLE_AASDK)

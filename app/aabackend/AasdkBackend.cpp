@@ -278,6 +278,8 @@ struct AasdkBackend::Impl {
             SessionCallbacks sessionCallbacks;
             sessionCallbacks.onStateChanged = callbacks.onStateChanged;
             sessionCallbacks.onVideoData = callbacks.onVideoData;
+            sessionCallbacks.onAudioData = callbacks.onAudioData;
+            sessionCallbacks.onAudioStop = callbacks.onAudioStop;
             sessionCallbacks.onLog = callbacks.onLog;
             sessionCallbacks.onFinished = [this](const std::string &reason) {
                 strand_->post([this, reason]() { onSessionFinished(reason); });

@@ -160,6 +160,15 @@ void AndroidAutoController::start() {
             Qt::QueuedConnection);
     };
     callbacks.onVideoData = [this](const std::uint8_t *data, std::size_t size) { handleVideoData(data, size); };
+    // 音声もワーカースレッドから来る。PCM をコピーして UI スレッドの再生器へ渡す
+    callbacks.onAudioData = [this](int kind, const std::uint8_t *data, std::size_t size) {
+        QByteArray pcm(reinterpret_cast<const char *>(data), static_cast<qsizetype>(size));
+        QMetaObject::invokeMethod(
+            this, [this, kind, pcm]() { audioPlayer_.write(kind, pcm); }, Qt::QueuedConnection);
+    };
+    callbacks.onAudioStop = [this](int kind) {
+        QMetaObject::invokeMethod(this, [this, kind]() { audioPlayer_.stop(kind); }, Qt::QueuedConnection);
+    };
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
     backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks), settings_);
@@ -315,6 +324,7 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
 
     if (link == aa::LinkState::Waiting || link == aa::LinkState::Connecting || link == aa::LinkState::Unavailable) {
         decoder_.reset();
+        audioPlayer_.stopAll(); // 切断・再接続時は音声出力も作り直す
         decoderErrorReported_ = false;
         frameCount_ = 0;
         videoInfo_ = QStringLiteral("-");

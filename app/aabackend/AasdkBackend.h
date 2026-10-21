@@ -30,6 +30,11 @@ struct BackendCallbacks {
     std::function<void(LinkState, const std::string &)> onStateChanged;
     /// 映像データ（H.264 Annex-B の 1 アクセスユニット）を受信したとき
     std::function<void(const std::uint8_t *, std::size_t)> onVideoData;
+    /// PCM 音声(16bit)を受信したとき。第1引数は 0=System / 1=Media / 2=Guidance。
+    /// 形式は Media が 48kHz/2ch、それ以外は 16kHz/1ch
+    std::function<void(int, const std::uint8_t *, std::size_t)> onAudioData;
+    /// 音声ストリームが止まったとき（引数は上と同じチャネル番号）
+    std::function<void(int)> onAudioStop;
     /// 診断ログ
     std::function<void(const std::string &)> onLog;
 };

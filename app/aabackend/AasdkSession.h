@@ -42,6 +42,9 @@ struct SessionCallbacks {
     std::function<void(LinkState, const std::string &)> onStateChanged; ///< 状態変化
     std::function<void(const std::uint8_t *, std::size_t)> onVideoData;  ///< 映像データ受信
     std::function<void(const std::string &)> onLog;                      ///< 診断ログ
+    /// PCM 音声受信。第1引数は音声チャネル(0=System / 1=Media / 2=Guidance)
+    std::function<void(int, const std::uint8_t *, std::size_t)> onAudioData;
+    std::function<void(int)> onAudioStop; ///< 音声ストリーム停止
     std::function<void(const std::string &)> onFinished; ///< セッション終了（理由つき、1回だけ呼ばれる）
 };
 

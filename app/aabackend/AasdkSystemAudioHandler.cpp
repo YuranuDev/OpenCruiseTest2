@@ -136,6 +136,9 @@ void AasdkSystemAudioHandler::onMediaChannelStopIndication(
     const proto::service::media::shared::message::Stop &) {
     log("[audio] System audio ストリーム停止");
     sessionId_ = 0;
+    if (callbacks_.onAudioStop) {
+        callbacks_.onAudioStop();
+    }
     channel_->receive(shared_from_this());
 }
 
@@ -155,9 +158,12 @@ void AasdkSystemAudioHandler::onMediaIndication(const aasdk::common::DataConstBu
 }
 
 /**
- * @brief 音声データを捨てて ACK を返す。ACK を返さないと max_unacked で送信が止まる。
+ * @brief 音声データを上位へ渡し、ACK を返す。ACK を返さないと max_unacked で送信が止まる。
  */
-void AasdkSystemAudioHandler::handleMediaData(const aasdk::common::DataConstBuffer &) {
+void AasdkSystemAudioHandler::handleMediaData(const aasdk::common::DataConstBuffer &buffer) {
+    if (callbacks_.onAudioData && buffer.size > 0) {
+        callbacks_.onAudioData(buffer.cdata, buffer.size);
+    }
     proto::service::media::source::message::Ack ack;
     ack.set_session_id(sessionId_);
     ack.set_ack(1);
