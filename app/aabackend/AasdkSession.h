@@ -30,6 +30,7 @@
 #include "AasdkSystemAudioHandler.h"
 #include "AasdkVideoHandler.h"
 #include "LinkState.h"
+#include "VehicleDataManager.h"
 
 namespace opencruise::aa {
 
@@ -122,6 +123,11 @@ private:
         return static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - startedAt_).count());
     }
+
+    /**
+     * @brief 車両データ管理オブジェクト
+     */
+    std::shared_ptr<VehicleDataManager> vehicleDataManager_;
 
     std::shared_ptr<boost::asio::io_service::strand> strand_; ///< 全チャネル共通。ハンドラ側と共有所有
     aasdk::transport::ITransport::Pointer transport_;

@@ -37,6 +37,7 @@
 #include <aap_protobuf/shared/MessageStatus.pb.h>
 
 #include "AasdkConfig.h"
+#include "VehicleDataManager.h"
 
 namespace opencruise::aa {
 
@@ -117,6 +118,9 @@ AasdkSession::AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAP
     auto outStream = std::make_shared<aasdk::messenger::MessageOutStream>(ioService, transport_, cryptor_);
     messenger_ = std::make_shared<aasdk::messenger::Messenger>(ioService, std::move(inStream), std::move(outStream));
     controlChannel_ = std::make_shared<aasdk::channel::control::ControlServiceChannel>(*strand_, messenger_);
+
+    // 車両データ管理オブジェクトの初期化
+    vehicleDataManager_ = std::make_shared<VehicleDataManager>();
 }
 
 /**
