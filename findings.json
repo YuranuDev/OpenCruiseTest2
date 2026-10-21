@@ -1,0 +1,38 @@
+[
+  {
+    "file": "app/androidauto/AndroidAutoController.cpp",
+    "line": 212,
+    "summary": "Potential race condition in video packet counting due to atomic variable usage pattern",
+    "failure_scenario": "When multiple threads increment videoPackets_ and access it, the ++ operator combined with .load() may not provide a consistent view of the value"
+  },
+  {
+    "file": "app/androidauto/AndroidAutoController.cpp",
+    "line": 169,
+    "summary": "Inconsistent atomic variable reset pattern in applyState function",
+    "failure_scenario": "videoPackets_ and videoBytes_ are reset to 0 but frameCount_ is reset directly without atomic operations, potentially causing synchronization issues"
+  },
+  {
+    "file": "app/androidauto/AndroidAutoController.cpp",
+    "line": 237,
+    "summary": "Potential integer overflow in frame counting due to qulonglong usage",
+    "failure_scenario": "Using qulonglong for frameCount_ may not be sufficient for very long video sessions, and the increment operation could cause unexpected behavior with large values"
+  },
+  {
+    "file": "app/androidauto/AndroidAutoController.cpp",
+    "line": 122,
+    "summary": "Callback lambda captures self pointer that could lead to memory management issues",
+    "failure_scenario": "The onVideoData callback lambda captures 'this' by reference, which could cause use-after-free if the object is destroyed while the callback is still pending"
+  },
+  {
+    "file": "app/androidauto/H264Decoder.cpp",
+    "line": 108,
+    "summary": "Potential memory leak in packet allocation",
+    "failure_scenario": "av_new_packet() can fail but the error handling doesn't properly free previously allocated resources, potentially leading to resource leaks"
+  },
+  {
+    "file": "app/androidauto/VideoSurfaceItem.cpp",
+    "line": 41,
+    "summary": "Potential race condition in applyPending method",
+    "failure_scenario": "The applyQueued_ atomic flag is checked and set without a full memory barrier, which could cause threads to miss updates or process outdated state"
+  }
+]
