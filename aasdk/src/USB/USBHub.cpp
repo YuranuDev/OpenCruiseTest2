@@ -104,10 +104,7 @@ namespace aasdk {
         hotplugPromise_->resolve(std::move(handle));
         hotplugPromise_.reset();
       } else {
-        ////////// Workaround for VMware
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        //////////
-
+        // OpenCruise: VMware 向けの 1 秒 sleep は、実機では再接続が毎回 1 秒遅れるだけなので削除した
         queryChainQueue_.emplace_back(queryChainFactory_.create());
 
         auto queueElementIter = std::prev(queryChainQueue_.end());

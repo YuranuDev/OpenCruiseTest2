@@ -34,6 +34,6 @@ inline constexpr std::uint32_t kVideoMaxUnacked = 1;
 inline constexpr int kIoThreadCount = 2;
 
 /// セッション終了後に待機を再開するまでの待ち時間（ミリ秒）。即時再接続ループの抑止用
-inline constexpr int kRetryDelayMs = 2000;
+inline constexpr int kRetryDelayMs = 500;
 
 } // namespace opencruise::aa::config

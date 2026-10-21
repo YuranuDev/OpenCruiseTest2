@@ -212,7 +212,13 @@ struct AasdkBackend::Impl {
         auto promise = aasdk::usb::IUSBHub::Promise::defer(*strand_);
         promise->then([this](aasdk::usb::DeviceHandle handle) { onDeviceFound(std::move(handle)); },
                       [this](const aasdk::error::Error &e) { onHubError(e); });
+        // 注意: hotplug 登録時の既存デバイス列挙(ENUMERATE)は、この呼び出しの中で同期的に処理される。
+        // OS 側がデバイスの切替中で open() が遅いと、ここで長く止まる。所要時間をログに残す。
+        const auto hubStart = std::chrono::steady_clock::now();
         hub_->start(std::move(promise));
+        log("[backend] USB 検出の開始処理に " +
+            std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - hubStart).count()) +
+            " ms かかりました");
 
         report(LinkState::Waiting, waitingDetail_);
         armRescan();
