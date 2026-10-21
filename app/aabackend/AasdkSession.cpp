@@ -37,6 +37,7 @@
 #include <aap_protobuf/shared/MessageStatus.pb.h>
 
 #include "AasdkConfig.h"
+#include "../core/VehicleDataManager.h"
 
 namespace opencruise::aa {
 

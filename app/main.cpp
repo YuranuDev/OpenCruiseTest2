@@ -24,7 +24,7 @@
 
 #include "androidauto/AndroidAutoController.h"
 #include "core/ClockModel.h"
-#include "core/DummyCanModel.h"
+#include "core/VehicleDataManager.h"
 #include "core/Log.h"
 
 /**
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
 
     opencruise::ClockModel clock;
-    opencruise::DummyCanModel can;
+    opencruise::VehicleDataManager can;
     opencruise::AndroidAutoController androidAuto;
     opencruise::log::info("APP", QStringLiteral("aasdk 接続層: ") +
                                       (androidAuto.aasdkEnabled() ? QStringLiteral("有効")
