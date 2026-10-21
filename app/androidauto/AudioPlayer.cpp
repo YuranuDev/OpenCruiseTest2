@@ -72,9 +72,23 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
         qInfo().noquote() << "[audio] 再生を開始します:" << nameOf(kind) << format.sampleRate() << "Hz"
                           << format.channelCount() << "ch";
     }
-    if (ch.sink->bytesFree() >= pcm.size()) {
-        ch.device->write(pcm);
-    } // 空きが無ければ捨てて遅延の蓄積を防ぐ
+    const qint64 freeBytes = ch.sink->bytesFree();
+
+    if (freeBytes >= pcm.size()) {
+        const qint64 written = ch.device->write(pcm);
+
+        if (written != pcm.size()) {
+            qWarning() << "[audio]" << nameOf(kind)
+                    << "short write:"
+                    << written << "/" << pcm.size()
+                    << "bytes";
+        }
+    } else {
+        qWarning() << "[audio]" << nameOf(kind)
+                << "buffer full; dropping PCM:"
+                << pcm.size() << "bytes, free:"
+                << freeBytes << "bytes";
+    }
 }
 
 /**
