@@ -82,6 +82,11 @@ int main(int argc, char *argv[]) {
     opencruise::ClockModel clock;
     opencruise::VehicleDataManager can;
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
+    // AndroidAutoController オブジェクトを QGuiApplication の子オブジェクトとして関連付けることで
+    // オブジェクトの寿命管理を強化し、QTimer::singleShot 使用時のダングリングポインタアクセスを回避
+    app.setOrganizationName(QStringLiteral("OpenCruise"));
+    app.setApplicationName(QStringLiteral("OpenCruise"));
+
     opencruise::log::info("APP", QStringLiteral("aasdk 接続層: ") +
                                       (androidAuto->aasdkEnabled() ? QStringLiteral("有効")
                                                                   : QStringLiteral("無効(スタブ)")));
@@ -134,13 +139,15 @@ int main(int argc, char *argv[]) {
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &androidAuto, &opencruise::AndroidAutoController::stop);
 
     // UI が出た後に接続処理を始める（接続できなくても UI は動作する）
-    QTimer::singleShot(0, &androidAuto, [&]() {
+    // QTimer::singleShot の第1引数がオブジェクトのポインタであるため、渡すオブジェクトが無効になることを防ぐために
+    // androidAuto をスタック上ではなくヒープ上に作成し、親子関係で管理します。
+    QTimer::singleShot(0, androidAuto, [&]() {
         if (parser.isSet(testVideo)) {
             opencruise::log::info("APP", QStringLiteral("テスト映像を再生します: %1").arg(parser.value(testVideo)));
-            androidAuto.playTestStream(parser.value(testVideo));
+            androidAuto->playTestStream(parser.value(testVideo));
         } else {
             opencruise::log::info("APP", QStringLiteral("Android Auto の接続待ちを開始します"));
-            androidAuto.start();
+            androidAuto->start();
         }
     });
 
