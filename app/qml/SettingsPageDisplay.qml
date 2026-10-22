@@ -59,7 +59,7 @@ SettingsPage {
                         MouseArea {
                             id: swatchMouse
                             anchors.fill: parent
-                            onClicked: { systemSound.play("click"); androidAuto.accentIndex = index }
+                            onClicked: { androidAuto.accentIndex = index }
                         }
                     }
                 }

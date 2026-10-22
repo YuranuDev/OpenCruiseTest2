@@ -59,6 +59,6 @@ Item {
     MouseArea {
         id: mouse
         anchors.fill: parent
-        onClicked: { systemSound.play("click"); root.toggled(!root.checked) }
+        onClicked: { root.toggled(!root.checked) }
     }
 }
