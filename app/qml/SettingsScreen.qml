@@ -42,7 +42,7 @@ Rectangle {
             width: backRow.width + 48 * root.unit
             height: 68 * root.unit
             radius: Theme.radius + 2
-            color: Theme.mix(Theme.panel, Theme.accent, backMouse.pressed ? 0.35 : 0)
+            color: Theme.mix(Theme.panel, Theme.accentFill, backMouse.pressed ? 0.45 : 0)
             border.width: backMouse.pressed ? 2 : 1
             border.color: backMouse.pressed ? Theme.accent : Theme.panelBorder
             scale: backMouse.pressed ? 0.97 : 1.0

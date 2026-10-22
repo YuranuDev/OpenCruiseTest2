@@ -37,7 +37,7 @@ Item {
             width: 112 * root.unit
             height: 60 * root.unit
             radius: height / 2
-            color: root.checked ? Theme.accent : Theme.mix(Theme.background, Theme.textSecondary, 0.25)
+            color: root.checked ? Theme.accentFill : Theme.mix(Theme.background, Theme.textSecondary, 0.25)
             border.width: 1
             border.color: root.checked ? Theme.accent : Theme.panelBorder
             scale: mouse.pressed ? 0.96 : 1.0
@@ -50,7 +50,7 @@ Item {
                 radius: width / 2
                 anchors.verticalCenter: parent.verticalCenter
                 x: root.checked ? parent.width - width - 6 * root.unit : 6 * root.unit
-                color: root.checked ? Theme.onAccent : Theme.textPrimary
+                color: root.checked ? "#ffffff" : Theme.textPrimary
                 Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             }
         }

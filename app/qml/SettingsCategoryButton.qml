@@ -13,8 +13,8 @@ Rectangle {
     implicitHeight: 84 * unit
     height: implicitHeight
     radius: Theme.radius + 2
-    color: selected ? Theme.mix(Theme.panel, Theme.accent, 0.28)
-                    : Theme.mix(Theme.panel, Theme.accent, mouse.pressed ? 0.18 : 0)
+    color: selected ? Theme.mix(Theme.panel, Theme.accentFill, 0.35)
+                    : Theme.mix(Theme.panel, Theme.accentFill, mouse.pressed ? 0.22 : 0)
     border.width: selected ? 2 : 0
     border.color: Theme.accent
     scale: mouse.pressed ? 0.98 : 1.0

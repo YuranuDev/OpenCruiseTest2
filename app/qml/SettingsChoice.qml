@@ -24,8 +24,8 @@ Row {
             width: implicitWidth
             height: 64 * root.unit
             radius: Theme.radius
-            color: selected ? Theme.accent
-                            : Theme.mix(Theme.background, Theme.accent, mouse.pressed ? 0.35 : 0)
+            color: selected ? Theme.accentFill
+                            : Theme.mix(Theme.background, Theme.accentFill, mouse.pressed ? 0.45 : 0)
             border.width: selected || mouse.pressed ? 2 : 1
             border.color: selected || mouse.pressed ? Theme.accent : Theme.panelBorder
             scale: mouse.pressed ? 0.97 : 1.0
