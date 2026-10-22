@@ -66,6 +66,20 @@ qt_add_qml_module(opencruise
         qml/Theme.qml
         qml/HomeScreen.qml
         qml/SettingsScreen.qml
+        qml/SettingsCategory.qml
+        qml/SettingsCategoryButton.qml
+        qml/SettingsPage.qml
+        qml/SettingsSection.qml
+        qml/SettingsRow.qml
+        qml/SettingsChoice.qml
+        qml/SettingsSwitch.qml
+        qml/SettingsInfoRow.qml
+        qml/SettingsNote.qml
+        qml/SettingsPageGeneral.qml
+        qml/SettingsPageDisplay.qml
+        qml/SettingsPageAndroidAuto.qml
+        qml/SettingsPageVehicle.qml
+        qml/SettingsPageAbout.qml
         qml/CanPanel.qml
         qml/ConnectionBadge.qml
         qml/ActionButton.qml

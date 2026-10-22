@@ -1,4 +1,14 @@
-// 設定画面（仮）。ユーザー名・フォント、映像・表示、現状の接続診断情報を表示する。
+// 設定画面。左側にジャンル一覧、右側に選択中ジャンルの設定ページを表示する(車載向けの大きなタッチ操作用)。
+//
+// ■ ジャンルを足す
+//   1. 右側に出すページを SettingsPage を土台にした新しい .qml として作る(例: SettingsPageAudio.qml)。
+//   2. 下の categories に SettingsCategory { icon: "..."; title: "..."; page: SettingsPageAudio {} } を 1 行足す。
+//   3. app/CMakeLists.txt の QML_FILES に新しい .qml を足す。
+//   アイコン名は Material Icons(https://fonts.google.com/icons)から選ぶ。
+//
+// ■ 設定項目を足す
+//   該当ジャンルのページの SettingsSection の中へ、SettingsRow(+ SettingsChoice / SettingsSwitch など)や
+//   SettingsInfoRow(読み取り専用)を足す。部品の使い方は各 .qml の先頭コメントを参照。
 import QtQuick
 import QtQuick.Controls
 
@@ -7,288 +17,114 @@ Rectangle {
     color: Theme.background
     signal back()
 
-    // 診断情報の 1 行（左: 項目名、右: 値）
-    component InfoRow: Row {
-        property alias label: name.text
-        property alias value: val.text
-        property color valueColor: Theme.textPrimary
-        spacing: 20
-        Text { font.family: Theme.fontFamily; id: name; width: 220; color: Theme.textSecondary; font.pixelSize: 20 }
-        Text { font.family: Theme.fontFamily; id: val; width: 640; color: parent.valueColor; font.pixelSize: 20; wrapMode: Text.WordWrap }
-    }
+    readonly property real unit: Theme.uiScale
+    // 選択中のジャンル(categories の番号)
+    property int currentIndex: 0
 
+    // ---- ジャンル一覧(表示順)。ここに足すだけで左の一覧と右のページへ反映される ----
+    property list<SettingsCategory> categories: [
+        SettingsCategory { icon: "tune";          title: "一般";         page: SettingsPageGeneral {} },
+        SettingsCategory { icon: "palette";       title: "表示";         page: SettingsPageDisplay {} },
+        SettingsCategory { icon: "android";       title: "Android Auto"; page: SettingsPageAndroidAuto {} },
+        SettingsCategory { icon: "directions_car"; title: "車両";        page: SettingsPageVehicle {} },
+        SettingsCategory { icon: "info";          title: "情報";         page: SettingsPageAbout {} }
+    ]
+
+    // ---- ヘッダー: 戻るボタン + タイトル ----
     Item {
         id: header
         anchors { top: parent.top; left: parent.left; right: parent.right; margins: Theme.margin }
-        height: 76
+        height: 80 * root.unit
 
-        ActionButton {
+        Rectangle {
+            id: backButton
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-            text: "← 戻る"
-            onClicked: root.back()
+            width: backRow.width + 48 * root.unit
+            height: 68 * root.unit
+            radius: Theme.radius + 2
+            color: Theme.mix(Theme.panel, Theme.accent, backMouse.pressed ? 0.35 : 0)
+            border.width: backMouse.pressed ? 2 : 1
+            border.color: backMouse.pressed ? Theme.accent : Theme.panelBorder
+            scale: backMouse.pressed ? 0.97 : 1.0
+            Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+
+            Row {
+                id: backRow
+                anchors.centerIn: parent
+                spacing: 10 * root.unit
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "arrow_back"
+                    size: 38 * root.unit
+                    color: Theme.accent
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    text: "戻る"
+                    color: Theme.textPrimary
+                    font.pixelSize: 28 * root.unit
+                    font.bold: true
+                }
+            }
+            MouseArea {
+                id: backMouse
+                anchors.fill: parent
+                onClicked: root.back()
+            }
         }
+
         Text {
-            font.family: Theme.fontFamily
             anchors.centerIn: parent
+            font.family: Theme.fontFamily
             text: "設定"
             color: Theme.textPrimary
-            font.pixelSize: 34
+            font.pixelSize: 38 * root.unit
+            font.bold: true
         }
     }
 
-    Flickable {
-        anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.margin }
-        contentHeight: content.implicitHeight
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
+    // ---- 左: ジャンル一覧 ----
+    Rectangle {
+        id: sidebar
+        anchors { top: header.bottom; bottom: parent.bottom; left: parent.left
+                  leftMargin: Theme.margin; bottomMargin: Theme.margin; topMargin: 4 }
+        width: 300 * root.unit
+        color: Theme.panel
+        radius: Theme.radius + 6
+        border.width: 1
+        border.color: Theme.panelBorder
 
-    Column {
-        id: content
-        width: parent.width
-        spacing: Theme.margin
+        ListView {
+            anchors { fill: parent; margins: 10 * root.unit }
+            model: root.categories.length
+            spacing: 8 * root.unit
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
 
-        Rectangle {
-            width: parent.width
-            height: userColumn.implicitHeight + 36
-            color: Theme.panel
-            radius: Theme.radius
-            border.color: Theme.panelBorder
-
-            Column {
-                id: userColumn
-                x: 20; y: 18
-                width: parent.width - 40
-                spacing: 12
-                Text { font.family: Theme.fontFamily; text: "ユーザー・フォント"; color: Theme.textPrimary; font.pixelSize: 26 }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "ユーザー名"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    // 初期画面の挨拶に使う。入力確定(Enter / フォーカス移動)で保存する
-                    TextField {
-                        id: nameField
-                        width: 420
-                        height: 52
-                        text: appSettings.userName
-                        placeholderText: "名前を入力(未設定なら挨拶のみ)"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 22
-                        color: Theme.textPrimary
-                        placeholderTextColor: Theme.textSecondary
-                        selectByMouse: true
-                        maximumLength: 24
-                        leftPadding: 16
-                        background: Rectangle {
-                            radius: Theme.radius
-                            color: Theme.background
-                            border.width: nameField.activeFocus ? 2 : 1
-                            border.color: nameField.activeFocus ? Theme.accent : Theme.panelBorder
-                        }
-                        onEditingFinished: appSettings.userName = text
-                    }
-                }
-                Row {
-                    spacing: 10
-                    visible: appSettings.fontFamilies.length > 0
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "フォント"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    Repeater {
-                        model: appSettings.fontFamilies
-                        ActionButton {
-                            text: modelData
-                            selected: appSettings.fontFamily === modelData
-                            onClicked: appSettings.fontFamily = modelData
-                        }
-                    }
-                }
-                Text {
-                    font.family: Theme.fontFamily
-                    visible: appSettings.fontFamilies.length === 0
-                    width: parent.width
-                    wrapMode: Text.WordWrap
-                    text: "同梱フォントを読み込めませんでした(実行ファイルの隣の fonts フォルダを確認してください)。OS 既定のフォントで表示しています。"
-                    color: Theme.warn
-                    font.pixelSize: 18
-                }
-                // 選択中フォントの見本(太さの違いも確認できる)
-                Column {
-                    visible: appSettings.fontFamilies.length > 0
-                    spacing: 4
-                    Text { font.family: Theme.fontFamily; text: "見本: 東京都 1234567890 ABCabc — 安全運転でいきましょう"; color: Theme.textPrimary; font.pixelSize: 24 }
-                    Text { font.family: Theme.fontFamily; text: "Light 見本: 東京都 1234567890 ABCabc"; color: Theme.textSecondary; font.pixelSize: 22; font.weight: Font.Light }
-                    Text { font.family: Theme.fontFamily; text: "Bold 見本: 東京都 1234567890 ABCabc"; color: Theme.textSecondary; font.pixelSize: 22; font.bold: true }
-                }
+            delegate: SettingsCategoryButton {
+                width: ListView.view.width
+                icon: root.categories[index].icon
+                title: root.categories[index].title
+                selected: index === root.currentIndex
+                onClicked: root.currentIndex = index
             }
-        }
-
-        Rectangle {
-            width: parent.width
-            height: videoColumn.implicitHeight + 36
-            color: Theme.panel
-            radius: Theme.radius
-            border.color: Theme.panelBorder
-
-            Column {
-                id: videoColumn
-                x: 20; y: 18
-                spacing: 12
-                Text { font.family: Theme.fontFamily; text: "映像・表示"; color: Theme.textPrimary; font.pixelSize: 26 }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "解像度"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    Repeater {
-                        model: ["800x480", "1280x720", "1920x1080"]
-                        ActionButton {
-                            text: modelData
-                            selected: androidAuto.resolutionIndex === index
-                            onClicked: androidAuto.resolutionIndex = index
-                        }
-                    }
-                }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "フレームレート"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    Repeater {
-                        model: [30, 60]
-                        ActionButton {
-                            text: modelData + " fps"
-                            selected: androidAuto.fps === modelData
-                            onClicked: androidAuto.fps = modelData
-                        }
-                    }
-                }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "接続後フルスクリーン"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    ActionButton {
-                        text: "ON"
-                        selected: androidAuto.fullscreenOnStream
-                        onClicked: androidAuto.fullscreenOnStream = true
-                    }
-                    ActionButton {
-                        text: "OFF"
-                        selected: !androidAuto.fullscreenOnStream
-                        onClicked: androidAuto.fullscreenOnStream = false
-                    }
-                }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "テーマ"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    Repeater {
-                        model: ["昼", "夜", "自動"]
-                        ActionButton {
-                            text: modelData
-                            selected: androidAuto.themeMode === index
-                            onClicked: androidAuto.themeMode = index
-                        }
-                    }
-                }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "Android Auto も連動"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    ActionButton {
-                        text: "ON"
-                        selected: androidAuto.aaFollowsTheme
-                        onClicked: androidAuto.aaFollowsTheme = true
-                    }
-                    ActionButton {
-                        text: "OFF"
-                        selected: !androidAuto.aaFollowsTheme
-                        onClicked: androidAuto.aaFollowsTheme = false
-                    }
-                }
-                Row {
-                    spacing: 14
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "アクセント色"; color: Theme.textSecondary; font.pixelSize: 20 }
-                    Repeater {
-                        model: Theme.accentPresets
-                        Rectangle {
-                            width: 44; height: 44; radius: 22
-                            color: modelData
-                            border.width: androidAuto.accentIndex === index ? 4 : 1
-                            border.color: androidAuto.accentIndex === index ? Theme.textPrimary : Theme.panelBorder
-                            MouseArea { anchors.fill: parent; onClicked: androidAuto.accentIndex = index }
-                        }
-                    }
-                }
-                Text {
-                    font.family: Theme.fontFamily
-                    width: 860
-                    wrapMode: Text.WordWrap
-                    text: "解像度・fps を変更すると、接続中の場合は一度正規に切断してから再接続待機になります。"
-                          + "自動テーマは 6:00〜18:00 が昼です。Android Auto 側のテーマは、スマホの Android Auto 設定で昼夜を「自動」にしているときに車載機の昼夜に従います。"
-                          + "フルスクリーン中は、画面下端を上へスワイプ、または Esc / F10 / Menu / Windows キーでメニューを開けます。"
-                    color: Theme.textSecondary
-                    font.pixelSize: 16
-                }
-            }
-        }
-
-        Rectangle {
-            width: parent.width
-            height: aaColumn.implicitHeight + 36
-            color: Theme.panel
-            radius: Theme.radius
-            border.color: Theme.panelBorder
-
-            Column {
-                id: aaColumn
-                x: 20; y: 18
-                spacing: 10
-                Text { font.family: Theme.fontFamily; text: "Android Auto"; color: Theme.textPrimary; font.pixelSize: 26 }
-                InfoRow { label: "状態"; value: androidAuto.stateText; valueColor: Theme.stateColor(androidAuto.stateKey) }
-                InfoRow { label: "詳細"; value: androidAuto.detailText }
-                InfoRow { label: "直近の切断/エラー"; value: androidAuto.lastIssue === "" ? "なし" : androidAuto.lastIssue }
-                InfoRow { label: "受信フレーム数"; value: androidAuto.frameCount }
-                InfoRow { label: "映像サイズ"; value: androidAuto.videoInfo }
-                InfoRow { label: "aasdk 接続処理"; value: androidAuto.aasdkEnabled ? "ビルドに含まれる" : "含まれない (OFF)" }
-            }
-        }
-
-        Rectangle {
-            width: parent.width
-            height: canColumn.implicitHeight + 36
-            color: Theme.panel
-            radius: Theme.radius
-            border.color: Theme.panelBorder
-
-            Column {
-                id: canColumn
-                x: 20; y: 18
-                spacing: 10
-                Text { font.family: Theme.fontFamily; text: "車両情報 (CAN)"; color: Theme.textPrimary; font.pixelSize: 26 }
-                InfoRow { label: "データ源"; value: can.sourceText + "（実 CAN 通信は未実装）"; valueColor: Theme.warn }
-                Row {
-                    spacing: 10
-                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "Android Auto へ送信(モック)"; color: Theme.textSecondary; font.pixelSize: 20; wrapMode: Text.WordWrap }
-                    ActionButton {
-                        text: "ON"
-                        selected: androidAuto.mockVehicleData
-                        onClicked: androidAuto.mockVehicleData = true
-                    }
-                    ActionButton {
-                        text: "OFF"
-                        selected: !androidAuto.mockVehicleData
-                        onClicked: androidAuto.mockVehicleData = false
-                    }
-                }
-                Text {
-                    font.family: Theme.fontFamily
-                    width: 860
-                    wrapMode: Text.WordWrap
-                    text: "ON にすると、上のダミーデータ(速度・回転数・燃料)に、ギアと位置を加えて Android Auto へ送ります。"
-                          + "位置は東京駅付近を周回するだけの架空の値で、実際の現在地ではありません(地図アプリの現在地がずれる場合があります)。"
-                          + "スマートフォンが開始要求を出したセンサーだけが送られます。送信できたかはログの [sensor] で確認できます。"
-                    color: Theme.textSecondary
-                    font.pixelSize: 16
-                }
-            }
-        }
-
-        Text {
-            font.family: Theme.fontFamily
-            text: "OpenCruise 0.1.0 (プロトタイプ)"
-            color: Theme.textSecondary
-            font.pixelSize: 16
         }
     }
+
+    // ---- 右: 選択中ジャンルの設定ページ ----
+    Item {
+        id: pageArea
+        anchors { top: header.bottom; bottom: parent.bottom; left: sidebar.right; right: parent.right
+                  leftMargin: Theme.margin; rightMargin: Theme.margin; bottomMargin: Theme.margin; topMargin: 4 }
+
+        Loader {
+            id: pageLoader
+            anchors.fill: parent
+            sourceComponent: root.categories.length > 0 ? root.categories[root.currentIndex].page : null
+            // ジャンルを切り替えたとき、中身がぱっと変わらないよう軽くフェードインする
+            onLoaded: fadeIn.restart()
+            NumberAnimation { id: fadeIn; target: pageLoader; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+        }
     }
 }

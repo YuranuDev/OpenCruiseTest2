@@ -10,6 +10,8 @@ ApplicationWindow {
     // アプリのテーマ(昼夜・アクセント色)を Theme へ反映する。Theme 側で補間アニメーションされる
     Binding { target: Theme; property: "night"; value: androidAuto.nightActive }
     Binding { target: Theme; property: "accentIndex"; value: androidAuto.accentIndex }
+    // 画面サイズに応じた拡大率(1280x720 基準)。設定画面など、寸法を拡大率で決める部品が Theme.uiScale を参照する
+    Binding { target: Theme; property: "uiScale"; value: Math.max(0.6, Math.min(window.width / 1280, window.height / 720)) }
     // 選択中のフォント。同梱フォントを読み込めず空のときは OS 既定のまま
     Binding { target: Theme; property: "fontFamily"; value: appSettings.fontFamily; when: appSettings.fontFamily !== "" }
 
