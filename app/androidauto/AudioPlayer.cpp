@@ -13,6 +13,8 @@
 #include <QMediaDevices>
 #include <QMutexLocker>
 
+#include "core/AudioSettings.h"
+
 namespace opencruise {
 
 namespace {
@@ -21,7 +23,11 @@ constexpr int kQueueMaxMs = 1000;    ///< これを超えて溜まったら古�
 constexpr int kQueueKeepMs = 400;    ///< 捨てるときに残す量
 constexpr int kTailMs = 150;         ///< 停止時、キューが空になってから出力を閉じるまでの余韻
 constexpr qint64 kIdleCloseMs = 3000; ///< 停止通知が無くてもデータが途絶えたら出力を閉じる
-const char *nameOf(int kind) { return kind == 1 ? "media" : kind == 2 ? "guidance" : "system"; }
+const char *nameOf(int kind) {
+    return kind == 1 ? "media" : kind == 2 ? "guidance" : "system";
+}
+/// チャネルの PCM 形式。Media は 48kHz/2ch、他は 16kHz/1ch(16bit)
+bool isStereo(int kind) { return kind == 1; }
 } // namespace
 
 PcmQueueDevice::PcmQueueDevice(int bytesPerSecond, QObject *parent)
@@ -83,8 +89,46 @@ AudioPlayer::AudioPlayer(QObject *parent) : QObject(parent) {
     connect(&timer_, &QTimer::timeout, this, [this]() { housekeeping(); });
 }
 
+void AudioPlayer::setSettings(AudioSettings *settings) {
+    if (settings_) {
+        settings_->disconnect(this);
+    }
+    settings_ = settings;
+    if (!settings_) {
+        return;
+    }
+    connect(settings_, &AudioSettings::volumeChangedFor, this, [this](int group) { applyVolume(group); });
+    connect(settings_, &AudioSettings::deviceChangedFor, this, [this](int group) { reopenGroup(group); });
+}
+
+void AudioPlayer::applyVolume(int group) {
+    if (!settings_) {
+        return;
+    }
+    for (int kind = 0; kind < kChannelCount; ++kind) {
+        Channel &ch = channels_[kind];
+        if (ch.sink && AudioSettings::groupForKind(kind) == group) {
+            ch.sink->setVolume(static_cast<float>(settings_->gain(static_cast<AudioSettings::Group>(group))));
+        }
+    }
+}
+
+void AudioPlayer::reopenGroup(int group) {
+    for (int kind = 0; kind < kChannelCount; ++kind) {
+        Channel &ch = channels_[kind];
+        if (AudioSettings::groupForKind(kind) != group) {
+            continue;
+        }
+        if (ch.sink) {
+            qInfo().noquote() << "[audio] 出力先が変わったため、出力を作り直します:" << nameOf(kind);
+            destroy(ch);
+        }
+        ch.failed = false; // 出力先を変えたら、前回の失敗は再試行する
+    }
+}
+
 void AudioPlayer::write(int kind, const QByteArray &pcm) {
-    if (kind < 0 || kind > 2 || pcm.isEmpty()) {
+    if (kind < 0 || kind >= kChannelCount || pcm.isEmpty()) {
         return;
     }
     Channel &ch = channels_[kind];
@@ -93,11 +137,21 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
     }
     if (!ch.sink) {
         QAudioFormat format;
-        format.setSampleRate(kind == 1 ? 48000 : 16000);
-        format.setChannelCount(kind == 1 ? 2 : 1);
+        format.setSampleRate(isStereo(kind) ? 48000 : 16000);
+        format.setChannelCount(isStereo(kind) ? 2 : 1);
         format.setSampleFormat(QAudioFormat::Int16);
 
-        const QAudioDevice device = QMediaDevices::defaultAudioOutput();
+        // 設定で選ばれた出力先を使う。選んだ機器が形式に対応しない場合は、システム既定へ切り替える
+        const AudioSettings::Group group = AudioSettings::groupForKind(kind);
+        QAudioDevice device = settings_ ? settings_->device(group) : QMediaDevices::defaultAudioOutput();
+        if (!device.isNull() && !device.isFormatSupported(format)) {
+            const QAudioDevice fallback = QMediaDevices::defaultAudioOutput();
+            if (fallback.id() != device.id()) {
+                qWarning().noquote() << "[audio] 選択した出力先が形式に未対応のため、システム既定を使います:" << nameOf(kind)
+                                     << "device:" << device.description();
+                device = fallback;
+            }
+        }
         if (device.isNull() || !device.isFormatSupported(format)) {
             qWarning().noquote() << "[audio] 出力デバイスが無い、または形式に未対応です:" << nameOf(kind)
                                  << "device:" << device.description();
@@ -108,6 +162,9 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
         ch.device = std::make_unique<PcmQueueDevice>(bytesPerSecond);
         ch.sink = std::make_unique<QAudioSink>(device, format);
         ch.sink->setBufferSize(bytesPerSecond * kSinkBufferMs / 1000);
+        if (settings_) {
+            ch.sink->setVolume(static_cast<float>(settings_->gain(group)));
+        }
         ch.sink->start(ch.device.get()); // pull モード: シンクがデバイスから読み出す
         if (ch.sink->error() != QAudio::NoError) {
             qWarning().noquote() << "[audio] 出力を開始できませんでした:" << nameOf(kind) << ch.sink->error();
@@ -126,7 +183,7 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
 }
 
 void AudioPlayer::stop(int kind) {
-    if (kind < 0 || kind > 2) {
+    if (kind < 0 || kind >= kChannelCount) {
         return;
     }
     Channel &ch = channels_[kind];
@@ -155,7 +212,7 @@ void AudioPlayer::destroy(Channel &ch) {
 
 void AudioPlayer::housekeeping() {
     bool anyActive = false;
-    for (int kind = 0; kind < 3; ++kind) {
+    for (int kind = 0; kind < kChannelCount; ++kind) {
         Channel &ch = channels_[kind];
         if (!ch.sink) {
             continue;

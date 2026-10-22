@@ -26,12 +26,14 @@
 
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppSettings.h"
+#include "core/AudioSettings.h"
 #include "core/BootManager.h"
 #include "core/ClockModel.h"
 #include "core/SystemStats.h"
 #include "core/VehicleDataManager.h"
 #include "core/Log.h"
 #include "core/NotificationManager.h"
+#include "core/SystemSound.h"
 
 /**
  * @brief アプリを起動する。
@@ -92,7 +94,11 @@ int main(int argc, char *argv[]) {
     opencruise::BootManager boot; // 起動(オープニング)画面の待ち管理。外部機器の接続待ちなどもここへ登録する
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
+    // 音量(マップ音声・音楽音声・システム)と出力先の設定。AndroidAutoController より先に作る(寿命を app に合わせる)
+    auto* audioSettings = new opencruise::AudioSettings(&app);
+    opencruise::SystemSound systemSound(audioSettings); // 操作音・起動音(音量・出力先は「システム」の設定に従う)
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
+    androidAuto->setAudioSettings(audioSettings);
     androidAuto->setVehicleSource(&can); // モックの車両データ送信の取得元(ダミーの CAN データ)
     // AndroidAutoController オブジェクトを QGuiApplication の子オブジェクトとして関連付けることで
     // オブジェクトの寿命管理を強化し、QTimer::singleShot 使用時のダングリングポインタアクセスを回避
@@ -109,6 +115,8 @@ int main(int argc, char *argv[]) {
     // ---- 起動時に待つステップの登録 ----
     // 外部機器やサービスを増やすときは addStep() で足し、準備ができたら boot.report(id, Ready, ...) を呼ぶだけでよい。
     // 応答が無くても timeoutMs で打ち切って先へ進む(必須でも起動は止まらず、画面に失敗として表示する)。
+    // 警告(実際の交通規制に従う旨)を読めるよう、起動画面の最低表示時間を長めにする
+    boot.setTiming(5000, 2200, 15000);
     boot.addStep(QStringLiteral("system"), QStringLiteral("システム初期化"), true, 0);
     boot.addStep(QStringLiteral("vehicle"), QStringLiteral("車両データ"), false, 3000);
     boot.addStep(QStringLiteral("aa"), QStringLiteral("Android Auto 接続層"), true, 8000);
@@ -134,6 +142,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("boot"), &boot);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
+    engine.rootContext()->setContextProperty(QStringLiteral("audioSettings"), audioSettings);
+    engine.rootContext()->setContextProperty(QStringLiteral("systemSound"), &systemSound);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
 

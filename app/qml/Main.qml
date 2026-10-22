@@ -26,6 +26,9 @@ ApplicationWindow {
     title: "OpenCruise"
     color: Theme.background
 
+    // 起動音(起動画面が出るタイミングで鳴らす。音量・出力先は設定の「システム」に従う)
+    Component.onCompleted: systemSound.play("start")
+
     // 起動画面中の Esc はスキップ。フルスクリーン中は Esc / F10 / Menu キーで下メニューを開閉する（Esc で即終了しない）
     Shortcut {
         sequence: "Esc"

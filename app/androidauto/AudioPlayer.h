@@ -12,7 +12,10 @@
 #include <QIODevice>
 #include <QMutex>
 #include <QObject>
+#include <QPointer>
 #include <QTimer>
+
+#include "core/AudioSettings.h"
 
 namespace opencruise {
 
@@ -53,11 +56,18 @@ private:
  * @brief 音声チャネル(0=System / 1=Media / 2=Guidance)ごとに出力を持つ再生器。UI スレッド専用。
  *
  * 形式は Service Discovery で申告した値(Media 48kHz/2ch、他 16kHz/1ch、16bit)に固定。
+ * AudioSettings を渡すと、チャネルごとに(マップ音声・音楽音声・システムの)音量と出力先を反映する。
  */
 class AudioPlayer : public QObject {
     Q_OBJECT
 public:
     explicit AudioPlayer(QObject *parent = nullptr);
+
+    /**
+     * @brief 音量・出力先の設定を結びつける(所有はしない)。設定が変わると再生中の出力へ反映する。
+     *        未設定のときは、音量 100% でシステム既定のデバイスへ出力する。
+     */
+    void setSettings(AudioSettings *settings);
 
     /** @brief PCM を再生キューへ書き込む。出力は初回に作る。 */
     void write(int kind, const QByteArray &pcm);
@@ -75,8 +85,14 @@ private:
     };
     void destroy(Channel &ch);
     void housekeeping();
+    /** @brief 設定の音量を、そのグループに属する再生中の出力へ反映する。 */
+    void applyVolume(int group);
+    /** @brief そのグループに属する出力を閉じる(次の write() で新しい出力先に作り直される)。 */
+    void reopenGroup(int group);
 
-    Channel channels_[3];
+    static constexpr int kChannelCount = 3;
+    Channel channels_[kChannelCount];
+    QPointer<AudioSettings> settings_;
     QTimer timer_;
 };
 

@@ -31,6 +31,7 @@ namespace opencruise {
 
 class VideoSurfaceItem;
 class VehicleDataManager;
+class AudioSettings;
 
 /**
  * @brief QML 向けの Android Auto 状態モデル兼コントローラ。
@@ -103,6 +104,11 @@ public:
 
     /** @brief モックの車両データ送信を切り替えて保存する。ON のとき、接続中の Android Auto へ約 0.5 秒ごとに送る。 */
     void setMockVehicleData(bool enabled);
+
+    /**
+     * @brief 音量・出力先の設定を、Android Auto の音声出力へ結びつける(所有はしない。アプリ終了まで有効なこと)。
+     */
+    void setAudioSettings(AudioSettings *settings) { audioPlayer_.setSettings(settings); }
 
     /**
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。

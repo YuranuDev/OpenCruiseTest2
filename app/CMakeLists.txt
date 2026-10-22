@@ -44,10 +44,12 @@ target_compile_options(opencruise_aa PRIVATE -Wall -Wextra)
 qt_add_executable(opencruise
     main.cpp
     core/AppSettings.cpp
+    core/AudioSettings.cpp
     core/BootManager.cpp
     core/ClockModel.cpp
     core/Log.cpp
     core/NotificationManager.cpp
+    core/SystemSound.cpp
     core/VehicleDataManager.cpp
     core/SystemStats.cpp
     androidauto/AndroidAutoController.cpp
@@ -79,6 +81,9 @@ qt_add_qml_module(opencruise
         qml/SettingsNote.qml
         qml/SettingsPageGeneral.qml
         qml/SettingsPageDisplay.qml
+        qml/SettingsPageAudio.qml
+        qml/SettingsSlider.qml
+        qml/SettingsDeviceList.qml
         qml/SettingsPageAndroidAuto.qml
         qml/SettingsPageVehicle.qml
         qml/SettingsPageSystem.qml
@@ -94,7 +99,9 @@ qt_add_qml_module(opencruise
         qml/LauncherTile.qml
         qml/NotificationPopup.qml
     RESOURCES
-        fonts/MaterialIcons-Regular.ttf)
+        fonts/MaterialIcons-Regular.ttf
+        sounds/Click.wav
+        sounds/Start.wav)
 
 target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

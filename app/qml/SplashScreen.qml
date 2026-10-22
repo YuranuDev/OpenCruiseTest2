@@ -1,5 +1,6 @@
-// 起動(オープニング)画面。BootManager(context property `boot`)の各ステップの状態を一覧し、
-// ESP32 などの応答待ちが終わるまで表示を保つ。待ちの制御はすべて C++ 側(BootManager)にあり、ここは表示だけ。
+// 起動(ようこそ)画面。上部にタイトルを大きく出し、下部に「実際の交通規制に従って走行する」旨の警告を大きく出す。
+// BootManager(context property `boot`)の待ち(ESP32 などの応答待ち)が終わるまで表示を保つ。
+// 待ちの制御はすべて C++ 側(BootManager)にあり、ここは表示だけ。各ステップの詳細はログに残る。
 import QtQuick
 
 Rectangle {
@@ -11,59 +12,18 @@ Rectangle {
     property real shownProgress: boot.progress
     Behavior on shownProgress { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
-    function iconFor(key) {
-        switch (key) {
-        case "ready": return "check_circle"
-        case "warning": return "warning"
-        case "failed": return "error"
-        case "skipped": return "remove_circle_outline"
-        default: return "radio_button_unchecked"
-        }
-    }
-    function colorFor(key) {
-        switch (key) {
-        case "ready": return Theme.ok
-        case "warning": return Theme.warn
-        case "failed": return Theme.error
-        case "running": return Theme.accent
-        default: return Theme.textSecondary
-        }
-    }
-
-    // 下の画面へタッチを通さない
+    // 下へタッチを通さない
     MouseArea { anchors.fill: parent; enabled: root.visible }
 
+    // ---- 上部: タイトル(強調)と、起動状況・進行バー ----
     Column {
-        id: content
-        anchors.centerIn: parent
-        width: Math.min(parent.width - Theme.margin * 4, 620 * root.unit)
-        spacing: 20 * root.unit
+        id: titleBlock
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: -parent.height * 0.15
+        width: Math.min(parent.width - Theme.margin * 4, 760 * root.unit)
+        spacing: 22 * root.unit
         NumberAnimation on opacity { from: 0; to: 1; duration: 500; easing.type: Easing.OutCubic }
-
-        // ロゴ(ゆっくり脈打つ輪)
-        Item {
-            width: parent.width
-            height: 132 * root.unit
-            Rectangle {
-                anchors.centerIn: parent
-                width: 112 * root.unit; height: width; radius: width / 2
-                color: "transparent"
-                border.width: 3
-                border.color: Theme.accent
-                SequentialAnimation on scale {
-                    loops: Animation.Infinite
-                    running: boot.active
-                    NumberAnimation { to: 1.08; duration: 900; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
-                }
-                MaterialIcon {
-                    anchors.centerIn: parent
-                    name: "directions_car"
-                    size: 60 * root.unit
-                    color: Theme.accent
-                }
-            }
-        }
 
         Text {
             font.family: Theme.fontFamily
@@ -71,7 +31,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             text: "OpenCruise"
             color: Theme.textPrimary
-            font.pixelSize: 48 * root.unit
+            font.pixelSize: 112 * root.unit
             font.bold: true
         }
 
@@ -98,71 +58,55 @@ Rectangle {
                 color: Theme.accent
             }
         }
+    }
 
-        // ステップ一覧
-        Rectangle {
-            width: parent.width
-            height: stepsColumn.height + 2 * Theme.margin
-            radius: Theme.radius + 6
-            color: Theme.panel
-            border.color: Theme.panelBorder
-            visible: stepRepeater.count > 0
+    // ---- 下部: 警告(大きく)。スキップボタンと重ならないよう、その分だけ上へ空ける ----
+    Rectangle {
+        id: warning
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.margin * 3 + 52
+        width: Math.min(parent.width - Theme.margin * 4, 1100 * root.unit)
+        height: warningRow.implicitHeight + 2 * 32 * root.unit
+        radius: Theme.radius + 6
+        color: Theme.mix(Theme.panel, Theme.warn, 0.16)
+        border.width: 3
+        border.color: Theme.warn
+        NumberAnimation on opacity { from: 0; to: 1; duration: 700; easing.type: Easing.OutCubic }
+
+        Row {
+            id: warningRow
+            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
+                      leftMargin: 36 * root.unit; rightMargin: 36 * root.unit }
+            spacing: 32 * root.unit
+
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "warning"
+                size: 110 * root.unit
+                color: Theme.warn
+            }
 
             Column {
-                id: stepsColumn
-                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
-                          leftMargin: Theme.margin * 1.25; rightMargin: Theme.margin * 1.25 }
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 110 * root.unit - parent.spacing
+                spacing: 10 * root.unit
 
-                Repeater {
-                    id: stepRepeater
-                    model: boot
-                    delegate: Item {
-                        id: row
-                        required property string title
-                        required property string detail
-                        required property string stateKey
-                        width: stepsColumn.width
-                        height: 46 * root.unit
-
-                        Item {
-                            id: iconBox
-                            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                            width: 30 * root.unit; height: width
-                            // 応答待ちは回る「sync」、確定後は状態のアイコン
-                            MaterialIcon {
-                                anchors.centerIn: parent
-                                visible: row.stateKey === "running"
-                                name: "sync"
-                                size: 30 * root.unit
-                                color: Theme.accent
-                                RotationAnimator on rotation { from: 0; to: 360; duration: 1100; loops: Animation.Infinite; running: parent.visible }
-                            }
-                            MaterialIcon {
-                                anchors.centerIn: parent
-                                visible: row.stateKey !== "running"
-                                name: root.iconFor(row.stateKey)
-                                size: 30 * root.unit
-                                color: root.colorFor(row.stateKey)
-                            }
-                        }
-                        Text {
-                            font.family: Theme.fontFamily
-                            anchors { left: iconBox.right; leftMargin: 14 * root.unit; verticalCenter: parent.verticalCenter }
-                            text: row.title
-                            color: Theme.textPrimary
-                            font.pixelSize: 22 * root.unit
-                        }
-                        Text {
-                            font.family: Theme.fontFamily
-                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                            width: parent.width * 0.45
-                            horizontalAlignment: Text.AlignRight
-                            text: row.detail
-                            color: (row.stateKey === "warning" || row.stateKey === "failed") ? root.colorFor(row.stateKey) : Theme.textSecondary
-                            font.pixelSize: 18 * root.unit
-                            elide: Text.ElideRight
-                        }
-                    }
+                Text {
+                    font.family: Theme.fontFamily
+                    text: "警告"
+                    color: Theme.warn
+                    font.pixelSize: 44 * root.unit
+                    font.bold: true
+                }
+                Text {
+                    font.family: Theme.fontFamily
+                    width: parent.width
+                    text: "必ず実際の交通規制(信号・標識・速度制限など)に従って走行してください。"
+                    color: Theme.textPrimary
+                    font.pixelSize: 36 * root.unit
+                    font.bold: true
+                    wrapMode: Text.WordWrap
                 }
             }
         }

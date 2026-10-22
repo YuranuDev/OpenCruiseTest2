@@ -25,6 +25,7 @@ Rectangle {
     property list<SettingsCategory> categories: [
         SettingsCategory { icon: "tune";          title: "一般";         page: SettingsPageGeneral {} },
         SettingsCategory { icon: "palette";       title: "表示";         page: SettingsPageDisplay {} },
+        SettingsCategory { icon: "volume_up";     title: "サウンド";     page: SettingsPageAudio {} },
         SettingsCategory { icon: "android";       title: "Android Auto"; page: SettingsPageAndroidAuto {} },
         SettingsCategory { icon: "directions_car"; title: "車両";        page: SettingsPageVehicle {} },
         SettingsCategory { icon: "monitor_heart"; title: "システム";    page: SettingsPageSystem {} },
@@ -71,7 +72,7 @@ Rectangle {
             MouseArea {
                 id: backMouse
                 anchors.fill: parent
-                onClicked: root.back()
+                onClicked: { systemSound.play("click"); root.back() }
             }
         }
 
