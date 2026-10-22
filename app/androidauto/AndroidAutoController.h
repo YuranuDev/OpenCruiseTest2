@@ -25,6 +25,7 @@
 #include "StreamSettings.h"
 #include "AudioPlayer.h"
 #include "H264Decoder.h"
+#include "MicrophoneInput.h"
 #include "TestVideoFeeder.h"
 
 namespace opencruise {
@@ -69,6 +70,8 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(bool mockVehicleData READ mockVehicleData WRITE setMockVehicleData NOTIFY settingsChanged)
     /** モック送信中に Android Auto へ送っている値の一覧。[{label, value}, ...](表示用の文字列)。OFF の間は空 */
     Q_PROPERTY(QVariantList mockVehicleItems READ mockVehicleItems NOTIFY mockVehicleChanged)
+    /** マイクの状態の表示文字列(オフ / 待機中 / 録音中(デバイス名) / エラー) */
+    Q_PROPERTY(QString microphoneStatus READ microphoneStatus NOTIFY microphoneStatusChanged)
 
 public:
     /**
@@ -108,7 +111,12 @@ public:
     /**
      * @brief 音量・出力先の設定を、Android Auto の音声出力へ結びつける(所有はしない。アプリ終了まで有効なこと)。
      */
-    void setAudioSettings(AudioSettings *settings) { audioPlayer_.setSettings(settings); }
+    void setAudioSettings(AudioSettings *settings) {
+        audioPlayer_.setSettings(settings);
+        microphone_.setSettings(settings);
+    }
+
+    QString microphoneStatus() const { return microphone_.statusText(); }
 
     /**
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
@@ -162,6 +170,8 @@ signals:
     void themeChanged();
     /** @brief モック送信中の値の一覧(mockVehicleItems)が更新されたとき。 */
     void mockVehicleChanged();
+    /** @brief マイクの状態(microphoneStatus)が変わったとき。 */
+    void microphoneStatusChanged();
 
 private:
     /**
@@ -243,6 +253,7 @@ private:
     std::unique_ptr<aa::AasdkBackend> backend_;
     H264Decoder decoder_;
     AudioPlayer audioPlayer_; ///< 音声出力（UI スレッド専用）
+    MicrophoneInput microphone_; ///< マイク録音（UI スレッド専用）。録音データは接続層へ送る
     TestVideoFeeder testFeeder_;
 };
 

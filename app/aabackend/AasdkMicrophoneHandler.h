@@ -3,10 +3,12 @@
  * @brief aasdk のマイク(MediaSource)チャネルの最小実装。
  *
  * OpenAuto の ServiceFactory は常に Microphone を申告するため、同じ構成に合わせる。
- * 実際の録音データは送らず、チャネルを開いて Setup/Open 要求に応答するだけ。
+ * スマートフォンからのマイク オープン/クローズ要求に応答し、開いている間だけ、車載機側で録音した
+ * PCM(16kHz/16bit/1ch)を sendAudio() で送る。録音そのものは Qt 側(MicrophoneInput)が行う。
  */
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -28,6 +30,7 @@ public:
     struct Callbacks {
         std::function<void(const std::string &)> onFatalError; ///< セッションを終了すべきエラー
         std::function<void(const std::string &)> onLog;        ///< 診断ログ
+        std::function<void(bool)> onMicrophoneRequest;         ///< スマートフォンがマイクを開いた(true)/閉じた(false)
     };
 
     AasdkMicrophoneHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
@@ -35,6 +38,16 @@ public:
 
     void start();
     void fillFeatures(aap_protobuf::service::control::message::ServiceDiscoveryResponse &response);
+
+    /// スマートフォンがマイクを開いている間 true(strand 上でのみ呼ぶ)
+    bool isOpen() const { return open_; }
+
+    /**
+     * @brief 録音した PCM を 1 チャンク送る(strand 上でのみ呼ぶ)。
+     *
+     * マイクが開いていない場合、または送信待ちが溜まりすぎている場合は、エラーにせず捨てる。
+     */
+    void sendAudio(const std::uint8_t *data, std::size_t size);
 
     // ---- IMediaSourceServiceEventHandler ----
     void onChannelOpenRequest(const aap_protobuf::service::control::message::ChannelOpenRequest &request) override;
@@ -51,6 +64,9 @@ private:
     std::shared_ptr<boost::asio::io_service::strand> strand_;
     std::shared_ptr<aasdk::channel::mediasource::audio::MicrophoneAudioChannel> channel_;
     Callbacks callbacks_;
+    bool open_ = false;            ///< スマートフォンからオープン要求を受けている間 true(strand 上でのみ触る)
+    std::size_t pendingSends_ = 0; ///< 送信完了待ちのチャンク数(strand 上でのみ触る)
+    std::size_t droppedChunks_ = 0; ///< 送信待ち過多で捨てたチャンク数(ログ用)
 };
 
 } // namespace opencruise::aa

@@ -54,6 +54,7 @@ qt_add_executable(opencruise
     core/SystemStats.cpp
     androidauto/AndroidAutoController.cpp
     androidauto/AudioPlayer.cpp
+    androidauto/MicrophoneInput.cpp
     androidauto/H264Decoder.cpp
     androidauto/TestVideoFeeder.cpp)
 

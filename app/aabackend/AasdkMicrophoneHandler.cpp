@@ -1,8 +1,10 @@
 /**
  * @file AasdkMicrophoneHandler.cpp
- * @brief マイク(MediaSource)チャネルの最小実装。録音データは送らない。
+ * @brief マイク(MediaSource)チャネルの実装。開いている間、車載機側で録音した PCM を送る。
  */
 #include "AasdkMicrophoneHandler.h"
+
+#include <chrono>
 
 #include <aasdk/Error/Error.hpp>
 #include <aap_protobuf/service/Service.pb.h>
@@ -17,6 +19,11 @@
 namespace opencruise::aa {
 
 namespace proto = aap_protobuf;
+
+namespace {
+/// 送信完了待ちの上限。USB が詰まったときにメモリを使い続けないよう、超えた分は捨てる(20ms/チャンクなら約 1 秒分)
+constexpr std::size_t kMaxPendingSends = 50;
+} // namespace
 
 AasdkMicrophoneHandler::AasdkMicrophoneHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
                                                aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks)
@@ -65,11 +72,46 @@ void AasdkMicrophoneHandler::onMediaChannelSetupRequest(const proto::service::me
 void AasdkMicrophoneHandler::onMediaSourceOpenRequest(
     const proto::service::media::source::message::MicrophoneRequest &request) {
     log(std::string("[mic] マイク ") + (request.open() ? "オープン" : "クローズ") + "要求を受信");
+    open_ = request.open();
     proto::service::media::source::message::MicrophoneResponse response;
     response.set_status(0);
     response.set_session_id(0);
     channel_->sendMicrophoneOpenResponse(response, makeSendPromise("MicrophoneResponse"));
     channel_->receive(shared_from_this());
+    if (callbacks_.onMicrophoneRequest) {
+        callbacks_.onMicrophoneRequest(open_);
+    }
+}
+
+void AasdkMicrophoneHandler::sendAudio(const std::uint8_t *data, std::size_t size) {
+    if (!open_ || data == nullptr || size == 0) {
+        return;
+    }
+    if (pendingSends_ >= kMaxPendingSends) {
+        if (++droppedChunks_ == 1 || droppedChunks_ % 100 == 0) {
+            log("[mic] 送信待ちが溜まっているため録音データを破棄しました (累計 " + std::to_string(droppedChunks_) +
+                " チャンク)");
+        }
+        return;
+    }
+    ++pendingSends_;
+    // タイムスタンプはマイクロ秒(OpenAuto の AudioInputService と同じ単位)
+    const auto timestamp = static_cast<aasdk::messenger::Timestamp::ValueType>(
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count());
+    auto promise = aasdk::channel::SendPromise::defer(*strand_);
+    promise->then([self = shared_from_this()]() { --self->pendingSends_; },
+                  [self = shared_from_this()](const aasdk::error::Error &e) {
+                      --self->pendingSends_;
+                      if (e == aasdk::error::ErrorCode::OPERATION_ABORTED) {
+                          return;
+                      }
+                      if (self->callbacks_.onFatalError) {
+                          self->callbacks_.onFatalError(std::string("マイクチャネル送信失敗(録音データ): ") + e.what());
+                      }
+                  });
+    channel_->sendMediaSourceWithTimestampIndication(timestamp, aasdk::common::Data(data, data + size),
+                                                     std::move(promise));
 }
 
 void AasdkMicrophoneHandler::onMediaChannelAckIndication(const proto::service::media::source::message::Ack &) {

@@ -14,6 +14,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <boost/asio.hpp>
 
@@ -45,6 +46,8 @@ struct SessionCallbacks {
     /// PCM 音声受信。第1引数は音声チャネル(0=System / 1=Media / 2=Guidance)
     std::function<void(int, const std::uint8_t *, std::size_t)> onAudioData;
     std::function<void(int)> onAudioStop; ///< 音声ストリーム停止
+    /// スマートフォンがマイクを開いた(true)/閉じた(false)。セッション終了時は、開いていれば false で通知する
+    std::function<void(bool)> onMicrophoneRequest;
     std::function<void(const std::string &)> onFinished; ///< セッション終了（理由つき、1回だけ呼ばれる）
 };
 
@@ -93,6 +96,13 @@ public:
      * 実際の送信は strand 上で行う。セッション終了後や入力チャネルの準備前に呼んだ場合は何もしない。
      */
     void sendTouch(const TouchEvent &event);
+
+    /**
+     * @brief 録音した PCM(16kHz/16bit/1ch)をスマートフォンへ送る。どのスレッドから呼んでもよい。
+     *
+     * 実際の送信は strand 上で行う。セッション終了後や、スマートフォンがマイクを開いていない間は捨てる。
+     */
+    void sendMicrophoneData(std::vector<std::uint8_t> data);
 
     // ---- IControlServiceChannelEventHandler ----
     void onVersionResponse(uint16_t majorCode, uint16_t minorCode, aap_protobuf::shared::MessageStatus status) override;

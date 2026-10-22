@@ -172,6 +172,21 @@ struct AasdkBackend::Impl {
     }
 
     /**
+     * @brief 録音データを strand 経由で現在のセッションへ渡す。セッションが無ければ捨てる。
+     */
+    void sendMicrophoneData(const std::uint8_t *data, std::size_t size) {
+        if (!running_ || stopping_ || data == nullptr || size == 0) {
+            return;
+        }
+        std::vector<std::uint8_t> copy(data, data + size);
+        strand_->post([this, copy = std::move(copy)]() mutable {
+            if (session_) {
+                session_->sendMicrophoneData(std::move(copy));
+            }
+        });
+    }
+
+    /**
      * @brief 現在の USB デバイス一覧をログに出す（スマートフォンが見えているかの確認用）。
      */
     void logUsbDevices() {
@@ -280,6 +295,7 @@ struct AasdkBackend::Impl {
             sessionCallbacks.onVideoData = callbacks.onVideoData;
             sessionCallbacks.onAudioData = callbacks.onAudioData;
             sessionCallbacks.onAudioStop = callbacks.onAudioStop;
+            sessionCallbacks.onMicrophoneRequest = callbacks.onMicrophoneRequest;
             sessionCallbacks.onLog = callbacks.onLog;
             sessionCallbacks.onFinished = [this](const std::string &reason) {
                 strand_->post([this, reason]() { onSessionFinished(reason); });
@@ -508,5 +524,12 @@ bool AasdkBackend::isRunning() const { return impl_->running_; }
  * @brief タッチ入力を送る。
  */
 void AasdkBackend::sendTouch(const TouchEvent &event) { impl_->sendTouch(event); }
+
+/**
+ * @brief 録音データを送る。
+ */
+void AasdkBackend::sendMicrophoneData(const std::uint8_t *data, std::size_t size) {
+    impl_->sendMicrophoneData(data, size);
+}
 
 } // namespace opencruise::aa

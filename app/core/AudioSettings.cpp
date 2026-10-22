@@ -58,6 +58,16 @@ AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
     log::info("AUDIO", QStringLiteral("出力デバイス %1 個を検出しました").arg(outputs_.size()));
 
     connect(&mediaDevices_, &QMediaDevices::audioOutputsChanged, this, [this]() { refreshOutputs(); });
+
+    micEnabled_ = store.value(QStringLiteral("audio/micEnabled"), true).toBool();
+    selectedMicId_ = QByteArray::fromBase64(store.value(QStringLiteral("audio/micDevice"), QString()).toString().toLatin1());
+    inputs_ = QMediaDevices::audioInputs();
+    inputNames_ << QStringLiteral("システム既定");
+    for (const QAudioDevice &dev : std::as_const(inputs_)) {
+        inputNames_ << dev.description();
+    }
+    log::info("AUDIO", QStringLiteral("入力デバイス %1 個を検出しました").arg(inputs_.size()));
+    connect(&mediaDevices_, &QMediaDevices::audioInputsChanged, this, [this]() { refreshInputs(); });
 }
 
 AudioSettings::Group AudioSettings::groupForKind(int kind) {
@@ -151,6 +161,62 @@ void AudioSettings::refreshOutputs() {
             emit deviceChangedFor(i);
         }
     }
+}
+
+void AudioSettings::setMicEnabled(bool enabled) {
+    if (enabled == micEnabled_) {
+        return;
+    }
+    micEnabled_ = enabled;
+    openStore().setValue(QStringLiteral("audio/micEnabled"), enabled);
+    log::info("AUDIO", QStringLiteral("マイク: %1").arg(enabled ? QStringLiteral("オン") : QStringLiteral("オフ")));
+    emit micChanged();
+}
+
+int AudioSettings::micDeviceIndex() const {
+    if (selectedMicId_.isEmpty()) {
+        return 0;
+    }
+    for (int i = 0; i < inputs_.size(); ++i) {
+        if (inputs_[i].id() == selectedMicId_) {
+            return i + 1;
+        }
+    }
+    return 0; // 保存した機器が未接続の間はシステム既定を使う(選択は保持し、再接続で戻る)
+}
+
+QAudioDevice AudioSettings::micDevice() const {
+    const int index = micDeviceIndex();
+    if (index > 0) {
+        return inputs_[index - 1];
+    }
+    return QMediaDevices::defaultAudioInput();
+}
+
+void AudioSettings::setMicDeviceIndex(int index) {
+    if (index < 0 || index > inputs_.size()) {
+        return;
+    }
+    const QByteArray id = index == 0 ? QByteArray() : inputs_[index - 1].id();
+    if (id == selectedMicId_) {
+        return;
+    }
+    selectedMicId_ = id;
+    openStore().setValue(QStringLiteral("audio/micDevice"), QString::fromLatin1(id.toBase64()));
+    log::info("AUDIO", QStringLiteral("マイクの入力元: %1").arg(inputNames_.value(index)));
+    emit micChanged();
+}
+
+void AudioSettings::refreshInputs() {
+    inputs_ = QMediaDevices::audioInputs();
+    inputNames_.clear();
+    inputNames_ << QStringLiteral("システム既定");
+    for (const QAudioDevice &dev : std::as_const(inputs_)) {
+        inputNames_ << dev.description();
+    }
+    log::info("AUDIO", QStringLiteral("入力デバイスの構成が変わりました(%1 個)").arg(inputs_.size()));
+    emit inputsChanged();
+    emit micChanged(); // 番号が指す機器がずれた/選んだ機器が現れた・消えた可能性があるので、録音側にも見直させる
 }
 
 } // namespace opencruise

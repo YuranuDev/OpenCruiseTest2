@@ -231,6 +231,11 @@ void AasdkSession::start() {
         AasdkMicrophoneHandler::Callbacks micCallbacks;
         micCallbacks.onFatalError = onFatal;
         micCallbacks.onLog = onLog;
+        micCallbacks.onMicrophoneRequest = [weak](bool open) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onMicrophoneRequest) {
+                s->callbacks_.onMicrophoneRequest(open);
+            }
+        };
         self->microphoneHandler_ =
             std::make_shared<AasdkMicrophoneHandler>(self->strand_, self->messenger_, std::move(micCallbacks));
         self->microphoneHandler_->start();
@@ -311,6 +316,18 @@ void AasdkSession::sendTouch(const TouchEvent &event) {
             return;
         }
         self->inputHandler_->sendTouch(event);
+    });
+}
+
+/**
+ * @brief 録音データを strand 上でマイクハンドラへ渡す。終了済みなら捨てる。
+ */
+void AasdkSession::sendMicrophoneData(std::vector<std::uint8_t> data) {
+    strand_->dispatch([self = shared_from_this(), data = std::move(data)]() {
+        if (self->finished_ || !self->microphoneHandler_) {
+            return;
+        }
+        self->microphoneHandler_->sendAudio(data.data(), data.size());
     });
 }
 
@@ -587,6 +604,10 @@ void AasdkSession::doTerminate(const std::string &reason) {
     }
     finished_ = true;
     log("セッション終了: " + reason);
+    // マイクが開いたまま終わる場合は、上位が録音を止められるよう閉じた扱いで通知する
+    if (microphoneHandler_ && microphoneHandler_->isOpen() && callbacks_.onMicrophoneRequest) {
+        callbacks_.onMicrophoneRequest(false);
+    }
     if (pingTimer_) {
         pingTimer_->cancel();
     }

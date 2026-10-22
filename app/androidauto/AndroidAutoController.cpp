@@ -87,6 +87,14 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
     vehicleTimer_.setInterval(500);
     connect(&vehicleTimer_, &QTimer::timeout, this, [this]() { pushVehicleData(); });
     vehicleTimer_.start();
+    // 録音したマイク音声は、接続層を通じてスマートフォンへ送る(接続層側で、未接続・マイク未オープン時は捨てられる)
+    connect(&microphone_, &MicrophoneInput::captured, this, [this](const QByteArray &pcm) {
+        if (backend_) {
+            backend_->sendMicrophoneData(reinterpret_cast<const std::uint8_t *>(pcm.constData()),
+                                         static_cast<std::size_t>(pcm.size()));
+        }
+    });
+    connect(&microphone_, &MicrophoneInput::statusChanged, this, &AndroidAutoController::microphoneStatusChanged);
     stateKey_ = keyFor(aa::LinkState::Unavailable);
     stateText_ = textFor(aa::LinkState::Unavailable);
     detailText_ = QStringLiteral("接続処理は開始されていません");
@@ -194,6 +202,10 @@ void AndroidAutoController::start() {
     };
     callbacks.onAudioStop = [this](int kind) {
         QMetaObject::invokeMethod(this, [this, kind]() { audioPlayer_.stop(kind); }, Qt::QueuedConnection);
+    };
+    // スマートフォンがマイクを開閉したとき。ワーカースレッドから来るので UI スレッドへ渡す
+    callbacks.onMicrophoneRequest = [this](bool open) {
+        QMetaObject::invokeMethod(this, [this, open]() { microphone_.setRequested(open); }, Qt::QueuedConnection);
     };
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
@@ -465,6 +477,7 @@ void AndroidAutoController::restartBackendAsync() {
  */
 void AndroidAutoController::stop() {
     testFeeder_.stop();
+    microphone_.setRequested(false);
     if (backend_) {
         backend_->stop();
         backend_.reset();
@@ -530,6 +543,7 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
     if (link == aa::LinkState::Waiting || link == aa::LinkState::Connecting || link == aa::LinkState::Unavailable) {
         decoder_.reset();
         audioPlayer_.stopAll(); // 切断・再接続時は音声出力も作り直す
+        microphone_.setRequested(false); // 切断・再接続時はマイクの録音も止める
         decoderErrorReported_ = false;
         frameCount_ = 0;
         videoInfo_ = QStringLiteral("-");

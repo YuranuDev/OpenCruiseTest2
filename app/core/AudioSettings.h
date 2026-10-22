@@ -9,6 +9,8 @@
  *  - マップ音声  : Android Auto のガイダンス音声(AudioPlayer の kind 2)
  *  - 音楽音声    : Android Auto のメディア音声(kind 1)
  *  - システム    : アプリの操作音・起動音(SystemSound)と、Android Auto のシステム音(kind 0)
+ *
+ * これとは別に、Android Auto の音声入力に使うマイクの設定(使用する/しない、入力元デバイス)も持つ。
  */
 #pragma once
 
@@ -41,6 +43,12 @@ class AudioSettings : public QObject {
     Q_PROPERTY(int systemDeviceIndex READ systemDeviceIndex WRITE setSystemDeviceIndex NOTIFY devicesChanged)
     /** 選択できる出力先の表示名。先頭は常に「システム既定」。接続の増減に追従する */
     Q_PROPERTY(QStringList outputNames READ outputNames NOTIFY outputsChanged)
+    /** マイクを使うか。オフの間は、Android Auto から要求されても録音も送信もしない */
+    Q_PROPERTY(bool micEnabled READ micEnabled WRITE setMicEnabled NOTIFY micChanged)
+    /** マイクの入力元(inputNames の番号。0 = システム既定) */
+    Q_PROPERTY(int micDeviceIndex READ micDeviceIndex WRITE setMicDeviceIndex NOTIFY micChanged)
+    /** 選択できる入力元の表示名。先頭は常に「システム既定」。接続の増減に追従する */
+    Q_PROPERTY(QStringList inputNames READ inputNames NOTIFY inputsChanged)
 
 public:
     enum Group { Map = 0, Music = 1, System = 2, GroupCount = 3 };
@@ -80,6 +88,17 @@ public:
 
     QStringList outputNames() const { return outputNames_; }
 
+    bool micEnabled() const { return micEnabled_; }
+    /** @brief マイクの使用可否を変更して保存する。 */
+    void setMicEnabled(bool enabled);
+    /** @brief マイクの入力元の番号(0 = システム既定)。保存された機器が接続されていない間は 0 を返す。 */
+    int micDeviceIndex() const;
+    /** @brief マイクの入力元を番号で選んで保存する。範囲外は無視する。 */
+    void setMicDeviceIndex(int index);
+    /** @brief 実際に使う入力デバイス。未選択・未接続ならシステム既定のデバイス。 */
+    QAudioDevice micDevice() const;
+    QStringList inputNames() const { return inputNames_; }
+
 signals:
     void volumesChanged();
     void devicesChanged();
@@ -88,10 +107,16 @@ signals:
     void volumeChangedFor(int group);
     /** @brief あるグループの実際の出力デバイスが変わった(再生中の出力を作り直すため)。 */
     void deviceChangedFor(int group);
+    /** @brief マイクの使用可否・入力元の選択、または選択が指す実際のデバイスが変わった。 */
+    void micChanged();
+    /** @brief 入力デバイスの一覧が変わった。 */
+    void inputsChanged();
 
 private:
     /** @brief 出力デバイスの一覧を取り直す。変化があれば通知する。 */
     void refreshOutputs();
+    /** @brief 入力デバイスの一覧を取り直し、変化を通知する。 */
+    void refreshInputs();
     /** @brief グループの設定が指している機器の id(未選択・未接続ならシステム既定の id)。 */
     QByteArray resolvedId(Group group) const;
 
@@ -99,6 +124,10 @@ private:
     QByteArray selectedIds_[GroupCount]; ///< 選択した機器の id。空ならシステム既定
     QList<QAudioDevice> outputs_;
     QStringList outputNames_;
+    bool micEnabled_ = true;
+    QByteArray selectedMicId_; ///< 選択したマイクの id。空ならシステム既定
+    QList<QAudioDevice> inputs_;
+    QStringList inputNames_;
     QMediaDevices mediaDevices_;
 };
 

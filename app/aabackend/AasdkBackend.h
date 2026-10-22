@@ -36,6 +36,8 @@ struct BackendCallbacks {
     std::function<void(int, const std::uint8_t *, std::size_t)> onAudioData;
     /// 音声ストリームが止まったとき（引数は上と同じチャネル番号）
     std::function<void(int)> onAudioStop;
+    /// スマートフォンがマイクを開いた(true)/閉じた(false)。セッション終了時は、開いていれば false で通知される
+    std::function<void(bool)> onMicrophoneRequest;
     /// 診断ログ
     std::function<void(const std::string &)> onLog;
 };
@@ -99,6 +101,13 @@ public:
      * @param event タッチ入力
      */
     void sendTouch(const TouchEvent &event);
+
+    /**
+     * @brief 録音した PCM(16kHz / 16bit / 1ch)を、接続中のスマートフォンへ送る。どのスレッドからでも呼べる。
+     *
+     * スマートフォンがマイクを開いていない間・未接続・停止中に呼ばれたデータは、エラーにせず捨てる。
+     */
+    void sendMicrophoneData(const std::uint8_t *data, std::size_t size);
 
 private:
     struct Impl;

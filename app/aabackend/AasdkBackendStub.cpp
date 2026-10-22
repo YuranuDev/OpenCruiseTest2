@@ -50,4 +50,9 @@ bool AasdkBackend::isRunning() const { return false; }
  */
 void AasdkBackend::sendTouch(const TouchEvent &) {}
 
+/**
+ * @brief 何もしない（送る相手がいない）。
+ */
+void AasdkBackend::sendMicrophoneData(const std::uint8_t *, std::size_t) {}
+
 } // namespace opencruise::aa
