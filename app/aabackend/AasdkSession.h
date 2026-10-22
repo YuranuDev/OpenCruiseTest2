@@ -83,6 +83,11 @@ public:
     void setNightMode(bool night);
 
     /**
+     * @brief 車両の状態をスマートフォンへ送る(センサーチャネル経由)。どのスレッドから呼んでもよい。
+     */
+    void sendVehicleData(const VehicleSnapshot &snapshot);
+
+    /**
      * @brief タッチ入力をスマートフォンへ送る。どのスレッドから呼んでもよい。
      *
      * 実際の送信は strand 上で行う。セッション終了後や入力チャネルの準備前に呼んだ場合は何もしない。

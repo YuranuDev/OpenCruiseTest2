@@ -11,9 +11,12 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <set>
 #include <string>
 
 #include <boost/asio.hpp>
+
+#include "VehicleSnapshot.h"
 
 #include <aasdk/Channel/Promise.hpp>
 #include <aasdk/Channel/SensorSource/ISensorSourceServiceEventHandler.hpp>
@@ -56,6 +59,12 @@ public:
     void setNightMode(bool night);
 
     /**
+     * @brief 車両の状態を Android Auto へ送る。スマホが開始要求を出したセンサーの分だけ SensorBatch に詰める
+     *        (どのスレッドからでも可)。
+     */
+    void sendVehicleData(const VehicleSnapshot &snapshot);
+
+    /**
      * @brief ServiceDiscoveryResponse にセンサーサービスを追記する。
      */
     void fillFeatures(aap_protobuf::service::control::message::ServiceDiscoveryResponse &response);
@@ -82,6 +91,8 @@ private:
     Callbacks callbacks_;
     bool nightMode_ = false;    ///< 現在の昼夜モード(strand 上でのみ触る)
     bool nightStarted_ = false; ///< スマホが NIGHT_MODE センサーを開始済みか
+    std::set<int> started_;     ///< スマホが開始要求を出したセンサー種別(SensorType の値。strand 上でのみ触る)
+    bool loggedFirstVehicleSend_ = false;
 };
 
 } // namespace opencruise::aa

@@ -264,6 +264,18 @@ void AasdkSession::setNightMode(bool night) {
     });
 }
 
+/**
+ * @brief 車両の状態を strand 上でセンサーハンドラへ渡す。ハンドラが未作成なら捨てる。
+ */
+void AasdkSession::sendVehicleData(const VehicleSnapshot &snapshot) {
+    auto self = shared_from_this();
+    strand_->dispatch([self, snapshot]() {
+        if (!self->finished_ && self->sensorHandler_) {
+            self->sensorHandler_->sendVehicleData(snapshot);
+        }
+    });
+}
+
 void AasdkSession::stop() {
     auto self = shared_from_this();
     strand_->dispatch([self]() {

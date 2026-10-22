@@ -16,6 +16,7 @@
 #include "LinkState.h"
 #include "StreamSettings.h"
 #include "TouchEvent.h"
+#include "VehicleSnapshot.h"
 
 namespace opencruise::aa {
 
@@ -76,6 +77,14 @@ public:
      *        どのスレッドからでも呼べる。
      */
     void setNightMode(bool night);
+
+    /**
+     * @brief 車両の状態を Android Auto へ送る。どのスレッドからでも呼べる。
+     *
+     * スマートフォンが開始要求を出したセンサー(速度・回転数・燃料・ギア・パーキングブレーキ・位置)だけが送られる。
+     * 未接続・センサー開始前は、エラーにせず捨てる。
+     */
+    void sendVehicleData(const VehicleSnapshot &snapshot);
 
     /**
      * @brief start() 済みで stop() されていなければ true。

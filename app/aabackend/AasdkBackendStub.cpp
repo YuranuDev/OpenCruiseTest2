@@ -38,6 +38,8 @@ void AasdkBackend::stop() {}
 
 void AasdkBackend::setNightMode(bool) {}
 
+void AasdkBackend::sendVehicleData(const VehicleSnapshot &) {}
+
 /**
  * @brief 常に false。
  */

@@ -4,6 +4,8 @@
  */
 #include "AndroidAutoController.h"
 
+#include <cmath>
+
 #include <QDateTime>
 #include <QDebug>
 #include <QImage>
@@ -14,6 +16,7 @@
 
 #include "VideoSurfaceItem.h"
 #include "core/NotificationManager.h"
+#include "core/VehicleDataManager.h"
 
 namespace opencruise {
 
@@ -74,11 +77,15 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
         themeMode_ = qBound(0, store.value(QStringLiteral("ui/themeMode"), 2).toInt(), 2);
         accentIndex_ = qMax(0, store.value(QStringLiteral("ui/accentIndex"), 0).toInt());
         aaFollowsTheme_ = store.value(QStringLiteral("ui/aaFollowsTheme"), true).toBool();
+        mockVehicleData_ = store.value(QStringLiteral("mock/vehicleData"), false).toBool();
     }
     nightActive_ = themeMode_ == 1 || (themeMode_ == 2 && isNightByClock());
     themeTimer_.setInterval(60 * 1000);
     connect(&themeTimer_, &QTimer::timeout, this, [this]() { updateNight(); });
     themeTimer_.start();
+    vehicleTimer_.setInterval(500);
+    connect(&vehicleTimer_, &QTimer::timeout, this, [this]() { pushVehicleData(); });
+    vehicleTimer_.start();
     stateKey_ = keyFor(aa::LinkState::Unavailable);
     stateText_ = textFor(aa::LinkState::Unavailable);
     detailText_ = QStringLiteral("接続処理は開始されていません");
@@ -227,6 +234,66 @@ void AndroidAutoController::setFullscreenOnStream(bool enabled) {
     QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
         .setValue(QStringLiteral("ui/fullscreenOnStream"), enabled);
     emit settingsChanged();
+}
+
+/**
+ * @brief モックの車両データ送信の ON/OFF を保存する。
+ */
+void AndroidAutoController::setMockVehicleData(bool enabled) {
+    if (enabled == mockVehicleData_) {
+        return;
+    }
+    mockVehicleData_ = enabled;
+    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
+        .setValue(QStringLiteral("mock/vehicleData"), enabled);
+    mockLastMs_ = 0; // 位置の積算を ON にした時点から始める
+    emit settingsChanged();
+    NotificationManager::notify(enabled ? QStringLiteral("モックの車両データ送信: ON")
+                                        : QStringLiteral("モックの車両データ送信: OFF"),
+                                enabled ? QStringLiteral("ダミーの速度・回転数・燃料・ギア・位置を送ります(実際の位置ではありません)")
+                                        : QString(),
+                                NotificationManager::Info, QStringLiteral("sync"));
+}
+
+/**
+ * @brief ダミーの車両データ(速度・回転数・燃料)に、ギアと周回する位置を加えて Android Auto へ送る。
+ *
+ * 位置は東京駅付近の半径 500m の円を、車速に合わせて反時計回りに周回する(動作確認用で、実際の位置ではない)。
+ * 送信はスマホがセンサーを開始してからで、接続前・開始前は接続層が捨てる。
+ */
+void AndroidAutoController::pushVehicleData() {
+    if (!mockVehicleData_ || !backend_ || vehicleSource_ == nullptr) {
+        return;
+    }
+    constexpr double kPi = 3.14159265358979323846;
+    constexpr double kCenterLat = 35.681236;   // 東京駅
+    constexpr double kCenterLon = 139.767125;
+    constexpr double kRadiusM = 500.0;
+    constexpr double kMetersPerDegLat = 111320.0;
+
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const double speedMs = vehicleSource_->speedKmh() / 3.6;
+    if (mockLastMs_ > 0) {
+        mockAngleRad_ += speedMs * (static_cast<double>(now - mockLastMs_) / 1000.0) / kRadiusM;
+    }
+    mockLastMs_ = now;
+
+    aa::VehicleSnapshot snapshot;
+    snapshot.speedKmh = vehicleSource_->speedKmh();
+    snapshot.rpm = vehicleSource_->rpm();
+    snapshot.fuelPercent = vehicleSource_->fuelPercent();
+    snapshot.lowFuel = snapshot.fuelPercent < 10;
+    snapshot.gear = snapshot.speedKmh > 0 ? aa::VehicleGear::Drive : aa::VehicleGear::Park;
+    snapshot.parkingBrake = snapshot.speedKmh == 0;
+    snapshot.latitude = kCenterLat + kRadiusM * std::sin(mockAngleRad_) / kMetersPerDegLat;
+    snapshot.longitude = kCenterLon + kRadiusM * std::cos(mockAngleRad_) /
+                                          (kMetersPerDegLat * std::cos(kCenterLat * kPi / 180.0));
+    // 反時計回りの接線方向(北=0、時計回り)
+    snapshot.bearingDeg = std::fmod(-(mockAngleRad_ * 180.0 / kPi), 360.0);
+    if (snapshot.bearingDeg < 0.0) {
+        snapshot.bearingDeg += 360.0;
+    }
+    backend_->sendVehicleData(snapshot);
 }
 
 /**

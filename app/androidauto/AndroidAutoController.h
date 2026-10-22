@@ -29,6 +29,7 @@
 namespace opencruise {
 
 class VideoSurfaceItem;
+class VehicleDataManager;
 
 /**
  * @brief QML 向けの Android Auto 状態モデル兼コントローラ。
@@ -62,6 +63,8 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(bool aaFollowsTheme READ aaFollowsTheme WRITE setAaFollowsTheme NOTIFY themeChanged)
     /** 映像表示中にウィンドウ全体を映像にする */
     Q_PROPERTY(bool fullscreenOnStream READ fullscreenOnStream WRITE setFullscreenOnStream NOTIFY settingsChanged)
+    /** 動作確認用: ダミーの車両データ(速度・回転数・燃料・ギア・位置)を Android Auto へ送る。位置は実際の位置ではない */
+    Q_PROPERTY(bool mockVehicleData READ mockVehicleData WRITE setMockVehicleData NOTIFY settingsChanged)
 
 public:
     /**
@@ -85,6 +88,7 @@ public:
     int resolutionIndex() const { return settings_.resolution; }
     int fps() const { return settings_.fps; }
     bool fullscreenOnStream() const { return fullscreenOnStream_; }
+    bool mockVehicleData() const { return mockVehicleData_; }
     int themeMode() const { return themeMode_; }
     bool nightActive() const { return nightActive_; }
     int accentIndex() const { return accentIndex_; }
@@ -92,6 +96,14 @@ public:
     void setThemeMode(int mode);
     void setAccentIndex(int index);
     void setAaFollowsTheme(bool enabled);
+
+    /** @brief モックの車両データ送信を切り替えて保存する。ON のとき、接続中の Android Auto へ約 0.5 秒ごとに送る。 */
+    void setMockVehicleData(bool enabled);
+
+    /**
+     * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
+     */
+    void setVehicleSource(VehicleDataManager *source) { vehicleSource_ = source; }
 
     /** @brief 解像度を変更して保存する。接続処理が動作中なら切断して再接続待機へ入る。 */
     void setResolutionIndex(int index);
@@ -175,6 +187,15 @@ private:
 
     aa::StreamSettings settings_;
     bool fullscreenOnStream_ = false;
+
+    /** @brief 車両データ(現状はダミー)から送信用の状態を作り、接続中なら Android Auto へ送る。 */
+    void pushVehicleData();
+
+    bool mockVehicleData_ = false;
+    VehicleDataManager *vehicleSource_ = nullptr; ///< 車両データの取得元(非所有)
+    QTimer vehicleTimer_;                         ///< 車両データ送信の周期タイマー
+    double mockAngleRad_ = 0.0;                   ///< モック位置: 周回コース上の現在角度
+    qint64 mockLastMs_ = 0;                       ///< モック位置: 前回計算した時刻
     /** @brief 設定と時刻から昼夜を再計算し、変化があれば通知して Android Auto へ送る。 */
     void updateNight();
     /** @brief 現在の昼夜を接続層へ渡す（Android Auto が連動しない設定なら常に昼）。 */

@@ -256,6 +256,30 @@ Rectangle {
                 spacing: 10
                 Text { font.family: Theme.fontFamily; text: "車両情報 (CAN)"; color: Theme.textPrimary; font.pixelSize: 26 }
                 InfoRow { label: "データ源"; value: can.sourceText + "（実 CAN 通信は未実装）"; valueColor: Theme.warn }
+                Row {
+                    spacing: 10
+                    Text { font.family: Theme.fontFamily; width: 220; anchors.verticalCenter: parent.verticalCenter; text: "Android Auto へ送信(モック)"; color: Theme.textSecondary; font.pixelSize: 20; wrapMode: Text.WordWrap }
+                    ActionButton {
+                        text: "ON"
+                        selected: androidAuto.mockVehicleData
+                        onClicked: androidAuto.mockVehicleData = true
+                    }
+                    ActionButton {
+                        text: "OFF"
+                        selected: !androidAuto.mockVehicleData
+                        onClicked: androidAuto.mockVehicleData = false
+                    }
+                }
+                Text {
+                    font.family: Theme.fontFamily
+                    width: 860
+                    wrapMode: Text.WordWrap
+                    text: "ON にすると、上のダミーデータ(速度・回転数・燃料)に、ギアと位置を加えて Android Auto へ送ります。"
+                          + "位置は東京駅付近を周回するだけの架空の値で、実際の現在地ではありません(地図アプリの現在地がずれる場合があります)。"
+                          + "スマートフォンが開始要求を出したセンサーだけが送られます。送信できたかはログの [sensor] で確認できます。"
+                    color: Theme.textSecondary
+                    font.pixelSize: 16
+                }
             }
         }
 

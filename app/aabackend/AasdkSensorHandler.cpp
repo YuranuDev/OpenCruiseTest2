@@ -7,11 +7,20 @@
  */
 #include "AasdkSensorHandler.h"
 
+#include <cmath>
+
 #include <aasdk/Error/Error.hpp>
 #include <aap_protobuf/service/Service.pb.h>
 #include <aap_protobuf/service/control/message/ChannelOpenResponse.pb.h>
 #include <aap_protobuf/service/sensorsource/SensorSourceService.pb.h>
 #include <aap_protobuf/service/sensorsource/message/DrivingStatus.pb.h>
+#include <aap_protobuf/service/sensorsource/message/FuelData.pb.h>
+#include <aap_protobuf/service/sensorsource/message/Gear.pb.h>
+#include <aap_protobuf/service/sensorsource/message/GearData.pb.h>
+#include <aap_protobuf/service/sensorsource/message/LocationData.pb.h>
+#include <aap_protobuf/service/sensorsource/message/ParkingBrakeData.pb.h>
+#include <aap_protobuf/service/sensorsource/message/RpmData.pb.h>
+#include <aap_protobuf/service/sensorsource/message/SpeedData.pb.h>
 #include <aap_protobuf/service/sensorsource/message/NightModeData.pb.h>
 #include <aap_protobuf/service/sensorsource/message/Sensor.pb.h>
 #include <aap_protobuf/service/sensorsource/message/SensorBatch.pb.h>
@@ -49,10 +58,20 @@ void AasdkSensorHandler::fillFeatures(proto::service::control::message::ServiceD
     service->set_id(static_cast<std::int32_t>(channel_->getId()));
 
     auto *sensor = service->mutable_sensor_source_service();
-    // OpenAuto の SensorService と同じ 3 種(走行状態 / 位置 / 夜間モード)を申告する
+    // OpenAuto の SensorService と同じ 3 種(走行状態 / 位置 / 夜間モード)に加え、
+    // モックの車両データ送信用に 速度 / 回転数 / 燃料 / ギア / パーキングブレーキ も申告する。
+    // 値を送るのは車両データ送信(sendVehicleData)が呼ばれたときだけで、呼ばれなければ何も送らない。
+    using proto::service::sensorsource::message::SensorType;
     sensor->add_sensors()->set_sensor_type(SENSOR_DRIVING_STATUS_DATA);
     sensor->add_sensors()->set_sensor_type(proto::service::sensorsource::message::SENSOR_LOCATION);
     sensor->add_sensors()->set_sensor_type(SENSOR_NIGHT_MODE);
+    for (const SensorType type : {proto::service::sensorsource::message::SENSOR_SPEED,
+                                  proto::service::sensorsource::message::SENSOR_RPM,
+                                  proto::service::sensorsource::message::SENSOR_FUEL,
+                                  proto::service::sensorsource::message::SENSOR_GEAR,
+                                  proto::service::sensorsource::message::SENSOR_PARKING_BRAKE}) {
+        sensor->add_sensors()->set_sensor_type(type);
+    }
 }
 
 /**
@@ -90,6 +109,69 @@ void AasdkSensorHandler::setNightMode(bool night) {
 }
 
 /**
+ * @brief 車両の状態を SensorBatch にして送る。開始要求のあったセンサーだけを詰める。
+ *
+ * 単位は次の想定(実機の Android Auto で挙動を確認して調整すること):
+ *  速度 = m/s × 1000 / 回転数 = rpm × 1000 / 燃料 = % / 位置 = 度 × 1e7、方位 = 度 × 1e6、精度 = m × 1000
+ */
+void AasdkSensorHandler::sendVehicleData(const VehicleSnapshot &snapshot) {
+    auto self = shared_from_this();
+    strand_->dispatch([self, snapshot]() {
+        namespace sm = proto::service::sensorsource::message;
+        const auto started = [&self](int type) { return self->started_.count(type) > 0; };
+
+        sm::SensorBatch batch;
+        std::string sent;
+        if (started(sm::SENSOR_SPEED)) {
+            batch.add_speed_data()->set_speed_e3(static_cast<std::int32_t>(std::lround(snapshot.speedKmh / 3.6 * 1000.0)));
+            sent += "速度 ";
+        }
+        if (started(sm::SENSOR_RPM)) {
+            batch.add_rpm_data()->set_rpm_e3(snapshot.rpm * 1000);
+            sent += "回転数 ";
+        }
+        if (started(sm::SENSOR_FUEL)) {
+            auto *fuel = batch.add_fuel_data();
+            fuel->set_fuel_level(snapshot.fuelPercent);
+            fuel->set_low_fuel_warning(snapshot.lowFuel);
+            sent += "燃料 ";
+        }
+        if (started(sm::SENSOR_GEAR)) {
+            sm::Gear gear = sm::GEAR_PARK;
+            switch (snapshot.gear) {
+            case VehicleGear::Park: gear = sm::GEAR_PARK; break;
+            case VehicleGear::Reverse: gear = sm::GEAR_REVERSE; break;
+            case VehicleGear::Neutral: gear = sm::GEAR_NEUTRAL; break;
+            case VehicleGear::Drive: gear = sm::GEAR_DRIVE; break;
+            }
+            batch.add_gear_data()->set_gear(gear);
+            sent += "ギア ";
+        }
+        if (started(sm::SENSOR_PARKING_BRAKE)) {
+            batch.add_parking_brake_data()->set_parking_brake(snapshot.parkingBrake);
+            sent += "パーキングブレーキ ";
+        }
+        if (started(sm::SENSOR_LOCATION)) {
+            auto *location = batch.add_location_data();
+            location->set_latitude_e7(static_cast<std::int32_t>(std::lround(snapshot.latitude * 1e7)));
+            location->set_longitude_e7(static_cast<std::int32_t>(std::lround(snapshot.longitude * 1e7)));
+            location->set_accuracy_e3(5000);
+            location->set_speed_e3(static_cast<std::int32_t>(std::lround(snapshot.speedKmh / 3.6 * 1000.0)));
+            location->set_bearing_e6(static_cast<std::int32_t>(std::lround(snapshot.bearingDeg * 1e6)));
+            sent += "位置 ";
+        }
+        if (sent.empty()) {
+            return; // スマホがまだどのセンサーも開始していない
+        }
+        self->channel_->sendSensorEventIndication(batch, self->makeSendPromise("SensorEvent(vehicle)"));
+        if (!self->loggedFirstVehicleSend_) {
+            self->loggedFirstVehicleSend_ = true;
+            self->log("車両データの送信を開始しました: " + sent);
+        }
+    });
+}
+
+/**
  * @brief センサー開始要求。応答送信後に初期値を1回送る。
  */
 void AasdkSensorHandler::onSensorStartRequest(
@@ -98,6 +180,7 @@ void AasdkSensorHandler::onSensorStartRequest(
     using proto::service::sensorsource::message::SENSOR_NIGHT_MODE;
 
     const auto type = request.type();
+    started_.insert(static_cast<int>(type));
     log("[sensor] SensorStartRequest を受信 (type=" + std::to_string(static_cast<int>(type)) + ")");
 
     proto::service::sensorsource::message::SensorStartResponseMessage response;

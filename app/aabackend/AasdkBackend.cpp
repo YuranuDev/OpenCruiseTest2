@@ -437,6 +437,17 @@ struct AasdkBackend::Impl {
             });
         }
     }
+
+    /// 車両の状態を、接続中のセッションへ渡す(未接続なら捨てる)
+    void sendVehicleData(const VehicleSnapshot &snapshot) {
+        if (strand_) {
+            strand_->post([this, snapshot]() {
+                if (session_) {
+                    session_->sendVehicleData(snapshot);
+                }
+            });
+        }
+    }
     std::atomic<bool> stopping_{false};
     std::string waitingDetail_ = "スマートフォンの接続を待っています";
 
@@ -485,6 +496,8 @@ bool AasdkBackend::start(std::string &errorMessage) { return impl_->start(errorM
 void AasdkBackend::stop() { impl_->stop(); }
 
 void AasdkBackend::setNightMode(bool night) { impl_->setNightMode(night); }
+
+void AasdkBackend::sendVehicleData(const VehicleSnapshot &snapshot) { impl_->sendVehicleData(snapshot); }
 
 /**
  * @brief 動作中か。

@@ -87,6 +87,7 @@ int main(int argc, char *argv[]) {
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
+    androidAuto->setVehicleSource(&can); // モックの車両データ送信の取得元(ダミーの CAN データ)
     // AndroidAutoController オブジェクトを QGuiApplication の子オブジェクトとして関連付けることで
     // オブジェクトの寿命管理を強化し、QTimer::singleShot 使用時のダングリングポインタアクセスを回避
     app.setOrganizationName(QStringLiteral("OpenCruise"));
