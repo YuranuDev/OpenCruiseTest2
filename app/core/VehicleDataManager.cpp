@@ -67,7 +67,7 @@ void VehicleDataManager::update() {
     speedKmh_ = std::max(0, static_cast<int>(std::lround(speed)));
     rpm_ = 850 + speedKmh_ * 24 + static_cast<int>(std::lround(120.0 * std::sin(2.0 * kPi * t / 1.9)));
     coolantTempC_ = static_cast<int>(std::min(90.0, 60.0 + t * 0.5));
-    fuelPercent_ = static_cast<int>(std::max(0.0, 68.0 - t * 0.01));
+    fuelPercent_ = static_cast<int>(std::max(0.0, 5.0 - t * 0.01));
     emit changed();
 }
 
