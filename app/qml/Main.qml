@@ -72,6 +72,91 @@ ApplicationWindow {
     StackView {
         id: stack
         anchors.fill: parent
+
+        // 新しい画面が入る：少し拡大した状態から通常サイズへ
+        pushEnter: Transition {
+            ParallelAnimation {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 0.0
+                    to: 1.0
+                    duration: 220
+                    easing.type: Easing.OutCubic
+                }
+
+                NumberAnimation {
+                    property: "scale"
+                    from: 1.035
+                    to: 1.0
+                    duration: 220
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // 現在の画面が後ろへ移動：控えめに縮小・フェード
+        pushExit: Transition {
+            ParallelAnimation {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 1.0
+                    to: 0.75
+                    duration: 180
+                    easing.type: Easing.OutCubic
+                }
+
+                NumberAnimation {
+                    property: "scale"
+                    from: 1.0
+                    to: 0.985
+                    duration: 180
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // 前の画面に戻る：通常サイズへ拡大・フェードイン
+        popEnter: Transition {
+            ParallelAnimation {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 0.75
+                    to: 1.0
+                    duration: 220
+                    easing.type: Easing.OutCubic
+                }
+
+                NumberAnimation {
+                    property: "scale"
+                    from: 0.985
+                    to: 1.0
+                    duration: 220
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
+
+        // 現在の画面が消える：少し縮小しながらフェードアウト
+        popExit: Transition {
+            ParallelAnimation {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 1.0
+                    to: 0.0
+                    duration: 180
+                    easing.type: Easing.InCubic
+                }
+
+                NumberAnimation {
+                    property: "scale"
+                    from: 1.0
+                    to: 0.965
+                    duration: 180
+                    easing.type: Easing.InCubic
+                }
+            }
+        }
+
         Component.onCompleted: {
             if (startOnSettings) {
                 stack.push(settingsComponent)
