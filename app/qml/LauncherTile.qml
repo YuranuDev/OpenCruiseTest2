@@ -20,12 +20,12 @@ Rectangle {
     Column {
         anchors.centerIn: parent
         width: parent.width - 16
-        spacing: 6 * root.unit
+        spacing: 2 * root.unit
 
         MaterialIcon {
             anchors.horizontalCenter: parent.horizontalCenter
             name: root.icon
-            size: 52 * root.unit
+            size: 40 * root.unit
             color: Theme.accent
         }
         Text {
@@ -34,7 +34,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             text: root.title
             color: Theme.textPrimary
-            font.pixelSize: 26 * root.unit
+            font.pixelSize: 22 * root.unit
             font.bold: true
             elide: Text.ElideRight
         }

@@ -13,6 +13,9 @@ Rectangle {
 
     // Android Auto 画面を表示中か(false なら初期画面)。Main.qml から渡される
     property bool showAa: false
+    // 初期画面 ⇄ Android Auto 画面のフェード進行度(0=初期画面 / 1=Android Auto 画面)
+    property real aaFade: showAa ? 1 : 0
+    Behavior on aaFade { NumberAnimation { duration: 280; easing.type: Easing.InOutQuad } }
 
     // フルスクリーン表示(映像だけを全面表示)か。Main.qml から渡される
     property bool immersive: false
@@ -23,7 +26,9 @@ Rectangle {
     // ---- 初期画面 ----
     LauncherScreen {
         anchors.fill: parent
-        visible: !root.showAa
+        opacity: 1 - root.aaFade
+        visible: opacity > 0
+        enabled: !root.showAa
         aaAvailable: androidAuto.stateKey === "streaming"
         onOpenSettings: root.openSettings()
         onOpenAndroidAuto: root.openAndroidAuto()
@@ -35,7 +40,8 @@ Rectangle {
         anchors { top: parent.top; left: parent.left; right: parent.right }
         anchors.margins: Theme.margin
         height: 76
-        visible: root.showAa && !root.immersive
+        opacity: root.aaFade
+        visible: root.aaFade > 0 && !root.immersive
 
         Column {
             anchors.verticalCenter: parent.verticalCenter
@@ -68,7 +74,8 @@ Rectangle {
 
     // ---- 本体 ----
     Item {
-        visible: root.showAa
+        opacity: root.aaFade
+        visible: root.aaFade > 0
         anchors {
             top: root.immersive ? parent.top : header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
             margins: root.immersive ? 0 : Theme.margin

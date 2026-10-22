@@ -35,7 +35,7 @@ Item {
             left: parent.left; right: parent.right; bottom: parent.bottom
             leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5; bottomMargin: Theme.margin * 1.5
         }
-        height: Math.max(104, parent.height * 0.22)
+        height: Math.max(76, parent.height * 0.15)
         readonly property real cellW: (width - 3 * root.gap) / 4
 
         LauncherTile {
@@ -72,7 +72,7 @@ Item {
         Column {
             id: clockBlock
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-            width: parent.width * 0.42
+            width: parent.width * 0.32
             spacing: 2 * root.unit
 
             Text {
@@ -80,21 +80,21 @@ Item {
                 width: parent.width
                 text: root.greetingText
                 color: Theme.textPrimary
-                font.pixelSize: 34 * root.unit
+                font.pixelSize: 30 * root.unit
                 elide: Text.ElideRight
             }
             Text {
                 font.family: Theme.fontFamily
                 text: clock.timeText
                 color: Theme.textPrimary
-                font.pixelSize: 128 * root.unit
+                font.pixelSize: 96 * root.unit
                 font.bold: true
             }
             Text {
                 font.family: Theme.fontFamily
                 text: clock.dateText
                 color: Theme.textSecondary
-                font.pixelSize: 26 * root.unit
+                font.pixelSize: 22 * root.unit
             }
         }
 
