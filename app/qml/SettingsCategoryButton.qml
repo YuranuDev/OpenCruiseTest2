@@ -32,9 +32,9 @@ Rectangle {
     }
 
     Row {
-        anchors { left: parent.left; leftMargin: 26 * root.unit; right: parent.right; rightMargin: 12 * root.unit
+        anchors { left: parent.left; leftMargin: 24 * root.unit; right: parent.right; rightMargin: 10 * root.unit
                   verticalCenter: parent.verticalCenter }
-        spacing: 16 * root.unit
+        spacing: 14 * root.unit
 
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter

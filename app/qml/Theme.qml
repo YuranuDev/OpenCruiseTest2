@@ -41,7 +41,7 @@ QtObject {
     // ボタンの塗りなど面に使うアクセント色。accent(文字・アイコン用)と違い、昼は白寄りに明るく(30%)、夜は少し暗く(20%)する
     readonly property color accentFill:    mix(mix(accentBase, "#ffffff", 0.3), mix(accentBase, "#000000", 0.2), nightLevel)
     // accentFill の上に載せる文字・アイコンの色(昼夜とも中〜明るい塗りなので暗い色)
-    readonly property color onAccent:      "#0d1015"
+    readonly property color textOnAccent:      "#0d1015"
     readonly property color ok:            mix("#1fa95b", "#3ddc84", nightLevel)
     readonly property color warn:          mix("#d98200", "#ffb74d", nightLevel)
     readonly property color error:         mix("#d93636", "#ff5c5c", nightLevel)

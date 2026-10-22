@@ -89,7 +89,7 @@ Rectangle {
         id: sidebar
         anchors { top: header.bottom; bottom: parent.bottom; left: parent.left
                   leftMargin: Theme.margin; bottomMargin: Theme.margin; topMargin: 4 }
-        width: 300 * root.unit
+        width: 340 * root.unit
         color: Theme.panel
         radius: Theme.radius + 6
         border.width: 1

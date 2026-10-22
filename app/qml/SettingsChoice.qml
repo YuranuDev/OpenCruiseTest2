@@ -41,13 +41,13 @@ Row {
                     anchors.verticalCenter: parent.verticalCenter
                     name: "check"
                     size: 28 * root.unit
-                    color: Theme.onAccent
+                    color: Theme.textOnAccent
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
                     text: modelData
-                    color: btn.selected ? Theme.onAccent : Theme.textPrimary
+                    color: btn.selected ? Theme.textOnAccent : Theme.textPrimary
                     font.pixelSize: 24 * root.unit
                     font.bold: btn.selected
                 }
