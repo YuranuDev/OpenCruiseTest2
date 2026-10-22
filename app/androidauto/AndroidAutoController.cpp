@@ -13,6 +13,7 @@
 #include <QTime>
 
 #include "VideoSurfaceItem.h"
+#include "core/NotificationManager.h"
 
 namespace opencruise {
 
@@ -395,6 +396,12 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
         videoPackets_ = 0;
         videoBytes_ = 0;
         qInfo().noquote() << "[aa] 待機に戻りました (前回:" << textFor(previous) << ")";
+    } else if (link == aa::LinkState::Connected && previous != aa::LinkState::Connected &&
+               previous != aa::LinkState::Streaming) {
+        // 接続が確立した（Service Discovery 完了）ときに 1 回だけ通知する
+        NotificationManager::notify(QStringLiteral("Android Auto に接続しました"),
+                                    QStringLiteral("スマートフォンとの接続が確立しました"),
+                                    NotificationManager::Success, QStringLiteral("smartphone"));
     }
 
     const bool wasActive = previous == aa::LinkState::Connecting || previous == aa::LinkState::Connected ||
