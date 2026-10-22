@@ -20,7 +20,8 @@
 #include <vector>
 #include <string>
 #include <cstddef>
-#include <stdint.h>
+#include <cstdint>
+#include <cstring>
 
 
 namespace aasdk {
