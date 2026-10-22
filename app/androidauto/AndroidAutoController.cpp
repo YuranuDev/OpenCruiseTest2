@@ -523,7 +523,7 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
     // 判定は接続層の終了理由に含まれる aasdk エラー名(USB_TRANSFER)による。アプリ側の要求による切断では出ない。
     if (link == aa::LinkState::Waiting && wasActive && detail.contains(QStringLiteral("USB_TRANSFER"))) {
         NotificationManager::notify(QStringLiteral("USB が切断されました"),
-                                    QStringLiteral("スマートフォンとの接続が切れました。再接続を待機します"),
+                                    QStringLiteral("スマートフォンとの接続が切れました。"),
                                     NotificationManager::Warning, QStringLiteral("usb"));
     }
 
