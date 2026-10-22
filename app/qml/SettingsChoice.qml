@@ -56,7 +56,7 @@ Row {
             MouseArea {
                 id: mouse
                 anchors.fill: parent
-                onClicked: { systemSound.play("click"); root.picked(index) }
+                onClicked: { root.picked(index) }
             }
         }
     }

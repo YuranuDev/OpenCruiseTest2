@@ -1,4 +1,4 @@
-// 起動(ようこそ)画面。上部にタイトルを大きく出し、下部に「実際の交通規制に従って走行する」旨の警告を大きく出す。
+// 起動(ようこそ)画面。中央にタイトルを大きく出し、最下部に「実際の交通規制に従って走行する」旨の警告を細長い帯で出す。
 // BootManager(context property `boot`)の待ち(ESP32 などの応答待ち)が終わるまで表示を保つ。
 // 待ちの制御はすべて C++ 側(BootManager)にあり、ここは表示だけ。各ステップの詳細はログに残る。
 import QtQuick
@@ -15,13 +15,12 @@ Rectangle {
     // 下へタッチを通さない
     MouseArea { anchors.fill: parent; enabled: root.visible }
 
-    // ---- 上部: タイトル(強調)と、起動状況・進行バー ----
+    // ---- 中央: タイトル(強調)と、起動状況・進行バー ----
     Column {
         id: titleBlock
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -parent.height * 0.15
-        width: Math.min(parent.width - Theme.margin * 4, 760 * root.unit)
+                width: Math.min(parent.width - Theme.margin * 4, 760 * root.unit)
         spacing: 22 * root.unit
         NumberAnimation on opacity { from: 0; to: 1; duration: 500; easing.type: Easing.OutCubic }
 
@@ -60,60 +59,64 @@ Rectangle {
         }
     }
 
-    // ---- 下部: 警告(大きく)。スキップボタンと重ならないよう、その分だけ上へ空ける ----
+    // ---- 下部: 警告。下端に隙間なく、画面幅いっぱいの細長い帯で出す(文字は大きめ) ----
     Rectangle {
         id: warning
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Theme.margin * 3 + 52
-        width: Math.min(parent.width - Theme.margin * 4, 1100 * root.unit)
-        height: warningRow.implicitHeight + 2 * 32 * root.unit
-        radius: Theme.radius + 6
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: warningRow.implicitHeight + 2 * 16 * root.unit
         color: Theme.mix(Theme.panel, Theme.warn, 0.16)
-        border.width: 3
-        border.color: Theme.warn
         NumberAnimation on opacity { from: 0; to: 1; duration: 700; easing.type: Easing.OutCubic }
+
+        // 上辺だけ警告色の線を引く
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: 3
+            color: Theme.warn
+        }
 
         Row {
             id: warningRow
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
-                      leftMargin: 36 * root.unit; rightMargin: 36 * root.unit }
-            spacing: 32 * root.unit
+                      leftMargin: 24 * root.unit; rightMargin: 24 * root.unit }
+            spacing: 18 * root.unit
 
             MaterialIcon {
+                id: warningIcon
                 anchors.verticalCenter: parent.verticalCenter
                 name: "warning"
-                size: 110 * root.unit
+                size: 56 * root.unit
                 color: Theme.warn
             }
 
-            Column {
+            Text {
+                id: warningLabel
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 110 * root.unit - parent.spacing
-                spacing: 10 * root.unit
+                font.family: Theme.fontFamily
+                text: "警告"
+                color: Theme.warn
+                font.pixelSize: 40 * root.unit
+                font.bold: true
+            }
 
-                Text {
-                    font.family: Theme.fontFamily
-                    text: "警告"
-                    color: Theme.warn
-                    font.pixelSize: 44 * root.unit
-                    font.bold: true
-                }
-                Text {
-                    font.family: Theme.fontFamily
-                    width: parent.width
-                    text: "必ず実際の交通規制(信号・標識・速度制限など)に従って走行してください。"
-                    color: Theme.textPrimary
-                    font.pixelSize: 36 * root.unit
-                    font.bold: true
-                    wrapMode: Text.WordWrap
-                }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                font.family: Theme.fontFamily
+                width: parent.width - warningIcon.width - warningLabel.width - 2 * parent.spacing
+                text: "必ず実際の交通規制(信号・標識・速度制限など)に従って走行してください。"
+                color: Theme.textPrimary
+                font.pixelSize: 40 * root.unit
+                font.bold: true
+                // 1 行に収める。収まらない幅では、収まる最大の大きさまで文字を縮める
+                wrapMode: Text.NoWrap
+                maximumLineCount: 1
+                fontSizeMode: Text.Fit
+                minimumPixelSize: 12
             }
         }
     }
 
     ActionButton {
-        anchors { right: parent.right; bottom: parent.bottom; rightMargin: Theme.margin * 1.5; bottomMargin: Theme.margin * 1.5 }
+        anchors { right: parent.right; bottom: parent.bottom; rightMargin: Theme.margin * 1.5; bottomMargin: warning.height + Theme.margin }
         visible: boot.active
         text: "スキップ"
         onClicked: boot.skip()
