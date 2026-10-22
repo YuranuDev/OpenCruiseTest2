@@ -26,11 +26,13 @@ ApplicationWindow {
     title: "OpenCruise"
     color: Theme.background
 
-    // フルスクリーン中は Esc / F10 / Menu キーで下メニューを開閉する（Esc で即終了しない）
+    // 起動画面中の Esc はスキップ。フルスクリーン中は Esc / F10 / Menu キーで下メニューを開閉する（Esc で即終了しない）
     Shortcut {
         sequence: "Esc"
         onActivated: {
-            if (window.immersive && stack.currentItem) {
+            if (boot.active) {
+                boot.skip()
+            } else if (window.immersive && stack.currentItem) {
                 stack.currentItem.menuOpen = !stack.currentItem.menuOpen
             } else {
                 Qt.quit()
@@ -166,6 +168,16 @@ ApplicationWindow {
                 stack.push(homeComponent)
             }
         }
+    }
+
+    // 起動(オープニング)画面。外部機器などの待ちが終わるまで最前面に出し、終わったらフェードアウトする
+    SplashScreen {
+        id: splash
+        anchors.fill: parent
+        z: 50
+        opacity: boot.done ? 0 : 1
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
     }
 
     Component {

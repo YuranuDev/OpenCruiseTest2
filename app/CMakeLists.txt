@@ -44,6 +44,7 @@ target_compile_options(opencruise_aa PRIVATE -Wall -Wextra)
 qt_add_executable(opencruise
     main.cpp
     core/AppSettings.cpp
+    core/BootManager.cpp
     core/ClockModel.cpp
     core/Log.cpp
     core/NotificationManager.cpp
@@ -88,6 +89,7 @@ qt_add_qml_module(opencruise
         qml/ConnectionBadge.qml
         qml/ActionButton.qml
         qml/MaterialIcon.qml
+        qml/SplashScreen.qml
         qml/LauncherScreen.qml
         qml/LauncherTile.qml
         qml/NotificationPopup.qml

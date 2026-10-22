@@ -23,6 +23,11 @@ Rectangle {
     property bool menuOpen: false
     onImmersiveChanged: if (!immersive) menuOpen = false
 
+    // 未実装機能の押下時: 既存のポップアップ通知でモックであることを伝える(初期画面と同じ)
+    function showMock(name) {
+        notifications.show(name, "この機能はモックです(未実装)", 0, "construction")
+    }
+
     // ---- 初期画面 ----
     LauncherScreen {
         anchors.fill: parent
@@ -160,7 +165,7 @@ Rectangle {
 
     // ---- フルスクリーン時のメニュー(下から出るシート) ----
     // 下端の細いつまみを上へスワイプ(またはタップ)、もしくは Esc / F10 / Menu キーで開く。
-    // 閉じるのは、シートを下へスワイプ / 外側タップ / 「閉じる」ボタン。
+    // 閉じるのは、シートを下へスワイプ / 外側タップ / Esc / F10 / Menu キー。
     // つまみの高さの分だけ、映像の下端はタッチが届かない。
     readonly property bool sheetOpen: root.immersive && root.menuOpen
     readonly property real sheetUnit: Math.max(0.6, Math.min(width / 1280, height / 720))
@@ -255,7 +260,7 @@ Rectangle {
             visible: systemStats.showInMenu
         }
 
-        // 下段: 大型ボタン 4 つ(初期画面のナビバーと同じ部品・並び)
+        // 下段: 大型ボタン 5 つ(初期画面のナビバーと同じ内容・並び。終了ボタンは置かない)
         Item {
             id: sheetButtons
             anchors {
@@ -264,7 +269,7 @@ Rectangle {
                 leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
                 bottom: parent.bottom; bottomMargin: Theme.margin * 1.5 + sheet.cornerRadius
             }
-            readonly property real cellW: (width - 3 * Theme.margin) / 4
+            readonly property real cellW: (width - 4 * Theme.margin) / 5
 
             LauncherTile {
                 x: 0; width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
@@ -272,19 +277,24 @@ Rectangle {
                 onClicked: { root.menuOpen = false; root.goHome() }
             }
             LauncherTile {
-                x: sheetButtons.cellW + Theme.margin; width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
-                icon: "settings"; title: "設定"
-                onClicked: { root.menuOpen = false; root.openSettings() }
+                x: 1 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "graphic_eq"; title: "オーディオ"
+                onClicked: root.showMock("オーディオ操作")
             }
             LauncherTile {
                 x: 2 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
-                icon: "expand_more"; title: "閉じる"
-                onClicked: root.menuOpen = false
+                icon: "widgets"; title: "ウィジェット"
+                onClicked: root.showMock("ウィジェット設定")
             }
             LauncherTile {
                 x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
-                icon: "power_settings_new"; title: "終了"
-                onClicked: Qt.quit()
+                icon: "directions_car"; title: "車両連携"
+                onClicked: root.showMock("車両連携")
+            }
+            LauncherTile {
+                x: 4 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "settings"; title: "設定"
+                onClicked: { root.menuOpen = false; root.openSettings() }
             }
         }
     }

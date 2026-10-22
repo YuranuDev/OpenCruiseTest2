@@ -8,6 +8,7 @@
  *  --screenshot-delay <ms>  --screenshot の待ち時間（既定 3000）
  *  --fullscreen          全画面表示
  *  --open-settings       設定画面を開いた状態で起動（画面遷移の確認用）
+ *  --skip-boot           起動(オープニング)画面を出さずに起動
  */
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -25,6 +26,7 @@
 
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppSettings.h"
+#include "core/BootManager.h"
 #include "core/ClockModel.h"
 #include "core/SystemStats.h"
 #include "core/VehicleDataManager.h"
@@ -51,12 +53,13 @@ int main(int argc, char *argv[]) {
                                              QStringLiteral("ms"), QStringLiteral("3000"));
     const QCommandLineOption fullscreen(QStringLiteral("fullscreen"), QStringLiteral("全画面表示"));
     const QCommandLineOption openSettings(QStringLiteral("open-settings"), QStringLiteral("設定画面を開いた状態で起動"));
+    const QCommandLineOption skipBoot(QStringLiteral("skip-boot"), QStringLiteral("起動(オープニング)画面を出さずに起動"));
     const QCommandLineOption logDir(QStringLiteral("log-dir"), QStringLiteral("ログの保存先ディレクトリ"),
                                     QStringLiteral("path"));
     const QCommandLineOption logLevel(QStringLiteral("log-level"),
                                       QStringLiteral("記録する最小レベル (debug/info/warn/error/fatal)"),
                                       QStringLiteral("level"));
-    parser.addOptions({testVideo, screenshot, screenshotDelay, fullscreen, openSettings, logDir, logLevel});
+    parser.addOptions({testVideo, screenshot, screenshotDelay, fullscreen, openSettings, skipBoot, logDir, logLevel});
     parser.process(app);
 
     // ログ基盤を最初に立ち上げる。以降の qDebug/qInfo/qWarning も同じ形式でファイルに残る。
@@ -86,6 +89,7 @@ int main(int argc, char *argv[]) {
     opencruise::VehicleDataManager can;
     opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
+    opencruise::BootManager boot; // 起動(オープニング)画面の待ち管理。外部機器の接続待ちなどもここへ登録する
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
@@ -102,11 +106,32 @@ int main(int argc, char *argv[]) {
         opencruise::log::warn("APP", QStringLiteral("初期化時の問題: ") + androidAuto->lastIssue());
     }
 
+    // ---- 起動時に待つステップの登録 ----
+    // 外部機器やサービスを増やすときは addStep() で足し、準備ができたら boot.report(id, Ready, ...) を呼ぶだけでよい。
+    // 応答が無くても timeoutMs で打ち切って先へ進む(必須でも起動は止まらず、画面に失敗として表示する)。
+    boot.addStep(QStringLiteral("system"), QStringLiteral("システム初期化"), true, 0);
+    boot.addStep(QStringLiteral("vehicle"), QStringLiteral("車両データ"), false, 3000);
+    boot.addStep(QStringLiteral("aa"), QStringLiteral("Android Auto 接続層"), true, 8000);
+    boot.addStep(QStringLiteral("esp32"), QStringLiteral("外部機器 (ESP32)"), false, 6000);
+    if (parser.isSet(testVideo)) {
+        boot.report(QStringLiteral("aa"), opencruise::BootManager::Skipped, QStringLiteral("テスト映像モード"));
+    } else if (!androidAuto->aasdkEnabled()) {
+        boot.report(QStringLiteral("aa"), opencruise::BootManager::Warning, QStringLiteral("aasdk 無効(スタブ)"));
+    } else {
+        // 接続待ち(待機中)に入った時点で、接続層は準備完了とみなす(スマホの接続自体は待たない)
+        QObject::connect(androidAuto, &opencruise::AndroidAutoController::stateChanged, &boot, [&boot, androidAuto]() {
+            if (androidAuto->stateKey() != QStringLiteral("unavailable")) {
+                boot.report(QStringLiteral("aa"), opencruise::BootManager::Ready, androidAuto->stateText());
+            }
+        });
+    }
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
+    engine.rootContext()->setContextProperty(QStringLiteral("boot"), &boot);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
@@ -153,6 +178,19 @@ int main(int argc, char *argv[]) {
     // QTimer::singleShot の第1引数がオブジェクトのポインタであるため、渡すオブジェクトが無効になることを防ぐために
     // androidAuto をスタック上ではなくヒープ上に作成し、親子関係で管理します。
     QTimer::singleShot(0, androidAuto, [&]() {
+        if (parser.isSet(skipBoot)) {
+            boot.bypass();
+        } else {
+            boot.start();
+        }
+        boot.report(QStringLiteral("system"), opencruise::BootManager::Ready, QStringLiteral("起動処理が完了"));
+        boot.report(QStringLiteral("vehicle"), opencruise::BootManager::Ready, can.sourceText());
+        // TODO(ESP32): 接続機能を作ったら、ここをその通知に置き換える。例:
+        //   connect(esp32Link, &Esp32Link::handshake, &boot, [&](const QString &s) { boot.report("esp32", BootManager::Running, s); });
+        //   connect(esp32Link, &Esp32Link::ready,     &boot, [&](const QString &fw) { boot.report("esp32", BootManager::Ready, fw); });
+        //   connect(esp32Link, &Esp32Link::failed,    &boot, [&](const QString &e)  { boot.report("esp32", BootManager::Failed, e); });
+        // 通知が来ない場合は timeoutMs(6 秒)で警告にして先へ進む。
+        boot.report(QStringLiteral("esp32"), opencruise::BootManager::Skipped, QStringLiteral("未実装(接続機能の追加待ち)"));
         if (parser.isSet(testVideo)) {
             opencruise::log::info("APP", QStringLiteral("テスト映像を再生します: %1").arg(parser.value(testVideo)));
             androidAuto->playTestStream(parser.value(testVideo));
