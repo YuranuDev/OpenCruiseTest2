@@ -4,10 +4,6 @@
  */
 #include "SystemSound.h"
 
-#include <QEvent>
-#include <QGuiApplication>
-#include <QMouseEvent>
-#include <QTouchEvent>
 #include <QUrl>
 
 #include "AudioSettings.h"
@@ -24,9 +20,6 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
     setupEffect(click_, clickPending_, QStringLiteral("qrc:/OpenCruise/sounds/Click.wav"));
     setupEffect(start_, startPending_, QStringLiteral("qrc:/OpenCruise/sounds/Start.wav"));
     sinceClick_.start();
-    if (auto *app = QGuiApplication::instance()) {
-        app->installEventFilter(this); // パネルへの触れ/離れを監視する
-    }
 
     if (settings_) {
         const auto onChanged = [this](int group) {
@@ -90,55 +83,6 @@ void SystemSound::play(const QString &name) {
     } else if (name == QStringLiteral("start")) {
         playEffect(start_, startPending_);
     }
-}
-
-void SystemSound::updateTouchLatch() {
-    const bool down = touchDown_ || mouseDown_;
-    if (down && !latched_) {
-        latched_ = true; // 離れるまで解除しない
-        play(QStringLiteral("click"));
-    } else if (!down) {
-        latched_ = false;
-    }
-}
-
-bool SystemSound::eventFilter(QObject *watched, QEvent *event) {
-    if (!watched->isWindowType()) {
-        return false; // ウィンドウに届いたものだけを見る(同じ入力を二重に数えない)
-    }
-    switch (event->type()) {
-    case QEvent::TouchBegin:
-    case QEvent::TouchUpdate:
-    case QEvent::TouchEnd: {
-        bool anyDown = false;
-        for (const QEventPoint &point : static_cast<QTouchEvent *>(event)->points()) {
-            if (point.state() != QEventPoint::Released) {
-                anyDown = true;
-            }
-        }
-        touchDown_ = anyDown;
-        updateTouchLatch();
-        break;
-    }
-    case QEvent::TouchCancel:
-    case QEvent::ApplicationDeactivate: // 離れたイベントが届かないまま非アクティブになった場合の取りこぼし対策
-        touchDown_ = false;
-        mouseDown_ = false;
-        updateTouchLatch();
-        break;
-    case QEvent::MouseButtonPress:
-    case QEvent::MouseButtonRelease: {
-        const auto *mouse = static_cast<QMouseEvent *>(event);
-        if (mouse->source() == Qt::MouseEventNotSynthesized && mouse->button() == Qt::LeftButton) {
-            mouseDown_ = event->type() == QEvent::MouseButtonPress;
-            updateTouchLatch();
-        }
-        break;
-    }
-    default:
-        break;
-    }
-    return false;
 }
 
 } // namespace opencruise

@@ -72,7 +72,7 @@ Rectangle {
             MouseArea {
                 id: backMouse
                 anchors.fill: parent
-                onClicked: { root.back() }
+                onClicked: { systemSound.play("click"); root.back() }
             }
         }
 
