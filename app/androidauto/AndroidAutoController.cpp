@@ -10,6 +10,8 @@
 #include <QMetaObject>
 #include <QSettings>
 
+#include <QTime>
+
 #include "VideoSurfaceItem.h"
 
 namespace opencruise {
@@ -49,6 +51,14 @@ QString textFor(aa::LinkState state) {
 /**
  * @brief デコーダとテスト送出を初期化し、状態を「利用不可」にしておく。
  */
+namespace {
+/// 自動モードの昼夜判定。簡易的に 6:00〜18:00 を昼とする（日の出日の入りは考慮しない）
+bool isNightByClock() {
+    const int hour = QTime::currentTime().hour();
+    return hour < 6 || hour >= 18;
+}
+} // namespace
+
 AndroidAutoController::AndroidAutoController(QObject *parent)
     : QObject(parent),
       decoder_([this](const QImage &image) { handleDecodedFrame(image); }),
@@ -60,7 +70,14 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
         settings_.fps = store.value(QStringLiteral("stream/fps"), 30).toInt();
         settings_ = settings_.sanitized();
         fullscreenOnStream_ = store.value(QStringLiteral("ui/fullscreenOnStream"), false).toBool();
+        themeMode_ = qBound(0, store.value(QStringLiteral("ui/themeMode"), 2).toInt(), 2);
+        accentIndex_ = qMax(0, store.value(QStringLiteral("ui/accentIndex"), 0).toInt());
+        aaFollowsTheme_ = store.value(QStringLiteral("ui/aaFollowsTheme"), true).toBool();
     }
+    nightActive_ = themeMode_ == 1 || (themeMode_ == 2 && isNightByClock());
+    themeTimer_.setInterval(60 * 1000);
+    connect(&themeTimer_, &QTimer::timeout, this, [this]() { updateNight(); });
+    themeTimer_.start();
     stateKey_ = keyFor(aa::LinkState::Unavailable);
     stateText_ = textFor(aa::LinkState::Unavailable);
     detailText_ = QStringLiteral("接続処理は開始されていません");
@@ -172,6 +189,7 @@ void AndroidAutoController::start() {
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
     backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks), settings_);
+    backend_->setNightMode(aaFollowsTheme_ && nightActive_); // 接続確立時の初期値としてスマホへ送られる
     std::string error;
     if (!backend_->start(error)) {
         qWarning().noquote() << "[aa] 接続処理を開始できません:" << QString::fromStdString(error);
@@ -208,6 +226,71 @@ void AndroidAutoController::setFullscreenOnStream(bool enabled) {
     QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
         .setValue(QStringLiteral("ui/fullscreenOnStream"), enabled);
     emit settingsChanged();
+}
+
+/**
+ * @brief テーマ(昼/夜/自動)を変更して保存する。
+ */
+void AndroidAutoController::setThemeMode(int mode) {
+    mode = qBound(0, mode, 2);
+    if (mode == themeMode_) {
+        return;
+    }
+    themeMode_ = mode;
+    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
+        .setValue(QStringLiteral("ui/themeMode"), themeMode_);
+    emit themeChanged();
+    updateNight();
+}
+
+/**
+ * @brief アクセント色を変更して保存する。
+ */
+void AndroidAutoController::setAccentIndex(int index) {
+    index = qMax(0, index);
+    if (index == accentIndex_) {
+        return;
+    }
+    accentIndex_ = index;
+    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
+        .setValue(QStringLiteral("ui/accentIndex"), accentIndex_);
+    emit themeChanged();
+}
+
+/**
+ * @brief Android Auto の昼夜をアプリのテーマに連動させるかを変更する。
+ */
+void AndroidAutoController::setAaFollowsTheme(bool enabled) {
+    if (enabled == aaFollowsTheme_) {
+        return;
+    }
+    aaFollowsTheme_ = enabled;
+    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
+        .setValue(QStringLiteral("ui/aaFollowsTheme"), aaFollowsTheme_);
+    emit themeChanged();
+    pushNightToBackend();
+}
+
+/**
+ * @brief 昼夜を再計算する。変化があれば QML と Android Auto の両方へ反映する。
+ */
+void AndroidAutoController::updateNight() {
+    const bool night = themeMode_ == 1 || (themeMode_ == 2 && isNightByClock());
+    if (night == nightActive_) {
+        return;
+    }
+    nightActive_ = night;
+    emit themeChanged();
+    pushNightToBackend();
+}
+
+/**
+ * @brief 昼夜を接続層へ渡す。接続中なら NIGHT_MODE センサーとして Android Auto へ即時送信される。
+ */
+void AndroidAutoController::pushNightToBackend() {
+    if (backend_) {
+        backend_->setNightMode(aaFollowsTheme_ && nightActive_);
+    }
 }
 
 /**

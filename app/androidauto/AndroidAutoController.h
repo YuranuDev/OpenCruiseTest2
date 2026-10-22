@@ -52,6 +52,14 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(int resolutionIndex READ resolutionIndex WRITE setResolutionIndex NOTIFY settingsChanged)
     /** フレームレート (30 / 60)。変更時の挙動は resolutionIndex と同じ */
     Q_PROPERTY(int fps READ fps WRITE setFps NOTIFY settingsChanged)
+    /** テーマ: 0=昼 / 1=夜 / 2=自動(時刻で切替)。アプリ表示と Android Auto の昼夜モードに反映される */
+    Q_PROPERTY(int themeMode READ themeMode WRITE setThemeMode NOTIFY themeChanged)
+    /** 現在実際に夜として表示しているか（themeMode=自動のときは時刻から決まる） */
+    Q_PROPERTY(bool nightActive READ nightActive NOTIFY themeChanged)
+    /** アクセント色のプリセット番号（色の実体は QML の Theme が持つ） */
+    Q_PROPERTY(int accentIndex READ accentIndex WRITE setAccentIndex NOTIFY themeChanged)
+    /** Android Auto の昼夜モードをアプリのテーマに連動させるか（OFF なら常に昼） */
+    Q_PROPERTY(bool aaFollowsTheme READ aaFollowsTheme WRITE setAaFollowsTheme NOTIFY themeChanged)
     /** 映像表示中にウィンドウ全体を映像にする */
     Q_PROPERTY(bool fullscreenOnStream READ fullscreenOnStream WRITE setFullscreenOnStream NOTIFY settingsChanged)
 
@@ -77,6 +85,14 @@ public:
     int resolutionIndex() const { return settings_.resolution; }
     int fps() const { return settings_.fps; }
     bool fullscreenOnStream() const { return fullscreenOnStream_; }
+    int themeMode() const { return themeMode_; }
+    bool nightActive() const { return nightActive_; }
+    int accentIndex() const { return accentIndex_; }
+    bool aaFollowsTheme() const { return aaFollowsTheme_; }
+    void setThemeMode(int mode);
+    void setAccentIndex(int index);
+    void setAaFollowsTheme(bool enabled);
+
     /** @brief 解像度を変更して保存する。接続処理が動作中なら切断して再接続待機へ入る。 */
     void setResolutionIndex(int index);
     /** @brief fps(30/60)を変更して保存する。接続処理が動作中なら切断して再接続待機へ入る。 */
@@ -120,6 +136,8 @@ signals:
     void videoStatsChanged();
     /** @brief 解像度・fps・フルスクリーン設定が変わったとき。 */
     void settingsChanged();
+    /** @brief テーマ(昼夜・色)の設定、または実際の昼夜状態が変わったとき。 */
+    void themeChanged();
 
 private:
     /**
@@ -157,6 +175,16 @@ private:
 
     aa::StreamSettings settings_;
     bool fullscreenOnStream_ = false;
+    /** @brief 設定と時刻から昼夜を再計算し、変化があれば通知して Android Auto へ送る。 */
+    void updateNight();
+    /** @brief 現在の昼夜を接続層へ渡す（Android Auto が連動しない設定なら常に昼）。 */
+    void pushNightToBackend();
+
+    int themeMode_ = 2;
+    int accentIndex_ = 0;
+    bool aaFollowsTheme_ = true;
+    bool nightActive_ = false;
+    QTimer themeTimer_; ///< 自動モードの昼夜判定を定期的に見直す
     bool restarting_ = false;       ///< 非同期の再起動中(UI スレッドでのみ触る)
     std::thread restartThread_;     ///< 再起動中の停止処理スレッド
 

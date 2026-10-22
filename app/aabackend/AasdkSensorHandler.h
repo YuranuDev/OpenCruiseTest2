@@ -51,6 +51,11 @@ public:
     void start();
 
     /**
+     * @brief 昼夜モードを設定する。センサー開始済みなら Android Auto へ即時に送信する（どのスレッドからでも可）。
+     */
+    void setNightMode(bool night);
+
+    /**
      * @brief ServiceDiscoveryResponse にセンサーサービスを追記する。
      */
     void fillFeatures(aap_protobuf::service::control::message::ServiceDiscoveryResponse &response);
@@ -75,6 +80,8 @@ private:
     std::shared_ptr<boost::asio::io_service::strand> strand_;
     std::shared_ptr<aasdk::channel::sensorsource::SensorSourceService> channel_;
     Callbacks callbacks_;
+    bool nightMode_ = false;    ///< 現在の昼夜モード(strand 上でのみ触る)
+    bool nightStarted_ = false; ///< スマホが NIGHT_MODE センサーを開始済みか
 };
 
 } // namespace opencruise::aa

@@ -184,6 +184,7 @@ void AasdkSession::start() {
         sensorCallbacks.onLog = onLog;
         self->sensorHandler_ =
             std::make_shared<AasdkSensorHandler>(self->strand_, self->messenger_, std::move(sensorCallbacks));
+        self->sensorHandler_->setNightMode(self->nightMode_);
         self->sensorHandler_->start();
 
         AasdkInputHandler::Callbacks inputCallbacks;
@@ -253,6 +254,16 @@ void AasdkSession::start() {
 /**
  * @brief アプリ側の都合でセッションを終了する。
  */
+void AasdkSession::setNightMode(bool night) {
+    auto self = shared_from_this();
+    strand_->dispatch([self, night]() {
+        self->nightMode_ = night;
+        if (self->sensorHandler_) {
+            self->sensorHandler_->setNightMode(night);
+        }
+    });
+}
+
 void AasdkSession::stop() {
     auto self = shared_from_this();
     strand_->dispatch([self]() {

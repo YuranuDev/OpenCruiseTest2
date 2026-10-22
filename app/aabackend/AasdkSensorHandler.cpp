@@ -70,6 +70,26 @@ void AasdkSensorHandler::onChannelOpenRequest(
 }
 
 /**
+ * @brief 昼夜モードを更新し、開始済みなら SensorBatch(night_mode_data) を送る。
+ */
+void AasdkSensorHandler::setNightMode(bool night) {
+    auto self = shared_from_this();
+    strand_->dispatch([self, night]() {
+        if (self->nightMode_ == night) {
+            return;
+        }
+        self->nightMode_ = night;
+        if (!self->nightStarted_) {
+            return; // 開始要求の応答時に最新値が送られる
+        }
+        proto::service::sensorsource::message::SensorBatch batch;
+        batch.add_night_mode_data()->set_night_mode(night);
+        self->channel_->sendSensorEventIndication(batch, self->makeSendPromise("SensorEvent(night)"));
+        self->log(std::string("[sensor] 昼夜モードを送信しました: ") + (night ? "夜" : "昼"));
+    });
+}
+
+/**
  * @brief センサー開始要求。応答送信後に初期値を1回送る。
  */
 void AasdkSensorHandler::onSensorStartRequest(
@@ -90,7 +110,8 @@ void AasdkSensorHandler::onSensorStartRequest(
             proto::service::sensorsource::message::DRIVE_STATUS_UNRESTRICTED);
         hasInitialValue = true;
     } else if (type == SENSOR_NIGHT_MODE) {
-        batch.add_night_mode_data()->set_night_mode(false);
+        batch.add_night_mode_data()->set_night_mode(nightMode_);
+        nightStarted_ = true;
         hasInitialValue = true;
     }
 

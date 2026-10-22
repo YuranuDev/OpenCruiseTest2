@@ -286,6 +286,7 @@ struct AasdkBackend::Impl {
             };
 
             session_ = std::make_shared<AasdkSession>(ioService_, std::move(aoapDevice), std::move(sessionCallbacks), settings);
+            session_->setNightMode(nightMode_);
             session_->start();
         } catch (const aasdk::error::Error &e) {
             session_.reset();
@@ -423,6 +424,19 @@ struct AasdkBackend::Impl {
     BackendCallbacks callbacks;
     StreamSettings settings;
     std::atomic<bool> running_{false};
+    std::atomic<bool> nightMode_{false};
+
+    /// 昼夜モードを保存し、接続中のセッションへ反映する
+    void setNightMode(bool night) {
+        nightMode_ = night;
+        if (strand_) {
+            strand_->post([this, night]() {
+                if (session_) {
+                    session_->setNightMode(night);
+                }
+            });
+        }
+    }
     std::atomic<bool> stopping_{false};
     std::string waitingDetail_ = "スマートフォンの接続を待っています";
 
@@ -469,6 +483,8 @@ bool AasdkBackend::start(std::string &errorMessage) { return impl_->start(errorM
  * @brief 停止する。
  */
 void AasdkBackend::stop() { impl_->stop(); }
+
+void AasdkBackend::setNightMode(bool night) { impl_->setNightMode(night); }
 
 /**
  * @brief 動作中か。

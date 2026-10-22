@@ -78,6 +78,11 @@ public:
     void stop();
 
     /**
+     * @brief 昼夜モードを Android Auto へ送る（NIGHT_MODE センサー経由）。接続前に呼んでも、確立後に反映される。
+     */
+    void setNightMode(bool night);
+
+    /**
      * @brief タッチ入力をスマートフォンへ送る。どのスレッドから呼んでもよい。
      *
      * 実際の送信は strand 上で行う。セッション終了後や入力チャネルの準備前に呼んだ場合は何もしない。
@@ -154,6 +159,7 @@ private:
     std::shared_ptr<boost::asio::steady_timer> handshakeTimer_; ///< 接続確立の上限時間
     bool discoveryDone_ = false;                                ///< サービス探索応答の送信完了(strand 上でのみ触る)
     std::chrono::steady_clock::time_point lastRx_;              ///< 最後にスマートフォンの生存を確認した時刻
+    bool nightMode_ = false;      ///< 昼夜モード(strand 上でのみ触る)
     bool stopRequested_ = false; ///< stop() による ByeBye 送信済み(strand 上でのみ触る)
     StreamSettings settings_;    ///< 映像設定
     std::shared_ptr<boost::asio::steady_timer> shutdownTimer_; ///< ByeBye 応答待ちの上限

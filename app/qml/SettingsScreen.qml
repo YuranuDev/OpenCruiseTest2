@@ -95,10 +95,51 @@ Rectangle {
                         onClicked: androidAuto.fullscreenOnStream = false
                     }
                 }
+                Row {
+                    spacing: 10
+                    Text { width: 220; anchors.verticalCenter: parent.verticalCenter; text: "テーマ"; color: Theme.textSecondary; font.pixelSize: 20 }
+                    Repeater {
+                        model: ["昼", "夜", "自動"]
+                        ActionButton {
+                            text: modelData
+                            selected: androidAuto.themeMode === index
+                            onClicked: androidAuto.themeMode = index
+                        }
+                    }
+                }
+                Row {
+                    spacing: 10
+                    Text { width: 220; anchors.verticalCenter: parent.verticalCenter; text: "Android Auto も連動"; color: Theme.textSecondary; font.pixelSize: 20 }
+                    ActionButton {
+                        text: "ON"
+                        selected: androidAuto.aaFollowsTheme
+                        onClicked: androidAuto.aaFollowsTheme = true
+                    }
+                    ActionButton {
+                        text: "OFF"
+                        selected: !androidAuto.aaFollowsTheme
+                        onClicked: androidAuto.aaFollowsTheme = false
+                    }
+                }
+                Row {
+                    spacing: 14
+                    Text { width: 220; anchors.verticalCenter: parent.verticalCenter; text: "アクセント色"; color: Theme.textSecondary; font.pixelSize: 20 }
+                    Repeater {
+                        model: Theme.accentPresets
+                        Rectangle {
+                            width: 44; height: 44; radius: 22
+                            color: modelData
+                            border.width: androidAuto.accentIndex === index ? 4 : 1
+                            border.color: androidAuto.accentIndex === index ? Theme.textPrimary : Theme.panelBorder
+                            MouseArea { anchors.fill: parent; onClicked: androidAuto.accentIndex = index }
+                        }
+                    }
+                }
                 Text {
                     width: 860
                     wrapMode: Text.WordWrap
                     text: "解像度・fps を変更すると、接続中の場合は一度正規に切断してから再接続待機になります。"
+                          + "自動テーマは 6:00〜18:00 が昼です。Android Auto 側のテーマは、スマホの Android Auto 設定で昼夜を「自動」にしているときに車載機の昼夜に従います。"
                           + "フルスクリーン中は、画面右端を左へスワイプ、または Esc / F10 / Menu / Windows キーでメニューを開けます。"
                     color: Theme.textSecondary
                     font.pixelSize: 16

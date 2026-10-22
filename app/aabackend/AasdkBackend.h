@@ -72,6 +72,12 @@ public:
     void stop();
 
     /**
+     * @brief 昼夜モードを設定する。接続中なら Android Auto へ即時に送り、以後の接続にも引き継ぐ。
+     *        どのスレッドからでも呼べる。
+     */
+    void setNightMode(bool night);
+
+    /**
      * @brief start() 済みで stop() されていなければ true。
      */
     bool isRunning() const;

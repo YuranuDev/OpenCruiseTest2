@@ -7,6 +7,10 @@ ApplicationWindow {
     width: 1280
     height: 720
     visible: true
+    // アプリのテーマ(昼夜・アクセント色)を Theme へ反映する。Theme 側で補間アニメーションされる
+    Binding { target: Theme; property: "night"; value: androidAuto.nightActive }
+    Binding { target: Theme; property: "accentIndex"; value: androidAuto.accentIndex }
+
     // 映像表示中かつ「接続後フルスクリーン」設定が有効で、メイン画面を見ているとき
     readonly property bool immersive: androidAuto.fullscreenOnStream && androidAuto.stateKey === "streaming"
                                       && stack.depth === 1

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # OFF にすると aasdk/libusb/boost 無しで UI だけをビルドできる（接続処理はスタブになり「利用不可」と表示される）
-option(OPENCRUISE_ENABLE_AASDK "aasdk を使った Android Auto 接続処理をビルドする" ON)
+option(OPENCRUISE_ENABLE_AASDK "aasdk を使った Android Auto 接続処理をビルドする" OFF)
 
 if(OPENCRUISE_ENABLE_AASDK)
     # 同梱の aasdk をそのままサブプロジェクトとしてビルドする。

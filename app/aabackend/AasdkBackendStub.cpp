@@ -36,6 +36,8 @@ bool AasdkBackend::start(std::string &errorMessage) {
  */
 void AasdkBackend::stop() {}
 
+void AasdkBackend::setNightMode(bool) {}
+
 /**
  * @brief 常に false。
  */
