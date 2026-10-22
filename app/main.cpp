@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
     });
 
     // 終了時は、接続層のスレッドを先に止めてから QML/ウィンドウを破棄する
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, &androidAuto, &opencruise::AndroidAutoController::stop);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, androidAuto, &opencruise::AndroidAutoController::stop);
 
     // UI が出た後に接続処理を始める（接続できなくても UI は動作する）
     // QTimer::singleShot の第1引数がオブジェクトのポインタであるため、渡すオブジェクトが無効になることを防ぐために
