@@ -10,10 +10,16 @@ ApplicationWindow {
     // アプリのテーマ(昼夜・アクセント色)を Theme へ反映する。Theme 側で補間アニメーションされる
     Binding { target: Theme; property: "night"; value: androidAuto.nightActive }
     Binding { target: Theme; property: "accentIndex"; value: androidAuto.accentIndex }
+    // 選択中のフォント。同梱フォントを読み込めず空のときは OS 既定のまま
+    Binding { target: Theme; property: "fontFamily"; value: appSettings.fontFamily; when: appSettings.fontFamily !== "" }
 
     // 映像表示中かつ「接続後フルスクリーン」設定が有効で、メイン画面を見ているとき
     readonly property bool immersive: androidAuto.fullscreenOnStream && androidAuto.stateKey === "streaming"
-                                      && stack.depth === 1
+                                      && showAa && stack.depth === 1
+    // Android Auto 画面を表示中か。映像が出始めたら自動で切り替え、止まったら初期画面へ戻す
+    property bool showAa: false
+    readonly property bool streaming: androidAuto.stateKey === "streaming"
+    onStreamingChanged: showAa = streaming
     visibility: (startFullscreen || immersive) ? Window.FullScreen : Window.Windowed
     title: "OpenCruise"
     color: Theme.background
@@ -79,7 +85,10 @@ ApplicationWindow {
         id: homeComponent
         HomeScreen {
             immersive: window.immersive
+            showAa: window.showAa
             onOpenSettings: stack.push(settingsComponent)
+            onGoHome: window.showAa = false
+            onOpenAndroidAuto: window.showAa = true
         }
     }
 

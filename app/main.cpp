@@ -24,6 +24,7 @@
 #include <exception>
 
 #include "androidauto/AndroidAutoController.h"
+#include "core/AppSettings.h"
 #include "core/ClockModel.h"
 #include "core/VehicleDataManager.h"
 #include "core/Log.h"
@@ -83,6 +84,8 @@ int main(int argc, char *argv[]) {
     opencruise::ClockModel clock;
     opencruise::VehicleDataManager can;
     opencruise::NotificationManager notifications;
+    // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
+    opencruise::AppSettings appSettings;
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
     // AndroidAutoController オブジェクトを QGuiApplication の子オブジェクトとして関連付けることで
     // オブジェクトの寿命管理を強化し、QTimer::singleShot 使用時のダングリングポインタアクセスを回避
@@ -101,6 +104,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
+    engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
 

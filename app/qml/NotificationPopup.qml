@@ -63,6 +63,7 @@ ListView {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Text {
+                        font.family: Theme.fontFamily
                         width: parent.width
                         text: title
                         color: Theme.textPrimary
@@ -71,6 +72,7 @@ ListView {
                         elide: Text.ElideRight
                     }
                     Text {
+                        font.family: Theme.fontFamily
                         width: parent.width
                         visible: message.length > 0
                         text: message

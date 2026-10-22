@@ -7,6 +7,8 @@ QtObject {
     // ---- Main.qml から Binding で受け取る状態 ----
     property bool night: true
     property int accentIndex: 0
+    // 表示フォントのファミリ名(AppSettings から Main.qml の Binding で受け取る)。通常のテキストは font.family にこれを指定する
+    property string fontFamily: Qt.application.font.family
 
     // アクセント色のプリセット（設定画面の選択肢）
     readonly property var accentPresets: ["#4da3ff", "#3ddc84", "#ffa040", "#ff6fa5", "#a78bfa", "#2dd4d4"]

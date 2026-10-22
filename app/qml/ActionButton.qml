@@ -15,6 +15,7 @@ Rectangle {
     border.width: 1
 
     Text {
+        font.family: Theme.fontFamily
         id: label
         anchors.centerIn: parent
         color: Theme.textPrimary

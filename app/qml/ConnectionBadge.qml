@@ -12,6 +12,7 @@ Row {
         color: Theme.stateColor(androidAuto.stateKey)
     }
     Text {
+        font.family: Theme.fontFamily
         anchors.verticalCenter: parent.verticalCenter
         text: "Android Auto: " + androidAuto.stateText
         color: Theme.textPrimary

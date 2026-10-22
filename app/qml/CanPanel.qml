@@ -13,23 +13,23 @@ Rectangle {
 
         Row {
             spacing: 8
-            Text { text: "車両情報"; color: Theme.textSecondary; font.pixelSize: 20 }
+            Text { font.family: Theme.fontFamily; text: "車両情報"; color: Theme.textSecondary; font.pixelSize: 20 }
             Rectangle {
                 width: tag.implicitWidth + 16
                 height: 26
                 radius: 13
                 color: "transparent"
                 border.color: Theme.warn
-                Text { id: tag; anchors.centerIn: parent; text: can.sourceText; color: Theme.warn; font.pixelSize: 14 }
+                Text { font.family: Theme.fontFamily; id: tag; anchors.centerIn: parent; text: can.sourceText; color: Theme.warn; font.pixelSize: 14 }
             }
         }
 
         Column {
-            Text { text: "速度"; color: Theme.textSecondary; font.pixelSize: 18 }
+            Text { font.family: Theme.fontFamily; text: "速度"; color: Theme.textSecondary; font.pixelSize: 18 }
             Row {
                 spacing: 8
-                Text { text: can.speedKmh; color: Theme.textPrimary; font.pixelSize: 84; font.bold: true }
-                Text { text: "km/h"; color: Theme.textSecondary; font.pixelSize: 22; anchors.baseline: undefined; y: 52 }
+                Text { font.family: Theme.fontFamily; text: can.speedKmh; color: Theme.textPrimary; font.pixelSize: 84; font.bold: true }
+                Text { font.family: Theme.fontFamily; text: "km/h"; color: Theme.textSecondary; font.pixelSize: 22; anchors.baseline: undefined; y: 52 }
             }
         }
 
@@ -38,8 +38,8 @@ Rectangle {
             spacing: 6
             Row {
                 spacing: 8
-                Text { text: "回転数"; color: Theme.textSecondary; font.pixelSize: 18 }
-                Text { text: can.rpm + " rpm"; color: Theme.textPrimary; font.pixelSize: 22 }
+                Text { font.family: Theme.fontFamily; text: "回転数"; color: Theme.textSecondary; font.pixelSize: 18 }
+                Text { font.family: Theme.fontFamily; text: can.rpm + " rpm"; color: Theme.textPrimary; font.pixelSize: 22 }
             }
             Rectangle {
                 width: parent.width
@@ -58,12 +58,12 @@ Rectangle {
         Row {
             spacing: 28
             Column {
-                Text { text: "水温"; color: Theme.textSecondary; font.pixelSize: 18 }
-                Text { text: can.coolantTempC + " ℃"; color: Theme.textPrimary; font.pixelSize: 30 }
+                Text { font.family: Theme.fontFamily; text: "水温"; color: Theme.textSecondary; font.pixelSize: 18 }
+                Text { font.family: Theme.fontFamily; text: can.coolantTempC + " ℃"; color: Theme.textPrimary; font.pixelSize: 30 }
             }
             Column {
-                Text { text: "燃料"; color: Theme.textSecondary; font.pixelSize: 18 }
-                Text { text: can.fuelPercent + " %"; color: Theme.textPrimary; font.pixelSize: 30 }
+                Text { font.family: Theme.fontFamily; text: "燃料"; color: Theme.textSecondary; font.pixelSize: 18 }
+                Text { font.family: Theme.fontFamily; text: can.fuelPercent + " %"; color: Theme.textPrimary; font.pixelSize: 30 }
             }
         }
     }

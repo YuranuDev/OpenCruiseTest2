@@ -43,6 +43,7 @@ target_compile_options(opencruise_aa PRIVATE -Wall -Wextra)
 # ---------------------------------------------------------------------------
 qt_add_executable(opencruise
     main.cpp
+    core/AppSettings.cpp
     core/ClockModel.cpp
     core/Log.cpp
     core/NotificationManager.cpp
@@ -69,6 +70,8 @@ qt_add_qml_module(opencruise
         qml/ConnectionBadge.qml
         qml/ActionButton.qml
         qml/MaterialIcon.qml
+        qml/LauncherScreen.qml
+        qml/LauncherTile.qml
         qml/NotificationPopup.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf)
@@ -85,3 +88,19 @@ if(OPENCRUISE_ENABLE_AASDK)
     target_compile_definitions(opencruise PRIVATE OPENCRUISE_WITH_AASDK)
 endif()
 target_compile_options(opencruise PRIVATE -Wall -Wextra)
+
+# ---------------------------------------------------------------------------
+# 同梱フォント(Noto Sans JP / Noto Sans CJK JP / IBM Plex Sans JP。いずれも SIL OFL 1.1)。
+# 合計 170MB 超でリソース(qrc)に埋め込むとビルドが極端に重くなるため、実行ファイルの隣の fonts/ へコピーし、
+# 起動時に AppSettings が読み込む。ライセンス文は各フォルダの OFL.txt。詳細は fonts/README-FONTS.md。
+# ---------------------------------------------------------------------------
+set(OPENCRUISE_BUNDLED_FONT_DIRS NotoSansJP NotoSansCJKjp IBMPlexSansJP)
+foreach(font_dir IN LISTS OPENCRUISE_BUNDLED_FONT_DIRS)
+    add_custom_command(TARGET opencruise POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/fonts/${font_dir}
+            $<TARGET_FILE_DIR:opencruise>/fonts/${font_dir}
+        COMMENT "フォントをコピー: ${font_dir}")
+    install(DIRECTORY fonts/${font_dir} DESTINATION share/opencruise/fonts)
+endforeach()
+install(FILES fonts/README-FONTS.md DESTINATION share/opencruise/fonts)

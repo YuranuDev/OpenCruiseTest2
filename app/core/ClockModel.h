@@ -17,6 +17,7 @@ class ClockModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString timeText READ timeText NOTIFY changed)
     Q_PROPERTY(QString dateText READ dateText NOTIFY changed)
+    Q_PROPERTY(int hour READ hour NOTIFY changed)
 
 public:
     /**
@@ -31,6 +32,9 @@ public:
     /** @brief "yyyy年M月d日 (曜日)" 形式の日付。 */
     QString dateText() const { return dateText_; }
 
+    /** @brief 現在の時(0〜23)。挨拶の切り替えなどに使う。 */
+    int hour() const { return hour_; }
+
 signals:
     /** @brief 時刻または日付の表示が変わったとき。 */
     void changed();
@@ -44,6 +48,7 @@ private:
     QTimer timer_;
     QString timeText_;
     QString dateText_;
+    int hour_ = 0;
 };
 
 } // namespace opencruise

@@ -31,6 +31,7 @@ void ClockModel::refresh() {
         return;
     }
     timeText_ = time;
+    hour_ = now.time().hour();
     dateText_ = date;
     emit changed();
 }

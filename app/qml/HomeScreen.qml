@@ -1,4 +1,6 @@
-// メイン画面: ヘッダー(時計・接続状態・設定ボタン) + Android Auto 表示領域 + CAN パネル。
+// メイン画面。showAa が false の間は初期画面(LauncherScreen)、true の間は Android Auto 画面
+// (ヘッダー(時計・接続状態・設定ボタン) + Android Auto 表示領域 + CAN パネル)を表示する。
+// 映像の描画アイテム(VideoSurfaceItem)は表示切替で破棄しないよう、常に生成しておく。
 import QtQuick
 import OpenCruise
 
@@ -6,6 +8,11 @@ Rectangle {
     id: root
     color: Theme.background
     signal openSettings()
+    signal goHome()
+    signal openAndroidAuto()
+
+    // Android Auto 画面を表示中か(false なら初期画面)。Main.qml から渡される
+    property bool showAa: false
 
     // フルスクリーン表示(映像だけを全面表示)か。Main.qml から渡される
     property bool immersive: false
@@ -13,18 +20,27 @@ Rectangle {
     property bool menuOpen: false
     onImmersiveChanged: if (!immersive) menuOpen = false
 
+    // ---- 初期画面 ----
+    LauncherScreen {
+        anchors.fill: parent
+        visible: !root.showAa
+        aaAvailable: androidAuto.stateKey === "streaming"
+        onOpenSettings: root.openSettings()
+        onOpenAndroidAuto: root.openAndroidAuto()
+    }
+
     // ---- ヘッダー ----
     Item {
         id: header
         anchors { top: parent.top; left: parent.left; right: parent.right }
         anchors.margins: Theme.margin
         height: 76
-        visible: !root.immersive
+        visible: root.showAa && !root.immersive
 
         Column {
             anchors.verticalCenter: parent.verticalCenter
-            Text { text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 46; font.bold: true }
-            Text { text: clock.dateText; color: Theme.textSecondary; font.pixelSize: 18 }
+            Text { font.family: Theme.fontFamily; text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 46; font.bold: true }
+            Text { font.family: Theme.fontFamily; text: clock.dateText; color: Theme.textSecondary; font.pixelSize: 18 }
         }
 
         ConnectionBadge {
@@ -40,6 +56,10 @@ Rectangle {
                 onClicked: Qt.quit()
             }
             ActionButton {
+                text: "ホーム"
+                onClicked: root.goHome()
+            }
+            ActionButton {
                 text: "設定"
                 onClicked: root.openSettings()
             }
@@ -48,6 +68,7 @@ Rectangle {
 
     // ---- 本体 ----
     Item {
+        visible: root.showAa
         anchors {
             top: root.immersive ? parent.top : header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
             margins: root.immersive ? 0 : Theme.margin
@@ -76,6 +97,7 @@ Rectangle {
                 width: parent.width - 80
 
                 Text {
+                    font.family: Theme.fontFamily
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     text: "Android Auto"
@@ -83,6 +105,7 @@ Rectangle {
                     font.pixelSize: 40
                 }
                 Text {
+                    font.family: Theme.fontFamily
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     text: androidAuto.stateText
@@ -90,6 +113,7 @@ Rectangle {
                     font.pixelSize: 28
                 }
                 Text {
+                    font.family: Theme.fontFamily
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -98,6 +122,7 @@ Rectangle {
                     font.pixelSize: 18
                 }
                 Text {
+                    font.family: Theme.fontFamily
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     visible: androidAuto.stateKey === "waiting"
@@ -106,6 +131,7 @@ Rectangle {
                     font.pixelSize: 18
                 }
                 Text {
+                    font.family: Theme.fontFamily
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     visible: androidAuto.stateKey === "waiting" || androidAuto.stateKey === "connecting"
@@ -167,8 +193,13 @@ Rectangle {
         Column {
             anchors { fill: parent; margins: Theme.margin }
             spacing: 14
-            Text { text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 40; font.bold: true }
+            Text { font.family: Theme.fontFamily; text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 40; font.bold: true }
             ConnectionBadge {}
+            ActionButton {
+                width: parent.width
+                text: "ホーム"
+                onClicked: { root.menuOpen = false; root.goHome() }
+            }
             ActionButton {
                 width: parent.width
                 text: "設定"
@@ -185,6 +216,7 @@ Rectangle {
                 onClicked: Qt.quit()
             }
             Text {
+                font.family: Theme.fontFamily
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: "Esc / F10 / Menu / Windows キーでも開閉できます"
