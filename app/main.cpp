@@ -81,18 +81,18 @@ int main(int argc, char *argv[]) {
 
     opencruise::ClockModel clock;
     opencruise::VehicleDataManager can;
-    opencruise::AndroidAutoController androidAuto;
+    auto* androidAuto = new opencruise::AndroidAutoController(&app);
     opencruise::log::info("APP", QStringLiteral("aasdk 接続層: ") +
-                                      (androidAuto.aasdkEnabled() ? QStringLiteral("有効")
+                                      (androidAuto->aasdkEnabled() ? QStringLiteral("有効")
                                                                   : QStringLiteral("無効(スタブ)")));
-    if (!androidAuto.lastIssue().isEmpty()) {
-        opencruise::log::warn("APP", QStringLiteral("初期化時の問題: ") + androidAuto.lastIssue());
+    if (!androidAuto->lastIssue().isEmpty()) {
+        opencruise::log::warn("APP", QStringLiteral("初期化時の問題: ") + androidAuto->lastIssue());
     }
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
-    engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), &androidAuto);
+    engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
 
