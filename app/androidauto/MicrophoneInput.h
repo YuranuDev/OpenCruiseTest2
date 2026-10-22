@@ -50,8 +50,11 @@ signals:
 private:
     /** @brief 設定と要求状態から、録音すべきかを判断して開始/停止/作り直しをする。何度呼んでもよい。 */
     void reconcile();
-    /** @brief 録音を開始する。失敗したら状態にエラーを出して録音しない。 */
-    void startCapture();
+    /**
+     * @brief 録音を開始する。失敗したら状態にエラーを出して録音しない。
+     * @param announce true なら、録音が始まったことを画面上部のポップアップで知らせる
+     */
+    void startCapture(bool announce);
     /** @brief 録音を止めてデバイスを閉じる。 */
     void stopCapture();
     void onReadyRead();

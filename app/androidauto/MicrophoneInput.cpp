@@ -11,6 +11,8 @@
 #include <QMediaDevices>
 #include <QMetaObject>
 
+#include "core/NotificationManager.h"
+
 namespace opencruise {
 
 namespace {
@@ -63,11 +65,13 @@ void MicrophoneInput::reconcile() {
         }
         qInfo().noquote() << "[mic] 入力元が変わったため、録音を作り直します";
         stopCapture();
+        startCapture(false); // 録音は続いているので「オンになった」通知は出さない
+        return;
     }
-    startCapture();
+    startCapture(true);
 }
 
-void MicrophoneInput::startCapture() {
+void MicrophoneInput::startCapture(bool announce) {
     errorText_.clear();
 
     QAudioFormat format;
@@ -132,6 +136,10 @@ void MicrophoneInput::startCapture() {
     currentDeviceName_ = device.description();
     qInfo().noquote() << "[mic] 録音を開始します:" << kSampleRate << "Hz" << kChannels << "ch on" << currentDeviceName_;
     refreshStatus();
+    if (announce) {
+        NotificationManager::notify(QStringLiteral("マイクがオンになりました"), currentDeviceName_,
+                                    NotificationManager::Info, QStringLiteral("mic"), 3000);
+    }
 }
 
 void MicrophoneInput::stopCapture() {
