@@ -47,6 +47,11 @@ ApplicationWindow {
                 stack.currentItem.menuOpen = !stack.currentItem.menuOpen
                 event.accepted = true
             }
+            // 昼夜モード切り替え（Ctrl+Shift+D）
+            if (!event.isAutoRepeat && event.key === Qt.Key_D && event.modifiers & Qt.ControlModifier && event.modifiers & Qt.ShiftModifier) {
+                androidAuto.nightActive = !androidAuto.nightActive
+                event.accepted = true
+            }
         }
     }
 
