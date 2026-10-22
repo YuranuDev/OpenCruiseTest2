@@ -48,6 +48,7 @@ qt_add_executable(opencruise
     core/Log.cpp
     core/NotificationManager.cpp
     core/VehicleDataManager.cpp
+    core/SystemStats.cpp
     androidauto/AndroidAutoController.cpp
     androidauto/AudioPlayer.cpp
     androidauto/H264Decoder.cpp
@@ -79,8 +80,11 @@ qt_add_qml_module(opencruise
         qml/SettingsPageDisplay.qml
         qml/SettingsPageAndroidAuto.qml
         qml/SettingsPageVehicle.qml
+        qml/SettingsPageSystem.qml
         qml/SettingsPageAbout.qml
         qml/CanPanel.qml
+        qml/StatCard.qml
+        qml/SystemStatsStrip.qml
         qml/ConnectionBadge.qml
         qml/ActionButton.qml
         qml/MaterialIcon.qml

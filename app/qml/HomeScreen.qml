@@ -203,7 +203,8 @@ Rectangle {
         readonly property int cornerRadius: Theme.radius + 8
         width: parent.width
         // 下側の角丸を画面外へ逃がすため、角丸の分だけ高さを足して下へはみ出させる
-        height: Math.max(190, root.height * 0.30) + cornerRadius
+        // システム情報の帯を出す分だけ高くする(下段のボタンの大きさは、帯の有無で変わらない)
+        height: Math.max(190, root.height * 0.30) + (systemStats.showInMenu ? sheetStats.height + Theme.margin : 0) + cornerRadius
         y: root.sheetOpen ? parent.height - height + cornerRadius : parent.height
         visible: y < parent.height
         radius: cornerRadius
@@ -225,7 +226,7 @@ Rectangle {
             opacity: 0.6
         }
 
-        // 上段: 時計と接続状態 / ボタンの操作ヒント
+        // 上段: 時計と接続状態(ステータスバー)
         Item {
             id: sheetInfo
             anchors { top: parent.top; topMargin: 28; left: parent.left; right: parent.right
@@ -245,11 +246,20 @@ Rectangle {
             }
         }
 
+        // 中段: システム情報(CPU / GPU / メモリ)。設定「システム」で非表示にできる
+        SystemStatsStrip {
+            id: sheetStats
+            anchors { top: sheetInfo.bottom; topMargin: Theme.margin; left: parent.left; right: parent.right
+                      leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
+            unit: root.sheetUnit
+            visible: systemStats.showInMenu
+        }
+
         // 下段: 大型ボタン 4 つ(初期画面のナビバーと同じ部品・並び)
         Item {
             id: sheetButtons
             anchors {
-                top: sheetInfo.bottom; topMargin: Theme.margin
+                top: systemStats.showInMenu ? sheetStats.bottom : sheetInfo.bottom; topMargin: Theme.margin
                 left: parent.left; right: parent.right
                 leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
                 bottom: parent.bottom; bottomMargin: Theme.margin * 1.5 + sheet.cornerRadius

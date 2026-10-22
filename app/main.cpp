@@ -26,6 +26,7 @@
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppSettings.h"
 #include "core/ClockModel.h"
+#include "core/SystemStats.h"
 #include "core/VehicleDataManager.h"
 #include "core/Log.h"
 #include "core/NotificationManager.h"
@@ -83,6 +84,7 @@ int main(int argc, char *argv[]) {
 
     opencruise::ClockModel clock;
     opencruise::VehicleDataManager can;
+    opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
@@ -103,6 +105,7 @@ int main(int argc, char *argv[]) {
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
+    engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
