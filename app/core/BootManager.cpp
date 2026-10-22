@@ -2,6 +2,7 @@
 
 #include <QMetaObject>
 #include <QThread>
+#include <utility>
 
 #include "core/Log.h"
 
@@ -21,7 +22,7 @@ void BootManager::addStep(const QString &id, const QString &title, bool required
     s.title = title;
     s.required = required;
     s.timeoutMs = timeoutMs;
-    if (phase_ == Running) {
+    if (phase_ == Active) {
         s.state = Running;
         s.deadlineMs = timeoutMs > 0 ? elapsed() + timeoutMs : -1;
     }
@@ -41,7 +42,7 @@ void BootManager::start() {
     if (phase_ != Idle) {
         return;
     }
-    phase_ = Running;
+    phase_ = Active;
     clock_.start();
     for (int i = 0; i < steps_.size(); ++i) {
         Step &s = steps_[i];
@@ -80,7 +81,7 @@ void BootManager::report(const QString &id, int state, const QString &detail) {
     s.state = static_cast<StepState>(state);
     s.detail = detail;
     // 途中経過(Running)の通知は、応答があった印として期限を延ばす
-    if (s.state == Running && s.timeoutMs > 0 && phase_ == Running) {
+    if (s.state == Running && s.timeoutMs > 0 && phase_ == Active) {
         s.deadlineMs = elapsed() + s.timeoutMs;
     }
     opencruise::log::info("BOOT", QStringLiteral("%1: %2 %3").arg(id, keyFor(s.state), detail));
@@ -91,7 +92,7 @@ void BootManager::report(const QString &id, int state, const QString &detail) {
 }
 
 void BootManager::skip() {
-    if (phase_ == Running) {
+    if (phase_ == Active) {
         finish(true);
     }
 }
@@ -124,7 +125,7 @@ void BootManager::onTick() {
 }
 
 void BootManager::evaluate() {
-    if (phase_ != Running) {
+    if (phase_ != Active) {
         return;
     }
     const qint64 now = elapsed();
@@ -149,7 +150,7 @@ void BootManager::evaluate() {
 }
 
 void BootManager::finish(bool bySkip) {
-    if (phase_ != Running) {
+    if (phase_ != Active) {
         return;
     }
     for (int i = 0; i < steps_.size(); ++i) {

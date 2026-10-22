@@ -78,7 +78,7 @@ public:
      */
     void setTiming(int minDisplayMs, int problemHoldMs, int maxMs);
 
-    bool active() const { return phase_ == Running; }
+    bool active() const { return phase_ == Active; }
     bool done() const { return phase_ == Done; }
     qreal progress() const;
     QString summaryText() const;
@@ -116,7 +116,7 @@ signals:
     void stepReported(const QString &id, int state, const QString &detail);
 
 private:
-    enum Phase { Idle, Running, Done };
+    enum Phase { Idle, Active, Done }; // 注意: Running は StepState と衝突するので使わない
 
     struct Step {
         QString id;
@@ -131,7 +131,7 @@ private:
     static bool isSettled(StepState s) { return s != Pending && s != Running; }
     static QString keyFor(StepState s);
     int indexOf(const QString &id) const;
-    qint64 elapsed() const { return phase_ == Running ? clock_.elapsed() : 0; }
+    qint64 elapsed() const { return phase_ == Active ? clock_.elapsed() : 0; }
     StepState timeoutState(const Step &s) const { return s.required ? Failed : Warning; }
     void onTick();
     void evaluate();
