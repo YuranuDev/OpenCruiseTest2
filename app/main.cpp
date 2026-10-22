@@ -27,6 +27,7 @@
 #include "core/ClockModel.h"
 #include "core/VehicleDataManager.h"
 #include "core/Log.h"
+#include "core/NotificationManager.h"
 
 /**
  * @brief アプリを起動する。
@@ -81,6 +82,7 @@ int main(int argc, char *argv[]) {
 
     opencruise::ClockModel clock;
     opencruise::VehicleDataManager can;
+    opencruise::NotificationManager notifications;
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
     // AndroidAutoController オブジェクトを QGuiApplication の子オブジェクトとして関連付けることで
     // オブジェクトの寿命管理を強化し、QTimer::singleShot 使用時のダングリングポインタアクセスを回避
@@ -97,6 +99,7 @@ int main(int argc, char *argv[]) {
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
+    engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));

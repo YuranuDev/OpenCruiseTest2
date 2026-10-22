@@ -45,6 +45,7 @@ qt_add_executable(opencruise
     main.cpp
     core/ClockModel.cpp
     core/Log.cpp
+    core/NotificationManager.cpp
     core/VehicleDataManager.cpp
     androidauto/AndroidAutoController.cpp
     androidauto/AudioPlayer.cpp
@@ -66,7 +67,11 @@ qt_add_qml_module(opencruise
         qml/SettingsScreen.qml
         qml/CanPanel.qml
         qml/ConnectionBadge.qml
-        qml/ActionButton.qml)
+        qml/ActionButton.qml
+        qml/MaterialIcon.qml
+        qml/NotificationPopup.qml
+    RESOURCES
+        fonts/MaterialIcons-Regular.ttf)
 
 target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

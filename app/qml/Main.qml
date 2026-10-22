@@ -55,6 +55,14 @@ ApplicationWindow {
         }
     }
 
+    // 画面上部のポップアップ通知（映像表示中も最前面）
+    NotificationPopup {
+        z: 100
+        anchors.top: parent.top
+        anchors.topMargin: Theme.margin
+        anchors.horizontalCenter: parent.horizontalCenter
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
