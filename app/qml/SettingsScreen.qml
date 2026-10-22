@@ -215,7 +215,7 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     text: "解像度・fps を変更すると、接続中の場合は一度正規に切断してから再接続待機になります。"
                           + "自動テーマは 6:00〜18:00 が昼です。Android Auto 側のテーマは、スマホの Android Auto 設定で昼夜を「自動」にしているときに車載機の昼夜に従います。"
-                          + "フルスクリーン中は、画面右端を左へスワイプ、または Esc / F10 / Menu / Windows キーでメニューを開けます。"
+                          + "フルスクリーン中は、画面下端を上へスワイプ、または Esc / F10 / Menu / Windows キーでメニューを開けます。"
                     color: Theme.textSecondary
                     font.pixelSize: 16
                 }

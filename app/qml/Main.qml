@@ -24,7 +24,7 @@ ApplicationWindow {
     title: "OpenCruise"
     color: Theme.background
 
-    // フルスクリーン中は Esc / F10 / Menu キーでスライドメニューを開閉する（Esc で即終了しない）
+    // フルスクリーン中は Esc / F10 / Menu キーで下メニューを開閉する（Esc で即終了しない）
     Shortcut {
         sequence: "Esc"
         onActivated: {

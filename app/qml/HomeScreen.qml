@@ -19,7 +19,7 @@ Rectangle {
 
     // フルスクリーン表示(映像だけを全面表示)か。Main.qml から渡される
     property bool immersive: false
-    // フルスクリーン中のスライドメニューが開いているか
+    // フルスクリーン中の下メニュー(シート)が開いているか
     property bool menuOpen: false
     onImmersiveChanged: if (!immersive) menuOpen = false
 
@@ -158,77 +158,123 @@ Rectangle {
         }
     }
 
-    // ---- フルスクリーン時のメニュー ----
-    // 右端の細いつまみを左へスワイプ(またはタップ)、もしくは Esc / F10 / Menu キーで開く。
-    // つまみの幅の分だけ、映像の右端はタッチが届かない。
+    // ---- フルスクリーン時のメニュー(下から出るシート) ----
+    // 下端の細いつまみを上へスワイプ(またはタップ)、もしくは Esc / F10 / Menu キーで開く。
+    // 閉じるのは、シートを下へスワイプ / 外側タップ / 「閉じる」ボタン。
+    // つまみの高さの分だけ、映像の下端はタッチが届かない。
+    readonly property bool sheetOpen: root.immersive && root.menuOpen
+    readonly property real sheetUnit: Math.max(0.6, Math.min(width / 1280, height / 720))
+
     MouseArea {
         id: edgeHandle
-        anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
-        width: 28
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: 28
         z: 10
         visible: root.immersive && !root.menuOpen
-        onPositionChanged: (mouse) => { if (pressed && mouse.x < -30) root.menuOpen = true }
+        onPositionChanged: (mouse) => { if (pressed && mouse.y < -30) root.menuOpen = true }
         onClicked: root.menuOpen = true
 
         Rectangle {
-            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-            width: 6; height: 90; radius: 3
+            anchors { bottom: parent.bottom; bottomMargin: 6; horizontalCenter: parent.horizontalCenter }
+            width: 120; height: 6; radius: 3
             color: Theme.textSecondary
             opacity: 0.6
         }
     }
 
-    // メニュー外タップで閉じる
-    MouseArea {
+    // メニュー外(映像側)は暗くして、タップで閉じる
+    Rectangle {
         anchors.fill: parent
         z: 11
-        visible: root.immersive && root.menuOpen
-        onClicked: root.menuOpen = false
+        color: "black"
+        opacity: root.sheetOpen ? 0.45 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 180 } }
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.sheetOpen
+            onClicked: root.menuOpen = false
+        }
     }
 
     Rectangle {
-        id: slideMenu
+        id: sheet
         z: 12
-        width: 300
-        height: parent.height
-        x: (root.immersive && root.menuOpen) ? parent.width - width : parent.width
-        visible: x < parent.width
+        readonly property int cornerRadius: Theme.radius + 8
+        width: parent.width
+        // 下側の角丸を画面外へ逃がすため、角丸の分だけ高さを足して下へはみ出させる
+        height: Math.max(190, root.height * 0.30) + cornerRadius
+        y: root.sheetOpen ? parent.height - height + cornerRadius : parent.height
+        visible: y < parent.height
+        radius: cornerRadius
         color: Theme.panel
         border.color: Theme.panelBorder
-        Behavior on x { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
-        Column {
-            anchors { fill: parent; margins: Theme.margin }
-            spacing: 14
-            Text { font.family: Theme.fontFamily; text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 40; font.bold: true }
-            ConnectionBadge {}
-            ActionButton {
-                width: parent.width
-                text: "ホーム"
-                onClicked: { root.menuOpen = false; root.goHome() }
-            }
-            ActionButton {
-                width: parent.width
-                text: "設定"
-                onClicked: { root.menuOpen = false; root.openSettings() }
-            }
-            ActionButton {
-                width: parent.width
-                text: "メニューを閉じる"
-                onClicked: root.menuOpen = false
-            }
-            ActionButton {
-                width: parent.width
-                text: "終了"
-                onClicked: Qt.quit()
-            }
+        // 下へスワイプで閉じる(ボタン以外の余白・つまみ部分で受ける)
+        MouseArea {
+            anchors.fill: parent
+            onPositionChanged: (mouse) => { if (pressed && mouse.y > height * 0.5 + 40) root.menuOpen = false }
+        }
+
+        // つまみ(閉じられることを示す)
+        Rectangle {
+            anchors { top: parent.top; topMargin: 10; horizontalCenter: parent.horizontalCenter }
+            width: 80; height: 6; radius: 3
+            color: Theme.textSecondary
+            opacity: 0.6
+        }
+
+        // 上段: 時計と接続状態 / ボタンの操作ヒント
+        Item {
+            id: sheetInfo
+            anchors { top: parent.top; topMargin: 28; left: parent.left; right: parent.right
+                      leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
+            height: 56 * root.sheetUnit
+
             Text {
                 font.family: Theme.fontFamily
-                width: parent.width
-                wrapMode: Text.WordWrap
-                text: "Esc / F10 / Menu / Windows キーでも開閉できます"
-                color: Theme.textSecondary
-                font.pixelSize: 15
+                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                text: clock.timeText
+                color: Theme.textPrimary
+                font.pixelSize: 44 * root.sheetUnit
+                font.bold: true
+            }
+            ConnectionBadge {
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            }
+        }
+
+        // 下段: 大型ボタン 4 つ(初期画面のナビバーと同じ部品・並び)
+        Item {
+            id: sheetButtons
+            anchors {
+                top: sheetInfo.bottom; topMargin: Theme.margin
+                left: parent.left; right: parent.right
+                leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
+                bottom: parent.bottom; bottomMargin: Theme.margin * 1.5 + sheet.cornerRadius
+            }
+            readonly property real cellW: (width - 3 * Theme.margin) / 4
+
+            LauncherTile {
+                x: 0; width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "home"; title: "ホーム"
+                onClicked: { root.menuOpen = false; root.goHome() }
+            }
+            LauncherTile {
+                x: sheetButtons.cellW + Theme.margin; width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "settings"; title: "設定"
+                onClicked: { root.menuOpen = false; root.openSettings() }
+            }
+            LauncherTile {
+                x: 2 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "expand_more"; title: "閉じる"
+                onClicked: root.menuOpen = false
+            }
+            LauncherTile {
+                x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "power_settings_new"; title: "終了"
+                onClicked: Qt.quit()
             }
         }
     }
