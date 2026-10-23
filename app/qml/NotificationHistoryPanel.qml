@@ -77,6 +77,9 @@ Item {
             spacing: 10
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            readonly property real titleFontSize: Math.max(17, Math.min(21, width * 0.04))
+            readonly property real timeFontSize: Math.max(14, Math.min(17, width * 0.032))
+            readonly property real messageFontSize: Math.max(15, Math.min(19, width * 0.036))
 
             delegate: Rectangle {
                 width: ListView.view.width
@@ -107,7 +110,7 @@ Item {
                                 width: parent.width - timeLabel.implicitWidth - 10
                                 text: title
                                 color: Theme.textPrimary
-                                font.pixelSize: 16
+                                font.pixelSize: list.titleFontSize
                                 font.bold: true
                                 elide: Text.ElideRight
                             }
@@ -117,7 +120,7 @@ Item {
                                 font.family: Theme.fontFamily
                                 text: timeText
                                 color: Theme.textSecondary
-                                font.pixelSize: 15
+                                font.pixelSize: list.timeFontSize
                             }
                         }
                         Text {
@@ -126,7 +129,7 @@ Item {
                             visible: message.length > 0
                             text: message
                             color: Theme.textSecondary
-                            font.pixelSize: 14
+                            font.pixelSize: list.messageFontSize
                             wrapMode: Text.WordWrap
                             maximumLineCount: 4
                             elide: Text.ElideRight

@@ -9,6 +9,8 @@ ListView {
     height: contentHeight
     spacing: 10
     interactive: false
+    readonly property real titleFontSize: Math.max(16, Math.min(22, width * 0.04))
+    readonly property real messageFontSize: Math.max(14, Math.min(18, width * 0.033))
 
     function levelColor(level) {
         switch (level) {
@@ -67,7 +69,7 @@ ListView {
                         width: parent.width
                         text: title
                         color: Theme.textPrimary
-                        font.pixelSize: 16
+                        font.pixelSize: list.titleFontSize
                         font.bold: true
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         maximumLineCount: 2
@@ -79,7 +81,7 @@ ListView {
                         visible: message.length > 0
                         text: message
                         color: Theme.textSecondary
-                        font.pixelSize: 13
+                        font.pixelSize: list.messageFontSize
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         maximumLineCount: 3
                         elide: Text.ElideRight
