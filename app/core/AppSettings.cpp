@@ -97,6 +97,7 @@ AppSettings::AppSettings(QObject *parent) : QObject(parent) {
 
     const QSettings store = openStore();
     userName_ = store.value(QStringLiteral("user/name"), QString()).toString().trimmed();
+    powerMode_ = qBound(0, store.value(QStringLiteral("power/mode"), 0).toInt(), 2);
 
     // 保存値が選択肢に無い(フォント未同梱・設定の破損など)場合は既定、既定も無ければ OS 既定
     QString family = store.value(QStringLiteral("ui/fontFamily"), kDefaultFont).toString();
@@ -127,6 +128,16 @@ void AppSettings::setFontFamily(const QString &family) {
     openStore().setValue(QStringLiteral("ui/fontFamily"), fontFamily_);
     QGuiApplication::setFont(QFont(fontFamily_));
     emit fontFamilyChanged();
+}
+
+void AppSettings::setPowerMode(int mode) {
+    const int boundedMode = qBound(0, mode, 2);
+    if (boundedMode == powerMode_) {
+        return;
+    }
+    powerMode_ = boundedMode;
+    openStore().setValue(QStringLiteral("power/mode"), powerMode_);
+    emit powerModeChanged();
 }
 
 } // namespace opencruise

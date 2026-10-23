@@ -25,6 +25,7 @@ Rectangle {
     property list<SettingsCategory> categories: [
         SettingsCategory { icon: "tune";          title: "一般";         page: SettingsPageGeneral {} },
         SettingsCategory { icon: "palette";       title: "表示";         page: SettingsPageDisplay {} },
+        SettingsCategory { icon: "power_settings_new"; title: "電源管理"; page: SettingsPagePower {} },
         SettingsCategory { icon: "volume_up";     title: "サウンド";     page: SettingsPageAudio {} },
         SettingsCategory { icon: "android";       title: "Android Auto"; page: SettingsPageAndroidAuto {} },
         SettingsCategory { icon: "directions_car"; title: "車両";        page: SettingsPageVehicle {} },

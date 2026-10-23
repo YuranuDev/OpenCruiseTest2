@@ -87,6 +87,7 @@ qt_add_qml_module(opencruise
         qml/SettingsNote.qml
         qml/SettingsPageGeneral.qml
         qml/SettingsPageDisplay.qml
+        qml/SettingsPagePower.qml
         qml/SettingsPageAudio.qml
         qml/SettingsSlider.qml
         qml/SettingsDeviceList.qml

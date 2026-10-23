@@ -27,6 +27,8 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY fontFamilyChanged)
     /** 選択できるフォントのファミリ名(読み込めた同梱フォントのみ) */
     Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
+    /** アプリが選択する電源モード(0:標準、1:省電力、2:高性能) */
+    Q_PROPERTY(int powerMode READ powerMode WRITE setPowerMode NOTIFY powerModeChanged)
 
 public:
     /**
@@ -38,16 +40,20 @@ public:
     QString userName() const { return userName_; }
     QString fontFamily() const { return fontFamily_; }
     QStringList fontFamilies() const { return fontFamilies_; }
+    int powerMode() const { return powerMode_; }
 
     /** @brief ユーザー名を変更して保存する(前後の空白は除く)。 */
     void setUserName(const QString &name);
 
     /** @brief フォントを変更して保存する。選択肢にないファミリ名は無視する。アプリ既定フォントにも反映する。 */
     void setFontFamily(const QString &family);
+    /** @brief アプリの電源モードを変更して保存する。 */
+    void setPowerMode(int mode);
 
 signals:
     void userNameChanged();
     void fontFamilyChanged();
+    void powerModeChanged();
 
 private:
     /**
@@ -63,6 +69,7 @@ private:
     QString userName_;
     QString fontFamily_;
     QStringList fontFamilies_;
+    int powerMode_ = 0;
 };
 
 } // namespace opencruise
