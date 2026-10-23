@@ -129,27 +129,24 @@ WidgetBase {
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: root.m * 0.35
 
-            Text {   // 曲名(枠いっぱいに、入りきらなければ縮める)
+            MarqueeText {   // 曲名。幅に収まらないときだけ横スクロール
                 width: parent.width
                 height: Math.max(26, root.height * 0.2)
-                verticalAlignment: Text.AlignVCenter
-                font.family: Theme.fontFamily
-                font.bold: true
-                font.pixelSize: 200
-                minimumPixelSize: 14
-                fontSizeMode: Text.Fit
-                elide: Text.ElideRight
-                color: Theme.textPrimary
                 text: phoneStatus.trackSong !== "" ? phoneStatus.trackSong : "曲名不明"
+                color: Theme.textPrimary
+                pixelSize: Math.max(18, root.s * 0.13)
+                bold: true
+                paused: root.lifting
             }
-            Text {
+            MarqueeText {
                 visible: root.subtitle !== ""
                 width: parent.width
-                font.family: Theme.fontFamily
-                font.pixelSize: Math.max(12, root.s * 0.08)
-                elide: Text.ElideRight
+                height: Math.max(18, root.s * 0.1)
+                fontFamily: Theme.fontFamily
+                pixelSize: Math.max(12, root.s * 0.08)
                 color: Theme.textSecondary
                 text: root.subtitle
+                paused: root.lifting
             }
 
             // 再生位置のバー(曲の長さが分かるときだけ)
