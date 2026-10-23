@@ -143,44 +143,33 @@ WidgetBase {
 
             readonly property bool horizontal: width >= height * 1.15
             readonly property bool hasSub: root.mainSub !== ""
-            readonly property real headingHeight: Math.max(16, Math.min(24, height * 0.18))
 
-            Rectangle {
-                id: headingBadge
-                x: 0
-                y: 0
-                width: Math.min(parent.width, 104)
-                height: main.headingHeight
-                radius: height / 2
-                color: Theme.mix(Theme.panel, Theme.accent, 0.16)
+            Row {
+                id: mainHeader
+                anchors { top: parent.top; left: parent.left; right: parent.right }
+                spacing: 8
+                height: Math.max(20, Math.min(28, main.height * 0.13))
 
-                Row {
-                    id: headingRow
-                    anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    spacing: 5
-                    MaterialIcon {
-                        id: headingMark
-                        name: "near_me"
-                        size: Math.min(headingBadge.height * 0.58, 14)
-                        color: Theme.accent
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        width: Math.max(0, headingRow.width - headingMark.width - headingRow.spacing)
-                        text: "次の案内"
-                        color: Theme.accent
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Math.min(13, headingBadge.height * 0.58)
-                        font.bold: true
-                        anchors.verticalCenter: parent.verticalCenter
-                        elide: Text.ElideRight
-                    }
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "navigation"
+                    size: parent.height
+                    color: Theme.accent
+                }
+                Text {
+                    width: Math.max(0, mainHeader.width - mainHeader.spacing - mainHeader.height)
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "次の案内"
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Math.max(13, root.s * 0.085)
+                    elide: Text.ElideRight
                 }
             }
 
             Item {
                 id: mainContent
-                anchors { left: parent.left; right: parent.right; top: headingBadge.bottom; bottom: parent.bottom }
+                anchors { left: parent.left; right: parent.right; top: mainHeader.bottom; bottom: parent.bottom }
                 anchors.topMargin: root.m * 0.25
                 readonly property real iconSize: Math.max(20, main.horizontal ? Math.min(height, width * 0.36)
                                                                               : Math.min(width * 0.55, height * 0.42))
@@ -204,11 +193,11 @@ WidgetBase {
 
                     Column {
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                        spacing: Math.max(1, textBox.height * 0.03)
+                        spacing: Math.max(4, Math.min(12, textBox.height * 0.06))
 
                         Text {   // 道路名(なければ方向名)を主表示
                             width: parent.width
-                            height: Math.max(16, textBox.height * (root.distanceString !== "" ? 0.62 : 0.9))
+                            height: Math.max(16, textBox.height * (root.distanceString !== "" ? 0.5 : 0.9))
                             horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             visible: main.hasSub
@@ -223,7 +212,7 @@ WidgetBase {
                         }
                         Text {   // 距離
                             width: parent.width
-                            height: root.distanceString !== "" ? Math.max(12, Math.min(textBox.height * (main.hasSub ? 0.3 : 0.9), root.s * 0.14)) : 0
+                            height: root.distanceString !== "" ? Math.max(10, Math.min(textBox.height * (main.hasSub ? 0.25 : 0.9), root.s * 0.12)) : 0
                             horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             visible: root.distanceString !== ""
