@@ -22,20 +22,26 @@ WidgetBase {
         }
     }
     function distanceText(meters) {
-        if (config.distanceUnit !== "km" && androidAuto.navigationDistanceLabel !== "")
-            return androidAuto.navigationDistanceLabel
+        // 自動表示では Android Auto の表示文字列を使う。ただし数値距離が
+        // 0 より大きいのに表示文字列が 0 を示す場合は、数値を優先する。
+        const label = androidAuto.navigationDistanceLabel.trim()
+        const labelIsZero = /^(0+(?:[.,]0+)?\s*(?:m|km|メートル|キロメートル)?)$/i.test(label)
+        if (config.distanceUnit !== "km" && label !== "" && !(meters > 0 && labelIsZero))
+            return label
         if (meters < 0) return ""
         if (config.distanceUnit === "km") return (meters / 1000).toFixed(1) + " km"
         return meters >= 1000 ? (meters / 1000).toFixed(1) + " km" : meters + " m"
     }
 
     Row {
-        anchors { top: parent.top; left: parent.left; right: parent.right; margins: root.m }
+        id: header
+        anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.8; leftMargin: root.m }
         spacing: 8
+        height: Math.max(20, root.s * 0.11)
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
             name: "navigation"
-            size: Math.max(18, root.s * 0.11)
+            size: parent.height
             color: Theme.accent
         }
         Text {
@@ -48,34 +54,47 @@ WidgetBase {
     }
 
     Item {
-        anchors { fill: parent; topMargin: root.m * 2.3; leftMargin: root.m; rightMargin: root.m
-                  bottomMargin: root.hasNextCue ? root.s * 0.24 : root.m }
+        id: bodyBox
+        anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
+                  leftMargin: root.m; rightMargin: root.m; topMargin: root.m * 0.35
+                  bottomMargin: root.hasNextCue ? nextCue.height + root.m * 1.3 : root.m }
         visible: androidAuto.navigationActive
+        clip: true
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.radius
+            color: Theme.panelBorder
+            opacity: 0.28
+        }
         MaterialIcon {
             id: direction
-            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+            anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: root.m * 0.65 }
             name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
-            size: Math.min(parent.height * 0.68, parent.width * 0.28)
+            size: Math.min(parent.height * 0.62, parent.width * 0.25)
             color: Theme.accent
         }
         Column {
-            anchors { left: direction.right; leftMargin: root.m; right: parent.right; verticalCenter: parent.verticalCenter }
-            spacing: 4
+            anchors { left: direction.right; leftMargin: root.m * 0.6; right: parent.right; verticalCenter: parent.verticalCenter
+                      rightMargin: root.m * 0.65 }
+            spacing: root.m * 0.2
             Text {
                 width: parent.width
                 text: androidAuto.navigationRoad !== "" && config.showRoad !== false ? androidAuto.navigationRoad : "次の案内"
                 color: Theme.textPrimary
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(15, root.s * 0.105)
+                font.pixelSize: 200
+                minimumPixelSize: 14
+                fontSizeMode: Text.Fit
                 font.bold: true
                 elide: Text.ElideRight
             }
             Text {
                 visible: androidAuto.navigationDistanceMeters >= 0 || androidAuto.navigationDistanceLabel !== ""
                 text: root.distanceText(androidAuto.navigationDistanceMeters)
-                color: Theme.textSecondary
+                color: Theme.accent
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(13, root.s * 0.085)
+                font.bold: true
+                font.pixelSize: Math.max(17, root.s * 0.13)
             }
         }
     }
@@ -84,18 +103,18 @@ WidgetBase {
         id: nextCue
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m * 0.6 }
         visible: androidAuto.navigationActive && root.hasNextCue
-        height: root.s * 0.19
+        height: root.s * 0.17
         spacing: root.m
         MaterialIcon {
             id: nextCueIcon
             anchors.verticalCenter: parent.verticalCenter
             name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
-            size: parent.height * 0.82
+            size: parent.height * 0.72
             color: Theme.accent
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - nextCueIcon.width - root.m
+            width: parent.width - nextCueIcon.width - root.m * 2
             text: (config.showRoad !== false && androidAuto.nextNavigationRoad !== "")
                   ? androidAuto.nextNavigationRoad : "その次の案内"
             color: Theme.textSecondary
