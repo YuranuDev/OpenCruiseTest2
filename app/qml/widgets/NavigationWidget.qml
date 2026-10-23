@@ -1,22 +1,50 @@
-// Android Auto NavigationStatus チャネルから受け取った次の案内を表示する。
+// ナビ案内ウィジェット(Android Auto 連携)。NavigationStatus チャネルの次の曲がり角を表示する。
+//
+// レイアウト(ウィジェットの縦横比に追従して自動で切り替わる):
+//   ・主案内   … 方向アイコン + 距離(大きく) + 道路名(または方向名)。横長なら左右、縦長・正方形なら上下に並ぶ
+//   ・その次   … 横長なら右側の列、縦長なら下の帯。2 件目の距離はプロトコルから来ないので方向と道路名だけ
+//   ・コンパクト … 主案内だけを大きく表示する
+// 設定(config): frame / layout / distanceUnit / showRoad / showNext / nearHighlight(「設定」参照)
+//
+// 距離は必ず単位つきで表示する。数値(メートル)がある場合は常にそれを整形し、スマホ側の表示文字列は
+// 数値が取れないときの代わりとしてだけ使う(単位が欠けた文字列は補う)。
 import QtQuick
 import OpenCruise
 
 WidgetBase {
     id: root
 
-    readonly property real m: Math.max(6, Math.min(14, root.s * 0.055))
-    readonly property bool hasNextCue: androidAuto.nextNavigationManeuver > 0
-    readonly property real headerHeight: Math.max(18, root.s * 0.12)
-    readonly property real nextCueHeight: Math.max(27, Math.min(root.s * 0.19, root.height * 0.22))
+    framed: config.frame !== "plain"
 
+    // ---- 設定 ----
+    readonly property bool compact: config.layout === "compact"
+    readonly property string unitMode: config.distanceUnit === "km" || config.distanceUnit === "m" ? config.distanceUnit : "auto"
+    readonly property bool showRoad: config.showRoad !== false
+    readonly property int nearMeters: config.nearHighlight === undefined ? 100 : Math.max(0, config.nearHighlight)
+
+    // ---- 状態 ----
+    readonly property bool active: androidAuto.navigationActive
+    readonly property real meters: androidAuto.navigationDistanceMeters
+    readonly property bool hasNext: androidAuto.nextNavigationManeuver > 0
+    readonly property bool showNext: active && hasNext && !compact && config.showNext !== false
+    readonly property bool near: active && nearMeters > 0 && meters >= 0 && meters <= nearMeters
+    readonly property string distanceString: formatDistance(meters, androidAuto.navigationDistanceLabel)
+    readonly property string mainRoad: showRoad ? androidAuto.navigationRoad : ""
+    readonly property string mainSub: mainRoad !== "" ? mainRoad : maneuverName(androidAuto.navigationManeuver, androidAuto.navigationSide)
+    readonly property string nextSub: (showRoad && androidAuto.nextNavigationRoad !== "")
+                                      ? androidAuto.nextNavigationRoad
+                                      : maneuverName(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+
+    readonly property real m: Math.max(8, Math.min(16, s * 0.07))
+    readonly property bool wide: width >= height * 1.5
+
+    // ---- 変換 ----
     function maneuverIcon(kind, side) {
         const right = side === 2
         switch (kind) {
         case 3: case 4: case 5: return right ? "turn_right" : "turn_left"
         case 6: return right ? "u_turn_right" : "u_turn_left"
-        case 7: return right ? "ramp_right" : "ramp_left"
-        case 8: return right ? "ramp_right" : "ramp_left"
+        case 7: case 8: return right ? "ramp_right" : "ramp_left"
         case 9: return right ? "fork_right" : "fork_left"
         case 10: return "merge"
         case 11: case 12: case 13: return right ? "roundabout_right" : "roundabout_left"
@@ -25,170 +53,231 @@ WidgetBase {
         }
     }
 
-    function distanceText(meters) {
-        // 自動表示では Android Auto の表示文字列を使う。ただし数値距離が
-        // 0 より大きいのに表示文字列が 0 を示す場合は、数値を優先する。
-        const label = androidAuto.navigationDistanceLabel.trim()
-        const labelIsZero = /^(0+(?:[.,]0+)?\s*(?:m|km|メートル|キロメートル)?)$/i.test(label)
-        if (config.distanceUnit !== "km" && label !== "" && !(meters > 0 && labelIsZero))
-            return label
-        if (meters < 0) return ""
-        if (config.distanceUnit === "km") return (meters / 1000).toFixed(1) + " km"
-        return meters >= 1000 ? (meters / 1000).toFixed(1) + " km" : meters + " m"
+    function maneuverName(kind, side) {
+        const right = side === 2
+        switch (kind) {
+        case 3: case 4: case 5: return right ? "右折" : "左折"
+        case 6: return "Uターン"
+        case 7: case 8: return "出口・ランプ"
+        case 9: return right ? "右方向" : "左方向"
+        case 10: return "合流"
+        case 11: case 12: case 13: return "ロータリー"
+        case 19: return "目的地"
+        default: return "直進"
+        }
     }
 
-    // ---- 見出し ----
-    Row {
-        id: header
-        anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.65; leftMargin: root.m }
-        height: root.headerHeight
-        spacing: root.m * 0.45
+    // メートルを単位つきの文字列にする。単位の指定: auto(1 km 未満は m、以上は km)/ m / km
+    function formatMeters(value, mode) {
+        if (mode === "km")
+            return (value / 1000).toFixed(value >= 10000 ? 0 : 1) + " km"
+        if (mode === "m")
+            return Math.round(value) + " m"
+        if (value < 1000)
+            return Math.round(value) + " m"
+        return (value / 1000).toFixed(value >= 10000 ? 0 : 1) + " km"
+    }
+
+    // 数字だけの表示文字列に単位を補う(小数点があれば km、なければ m とみなす)
+    function normalizeLabel(label) {
+        const t = label.trim()
+        if (t === "") return ""
+        if (/^[0-9]+([.,][0-9]+)?$/.test(t))
+            return t + (/[.,]/.test(t) ? " km" : " m")
+        return t
+    }
+
+    function formatDistance(value, label) {
+        const text = normalizeLabel(label)
+        const labelIsZero = /^0+([.,]0+)?\s*(m|km|メートル|キロメートル)?$/i.test(text)
+        if (value > 0) return formatMeters(value, unitMode)
+        if (text !== "" && !labelIsZero) return text
+        if (value === 0) return formatMeters(0, unitMode === "km" ? "km" : "m")
+        return ""
+    }
+
+    // ---- 待機中 ----
+    Column {
+        anchors { centerIn: parent }
+        width: parent.width - root.m * 2
+        spacing: root.m * 0.4
+        visible: !root.active
+        opacity: 0.8
 
         MaterialIcon {
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
             name: "navigation"
-            size: Math.min(parent.height, root.s * 0.13)
-            color: Theme.accent
+            size: Math.max(20, Math.min(root.height * 0.36, root.width * 0.2))
+            color: Theme.textSecondary
         }
         Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "ナビ案内"
+            width: parent.width
+            height: Math.max(14, root.height * 0.14)
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            text: "ナビ案内を待っています"
             color: Theme.textSecondary
             font.family: Theme.fontFamily
-            font.pixelSize: Math.max(11, root.s * 0.075)
+            font.pixelSize: height
+            minimumPixelSize: 9
+            fontSizeMode: Text.Fit
             elide: Text.ElideRight
         }
     }
 
-    // ---- 次の曲がり角 ----
+    // ---- 案内中 ----
     Item {
-        id: mainCue
-        anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
-                  leftMargin: root.m; rightMargin: root.m; topMargin: root.m * 0.35
-                  bottomMargin: root.hasNextCue ? nextCue.height + root.m * 1.25 : root.m }
-        clip: true
+        id: body
+        anchors { fill: parent; margins: root.m }
+        visible: root.active
 
-        Rectangle {
-            anchors.fill: parent
-            radius: Math.min(Theme.radius, height * 0.12)
-            color: Theme.panelBorder
-            opacity: androidAuto.navigationActive ? 0.24 : 0
-        }
+        // 「その次」の領域の大きさ(出さないときは 0)
+        readonly property real nextW: root.showNext && root.wide ? Math.min(width * 0.3, 240) : 0
+        readonly property real nextH: root.showNext && !root.wide ? Math.min(height * 0.3, 64) : 0
 
-        Row {
-            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
-                      leftMargin: root.m * 0.55; rightMargin: root.m * 0.55 }
-            spacing: root.m * 0.55
-            visible: androidAuto.navigationActive
+        Item {
+            id: main
+            anchors { left: parent.left; top: parent.top }
+            width: body.width - (body.nextW > 0 ? body.nextW + root.m : 0)
+            height: body.height - (body.nextH > 0 ? body.nextH + root.m : 0)
+
+            readonly property bool horizontal: width >= height * 1.15
+            readonly property real iconSize: Math.max(20, horizontal ? Math.min(height, width * 0.36)
+                                                                     : Math.min(width * 0.55, height * 0.42))
+            readonly property bool hasSub: root.mainSub !== ""
 
             MaterialIcon {
-                id: mainDirection
-                anchors.verticalCenter: parent.verticalCenter
+                id: mainIcon
+                x: main.horizontal ? 0 : (main.width - main.iconSize) / 2
+                y: main.horizontal ? (main.height - main.iconSize) / 2 : 0
                 name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
-                size: Math.max(22, Math.min(root.s * 0.42, mainCue.height * 0.72, mainCue.width * 0.25))
-                color: Theme.accent
+                size: main.iconSize
+                color: root.near ? Theme.warn : Theme.accent
+                Behavior on color { ColorAnimation { duration: 200 } }
             }
 
+            Item {
+                id: textBox
+                x: main.horizontal ? main.iconSize + root.m : 0
+                y: main.horizontal ? 0 : main.iconSize + root.m * 0.4
+                width: main.width - x
+                height: main.height - y
+
+                Column {
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                    spacing: Math.max(1, textBox.height * 0.03)
+
+                    Text {   // 距離
+                        width: parent.width
+                        height: Math.max(16, textBox.height * (main.hasSub ? 0.62 : 0.9))
+                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        visible: root.distanceString !== ""
+                        text: root.distanceString
+                        color: root.near ? Theme.warn : Theme.accent
+                        font.family: Theme.fontFamily
+                        font.bold: true
+                        font.pixelSize: height
+                        minimumPixelSize: 10
+                        fontSizeMode: Text.Fit
+                        elide: Text.ElideRight
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+                    Text {   // 道路名(なければ方向名)
+                        width: parent.width
+                        height: main.hasSub ? Math.max(12, Math.min(textBox.height * 0.28, root.s * 0.14)) : 0
+                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        visible: main.hasSub
+                        text: root.mainSub
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: height
+                        minimumPixelSize: 9
+                        fontSizeMode: Text.Fit
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+        }
+
+        // ---- その次の案内 ----
+        Item {
+            id: nextCue
+            visible: root.showNext
+            anchors { right: parent.right; bottom: parent.bottom }
+            width: root.wide ? body.nextW : body.width
+            height: root.wide ? body.height : body.nextH
+
+            Rectangle {   // 主案内との区切り線
+                color: Theme.panelBorder
+                x: root.wide ? -root.m * 0.5 : 0
+                y: root.wide ? 0 : -root.m * 0.5
+                width: root.wide ? 1 : parent.width
+                height: root.wide ? parent.height : 1
+            }
+
+            // 横長: 縦に並べる(見出し・アイコン・名称)
             Column {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, parent.width - mainDirection.width - parent.spacing)
-                spacing: Math.max(1, mainCue.height * 0.025)
+                visible: root.wide
+                anchors { fill: parent; leftMargin: root.m * 0.3 }
+                spacing: Math.max(2, parent.height * 0.04)
 
                 Text {
                     width: parent.width
-                    height: Math.max(16, mainCue.height * 0.34)
-                    verticalAlignment: Text.AlignVCenter
-                    text: androidAuto.navigationRoad !== "" && config.showRoad !== false
-                          ? androidAuto.navigationRoad : "次の案内"
-                    color: Theme.textPrimary
+                    height: Math.max(11, Math.min(parent.height * 0.14, 18))
+                    text: "その次"
+                    color: Theme.textSecondary
                     font.family: Theme.fontFamily
-                    font.bold: true
-                    font.pixelSize: 100
-                    minimumPixelSize: 11
+                    font.pixelSize: height
+                    minimumPixelSize: 8
                     fontSizeMode: Text.Fit
                     elide: Text.ElideRight
                 }
-                Text {
-                    width: parent.width
-                    height: Math.max(20, mainCue.height * 0.48)
-                    verticalAlignment: Text.AlignVCenter
-                    visible: androidAuto.navigationDistanceMeters >= 0 || androidAuto.navigationDistanceLabel !== ""
-                    text: root.distanceText(androidAuto.navigationDistanceMeters)
+                MaterialIcon {
+                    name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+                    size: Math.max(18, Math.min(parent.width * 0.45, parent.height * 0.4))
                     color: Theme.accent
+                }
+                Text {
+                    width: parent.width
+                    height: Math.max(12, parent.height * 0.26)
+                    verticalAlignment: Text.AlignTop
+                    text: root.nextSub
+                    color: Theme.textSecondary
                     font.family: Theme.fontFamily
-                    font.bold: true
-                    font.pixelSize: 160
-                    minimumPixelSize: 12
-                    fontSizeMode: Text.Fit
+                    font.pixelSize: Math.max(11, Math.min(height * 0.55, 18))
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    maximumLineCount: 2
                     elide: Text.ElideRight
                 }
             }
-        }
 
-        Column {
-            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-            spacing: root.m * 0.25
-            visible: !androidAuto.navigationActive
+            // 縦長: 1 行にまとめる(アイコン + 名称)
+            Row {
+                visible: !root.wide
+                anchors { fill: parent; topMargin: 1 }
+                spacing: root.m * 0.6
 
-            MaterialIcon {
-                anchors.horizontalCenter: parent.horizontalCenter
-                name: "navigation"
-                size: Math.min(root.s * 0.24, mainCue.height * 0.38)
-                color: Theme.textSecondary
-                opacity: 0.65
-            }
-            Text {
-                width: parent.width - root.m
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "ナビ案内を待っています"
-                color: Theme.textSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Math.max(11, root.s * 0.075)
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
-                elide: Text.ElideRight
-            }
-        }
-    }
-
-    // ---- その次の案内。横幅・高さが小さいときも一行で省略して主案内を圧迫しない ----
-    Item {
-        id: nextCue
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom
-                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m * 0.55 }
-        height: root.nextCueHeight
-        visible: androidAuto.navigationActive && root.hasNextCue
-
-        Rectangle {
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 1
-            color: Theme.panelBorder
-        }
-
-        Row {
-            anchors { fill: parent; topMargin: 1; leftMargin: root.m * 0.15; rightMargin: root.m * 0.15 }
-            spacing: root.m * 0.45
-
-            MaterialIcon {
-                id: nextDirection
-                anchors.verticalCenter: parent.verticalCenter
-                name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
-                size: Math.max(16, Math.min(parent.height * 0.68, root.s * 0.19))
-                color: Theme.accent
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, parent.width - nextDirection.width - parent.spacing)
-                height: parent.height
-                verticalAlignment: Text.AlignVCenter
-                text: (config.showRoad !== false && androidAuto.nextNavigationRoad !== "")
-                      ? androidAuto.nextNavigationRoad : "その次の案内"
-                color: Theme.textSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: 100
-                minimumPixelSize: 10
-                fontSizeMode: Text.Fit
-                elide: Text.ElideRight
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+                    size: Math.max(16, parent.height * 0.7)
+                    color: Theme.accent
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(0, parent.width - parent.height * 0.7 - parent.spacing)
+                    height: parent.height * 0.6
+                    verticalAlignment: Text.AlignVCenter
+                    text: "その次: " + root.nextSub
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: height
+                    minimumPixelSize: 9
+                    fontSizeMode: Text.Fit
+                    elide: Text.ElideRight
+                }
             }
         }
     }

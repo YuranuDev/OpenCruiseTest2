@@ -54,12 +54,12 @@ ListView {
 
                 MaterialIcon {
                     name: icon
-                    size: 36
+                    size: 30
                     color: list.levelColor(level)
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Column {
-                    width: parent.width - 36 - 14
+                    width: parent.width - 30 - 14
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Text {
@@ -67,8 +67,10 @@ ListView {
                         width: parent.width
                         text: title
                         color: Theme.textPrimary
-                        font.pixelSize: 22
+                        font.pixelSize: 16
                         font.bold: true
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        maximumLineCount: 2
                         elide: Text.ElideRight
                     }
                     Text {
@@ -77,8 +79,8 @@ ListView {
                         visible: message.length > 0
                         text: message
                         color: Theme.textSecondary
-                        font.pixelSize: 17
-                        wrapMode: Text.WordWrap
+                        font.pixelSize: 13
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         maximumLineCount: 3
                         elide: Text.ElideRight
                     }

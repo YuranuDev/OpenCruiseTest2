@@ -107,7 +107,7 @@ Item {
                                 width: parent.width - timeLabel.implicitWidth - 10
                                 text: title
                                 color: Theme.textPrimary
-                                font.pixelSize: 20
+                                font.pixelSize: 16
                                 font.bold: true
                                 elide: Text.ElideRight
                             }
@@ -126,7 +126,7 @@ Item {
                             visible: message.length > 0
                             text: message
                             color: Theme.textSecondary
-                            font.pixelSize: 16
+                            font.pixelSize: 14
                             wrapMode: Text.WordWrap
                             maximumLineCount: 4
                             elide: Text.ElideRight

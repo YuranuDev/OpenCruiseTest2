@@ -79,10 +79,11 @@ QtObject {
         },
         {
             type: "navigation", genre: "androidauto", name: "ナビ案内", icon: "navigation",
-            description: "Android Auto の次の曲がり角までの距離と、その次の方向",
+            description: "Android Auto の次の曲がり角までの距離・方向・道路名と、その次の案内",
             component: navigationComp, settings: navigationSettings,
             defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 4 },
-            defaultConfig: { showRoad: true, distanceUnit: "auto" },
+            defaultConfig: { frame: "card", layout: "standard", distanceUnit: "auto",
+                             showRoad: true, showNext: true, nearHighlight: 100 },
             dragStart: "hold", mock: false
         },
         {
@@ -100,7 +101,7 @@ QtObject {
             component: noticeComp, settings: noticeSettings,
             defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 6 },
             // templates: カテゴリごとの表示文。{text} が通知文に置き換わる
-            defaultConfig: { mode: "list", maxItems: 3, showIcon: true, showOther: true, popup: false,
+            defaultConfig: { mode: "list", maxItems: 3, showIcon: true, showOther: true,
                              tplCall: "{text}", tplMessage: "{text}", tplNavigation: "{text}", tplOther: "{text}" },
             dragStart: "hold", mock: true
         },

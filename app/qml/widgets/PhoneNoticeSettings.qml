@@ -1,4 +1,4 @@
-// スマホ通知ウィジェットの設定: 表示方法・件数・アイコン・ポップアップ・カテゴリごとのメッセージ・テスト通知。
+// スマホ通知ウィジェットの設定: 表示方法・件数・アイコン・カテゴリごとのメッセージ・テスト通知。
 // メッセージの {text} は通知文に置き換わる(例:「📞 {text}」)。空欄にすると通知文そのままを表示する。
 import QtQuick
 import OpenCruise
@@ -39,13 +39,6 @@ WidgetSettingsBase {
         SettingsSwitch {
             checked: root.config.showOther !== false
             onToggled: (v) => root.edit("showOther", v)
-        }
-    }
-    SettingsRow {
-        label: "届いたらポップアップも出す"
-        SettingsSwitch {
-            checked: root.config.popup === true
-            onToggled: (v) => root.edit("popup", v)
         }
     }
     SettingsRow {

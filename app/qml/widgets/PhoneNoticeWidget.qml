@@ -14,6 +14,11 @@ WidgetBase {
     readonly property string mode: config.mode === "latest" || config.mode === "badge" ? config.mode : "list"
     readonly property int maxItems: Math.max(1, Math.min(5, config.maxItems || 3))
     readonly property real m: Math.max(10, root.s * 0.07)
+    // 文字サイズは上限つき(ウィジェットを大きくしても通知文が巨大化してはみ出さない)
+    readonly property real fsHead: Math.max(12, Math.min(root.s * 0.07, 16))
+    readonly property real fsBody: Math.max(11, Math.min(root.s * 0.058, 15))
+    readonly property real fsBig:  Math.max(13, Math.min(root.s * 0.072, 20))
+    readonly property real fsSub:  Math.max(9,  Math.min(root.s * 0.048, 12))
     property real nowMs: Date.now()
 
     Timer {   // 「n 分前」の表示を更新する
@@ -46,16 +51,6 @@ WidgetBase {
         return sec < 60 ? "たった今" : (sec < 3600 ? Math.floor(sec / 60) + " 分前" : Math.floor(sec / 3600) + " 時間前")
     }
 
-    // 届いたときにアプリ共通のポップアップも出す設定
-    Connections {
-        target: phoneStatus
-        function onNoticeReceived(n) {
-            if (root.config.popup === true && (root.config.showOther !== false || n.category !== "other")) {
-                notifications.show(root.formatNotice(n), "", 0, n.icon)
-            }
-        }
-    }
-
     // ---- 上段: 名称・件数・モック表示 ----
     Row {
         id: header
@@ -73,7 +68,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "スマホ通知"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(13, root.s * 0.085)
+            font.pixelSize: root.fsHead
         }
     }
     Row {
@@ -93,7 +88,7 @@ WidgetBase {
                 font.family: Theme.fontFamily
                 text: "モック"
                 color: Theme.warn
-                font.pixelSize: Math.max(10, root.s * 0.06)
+                font.pixelSize: root.fsSub
             }
         }
     }
@@ -111,7 +106,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "通知はありません"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(14, root.s * 0.09)
+            font.pixelSize: root.fsBody
         }
 
         // 件数だけ
@@ -122,14 +117,14 @@ WidgetBase {
                 anchors.horizontalCenter: parent.horizontalCenter
                 font.family: Theme.fontFamily
                 font.bold: true
-                font.pixelSize: Math.max(30, root.s * 0.4)
+                font.pixelSize: Math.max(28, Math.min(root.s * 0.3, 64))
                 color: Theme.textPrimary
                 text: root.visibleNotices.length
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(12, root.s * 0.075)
+                font.pixelSize: root.fsBody
                 color: Theme.textSecondary
                 text: "件の通知"
             }
@@ -149,7 +144,9 @@ WidgetBase {
                     readonly property var n: root.visibleNotices[index]
                     readonly property bool big: root.mode === "latest"
                     width: parent.width
-                    height: big ? Math.max(60, bodyBox.height) : Math.max(40, Math.min(bodyBox.height / root.maxItems - root.m * 0.5, 72))
+                    height: big ? Math.max(60, bodyBox.height) : Math.max(52, Math.min(bodyBox.height / root.maxItems - root.m * 0.5, 80))
+                    readonly property int lines: big ? 3 : (height >= 62 ? 2 : 1)
+                    clip: true
                     radius: Theme.radius
                     color: Theme.mix(Theme.panel, Theme.accent, 0.08)
                     border.color: Theme.panelBorder
@@ -159,7 +156,7 @@ WidgetBase {
                         visible: root.config.showIcon !== false
                         anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
                         name: n.icon
-                        size: Math.min(parent.height * 0.5, 44)
+                        size: Math.min(parent.height * 0.45, 32)
                         color: Theme.accent
                     }
                     Column {
@@ -170,9 +167,9 @@ WidgetBase {
                             width: parent.width
                             font.family: Theme.fontFamily
                             font.bold: true
-                            font.pixelSize: big ? Math.max(16, root.s * 0.11) : Math.max(13, root.s * 0.085)
-                            wrapMode: big ? Text.WordWrap : Text.NoWrap
-                            maximumLineCount: big ? 3 : 1
+                            font.pixelSize: big ? root.fsBig : root.fsBody
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            maximumLineCount: lines
                             elide: Text.ElideRight
                             color: Theme.textPrimary
                             text: root.formatNotice(n)
@@ -180,7 +177,7 @@ WidgetBase {
                         Text {
                             width: parent.width
                             font.family: Theme.fontFamily
-                            font.pixelSize: Math.max(11, root.s * 0.065)
+                            font.pixelSize: root.fsSub
                             color: Theme.textSecondary
                             text: root.ago(n.time)
                         }
