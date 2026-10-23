@@ -62,6 +62,7 @@ Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
+            NotificationBell { }
             ActionButton {
                 text: "終了"
                 onClicked: Qt.quit()

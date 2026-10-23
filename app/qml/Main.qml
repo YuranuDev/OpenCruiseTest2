@@ -33,7 +33,9 @@ ApplicationWindow {
     Shortcut {
         sequence: "Esc"
         onActivated: {
-            if (boot.active) {
+            if (notifications.historyOpen) {
+                notifications.historyOpen = false // 通知履歴を開いている間は、まずそれを閉じる
+            } else if (boot.active) {
                 boot.skip()
             } else if (window.immersive && stack.currentItem) {
                 stack.currentItem.menuOpen = !stack.currentItem.menuOpen
@@ -66,6 +68,12 @@ ApplicationWindow {
                 event.accepted = true
             }
         }
+    }
+
+    // 通知履歴パネル(ベルボタンで開く。ポップアップより下、各画面より上)
+    NotificationHistoryPanel {
+        anchors.fill: parent
+        z: 90
     }
 
     // 画面上部のポップアップ通知（映像表示中も最前面）

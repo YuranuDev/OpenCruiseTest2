@@ -49,6 +49,7 @@ qt_add_executable(opencruise
     core/ClockModel.cpp
     core/Log.cpp
     core/NotificationManager.cpp
+    core/NotificationHistoryModel.cpp
     core/SystemSound.cpp
     core/VehicleDataManager.cpp
     core/SystemStats.cpp
@@ -99,6 +100,8 @@ qt_add_qml_module(opencruise
         qml/LauncherScreen.qml
         qml/LauncherTile.qml
         qml/NotificationPopup.qml
+        qml/NotificationBell.qml
+        qml/NotificationHistoryPanel.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
         sounds/Click.wav

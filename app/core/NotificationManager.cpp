@@ -4,6 +4,7 @@
  */
 #include "NotificationManager.h"
 
+#include <QDateTime>
 #include <QMetaObject>
 #include <QThread>
 #include <QTimer>
@@ -14,7 +15,7 @@ namespace {
 std::atomic<NotificationManager *> g_instance{nullptr}; ///< notify() の宛先
 } // namespace
 
-NotificationManager::NotificationManager(QObject *parent) : QAbstractListModel(parent) {
+NotificationManager::NotificationManager(QObject *parent) : QAbstractListModel(parent), history_(this) {
     NotificationManager *expected = nullptr;
     g_instance.compare_exchange_strong(expected, this);
 }
@@ -45,9 +46,11 @@ int NotificationManager::show(const QString &title, const QString &message, int 
 
 void NotificationManager::add(const Item &item, int durationMs) {
     if (items_.size() >= kMaxVisible) {
+        const Item pushedOut = items_.first();
         beginRemoveRows(QModelIndex(), 0, 0); // 古いものから押し出す
         items_.removeFirst();
         endRemoveRows();
+        archive(pushedOut); // 操作されずに消えるので履歴へ残す
     }
     beginInsertRows(QModelIndex(), static_cast<int>(items_.size()), static_cast<int>(items_.size()));
     items_.append(item);
@@ -55,8 +58,42 @@ void NotificationManager::add(const Item &item, int durationMs) {
 
     if (durationMs > 0) {
         const int id = item.id;
-        QTimer::singleShot(durationMs, this, [this, id]() { dismiss(id); });
+        QTimer::singleShot(durationMs, this, [this, id]() { expire(id); });
     }
+}
+
+void NotificationManager::expire(int id) {
+    for (int row = 0; row < items_.size(); ++row) {
+        if (items_.at(row).id == id) {
+            const Item item = items_.at(row);
+            beginRemoveRows(QModelIndex(), row, row);
+            items_.removeAt(row);
+            endRemoveRows();
+            archive(item);
+            return;
+        }
+    }
+}
+
+void NotificationManager::archive(const Item &item) {
+    NotificationHistoryModel::Entry entry;
+    entry.title = item.title;
+    entry.message = item.message;
+    entry.icon = item.icon;
+    entry.level = item.level;
+    entry.time = QDateTime::currentDateTime();
+    history_.append(entry, historyOpen_); // 履歴パネルを開いている間に届いた分は、すでに見えているので既読扱い
+}
+
+void NotificationManager::setHistoryOpen(bool open) {
+    if (open == historyOpen_) {
+        return;
+    }
+    historyOpen_ = open;
+    if (open) {
+        history_.markAllRead();
+    }
+    emit historyOpenChanged();
 }
 
 void NotificationManager::dismiss(int id) {

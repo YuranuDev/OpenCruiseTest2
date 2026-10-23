@@ -76,6 +76,11 @@ Rectangle {
             }
         }
 
+        NotificationBell {
+            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            size: 68 * root.unit
+        }
+
         Text {
             anchors.centerIn: parent
             font.family: Theme.fontFamily

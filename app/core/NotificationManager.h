@@ -9,6 +9,9 @@
  * @endcode
  * アイコンは Material Icons の名前（例: "usb", "directions_car"）。省略するとレベルに応じた既定のアイコンになる。
  * QML からは context property `notifications` の show() も使える。
+ *
+ * 通知履歴: ユーザーが操作せずに消えた通知(表示時間の経過・同時表示数の超過)は history に残る。
+ * ポップアップをタップして閉じた通知(dismiss)・clear() で消した通知は残さない。
  */
 #pragma once
 
@@ -18,6 +21,8 @@
 #include <QList>
 #include <QString>
 
+#include "NotificationHistoryModel.h"
+
 namespace opencruise {
 
 /**
@@ -25,6 +30,10 @@ namespace opencruise {
  */
 class NotificationManager : public QAbstractListModel {
     Q_OBJECT
+    /** 通知履歴(操作されずに消えた通知。新しい順)。件数・未読件数も持つ */
+    Q_PROPERTY(NotificationHistoryModel *history READ history CONSTANT)
+    /** 通知履歴パネルを開いているか。ベルボタンで切り替え、画面側のパネルがこれに従って表示する */
+    Q_PROPERTY(bool historyOpen READ historyOpen WRITE setHistoryOpen NOTIFY historyOpenChanged)
 
 public:
     /// 通知の種類。色と既定アイコンが決まる
@@ -51,10 +60,16 @@ public:
     Q_INVOKABLE int show(const QString &title, const QString &message = QString(), int level = Info,
                          const QString &icon = QString(), int durationMs = 4000);
 
-    /** @brief 指定IDの通知を消す。存在しなければ何もしない。 */
+    NotificationHistoryModel *history() { return &history_; }
+
+    bool historyOpen() const { return historyOpen_; }
+    /** @brief 履歴パネルの開閉。開くと未読をすべて既読にし、開いている間に届いた分も既読として記録する。 */
+    void setHistoryOpen(bool open);
+
+    /** @brief 指定IDの通知を消す(履歴には残さない。ポップアップのタップで閉じる操作もこれ)。存在しなければ何もしない。 */
     Q_INVOKABLE void dismiss(int id);
 
-    /** @brief すべての通知を消す。 */
+    /** @brief すべての通知を消す(履歴には残さない)。 */
     Q_INVOKABLE void clear();
 
     /**
@@ -66,6 +81,9 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
+
+signals:
+    void historyOpenChanged();
 
 private:
     struct Item {
@@ -79,10 +97,18 @@ private:
     /** @brief UI スレッドで通知を一覧へ追加し、消去タイマーを仕掛ける。 */
     void add(const Item &item, int durationMs);
 
+    /** @brief 表示時間が過ぎた通知を消して、履歴へ残す。すでに無ければ何もしない。 */
+    void expire(int id);
+
+    /** @brief 操作されずに消えた通知を、履歴へ残す。 */
+    void archive(const Item &item);
+
     /** @brief レベルに応じた既定アイコン名。 */
     static QString defaultIcon(int level);
 
     QList<Item> items_;
+    NotificationHistoryModel history_;
+    bool historyOpen_ = false;
     std::atomic<int> nextId_{1};
 
     static constexpr int kMaxVisible = 3;

@@ -94,6 +94,7 @@ Item {
                 text: "Android Auto を表示"
                 onClicked: root.openAndroidAuto()
             }
+            NotificationBell { }
             ActionButton {
                 text: "終了"
                 onClicked: Qt.quit()
