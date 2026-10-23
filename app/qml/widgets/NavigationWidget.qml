@@ -142,60 +142,100 @@ WidgetBase {
             height: body.height - (body.nextH > 0 ? body.nextH + root.m : 0)
 
             readonly property bool horizontal: width >= height * 1.15
-            readonly property real iconSize: Math.max(20, horizontal ? Math.min(height, width * 0.36)
-                                                                     : Math.min(width * 0.55, height * 0.42))
             readonly property bool hasSub: root.mainSub !== ""
+            readonly property real headingHeight: Math.max(16, Math.min(24, height * 0.18))
 
-            MaterialIcon {
-                id: mainIcon
-                x: main.horizontal ? 0 : (main.width - main.iconSize) / 2
-                y: main.horizontal ? (main.height - main.iconSize) / 2 : 0
-                name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
-                size: main.iconSize
-                color: root.near ? Theme.warn : Theme.accent
-                Behavior on color { ColorAnimation { duration: 200 } }
+            Rectangle {
+                id: headingBadge
+                x: 0
+                y: 0
+                width: Math.min(parent.width, 104)
+                height: main.headingHeight
+                radius: height / 2
+                color: Theme.mix(Theme.panel, Theme.accent, 0.16)
+
+                Row {
+                    id: headingRow
+                    anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    spacing: 5
+                    MaterialIcon {
+                        id: headingMark
+                        name: "near_me"
+                        size: Math.min(headingBadge.height * 0.58, 14)
+                        color: Theme.accent
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        width: Math.max(0, headingRow.width - headingMark.width - headingRow.spacing)
+                        text: "次の案内"
+                        color: Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Math.min(13, headingBadge.height * 0.58)
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                        elide: Text.ElideRight
+                    }
+                }
             }
 
             Item {
-                id: textBox
-                x: main.horizontal ? main.iconSize + root.m : 0
-                y: main.horizontal ? 0 : main.iconSize + root.m * 0.4
-                width: main.width - x
-                height: main.height - y
+                id: mainContent
+                anchors { left: parent.left; right: parent.right; top: headingBadge.bottom; bottom: parent.bottom }
+                anchors.topMargin: root.m * 0.25
+                readonly property real iconSize: Math.max(20, main.horizontal ? Math.min(height, width * 0.36)
+                                                                              : Math.min(width * 0.55, height * 0.42))
 
-                Column {
-                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                    spacing: Math.max(1, textBox.height * 0.03)
+                MaterialIcon {
+                    id: mainIcon
+                    x: main.horizontal ? 0 : (mainContent.width - mainContent.iconSize) / 2
+                    y: main.horizontal ? (mainContent.height - mainContent.iconSize) / 2 : 0
+                    name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
+                    size: mainContent.iconSize
+                    color: root.near ? Theme.warn : Theme.accent
+                    Behavior on color { ColorAnimation { duration: 200 } }
+                }
 
-                    Text {   // 道路名(なければ方向名)を主表示
-                        width: parent.width
-                        height: Math.max(16, textBox.height * (root.distanceString !== "" ? 0.62 : 0.9))
-                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        visible: main.hasSub
-                        text: root.mainSub
-                        color: Theme.textPrimary
-                        font.family: Theme.fontFamily
-                        font.bold: true
-                        font.pixelSize: height
-                        minimumPixelSize: 9
-                        fontSizeMode: Text.Fit
-                        elide: Text.ElideRight
-                    }
-                    Text {   // 距離
-                        width: parent.width
-                        height: root.distanceString !== "" ? Math.max(12, Math.min(textBox.height * (main.hasSub ? 0.3 : 0.9), root.s * 0.14)) : 0
-                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        visible: root.distanceString !== ""
-                        text: root.distanceString
-                        color: root.near ? Theme.warn : Theme.accent
-                        font.family: Theme.fontFamily
-                        font.pixelSize: height
-                        minimumPixelSize: 10
-                        fontSizeMode: Text.Fit
-                        elide: Text.ElideRight
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                Item {
+                    id: textBox
+                    x: main.horizontal ? mainContent.iconSize + root.m : 0
+                    y: main.horizontal ? 0 : mainContent.iconSize + root.m * 0.4
+                    width: mainContent.width - x
+                    height: mainContent.height - y
+
+                    Column {
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                        spacing: Math.max(1, textBox.height * 0.03)
+
+                        Text {   // 道路名(なければ方向名)を主表示
+                            width: parent.width
+                            height: Math.max(16, textBox.height * (root.distanceString !== "" ? 0.62 : 0.9))
+                            horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            visible: main.hasSub
+                            text: root.mainSub
+                            color: Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.bold: true
+                            font.pixelSize: height
+                            minimumPixelSize: 9
+                            fontSizeMode: Text.Fit
+                            elide: Text.ElideRight
+                        }
+                        Text {   // 距離
+                            width: parent.width
+                            height: root.distanceString !== "" ? Math.max(12, Math.min(textBox.height * (main.hasSub ? 0.3 : 0.9), root.s * 0.14)) : 0
+                            horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            visible: root.distanceString !== ""
+                            text: root.distanceString
+                            color: root.near ? Theme.warn : Theme.accent
+                            font.family: Theme.fontFamily
+                            font.pixelSize: height
+                            minimumPixelSize: 10
+                            fontSizeMode: Text.Fit
+                            elide: Text.ElideRight
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                        }
                     }
                 }
             }
