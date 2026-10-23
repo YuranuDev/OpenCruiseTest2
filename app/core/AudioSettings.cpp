@@ -42,6 +42,7 @@ QString displayName(AudioSettings::Group group) {
 
 AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
     const QSettings store = openStore();
+    masterVolume_ = std::clamp(store.value(QStringLiteral("audio/masterVolume"), 100).toInt(), 0, 100);
     for (int i = 0; i < GroupCount; ++i) {
         const Group group = static_cast<Group>(i);
         volumes_[i] = std::clamp(store.value(QStringLiteral("audio/%1Volume").arg(keyName(group)), 100).toInt(), 0, 100);
@@ -78,9 +79,37 @@ AudioSettings::Group AudioSettings::groupForKind(int kind) {
     }
 }
 
-double AudioSettings::gain(Group group) const {
+double AudioSettings::individualGain(Group group) const {
     const double linear = volumes_[group] / 100.0;
     return linear * linear;
+}
+
+double AudioSettings::masterGain() const {
+    const double linear = masterVolume_ / 100.0;
+    return linear * linear;
+}
+
+double AudioSettings::gain(Group group) const {
+    // 個別 × マスターを、ここ 1 か所だけで合成する
+    return individualGain(group) * masterGain();
+}
+
+void AudioSettings::setMasterVolume(int volume) {
+    volume = std::clamp(volume, 0, 100);
+    if (volume == masterVolume_) {
+        return;
+    }
+    masterVolume_ = volume;
+    openStore().setValue(QStringLiteral("audio/masterVolume"), volume);
+    emit masterVolumeChanged();
+    // 再生中の出力へ反映させるため、全グループの音量が変わったものとして通知する(個別の設定値そのものは変わらない)
+    for (int i = 0; i < GroupCount; ++i) {
+        emit volumeChangedFor(i);
+    }
+}
+
+void AudioSettings::adjustMasterVolume(int delta) {
+    setMasterVolume(masterVolume_ + delta);
 }
 
 void AudioSettings::setVolume(Group group, int volume) {

@@ -50,6 +50,32 @@ ApplicationWindow {
         onActivated: if (stack.currentItem) stack.currentItem.menuOpen = !stack.currentItem.menuOpen
     }
 
+    // ---- 音量・明るさのショートカット ----
+    // 既存のキー(Esc / F10 / Menu / Meta・Super / Ctrl+Shift+D)や、OS・ブラウザが奪いやすい
+    // メディアキー(Volume Up など。OS 側の音量とも二重になる)・Alt 系・Ctrl+Alt+矢印は使わない。
+    //   Ctrl+Shift+↑ / ↓            マスター音量を上げる / 下げる(各系統の個別音量はそのまま)
+    //   Ctrl+Shift+PageUp / PageDown 画面の明るさを上げる / 下げる
+    // 押しっぱなしで連続して変わる。操作すると、対応する表示が出て、しばらくして自動で閉じる。
+    readonly property int volumeStep: 5
+    readonly property int brightnessStep: 10
+
+    Shortcut {
+        sequence: "Ctrl+Shift+Up"
+        onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); volumeOsd.show() }
+    }
+    Shortcut {
+        sequence: "Ctrl+Shift+Down"
+        onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); volumeOsd.show() }
+    }
+    Shortcut {
+        sequence: "Ctrl+Shift+PgUp"
+        onActivated: { brightnessController.adjustBrightness(window.brightnessStep); brightnessOsd.show() }
+    }
+    Shortcut {
+        sequence: "Ctrl+Shift+PgDown"
+        onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); brightnessOsd.show() }
+    }
+
     // Windows キー(Meta / Super)でもメニューを開閉する（フルスクリーン中のみ）
     Item {
         id: keyCatcher
@@ -189,6 +215,30 @@ ApplicationWindow {
         opacity: boot.done ? 0 : 1
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
+    }
+
+    // 画面の明るさ(ソフトウェア方式のときだけ不透明度が 0 より大きくなる黒い幕)。
+    // 入力は受けない(MouseArea を持たない)。映像・起動画面を含む全体を暗くするため、最前面に近い位置に置く。
+    Rectangle {
+        anchors.fill: parent
+        z: 1000
+        color: "black"
+        opacity: brightnessController.overlayOpacity
+        visible: opacity > 0
+    }
+
+    // 音量・明るさの操作表示(幕より手前に置き、明るさを下げても読めるようにする)
+    VolumeOsd {
+        id: volumeOsd
+        z: 1100
+        anchors.centerIn: parent
+    }
+    BrightnessOsd {
+        id: brightnessOsd
+        z: 1100
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 96 * Theme.uiScale
     }
 
     Component {

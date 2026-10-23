@@ -45,6 +45,7 @@ qt_add_executable(opencruise
     main.cpp
     core/AppSettings.cpp
     core/AudioSettings.cpp
+    core/BrightnessController.cpp
     core/BootManager.cpp
     core/ClockModel.cpp
     core/Log.cpp
@@ -96,6 +97,9 @@ qt_add_qml_module(opencruise
         qml/StatCard.qml
         qml/SystemStatsStrip.qml
         qml/ConnectionBadge.qml
+        qml/OsdBar.qml
+        qml/VolumeOsd.qml
+        qml/BrightnessOsd.qml
         qml/ActionButton.qml
         qml/MaterialIcon.qml
         qml/SplashScreen.qml

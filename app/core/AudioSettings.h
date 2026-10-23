@@ -29,6 +29,8 @@ namespace opencruise {
  */
 class AudioSettings : public QObject {
     Q_OBJECT
+    /** マスター音量(0..100)。3 グループすべての出力に掛かる共通の倍率。各グループの個別音量は変わらない */
+    Q_PROPERTY(int masterVolume READ masterVolume WRITE setMasterVolume NOTIFY masterVolumeChanged)
     /** マップ音声の音量(0..100) */
     Q_PROPERTY(int mapVolume READ mapVolume WRITE setMapVolume NOTIFY volumesChanged)
     /** 音楽音声の音量(0..100) */
@@ -60,8 +62,22 @@ public:
     static Group groupForKind(int kind);
 
     int volume(Group group) const { return volumes_[group]; }
-    /** @brief 再生器へ渡す音量(0.0..1.0)。スライダーの値を 2 乗して、聞こえ方に近い変化にする。 */
+    /**
+     * @brief 再生器へ渡す最終の音量(0.0..1.0)= 個別音量の係数 × マスター音量の係数。
+     *        スライダーの値(0..100)を 2 乗して、聞こえ方に近い変化にする(個別・マスターそれぞれに同じ曲線)。
+     *        再生器はこの値だけを設定すること(マスターを別に掛けると二重になる)。
+     */
     double gain(Group group) const;
+    /** @brief マスターを含まない、そのグループ単体の係数(0.0..1.0)。表示や確認用。再生器には gain() を使う。 */
+    double individualGain(Group group) const;
+    /** @brief マスター音量の係数(0.0..1.0)。 */
+    double masterGain() const;
+
+    int masterVolume() const { return masterVolume_; }
+    /** @brief マスター音量を 0..100 に丸めて変更して保存する。個別音量は変えない。 */
+    void setMasterVolume(int volume);
+    /** @brief マスター音量を delta だけ増減する(0..100 に丸める)。ショートカット用。 */
+    Q_INVOKABLE void adjustMasterVolume(int delta);
     /** @brief 音量を 0..100 に丸めて変更して保存する。 */
     void setVolume(Group group, int volume);
 
@@ -101,6 +117,8 @@ public:
 
 signals:
     void volumesChanged();
+    /** @brief マスター音量が変わった。 */
+    void masterVolumeChanged();
     void devicesChanged();
     void outputsChanged();
     /** @brief あるグループの音量が変わった(再生中の出力へ反映するため)。 */
@@ -121,6 +139,7 @@ private:
     QByteArray resolvedId(Group group) const;
 
     int volumes_[GroupCount] = {100, 100, 100};
+    int masterVolume_ = 100; ///< マスター音量(0..100)。個別音量とは別に保持する
     QByteArray selectedIds_[GroupCount]; ///< 選択した機器の id。空ならシステム既定
     QList<QAudioDevice> outputs_;
     QStringList outputNames_;

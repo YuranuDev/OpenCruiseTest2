@@ -27,6 +27,7 @@
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppSettings.h"
 #include "core/AudioSettings.h"
+#include "core/BrightnessController.h"
 #include "core/BootManager.h"
 #include "core/ClockModel.h"
 #include "core/SystemStats.h"
@@ -101,6 +102,7 @@ int main(int argc, char *argv[]) {
     // 音量(マップ音声・音楽音声・システム)と出力先の設定。AndroidAutoController より先に作る(寿命を app に合わせる)
     auto* audioSettings = new opencruise::AudioSettings(&app);
     opencruise::SystemSound systemSound(audioSettings); // 操作音・起動音(音量・出力先は「システム」の設定に従う)
+    opencruise::BrightnessController brightnessController; // 画面の明るさ(バックライト or 暗幕。未対応環境でも動く)
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
     androidAuto->setAudioSettings(audioSettings);
     androidAuto->setVehicleSource(&can); // モックの車両データ送信の取得元(ダミーの CAN データ)
@@ -151,6 +153,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioSettings"), audioSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("systemSound"), &systemSound);
+    engine.rootContext()->setContextProperty(QStringLiteral("brightnessController"), &brightnessController);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
 

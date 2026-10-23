@@ -2,12 +2,25 @@
 //   および Android Auto の音声入力に使うマイク(使用する/しない、入力元)。
 //   マップ音声 = Android Auto のナビ案内、音楽音声 = Android Auto のメディア、
 //   システム   = アプリの操作音・起動音と Android Auto のシステム音。
+//   マスター音量 = 上の 3 つすべてに掛かる共通の倍率(3 つの設定値は変わらない)。Ctrl+Shift+↑/↓ でも変えられる。
 import QtQuick
 
 SettingsPage {
     SettingsSection {
         title: "音量"
         icon: "volume_up"
+
+        SettingsRow {
+            label: "マスター音量"
+            description: "すべての音声にまとめて掛かる音量。下の各音量の設定はそのまま保たれます(Ctrl+Shift+↑/↓)"
+
+            SettingsSlider {
+                value: audioSettings.masterVolume
+                onMoved: (v) => audioSettings.masterVolume = v
+                // 指を離したときに操作音を鳴らし、音量を確認できるようにする
+                onReleased: systemSound.play("click")
+            }
+        }
 
         SettingsRow {
             label: "マップ音声"

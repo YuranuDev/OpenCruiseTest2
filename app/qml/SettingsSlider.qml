@@ -1,5 +1,7 @@
 // 大型の音量スライダー(0..100)。つまみをドラッグ、またはバーのどこかをタッチして値を決める。
 //   SettingsSlider { value: audioSettings.mapVolume; onMoved: (v) => audioSettings.mapVolume = v }
+// from(最小値。既定 0)を指定すると、バーの左端がその値になる(明るさのように 0 にできない項目用)。
+// iconName / iconMinName で左のアイコンを変えられる(既定は音量。値が from のとき iconMinName を灰色で出す)。
 // 押しても value は自動では変わらない。moved で受けた側が設定を書き換え、value の束縛で見た目へ反映する。
 // 指を離したときに released() が出る(音量の確認音を鳴らすのに使う)。
 import QtQuick
@@ -7,6 +9,9 @@ import QtQuick
 Item {
     id: root
     property int value: 0
+    property int from: 0
+    property string iconName: "volume_up"
+    property string iconMinName: "volume_off"
     signal moved(int value)
     signal released()
 
@@ -20,9 +25,9 @@ Item {
     MaterialIcon {
         id: icon
         anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-        name: root.value === 0 ? "volume_off" : "volume_up"
+        name: root.value <= root.from ? root.iconMinName : root.iconName
         size: 40 * root.unit
-        color: root.value === 0 ? Theme.textSecondary : Theme.accent
+        color: root.value <= root.from ? Theme.textSecondary : Theme.accent
     }
 
     Text {
@@ -67,7 +72,7 @@ Item {
             height: width
             radius: width / 2
             anchors.verticalCenter: parent.verticalCenter
-            x: (bar.width - width) * root.value / 100
+            x: (bar.width - width) * (root.value - root.from) / Math.max(1, 100 - root.from)
             color: Theme.panel
             border.width: mouse.pressed ? 4 : 2
             border.color: Theme.accent
@@ -82,7 +87,7 @@ Item {
 
             function setFromX(x) {
                 const span = bar.width - handle.width
-                const v = Math.round(Math.max(0, Math.min(1, (x - handle.width / 2) / span)) * 100)
+                const v = root.from + Math.round(Math.max(0, Math.min(1, (x - handle.width / 2) / span)) * (100 - root.from))
                 if (v !== root.value) {
                     root.moved(v)
                 }

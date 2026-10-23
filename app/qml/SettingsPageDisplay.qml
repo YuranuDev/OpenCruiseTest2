@@ -1,4 +1,4 @@
-// 設定ジャンル「表示」: 昼夜テーマ・Android Auto との連動・アクセント色。
+// 設定ジャンル「表示」: 昼夜テーマ・Android Auto との連動・アクセント色・画面の明るさ。
 import QtQuick
 
 SettingsPage {
@@ -64,6 +64,35 @@ SettingsPage {
                     }
                 }
             }
+        }
+    }
+
+    SettingsSection {
+        title: "明るさ"
+        icon: "brightness_medium"
+
+        SettingsRow {
+            label: "画面の明るさ"
+            description: "Ctrl+Shift+PageUp / PageDown で段階的に変えられます"
+
+            SettingsSlider {
+                from: brightnessController.minimum
+                iconName: "brightness_high"
+                iconMinName: "brightness_low"
+                value: brightnessController.brightness
+                onMoved: (v) => brightnessController.brightness = v
+            }
+        }
+
+        SettingsInfoRow {
+            label: "調整方式"
+            value: brightnessController.methodText
+        }
+
+        SettingsNote {
+            text: "バックライトを直接制御できない環境(Windows、権限が無い場合、外部ディスプレイなど)では、"
+                  + "画面を暗くする方式で調整します。この場合、画面の最大の明るさは変えられません。"
+                  + "運転中に画面が見えなくならないよう、" + brightnessController.minimum + " % より暗くはできません。"
         }
     }
 }
