@@ -73,7 +73,7 @@ SettingsPage {
 
         SettingsRow {
             label: "画面の明るさ"
-            description: "Ctrl+Shift+PageUp / PageDown で段階的に変えられます"
+            description: "Ctrl+Shift+L / K で段階的に変えられます(L で明るく、K で暗く)"
 
             SettingsSlider {
                 from: brightnessController.minimum

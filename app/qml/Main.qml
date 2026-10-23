@@ -53,26 +53,27 @@ ApplicationWindow {
     // ---- 音量・明るさのショートカット ----
     // 既存のキー(Esc / F10 / Menu / Meta・Super / Ctrl+Shift+D)や、OS・ブラウザが奪いやすい
     // メディアキー(Volume Up など。OS 側の音量とも二重になる)・Alt 系・Ctrl+Alt+矢印は使わない。
-    //   Ctrl+Shift+↑ / ↓            マスター音量を上げる / 下げる(各系統の個別音量はそのまま)
-    //   Ctrl+Shift+PageUp / PageDown 画面の明るさを上げる / 下げる
+    // すべて Ctrl+Shift+文字。将来の物理ボタンも、同じキーイベントを送れば同じ動作になる。
+    //   Ctrl+Shift+V / B   マスター音量を上げる / 下げる(V = Volume。各系統の個別音量はそのまま)
+    //   Ctrl+Shift+L / K   画面の明るさを上げる / 下げる(L = Light)
     // 押しっぱなしで連続して変わる。操作すると、対応する表示が出て、しばらくして自動で閉じる。
     readonly property int volumeStep: 5
     readonly property int brightnessStep: 10
 
     Shortcut {
-        sequence: "Ctrl+Shift+Up"
+        sequence: "Ctrl+Shift+V"
         onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); volumeOsd.show() }
     }
     Shortcut {
-        sequence: "Ctrl+Shift+Down"
+        sequence: "Ctrl+Shift+B"
         onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); volumeOsd.show() }
     }
     Shortcut {
-        sequence: "Ctrl+Shift+PgUp"
+        sequence: "Ctrl+Shift+L"
         onActivated: { brightnessController.adjustBrightness(window.brightnessStep); brightnessOsd.show() }
     }
     Shortcut {
-        sequence: "Ctrl+Shift+PgDown"
+        sequence: "Ctrl+Shift+K"
         onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); brightnessOsd.show() }
     }
 
