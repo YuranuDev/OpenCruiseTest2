@@ -219,6 +219,88 @@ void AndroidAutoController::start() {
             },
             Qt::QueuedConnection);
     };
+    // 電波強度・通話・通知・再生中の曲(情報チャネル)。これもワーカースレッドから来るので UI スレッドへ渡す
+    callbacks.onPhoneSignal = [this](int strength) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, strength]() {
+                if (phoneStatus_) {
+                    phoneStatus_->setSignal(strength);
+                }
+            },
+            Qt::QueuedConnection);
+    };
+    callbacks.onPhoneCalls = [this](const std::vector<aa::PhoneCallInfo> &calls) {
+        // 複数あるときは、着信 > 通話中 > 保留 の順で、いちばん目立たせたい 1 件だけを選ぶ
+        int best = -1;
+        int bestRank = -1;
+        for (int i = 0; i < static_cast<int>(calls.size()); ++i) {
+            const int s = calls[static_cast<std::size_t>(i)].state;
+            const int rank = s == 4 ? 3 : (s == 1 || s == 5 || s == 6) ? 2 : s == 2 ? 1 : 0;
+            if (rank > bestRank) {
+                bestRank = rank;
+                best = i;
+            }
+        }
+        int state = -1;
+        QString name;
+        QString number;
+        int duration = 0;
+        if (best >= 0 && bestRank > 0) {
+            const aa::PhoneCallInfo &c = calls[static_cast<std::size_t>(best)];
+            state = c.state;
+            name = QString::fromStdString(c.name);
+            number = QString::fromStdString(c.number);
+            duration = c.durationSec;
+        }
+        QMetaObject::invokeMethod(
+            this,
+            [this, state, name, number, duration]() {
+                if (phoneStatus_) {
+                    phoneStatus_->setCall(state, name, number, duration);
+                }
+            },
+            Qt::QueuedConnection);
+    };
+    callbacks.onPhoneNotice = [this](const aa::PhoneNoticeInfo &notice) {
+        const QString id = QString::fromStdString(notice.id);
+        const QString text = QString::fromStdString(notice.text);
+        QMetaObject::invokeMethod(
+            this,
+            [this, id, text]() {
+                if (phoneStatus_) {
+                    phoneStatus_->ingestNotice(id, text);
+                }
+            },
+            Qt::QueuedConnection);
+    };
+    callbacks.onMediaTrack = [this](const aa::MediaTrackInfo &track) {
+        const QString song = QString::fromStdString(track.song);
+        const QString artist = QString::fromStdString(track.artist);
+        const QString album = QString::fromStdString(track.album);
+        const int duration = track.durationSec;
+        QMetaObject::invokeMethod(
+            this,
+            [this, song, artist, album, duration]() {
+                if (phoneStatus_) {
+                    phoneStatus_->setTrack(song, artist, album, duration);
+                }
+            },
+            Qt::QueuedConnection);
+    };
+    callbacks.onMediaPlayback = [this](const aa::MediaPlaybackInfo &playback) {
+        const int state = playback.state;
+        const QString source = QString::fromStdString(playback.source);
+        const int position = playback.positionSec;
+        QMetaObject::invokeMethod(
+            this,
+            [this, state, source, position]() {
+                if (phoneStatus_) {
+                    phoneStatus_->setPlayback(state, source, position);
+                }
+            },
+            Qt::QueuedConnection);
+    };
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
     backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks), settings_);

@@ -39,6 +39,12 @@ namespace aasdk::channel::genericnotification {
     sendChannelOpenResponse(const aap_protobuf::service::control::message::ChannelOpenResponse &response,
                             SendPromise::Pointer promise) override;
 
+    void sendSubscribe(SendPromise::Pointer promise) override;
+
+    void
+    sendNotificationAck(const aap_protobuf::service::genericnotification::message::GenericNotificationAck &ack,
+                        SendPromise::Pointer promise) override;
+
 
   private:
     using std::enable_shared_from_this<GenericNotificationService>::shared_from_this;
@@ -50,6 +56,9 @@ namespace aasdk::channel::genericnotification {
 
     void handleChannelOpenRequest(const common::DataConstBuffer &payload,
                                   IGenericNotificationServiceEventHandler::Pointer eventHandler);
+
+    void handleNotification(const common::DataConstBuffer &payload,
+                            IGenericNotificationServiceEventHandler::Pointer eventHandler);
 
   };
 

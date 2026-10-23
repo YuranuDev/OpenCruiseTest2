@@ -19,6 +19,7 @@
 
 
 #include <aap_protobuf/service/control/message/ChannelOpenRequest.pb.h>
+#include <aap_protobuf/service/genericnotification/message/GenericNotificationMessage.pb.h>
 #include "aasdk/Error/Error.hpp"
 
 namespace aasdk::channel::genericnotification {
@@ -35,6 +36,12 @@ namespace aasdk::channel::genericnotification {
     virtual void onChannelOpenRequest(const aap_protobuf::service::control::message::ChannelOpenRequest &request) = 0;
 
     virtual void onChannelError(const error::Error &e) = 0;
+
+    // OpenCruise: スマホからの汎用通知(id / text / icon)を受け取る。既存の実装を壊さないよう、既定は何もしない。
+    virtual void onNotification(
+        const aap_protobuf::service::genericnotification::message::GenericNotificationMessage &notification) {
+      (void) notification;
+    }
   };
 
 }

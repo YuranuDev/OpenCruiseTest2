@@ -240,6 +240,44 @@ void AasdkSession::start() {
             std::make_shared<AasdkMicrophoneHandler>(self->strand_, self->messenger_, std::move(micCallbacks));
         self->microphoneHandler_->start();
 
+        // スマホの状態を受け取る情報チャネル(通話・電波 / 通知 / 再生中の曲)。値はセッション終了後に届いても無視する
+        PhoneInfoCallbacks infoCallbacks;
+        infoCallbacks.onLog = onLog;
+        infoCallbacks.onSignal = [weak](int strength) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onPhoneSignal) {
+                s->callbacks_.onPhoneSignal(strength);
+            }
+        };
+        infoCallbacks.onCalls = [weak](const std::vector<PhoneCallInfo> &calls) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onPhoneCalls) {
+                s->callbacks_.onPhoneCalls(calls);
+            }
+        };
+        infoCallbacks.onNotice = [weak](const PhoneNoticeInfo &notice) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onPhoneNotice) {
+                s->callbacks_.onPhoneNotice(notice);
+            }
+        };
+        infoCallbacks.onTrack = [weak](const MediaTrackInfo &track) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onMediaTrack) {
+                s->callbacks_.onMediaTrack(track);
+            }
+        };
+        infoCallbacks.onPlayback = [weak](const MediaPlaybackInfo &playback) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onMediaPlayback) {
+                s->callbacks_.onMediaPlayback(playback);
+            }
+        };
+        self->phoneStatusHandler_ =
+            std::make_shared<AasdkPhoneStatusHandler>(self->strand_, self->messenger_, infoCallbacks);
+        self->phoneStatusHandler_->start();
+        self->notificationHandler_ =
+            std::make_shared<AasdkNotificationHandler>(self->strand_, self->messenger_, infoCallbacks);
+        self->notificationHandler_->start();
+        self->playbackHandler_ =
+            std::make_shared<AasdkPlaybackHandler>(self->strand_, self->messenger_, std::move(infoCallbacks));
+        self->playbackHandler_->start();
+
         self->controlChannel_->receive(self);
         self->log("VersionRequest 送信開始");
         self->controlChannel_->sendVersionRequest(self->makeSendPromise("VersionRequest"));
@@ -424,6 +462,10 @@ void AasdkSession::onServiceDiscoveryRequest(
     microphoneHandler_->fillFeatures(response);
     sensorHandler_->fillFeatures(response);
     inputHandler_->fillFeatures(response);
+    // スマホの状態を受け取る情報チャネル。宣言しないとスマホはこれらを一切送ってこない
+    phoneStatusHandler_->fillFeatures(response);
+    notificationHandler_->fillFeatures(response);
+    playbackHandler_->fillFeatures(response);
     log("サービス探索応答を作成 (チャネル数=" + std::to_string(response.channels_size()) + ")");
     log("サービス探索応答の内容: " + response.ShortDebugString());
 

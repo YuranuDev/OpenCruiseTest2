@@ -3,8 +3,8 @@
 // 通知文はカテゴリ(call / message / navigation / other)ごとのテンプレート(tplXxx、{text} が通知文)で整形する。
 //
 // 実際に取れる情報と制約: Android Auto の汎用通知(GenericNotificationMessage)は id・text・icon だけで、送信元アプリ名・
-// 本文・連絡先は取れない。さらに現状は ServiceDiscovery で宣言しておらず届かないため、PhoneStatus が出すモック通知で動く。
-// 実装時は PhoneStatus::ingestNotice() を呼ぶだけで、このウィジェットは実通知に切り替わる(カテゴリは文面から推定)。
+// 本文・連絡先は取れない。GenericNotification チャネルを宣言して実通知を受け取り(PhoneStatus::ingestNotice)、
+// 届かない間はモックが ON なら PhoneStatus が出すモック通知で動く(カテゴリは文面から推定)。
 import QtQuick
 import OpenCruise
 

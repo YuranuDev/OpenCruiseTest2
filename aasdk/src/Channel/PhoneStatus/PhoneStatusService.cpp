@@ -71,11 +71,24 @@ namespace aasdk::channel::phonestatus {
         this->handleChannelOpenRequest(payload, std::move(eventHandler));
         break;
       case aap_protobuf::service::phonestatus::PhoneStatusMessageId::PHONE_STATUS:
+        this->handlePhoneStatusUpdate(payload, std::move(eventHandler));
+        break;
       case aap_protobuf::service::phonestatus::PhoneStatusMessageId::PHONE_STATUS_INPUT:
       default:
         AASDK_LOG(error) << "[PhoneStatusService] Message Id not Handled: " << messageId.getId();
         this->receive(std::move(eventHandler));
         break;
+    }
+  }
+
+  void PhoneStatusService::handlePhoneStatusUpdate(const common::DataConstBuffer &payload,
+                                                   IPhoneStatusServiceEventHandler::Pointer eventHandler) {
+    AASDK_LOG_CHANNEL_PHONE_STATUS(debug, "handlePhoneStatusUpdate()");
+    aap_protobuf::service::phonestatus::message::PhoneStatus status;
+    if (status.ParseFromArray(payload.cdata, payload.size)) {
+      eventHandler->onPhoneStatusUpdate(status);
+    } else {
+      eventHandler->onChannelError(error::Error(error::ErrorCode::PARSE_PAYLOAD));
     }
   }
 

@@ -17,6 +17,8 @@
 
 #include <aasdk/Channel/GenericNotification/IGenericNotificationServiceEventHandler.hpp>
 #include <aasdk/Channel/GenericNotification/GenericNotificationService.hpp>
+#include <aap_protobuf/service/genericnotification/GenericNotificationMessageId.pb.h>
+#include <aap_protobuf/service/genericnotification/message/GenericNotificationSubscribe.pb.h>
 #include "aasdk/Common/Log.hpp"
 #include <aasdk/Common/ModernLogger.hpp>
 
@@ -57,6 +59,30 @@ namespace aasdk::channel::genericnotification {
     this->send(std::move(message), std::move(promise));
   }
 
+  void GenericNotificationService::sendSubscribe(SendPromise::Pointer promise) {
+    AASDK_LOG_CHANNEL_NOTIFICATION(debug, "sendSubscribe()");
+    auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
+                                                      messenger::MessageType::SPECIFIC));
+    message->insertPayload(messenger::MessageId(
+        aap_protobuf::service::genericnotification::GenericNotificationMessageId::GENERIC_NOTIFICATION_SUBSCRIBE).getData());
+    message->insertPayload(aap_protobuf::service::genericnotification::message::GenericNotificationSubscribe());
+
+    this->send(std::move(message), std::move(promise));
+  }
+
+  void GenericNotificationService::sendNotificationAck(
+      const aap_protobuf::service::genericnotification::message::GenericNotificationAck &ack,
+      SendPromise::Pointer promise) {
+    AASDK_LOG_CHANNEL_NOTIFICATION(debug, "sendNotificationAck()");
+    auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
+                                                      messenger::MessageType::SPECIFIC));
+    message->insertPayload(messenger::MessageId(
+        aap_protobuf::service::genericnotification::GenericNotificationMessageId::GENERIC_NOTIFICATION_ACK).getData());
+    message->insertPayload(ack);
+
+    this->send(std::move(message), std::move(promise));
+  }
+
   void GenericNotificationService::messageHandler(messenger::Message::Pointer message,
                                                   IGenericNotificationServiceEventHandler::Pointer eventHandler) {
 
@@ -69,10 +95,24 @@ namespace aasdk::channel::genericnotification {
       case aap_protobuf::service::control::message::ControlMessageType::MESSAGE_CHANNEL_OPEN_REQUEST:
         this->handleChannelOpenRequest(payload, std::move(eventHandler));
         break;
+      case aap_protobuf::service::genericnotification::GenericNotificationMessageId::GENERIC_NOTIFICATION_MESSAGE:
+        this->handleNotification(payload, std::move(eventHandler));
+        break;
       default:
         AASDK_LOG(error) << "[GenericNotificationService] Message Id not Handled: " << messageId.getId();
         this->receive(std::move(eventHandler));
         break;
+    }
+  }
+
+  void GenericNotificationService::handleNotification(const common::DataConstBuffer &payload,
+                                                      IGenericNotificationServiceEventHandler::Pointer eventHandler) {
+    AASDK_LOG_CHANNEL_NOTIFICATION(debug, "handleNotification()");
+    aap_protobuf::service::genericnotification::message::GenericNotificationMessage notification;
+    if (notification.ParseFromArray(payload.cdata, payload.size)) {
+      eventHandler->onNotification(notification);
+    } else {
+      eventHandler->onChannelError(error::Error(error::ErrorCode::PARSE_PAYLOAD));
     }
   }
 

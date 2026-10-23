@@ -12,8 +12,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "LinkState.h"
+#include "PhoneInfo.h"
 #include "StreamSettings.h"
 #include "TouchEvent.h"
 #include "VehicleSnapshot.h"
@@ -41,6 +43,16 @@ struct BackendCallbacks {
     /// スマートフォンのバッテリー通知(BatteryStatusNotification)を受信したとき。
     /// 引数は 残量[%] / 残り時間[秒](通知に無ければ -1) / 危険な残量か
     std::function<void(int, int, bool)> onPhoneBattery;
+    /// スマホの電波強度(PhoneStatus チャネル)
+    std::function<void(int)> onPhoneSignal;
+    /// スマホの通話状態の一覧(PhoneStatus チャネル。通話が無ければ空)
+    std::function<void(const std::vector<PhoneCallInfo> &)> onPhoneCalls;
+    /// スマホの汎用通知(GenericNotification チャネル)
+    std::function<void(const PhoneNoticeInfo &)> onPhoneNotice;
+    /// 再生中の曲の情報(MediaPlaybackStatus チャネル)
+    std::function<void(const MediaTrackInfo &)> onMediaTrack;
+    /// 再生状態・位置(MediaPlaybackStatus チャネル)
+    std::function<void(const MediaPlaybackInfo &)> onMediaPlayback;
     /// 診断ログ
     std::function<void(const std::string &)> onLog;
 };

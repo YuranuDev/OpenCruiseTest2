@@ -48,6 +48,9 @@ namespace aasdk::channel::phonestatus {
     void handleChannelOpenRequest(const common::DataConstBuffer &payload,
                                   IPhoneStatusServiceEventHandler::Pointer eventHandler);
 
+    void handlePhoneStatusUpdate(const common::DataConstBuffer &payload,
+                                 IPhoneStatusServiceEventHandler::Pointer eventHandler);
+
   };
 
 }

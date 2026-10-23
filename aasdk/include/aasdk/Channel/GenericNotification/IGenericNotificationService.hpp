@@ -23,6 +23,7 @@
 #include "aasdk/Messenger/ChannelId.hpp"
 #include <aap_protobuf/service/control/message/ChannelOpenResponse.pb.h>
 #include <aap_protobuf/service/wifiprojection/message/WifiCredentialsResponse.pb.h>
+#include <aap_protobuf/service/genericnotification/message/GenericNotificationAck.pb.h>
 #include "IGenericNotificationServiceEventHandler.hpp"
 
 namespace aasdk::channel::genericnotification {
@@ -40,6 +41,13 @@ namespace aasdk::channel::genericnotification {
     virtual void
     sendChannelOpenResponse(const aap_protobuf::service::control::message::ChannelOpenResponse &response,
                             SendPromise::Pointer promise) = 0;
+
+    // OpenCruise: 通知の受信開始(Subscribe)と、受け取った通知への応答(Ack)を送る。
+    virtual void sendSubscribe(SendPromise::Pointer promise) = 0;
+
+    virtual void
+    sendNotificationAck(const aap_protobuf::service::genericnotification::message::GenericNotificationAck &ack,
+                        SendPromise::Pointer promise) = 0;
 
   };
 }

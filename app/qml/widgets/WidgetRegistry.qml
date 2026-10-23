@@ -42,6 +42,10 @@ QtObject {
     property Component phoneSettings: Component { PhoneStatusSettings {} }
     property Component noticeComp: Component { PhoneNoticeWidget {} }
     property Component noticeSettings: Component { PhoneNoticeSettings {} }
+    property Component callComp: Component { PhoneCallWidget {} }
+    property Component callSettings: Component { PhoneCallSettings {} }
+    property Component playingComp: Component { NowPlayingWidget {} }
+    property Component playingSettings: Component { NowPlayingSettings {} }
 
     // ---- 種類の一覧 ----
     readonly property var types: [
@@ -88,6 +92,22 @@ QtObject {
             // templates: カテゴリごとの表示文。{text} が通知文に置き換わる
             defaultConfig: { mode: "list", maxItems: 3, showIcon: true, showOther: true, popup: false,
                              tplCall: "{text}", tplMessage: "{text}", tplNavigation: "{text}", tplOther: "{text}" },
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "phoneCall", genre: "androidauto", name: "通話", icon: "call",
+            description: "スマートフォンの着信・通話中・保留の状態(相手の名前・通話時間)",
+            component: callComp, settings: callSettings,
+            defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 5 },
+            defaultConfig: { showNumber: true, blink: true },
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "nowPlaying", genre: "androidauto", name: "再生中", icon: "music_note",
+            description: "スマートフォンで再生中の曲(曲名・アーティスト・再生位置)",
+            component: playingComp, settings: playingSettings,
+            defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 5 },
+            defaultConfig: { showAlbum: true, showProgress: true },
             dragStart: "hold", mock: true
         }
     ]

@@ -19,6 +19,7 @@
 
 
 #include <aap_protobuf/service/control/message/ChannelOpenRequest.pb.h>
+#include <aap_protobuf/service/phonestatus/message/PhoneStatus.pb.h>
 #include "aasdk/Error/Error.hpp"
 
 namespace aasdk::channel::phonestatus {
@@ -35,6 +36,11 @@ namespace aasdk::channel::phonestatus {
     virtual void onChannelOpenRequest(const aap_protobuf::service::control::message::ChannelOpenRequest &request) = 0;
 
     virtual void onChannelError(const error::Error &e) = 0;
+
+    // OpenCruise: スマホの通話状態・電波強度を受け取る。既存の実装を壊さないよう、既定は何もしない。
+    virtual void onPhoneStatusUpdate(const aap_protobuf::service::phonestatus::message::PhoneStatus &status) {
+      (void) status;
+    }
   };
 
 }

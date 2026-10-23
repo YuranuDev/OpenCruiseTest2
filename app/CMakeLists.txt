@@ -23,7 +23,8 @@ if(OPENCRUISE_ENABLE_AASDK)
         aabackend/AasdkSensorHandler.cpp
         aabackend/AasdkInputHandler.cpp
         aabackend/AasdkSystemAudioHandler.cpp
-        aabackend/AasdkMicrophoneHandler.cpp)
+        aabackend/AasdkMicrophoneHandler.cpp
+        aabackend/AasdkPhoneHandler.cpp)
 
     # aasdk の include ディレクトリは aasdk 側ではターゲット属性でなくディレクトリ属性で設定されているため、ここで明示する
     target_include_directories(opencruise_aa PRIVATE
@@ -127,6 +128,10 @@ qt_add_qml_module(opencruise
         qml/widgets/PhoneStatusSettings.qml
         qml/widgets/PhoneNoticeWidget.qml
         qml/widgets/PhoneNoticeSettings.qml
+        qml/widgets/PhoneCallWidget.qml
+        qml/widgets/PhoneCallSettings.qml
+        qml/widgets/NowPlayingWidget.qml
+        qml/widgets/NowPlayingSettings.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
         sounds/Click.wav

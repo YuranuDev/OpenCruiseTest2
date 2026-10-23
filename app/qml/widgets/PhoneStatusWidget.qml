@@ -1,6 +1,7 @@
 // スマホ状態ウィジェット(Android Auto 連携)。スマートフォンのバッテリー残量・残り時間・電波・接続状態を表示する。
-// 実データ: バッテリー(Control チャネルの BatteryStatusNotification)。電波は PhoneStatus サービスを宣言していないため
-// 現状はモック(aasdk_phone_data.csv の not_declared)。値の出所は phoneStatus.*IsMock で分かり、モックの項目には「モック」と出す。
+// 実データ: バッテリー(Control チャネルの BatteryStatusNotification)と電波(PhoneStatus チャネルの signal_strength)。
+// スマホが送ってこない間(未接続・非対応)は、モックが ON ならモックの値を出す。出所は phoneStatus.*IsMock で分かり、
+// モックの項目には「モック」と出す。
 // 残量がしきい値以下(またはスマホが「危険」と通知)で、色・アイコン・メッセージで警告する。
 import QtQuick
 import OpenCruise

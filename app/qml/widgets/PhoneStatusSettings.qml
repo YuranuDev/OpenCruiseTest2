@@ -15,7 +15,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "電波を表示"
-        description: "電波強度は現状モックです(Android Auto の PhoneStatus サービス未対応)"
+        description: "スマホが電波強度を通知したときに表示します(届かない間はモックの値)"
         SettingsSwitch {
             checked: root.config.showSignal !== false
             onToggled: (v) => root.edit("showSignal", v)
