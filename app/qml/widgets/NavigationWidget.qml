@@ -179,11 +179,11 @@ WidgetBase {
             Item {
                 id: mainContent
                 anchors.fill: parent
-                readonly property real iconSize: Math.max(18, main.horizontal ? Math.min(height * 0.68, width * 0.32)
-                                                                              : Math.min(width * 0.55, height * 0.36))
+                readonly property real iconSize: Math.max(16, main.horizontal ? Math.min(height * 0.52, width * 0.28)
+                                                                              : Math.min(width * 0.48, height * 0.3))
                 readonly property real maneuverGap: root.distanceString !== "" ? Math.max(2, Math.min(5, root.s * 0.025)) : 0
                 readonly property real distanceHeight: root.distanceString !== ""
-                                                       ? Math.max(12, Math.min(height * (main.horizontal ? 0.24 : 0.18), root.s * 0.16,
+                                                       ? Math.max(14, Math.min(height * (main.horizontal ? 0.32 : 0.26), root.s * 0.21,
                                                                               Math.max(12, height - iconSize - maneuverGap))) : 0
 
                 Column {
