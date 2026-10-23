@@ -65,10 +65,6 @@ Rectangle {
             spacing: 10
             NotificationBell { }
             ActionButton {
-                text: "終了"
-                onClicked: Qt.quit()
-            }
-            ActionButton {
                 text: "ホーム"
                 onClicked: root.goHome()
             }

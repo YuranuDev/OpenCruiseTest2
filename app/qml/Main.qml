@@ -29,21 +29,62 @@ ApplicationWindow {
     // 起動音(起動画面が出るタイミングで鳴らす。音量・出力先は設定の「システム」に従う)
     Component.onCompleted: systemSound.play("start")
 
-    // 起動画面中の Esc はスキップ。フルスクリーン中は Esc / F10 / Menu キーで下メニューを開閉する（Esc で即終了しない）
+    // 起動画面中の Esc はスキップ。フルスクリーン中はメニューを開閉し、ホームでは終了確認を出す。
     Shortcut {
         sequence: "Esc"
         onActivated: {
-            if (notifications.historyOpen) {
+            if (exitConfirmation.opened) {
+                exitConfirmation.close()
+            } else if (notifications.historyOpen) {
                 notifications.historyOpen = false // 通知履歴を開いている間は、まずそれを閉じる
             } else if (boot.active) {
                 boot.skip()
             } else if (window.immersive && stack.currentItem) {
                 stack.currentItem.menuOpen = !stack.currentItem.menuOpen
+            } else if (stack.depth > 1) {
+                stack.pop()
             } else {
-                Qt.quit()
+                exitConfirmation.open()
             }
         }
     }
+
+    Dialog {
+        id: exitConfirmation
+        modal: true
+        focus: true
+        closePolicy: Popup.NoAutoClose
+        title: "終了確認"
+        width: Math.min(480, window.width - Theme.margin * 2)
+        x: Math.round((window.width - width) / 2)
+        y: Math.round((window.height - height) / 2)
+
+        contentItem: Column {
+            spacing: Theme.margin
+            Text {
+                width: parent.width
+                text: "アプリを終了しますか？"
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: 22
+                wrapMode: Text.WordWrap
+            }
+            Row {
+                width: parent.width
+                spacing: 12
+                layoutDirection: Qt.RightToLeft
+                ActionButton {
+                    text: "終了"
+                    onClicked: Qt.quit()
+                }
+                ActionButton {
+                    text: "キャンセル"
+                    onClicked: exitConfirmation.close()
+                }
+            }
+        }
+    }
+
     Shortcut {
         sequences: ["F10", "Menu"]
         enabled: window.immersive

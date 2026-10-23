@@ -79,7 +79,7 @@ Item {
             ConnectionBadge { id: badge; anchors.centerIn: parent }
         }
 
-        // 補助操作(Android Auto へ戻る・終了)は控えめに右上へ
+        // 補助操作(Android Auto へ戻る・通知)は控えめに右上へ
         Row {
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 12
@@ -90,10 +90,6 @@ Item {
                 onClicked: root.openAndroidAuto()
             }
             NotificationBell { }
-            ActionButton {
-                text: "終了"
-                onClicked: Qt.quit()
-            }
         }
     }
 
