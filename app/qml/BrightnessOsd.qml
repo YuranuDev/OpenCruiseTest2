@@ -33,7 +33,7 @@ Item {
         hideTimer.stop()
     }
 
-    width: 520 * unit
+    width: 720 * unit
     height: panel.height
     visible: opacity > 0
     opacity: shown ? 1 : 0
