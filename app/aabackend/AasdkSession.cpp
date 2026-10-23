@@ -268,6 +268,11 @@ void AasdkSession::start() {
                 s->callbacks_.onMediaPlayback(playback);
             }
         };
+        infoCallbacks.onNavigation = [weak](const NavigationInfo &navigation) {
+            if (auto s = weak.lock(); s && !s->finished_ && s->callbacks_.onNavigation) {
+                s->callbacks_.onNavigation(navigation);
+            }
+        };
         self->phoneStatusHandler_ =
             std::make_shared<AasdkPhoneStatusHandler>(self->strand_, self->messenger_, infoCallbacks);
         self->phoneStatusHandler_->start();
@@ -275,8 +280,11 @@ void AasdkSession::start() {
             std::make_shared<AasdkNotificationHandler>(self->strand_, self->messenger_, infoCallbacks);
         self->notificationHandler_->start();
         self->playbackHandler_ =
-            std::make_shared<AasdkPlaybackHandler>(self->strand_, self->messenger_, std::move(infoCallbacks));
+            std::make_shared<AasdkPlaybackHandler>(self->strand_, self->messenger_, infoCallbacks);
         self->playbackHandler_->start();
+        self->navigationHandler_ =
+            std::make_shared<AasdkNavigationHandler>(self->strand_, self->messenger_, infoCallbacks);
+        self->navigationHandler_->start();
 
         self->controlChannel_->receive(self);
         self->log("VersionRequest 送信開始");
@@ -466,6 +474,7 @@ void AasdkSession::onServiceDiscoveryRequest(
     phoneStatusHandler_->fillFeatures(response);
     notificationHandler_->fillFeatures(response);
     playbackHandler_->fillFeatures(response);
+    navigationHandler_->fillFeatures(response);
     log("サービス探索応答を作成 (チャネル数=" + std::to_string(response.channels_size()) + ")");
     log("サービス探索応答の内容: " + response.ShortDebugString());
 

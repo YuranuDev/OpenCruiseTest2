@@ -61,6 +61,7 @@ struct SessionCallbacks {
     std::function<void(const MediaTrackInfo &)> onMediaTrack;
     /// 再生状態・位置(MediaPlaybackStatus チャネル)
     std::function<void(const MediaPlaybackInfo &)> onMediaPlayback;
+    std::function<void(const NavigationInfo &)> onNavigation;
     std::function<void(const std::string &)> onFinished; ///< セッション終了（理由つき、1回だけ呼ばれる）
 };
 
@@ -183,6 +184,7 @@ private:
     std::shared_ptr<AasdkPhoneStatusHandler> phoneStatusHandler_;    ///< 通話状態・電波(情報チャネル)
     std::shared_ptr<AasdkNotificationHandler> notificationHandler_;  ///< スマホの通知(情報チャネル)
     std::shared_ptr<AasdkPlaybackHandler> playbackHandler_;          ///< 再生中の曲(情報チャネル)
+    std::shared_ptr<AasdkNavigationHandler> navigationHandler_;      ///< ナビ案内(情報チャネル)
     std::shared_ptr<boost::asio::steady_timer> pingTimer_; ///< 車載機発の Ping 用
     std::uint64_t lastPingSentMs_ = 0;
     SessionCallbacks callbacks_;

@@ -301,6 +301,21 @@ void AndroidAutoController::start() {
             },
             Qt::QueuedConnection);
     };
+    callbacks.onNavigation = [this](const aa::NavigationInfo &navigation) {
+        const QString road = QString::fromStdString(navigation.road);
+        const int maneuver = navigation.maneuver;
+        const int side = navigation.side;
+        const int distance = navigation.distanceMeters;
+        const bool active = navigation.status == 1;
+        QMetaObject::invokeMethod(this, [this, road, maneuver, side, distance, active]() {
+            navigationRoad_ = road;
+            navigationManeuver_ = maneuver;
+            navigationSide_ = side;
+            navigationDistanceMeters_ = distance;
+            navigationActive_ = active;
+            emit navigationChanged();
+        }, Qt::QueuedConnection);
+    };
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
     backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks), settings_);
@@ -621,6 +636,14 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
     // スマホ状態ウィジェット用: 接続が確立している間だけ「接続中」。切断で実データ(バッテリー等)を破棄する
     if (phoneStatus_) {
         phoneStatus_->setConnected(link == aa::LinkState::Connected || link == aa::LinkState::Streaming);
+    }
+    if (link == aa::LinkState::Waiting || link == aa::LinkState::Unavailable) {
+        navigationActive_ = false;
+        navigationRoad_.clear();
+        navigationManeuver_ = 0;
+        navigationSide_ = 0;
+        navigationDistanceMeters_ = -1;
+        emit navigationChanged();
     }
 
     const bool wasActive = previous == aa::LinkState::Connecting || previous == aa::LinkState::Connected ||

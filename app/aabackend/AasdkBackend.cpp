@@ -302,6 +302,7 @@ struct AasdkBackend::Impl {
             sessionCallbacks.onPhoneNotice = callbacks.onPhoneNotice;
             sessionCallbacks.onMediaTrack = callbacks.onMediaTrack;
             sessionCallbacks.onMediaPlayback = callbacks.onMediaPlayback;
+            sessionCallbacks.onNavigation = callbacks.onNavigation;
             sessionCallbacks.onLog = callbacks.onLog;
             sessionCallbacks.onFinished = [this](const std::string &reason) {
                 strand_->post([this, reason]() { onSessionFinished(reason); });

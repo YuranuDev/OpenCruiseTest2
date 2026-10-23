@@ -46,6 +46,8 @@ QtObject {
     property Component callSettings: Component { PhoneCallSettings {} }
     property Component playingComp: Component { NowPlayingWidget {} }
     property Component playingSettings: Component { NowPlayingSettings {} }
+    property Component navigationComp: Component { NavigationWidget {} }
+    property Component navigationSettings: Component { NavigationSettings {} }
 
     // ---- 種類の一覧 ----
     readonly property var types: [
@@ -74,6 +76,14 @@ QtObject {
             defaultConfig: { style: "both", unit: "bar", min: -1.0, max: 2.0,
                              showIcon: true, warnEnabled: true, warn: 1.6, warnMessage: "ブースト圧が高すぎます" },
             dragStart: "hold", mock: true
+        },
+        {
+            type: "navigation", genre: "androidauto", name: "ナビ案内", icon: "navigation",
+            description: "Android Auto の次の曲がり角と距離",
+            component: navigationComp, settings: navigationSettings,
+            defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 4 },
+            defaultConfig: { showRoad: true, distanceUnit: "auto" },
+            dragStart: "hold", mock: false
         },
         {
             type: "phone", genre: "androidauto", name: "スマホ状態", icon: "smartphone",

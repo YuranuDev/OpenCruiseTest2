@@ -25,6 +25,7 @@
 
 #include <aasdk/Channel/GenericNotification/GenericNotificationService.hpp>
 #include <aasdk/Channel/MediaPlaybackStatus/MediaPlaybackStatusService.hpp>
+#include <aasdk/Channel/NavigationStatus/NavigationStatusService.hpp>
 #include <aasdk/Channel/PhoneStatus/PhoneStatusService.hpp>
 #include <aasdk/Channel/Promise.hpp>
 #include <aasdk/Messenger/IMessenger.hpp>
@@ -48,6 +49,7 @@ struct PhoneInfoCallbacks {
     std::function<void(const MediaTrackInfo &)> onTrack;
     /// 再生状態・位置
     std::function<void(const MediaPlaybackInfo &)> onPlayback;
+    std::function<void(const NavigationInfo &)> onNavigation;
 };
 
 /**
@@ -130,6 +132,28 @@ private:
     std::shared_ptr<boost::asio::io_service::strand> strand_;
     std::shared_ptr<aasdk::channel::mediaplaybackstatus::MediaPlaybackStatusService> channel_;
     PhoneInfoCallbacks callbacks_;
+};
+
+/** @brief NavigationStatus チャネルの案内情報。 */
+class AasdkNavigationHandler : public aasdk::channel::navigationstatus::INavigationStatusServiceEventHandler,
+                              public std::enable_shared_from_this<AasdkNavigationHandler> {
+public:
+    AasdkNavigationHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+                           aasdk::messenger::IMessenger::Pointer messenger, PhoneInfoCallbacks callbacks);
+    void start();
+    void fillFeatures(aap_protobuf::service::control::message::ServiceDiscoveryResponse &response);
+    void onChannelOpenRequest(const aap_protobuf::service::control::message::ChannelOpenRequest &request) override;
+    void onStatusUpdate(const aap_protobuf::service::navigationstatus::message::NavigationStatus &status) override;
+    void onTurnEvent(const aap_protobuf::service::navigationstatus::message::NavigationNextTurnEvent &turn) override;
+    void onDistanceEvent(const aap_protobuf::service::navigationstatus::message::NavigationNextTurnDistanceEvent &distance) override;
+    void onChannelError(const aasdk::error::Error &e) override;
+private:
+    void publish();
+    void log(const std::string &message) const;
+    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<aasdk::channel::navigationstatus::NavigationStatusService> channel_;
+    PhoneInfoCallbacks callbacks_;
+    NavigationInfo info_;
 };
 
 } // namespace opencruise::aa

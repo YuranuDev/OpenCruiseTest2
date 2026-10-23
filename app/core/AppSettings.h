@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QString>
 
 namespace opencruise {
 
@@ -29,6 +30,7 @@ class AppSettings : public QObject {
     Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
     /** アプリが選択する電源モード(0:標準、1:省電力、2:高性能) */
     Q_PROPERTY(int powerMode READ powerMode WRITE setPowerMode NOTIFY powerModeChanged)
+    Q_PROPERTY(QString powerModeStatus READ powerModeStatus NOTIFY powerModeChanged)
 
 public:
     /**
@@ -41,6 +43,7 @@ public:
     QString fontFamily() const { return fontFamily_; }
     QStringList fontFamilies() const { return fontFamilies_; }
     int powerMode() const { return powerMode_; }
+    QString powerModeStatus() const { return powerModeStatus_; }
 
     /** @brief ユーザー名を変更して保存する(前後の空白は除く)。 */
     void setUserName(const QString &name);
@@ -49,6 +52,7 @@ public:
     void setFontFamily(const QString &family);
     /** @brief アプリの電源モードを変更して保存する。 */
     void setPowerMode(int mode);
+    void applyPowerMode();
 
 signals:
     void userNameChanged();
@@ -70,6 +74,7 @@ private:
     QString fontFamily_;
     QStringList fontFamilies_;
     int powerMode_ = 0;
+    QString powerModeStatus_;
 };
 
 } // namespace opencruise

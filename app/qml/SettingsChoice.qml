@@ -37,16 +37,16 @@ Row {
                 spacing: 8 * root.unit
 
                 MaterialIcon {
-                    visible: btn.selected
+                    visible: modelData && modelData.icon !== undefined
                     anchors.verticalCenter: parent.verticalCenter
-                    name: "check"
+                    name: modelData && modelData.icon !== undefined ? modelData.icon : "check"
                     size: 28 * root.unit
-                    color: Theme.textOnAccent
+                    color: btn.selected ? Theme.textOnAccent : Theme.accent
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
-                    text: modelData
+                    text: modelData && modelData.label !== undefined ? modelData.label : modelData
                     color: btn.selected ? Theme.textOnAccent : Theme.textPrimary
                     font.pixelSize: 24 * root.unit
                     font.bold: btn.selected

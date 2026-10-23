@@ -53,6 +53,8 @@ struct BackendCallbacks {
     std::function<void(const MediaTrackInfo &)> onMediaTrack;
     /// 再生状態・位置(MediaPlaybackStatus チャネル)
     std::function<void(const MediaPlaybackInfo &)> onMediaPlayback;
+    /// Android Auto ナビ案内(接続層ワーカースレッドから通知)
+    std::function<void(const NavigationInfo &)> onNavigation;
     /// 診断ログ
     std::function<void(const std::string &)> onLog;
 };

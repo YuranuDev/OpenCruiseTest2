@@ -133,6 +133,8 @@ qt_add_qml_module(opencruise
         qml/widgets/PhoneCallSettings.qml
         qml/widgets/NowPlayingWidget.qml
         qml/widgets/NowPlayingSettings.qml
+        qml/widgets/NavigationWidget.qml
+        qml/widgets/NavigationSettings.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
         sounds/Click.wav

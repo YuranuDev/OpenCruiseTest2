@@ -12,6 +12,8 @@
 #include <QFont>
 #include <QSet>
 #include <QSettings>
+#include <QProcess>
+#include <QStandardPaths>
 
 #include "Log.h"
 
@@ -98,6 +100,7 @@ AppSettings::AppSettings(QObject *parent) : QObject(parent) {
     const QSettings store = openStore();
     userName_ = store.value(QStringLiteral("user/name"), QString()).toString().trimmed();
     powerMode_ = qBound(0, store.value(QStringLiteral("power/mode"), 0).toInt(), 2);
+    applyPowerMode();
 
     // 保存値が選択肢に無い(フォント未同梱・設定の破損など)場合は既定、既定も無ければ OS 既定
     QString family = store.value(QStringLiteral("ui/fontFamily"), kDefaultFont).toString();
@@ -137,7 +140,32 @@ void AppSettings::setPowerMode(int mode) {
     }
     powerMode_ = boundedMode;
     openStore().setValue(QStringLiteral("power/mode"), powerMode_);
+    applyPowerMode();
     emit powerModeChanged();
+}
+
+void AppSettings::applyPowerMode() {
+#ifdef Q_OS_LINUX
+    const QString executable = QStandardPaths::findExecutable(QStringLiteral("powerprofilesctl"));
+    if (executable.isEmpty()) {
+        powerModeStatus_ = QStringLiteral("power-profiles-daemon / powerprofilesctl が見つかりません");
+        return;
+    }
+
+    const QStringList profiles = {QStringLiteral("balanced"), QStringLiteral("power-saver"),
+                                  QStringLiteral("performance")};
+    QProcess process;
+    process.start(executable, {QStringLiteral("set"), profiles.at(powerMode_)});
+    if (!process.waitForStarted(1500) || !process.waitForFinished(2500) || process.exitStatus() != QProcess::NormalExit ||
+        process.exitCode() != 0) {
+        const QString detail = QString::fromLocal8Bit(process.readAllStandardError()).trimmed();
+        powerModeStatus_ = detail.isEmpty() ? QStringLiteral("電源モードを適用できませんでした") : detail;
+        return;
+    }
+    powerModeStatus_ = QStringLiteral("%1 を適用しました").arg(profiles.at(powerMode_));
+#else
+    powerModeStatus_ = QStringLiteral("Linux 以外では利用できません");
+#endif
 }
 
 } // namespace opencruise

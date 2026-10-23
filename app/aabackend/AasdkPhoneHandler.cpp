@@ -11,6 +11,10 @@
 #include <aap_protobuf/service/genericnotification/message/GenericNotificationMessage.pb.h>
 #include <aap_protobuf/service/mediaplayback/message/MediaPlaybackMetadata.pb.h>
 #include <aap_protobuf/service/mediaplayback/message/MediaPlaybackStatus.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationNextTurnDistanceEvent.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationNextTurnEvent.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationStatus.pb.h>
+#include <aap_protobuf/service/navigationstatus/NavigationStatusService.pb.h>
 #include <aap_protobuf/service/phonestatus/message/PhoneStatus.pb.h>
 #include <aap_protobuf/shared/MessageStatus.pb.h>
 
@@ -223,6 +227,68 @@ void AasdkPlaybackHandler::log(const std::string &message) const {
     if (callbacks_.onLog) {
         callbacks_.onLog("[media] " + message);
     }
+}
+
+// ===========================================================================
+// NavigationStatus
+// ===========================================================================
+
+AasdkNavigationHandler::AasdkNavigationHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+                                               aasdk::messenger::IMessenger::Pointer messenger,
+                                               PhoneInfoCallbacks callbacks)
+    : strand_(std::move(strand)),
+      channel_(std::make_shared<aasdk::channel::navigationstatus::NavigationStatusService>(*strand_, std::move(messenger))),
+      callbacks_(std::move(callbacks)) {}
+
+void AasdkNavigationHandler::start() { channel_->receive(shared_from_this()); }
+
+void AasdkNavigationHandler::fillFeatures(proto::service::control::message::ServiceDiscoveryResponse &response) {
+    auto *service = response.add_channels();
+    service->set_id(static_cast<std::int32_t>(channel_->getId()));
+    auto *navigation = service->mutable_navigation_status_service();
+    navigation->set_minimum_interval_ms(500);
+    navigation->set_type(proto::service::navigationstatus::NavigationStatusService::ENUM);
+}
+
+void AasdkNavigationHandler::onChannelOpenRequest(const proto::service::control::message::ChannelOpenRequest &request) {
+    log("[navigation] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) + ")");
+    proto::service::control::message::ChannelOpenResponse response;
+    response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
+    channel_->sendChannelOpenResponse(response, makeLoggingPromise(*strand_, callbacks_, "navigation", "ChannelOpenResponse"));
+    channel_->receive(shared_from_this());
+}
+
+void AasdkNavigationHandler::onStatusUpdate(const proto::service::navigationstatus::message::NavigationStatus &status) {
+    info_.status = static_cast<int>(status.status());
+    if (info_.status != 1) { info_.distanceMeters = -1; info_.road.clear(); }
+    publish();
+    channel_->receive(shared_from_this());
+}
+
+void AasdkNavigationHandler::onTurnEvent(const proto::service::navigationstatus::message::NavigationNextTurnEvent &turn) {
+    info_.road = turn.road();
+    info_.maneuver = turn.has_event() ? static_cast<int>(turn.event()) : 0;
+    info_.side = turn.has_turn_side() ? static_cast<int>(turn.turn_side()) : 0;
+    publish();
+    channel_->receive(shared_from_this());
+}
+
+void AasdkNavigationHandler::onDistanceEvent(const proto::service::navigationstatus::message::NavigationNextTurnDistanceEvent &distance) {
+    info_.distanceMeters = distance.distance_meters();
+    publish();
+    channel_->receive(shared_from_this());
+}
+
+void AasdkNavigationHandler::onChannelError(const aasdk::error::Error &error) {
+    log(std::string("[navigation] チャネルエラー: ") + error.what());
+}
+
+void AasdkNavigationHandler::publish() {
+    if (callbacks_.onNavigation) callbacks_.onNavigation(info_);
+}
+
+void AasdkNavigationHandler::log(const std::string &message) const {
+    if (callbacks_.onLog) callbacks_.onLog(message);
 }
 
 } // namespace opencruise::aa

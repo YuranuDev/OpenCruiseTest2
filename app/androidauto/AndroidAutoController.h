@@ -73,6 +73,11 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(QVariantList mockVehicleItems READ mockVehicleItems NOTIFY mockVehicleChanged)
     /** マイクの状態の表示文字列(オフ / 待機中 / 録音中(デバイス名) / エラー) */
     Q_PROPERTY(QString microphoneStatus READ microphoneStatus NOTIFY microphoneStatusChanged)
+    Q_PROPERTY(QString navigationRoad READ navigationRoad NOTIFY navigationChanged)
+    Q_PROPERTY(int navigationManeuver READ navigationManeuver NOTIFY navigationChanged)
+    Q_PROPERTY(int navigationSide READ navigationSide NOTIFY navigationChanged)
+    Q_PROPERTY(int navigationDistanceMeters READ navigationDistanceMeters NOTIFY navigationChanged)
+    Q_PROPERTY(bool navigationActive READ navigationActive NOTIFY navigationChanged)
 
 public:
     /**
@@ -118,6 +123,11 @@ public:
     }
 
     QString microphoneStatus() const { return microphone_.statusText(); }
+    QString navigationRoad() const { return navigationRoad_; }
+    int navigationManeuver() const { return navigationManeuver_; }
+    int navigationSide() const { return navigationSide_; }
+    int navigationDistanceMeters() const { return navigationDistanceMeters_; }
+    bool navigationActive() const { return navigationActive_; }
 
     /**
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
@@ -179,6 +189,7 @@ signals:
     void mockVehicleChanged();
     /** @brief マイクの状態(microphoneStatus)が変わったとき。 */
     void microphoneStatusChanged();
+    void navigationChanged();
 
 private:
     /**
@@ -244,6 +255,11 @@ private:
     QString stateText_;
     QString detailText_;
     QString lastIssue_;
+    QString navigationRoad_;
+    int navigationManeuver_ = 0;
+    int navigationSide_ = 0;
+    int navigationDistanceMeters_ = -1;
+    bool navigationActive_ = false;
     QString videoInfo_ = QStringLiteral("-");
     std::atomic<qulonglong> frameCount_{0};
     std::atomic<bool> decoderErrorReported_{false};

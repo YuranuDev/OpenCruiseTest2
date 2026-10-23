@@ -37,4 +37,13 @@ struct MediaPlaybackInfo {
     int positionSec = 0;
 };
 
+/// Android Auto ナビゲーションの現在の案内と距離
+struct NavigationInfo {
+    int status = 0; // 0=unavailable, 1=active, 2=inactive, 3=rerouting
+    int maneuver = 0;
+    int side = 0;
+    int distanceMeters = -1;
+    std::string road;
+};
+
 } // namespace opencruise::aa
