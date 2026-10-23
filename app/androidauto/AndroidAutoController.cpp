@@ -599,6 +599,7 @@ void AndroidAutoController::stop() {
         backend_->stop();
         backend_.reset();
     }
+    audioPlayer_.stopAll();
 }
 
 /**

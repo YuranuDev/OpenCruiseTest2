@@ -89,6 +89,11 @@ AudioPlayer::AudioPlayer(QObject *parent) : QObject(parent) {
     connect(&timer_, &QTimer::timeout, this, [this]() { housekeeping(); });
 }
 
+AudioPlayer::~AudioPlayer() {
+    // QAudioSink が参照する PcmQueueDevice より先にシンクを停止・破棄する。
+    stopAll();
+}
+
 void AudioPlayer::setSettings(AudioSettings *settings) {
     if (settings_) {
         settings_->disconnect(this);

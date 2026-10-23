@@ -26,24 +26,24 @@ namespace aasdk {
 
     AOAPDevice::AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
                            const libusb_interface_descriptor *interfaceDescriptor)
-        : usbWrapper_(usbWrapper), handle_(std::move(handle)), interfaceDescriptor_(interfaceDescriptor) {
+        : usbWrapper_(usbWrapper), handle_(std::move(handle)), interfaceNumber_(interfaceDescriptor->bInterfaceNumber) {
       if ((interfaceDescriptor->endpoint[0].bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
         inEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                    interfaceDescriptor_->endpoint[0].bEndpointAddress);
+                                                    interfaceDescriptor->endpoint[0].bEndpointAddress);
         outEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                     interfaceDescriptor_->endpoint[1].bEndpointAddress);
+                                                     interfaceDescriptor->endpoint[1].bEndpointAddress);
       } else {
         inEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                    interfaceDescriptor_->endpoint[1].bEndpointAddress);
+                                                    interfaceDescriptor->endpoint[1].bEndpointAddress);
         outEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                     interfaceDescriptor_->endpoint[0].bEndpointAddress);
+                                                     interfaceDescriptor->endpoint[0].bEndpointAddress);
       }
     }
 
     AOAPDevice::~AOAPDevice() {
       inEndpoint_->cancelTransfers();
       outEndpoint_->cancelTransfers();
-      usbWrapper_.releaseInterface(handle_, interfaceDescriptor_->bInterfaceNumber);
+      usbWrapper_.releaseInterface(handle_, interfaceNumber_);
     }
 
     IUSBEndpoint &AOAPDevice::getInEndpoint() {

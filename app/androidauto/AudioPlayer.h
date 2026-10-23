@@ -62,6 +62,7 @@ class AudioPlayer : public QObject {
     Q_OBJECT
 public:
     explicit AudioPlayer(QObject *parent = nullptr);
+    ~AudioPlayer() override;
 
     /**
      * @brief 音量・出力先の設定を結びつける(所有はしない)。設定が変わると再生中の出力へ反映する。
