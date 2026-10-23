@@ -96,39 +96,71 @@ WidgetBase {
         return ""
     }
 
+    // ---- ウィジェット見出し(ナビが待機中でも表示) ----
+    Row {
+        id: header
+        anchors { top: parent.top; left: parent.left; right: parent.right
+                  topMargin: root.m * 0.8; leftMargin: root.m; rightMargin: root.m }
+        spacing: 8
+        height: Math.max(20, root.s * 0.11)
+
+        MaterialIcon {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "navigation"
+            size: parent.height
+            color: Theme.accent
+        }
+        Text {
+            width: Math.max(0, header.width - header.spacing - header.height)
+            anchors.verticalCenter: parent.verticalCenter
+            font.family: Theme.fontFamily
+            text: "ナビ案内"
+            color: Theme.textSecondary
+            font.pixelSize: Math.max(13, root.s * 0.085)
+            elide: Text.ElideRight
+        }
+    }
+
     // ---- 待機中 ----
-    Column {
-        anchors { centerIn: parent }
-        width: parent.width - root.m * 2
-        spacing: root.m * 0.4
+    Item {
+        id: idleArea
+        anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
+                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m; topMargin: root.m * 0.4 }
         visible: !root.active
         opacity: 0.8
 
-        MaterialIcon {
-            anchors.horizontalCenter: parent.horizontalCenter
-            name: "navigation"
-            size: Math.max(20, Math.min(root.height * 0.36, root.width * 0.2))
-            color: Theme.textSecondary
-        }
-        Text {
+        Column {
+            anchors.centerIn: parent
             width: parent.width
-            height: Math.max(14, root.height * 0.14)
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            text: "ナビ案内を待っています"
-            color: Theme.textSecondary
-            font.family: Theme.fontFamily
-            font.pixelSize: height
-            minimumPixelSize: 9
-            fontSizeMode: Text.Fit
-            elide: Text.ElideRight
+            spacing: root.m * 0.4
+
+            MaterialIcon {
+                anchors.horizontalCenter: parent.horizontalCenter
+                name: "navigation"
+                size: Math.max(20, Math.min(idleArea.height * 0.36, idleArea.width * 0.2))
+                color: Theme.textSecondary
+            }
+            Text {
+                width: parent.width
+                height: Math.max(14, idleArea.height * 0.14)
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                text: "ナビ案内を待っています"
+                color: Theme.textSecondary
+                font.family: Theme.fontFamily
+                font.pixelSize: height
+                minimumPixelSize: 9
+                fontSizeMode: Text.Fit
+                elide: Text.ElideRight
+            }
         }
     }
 
     // ---- 案内中 ----
     Item {
         id: body
-        anchors { fill: parent; margins: root.m }
+        anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
+                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m; topMargin: root.m * 0.4 }
         visible: root.active
 
         // 「その次」の領域の大きさ(出さないときは 0)
@@ -144,33 +176,9 @@ WidgetBase {
             readonly property bool horizontal: width >= height * 1.15
             readonly property bool hasSub: root.mainSub !== ""
 
-            Row {
-                id: mainHeader
-                anchors { top: parent.top; left: parent.left; right: parent.right }
-                spacing: 8
-                height: Math.max(20, Math.min(28, main.height * 0.13))
-
-                MaterialIcon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "navigation"
-                    size: parent.height
-                    color: Theme.accent
-                }
-                Text {
-                    width: Math.max(0, mainHeader.width - mainHeader.spacing - mainHeader.height)
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "次の案内"
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(13, root.s * 0.085)
-                    elide: Text.ElideRight
-                }
-            }
-
             Item {
                 id: mainContent
-                anchors { left: parent.left; right: parent.right; top: mainHeader.bottom; bottom: parent.bottom }
-                anchors.topMargin: root.m * 0.25
+                anchors.fill: parent
                 readonly property real iconSize: Math.max(20, main.horizontal ? Math.min(height, width * 0.36)
                                                                               : Math.min(width * 0.55, height * 0.42))
 
@@ -193,7 +201,7 @@ WidgetBase {
 
                     Column {
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                        spacing: Math.max(4, Math.min(12, textBox.height * 0.06))
+                        spacing: Math.max(2, Math.min(6, root.s * 0.025))
 
                         Text {   // 道路名(なければ方向名)を主表示
                             width: parent.width
@@ -212,7 +220,7 @@ WidgetBase {
                         }
                         Text {   // 距離
                             width: parent.width
-                            height: root.distanceString !== "" ? Math.max(10, Math.min(textBox.height * (main.hasSub ? 0.25 : 0.9), root.s * 0.12)) : 0
+                            height: root.distanceString !== "" ? Math.max(14, Math.min(textBox.height * (main.hasSub ? 0.34 : 0.9), root.s * 0.18)) : 0
                             horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             visible: root.distanceString !== ""
