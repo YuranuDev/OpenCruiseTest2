@@ -179,60 +179,70 @@ WidgetBase {
             Item {
                 id: mainContent
                 anchors.fill: parent
-                readonly property real iconSize: Math.max(20, main.horizontal ? Math.min(height, width * 0.36)
-                                                                              : Math.min(width * 0.55, height * 0.42))
+                readonly property real iconSize: Math.max(18, main.horizontal ? Math.min(height * 0.68, width * 0.32)
+                                                                              : Math.min(width * 0.55, height * 0.36))
+                readonly property real maneuverGap: root.distanceString !== "" ? Math.max(2, Math.min(5, root.s * 0.025)) : 0
+                readonly property real distanceHeight: root.distanceString !== ""
+                                                       ? Math.max(12, Math.min(height * (main.horizontal ? 0.24 : 0.18), root.s * 0.16,
+                                                                              Math.max(12, height - iconSize - maneuverGap))) : 0
 
-                MaterialIcon {
-                    id: mainIcon
-                    x: main.horizontal ? 0 : (mainContent.width - mainContent.iconSize) / 2
-                    y: main.horizontal ? (mainContent.height - mainContent.iconSize) / 2 : 0
-                    name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
-                    size: mainContent.iconSize
-                    color: root.near ? Theme.warn : Theme.accent
-                    Behavior on color { ColorAnimation { duration: 200 } }
+                Column {
+                    id: maneuverColumn
+                    x: main.horizontal ? 0 : (mainContent.width - width) / 2
+                    y: main.horizontal ? (mainContent.height - height) / 2 : 0
+                    width: main.horizontal ? Math.min(mainContent.width * 0.45,
+                                                      Math.max(mainContent.iconSize, distanceLabel.implicitWidth) + root.m * 0.4)
+                                           : mainContent.width
+                    height: mainContent.iconSize + mainContent.distanceHeight + mainContent.maneuverGap
+                    spacing: mainContent.maneuverGap
+
+                    MaterialIcon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
+                        size: mainContent.iconSize
+                        color: root.near ? Theme.warn : Theme.accent
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
+                    Text {
+                        id: distanceLabel
+                        width: parent.width
+                        height: mainContent.distanceHeight
+                        visible: root.distanceString !== ""
+                        text: root.distanceString
+                        color: root.near ? Theme.warn : Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: height
+                        font.bold: true
+                        minimumPixelSize: 10
+                        fontSizeMode: Text.Fit
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                    }
                 }
 
                 Item {
                     id: textBox
-                    x: main.horizontal ? mainContent.iconSize + root.m : 0
-                    y: main.horizontal ? 0 : mainContent.iconSize + root.m * 0.4
+                    x: main.horizontal ? maneuverColumn.width + root.m : 0
+                    y: main.horizontal ? 0 : maneuverColumn.height + root.m * 0.4
                     width: mainContent.width - x
                     height: mainContent.height - y
 
-                    Column {
+                    Text {   // 道路名(なければ方向名)を主表示
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                        spacing: Math.max(2, Math.min(6, root.s * 0.025))
-
-                        Text {   // 道路名(なければ方向名)を主表示
-                            width: parent.width
-                            height: Math.max(16, textBox.height * (root.distanceString !== "" ? 0.5 : 0.9))
-                            horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            visible: main.hasSub
-                            text: root.mainSub
-                            color: Theme.textPrimary
-                            font.family: Theme.fontFamily
-                            font.bold: true
-                            font.pixelSize: height
-                            minimumPixelSize: 9
-                            fontSizeMode: Text.Fit
-                            elide: Text.ElideRight
-                        }
-                        Text {   // 距離
-                            width: parent.width
-                            height: root.distanceString !== "" ? Math.max(14, Math.min(textBox.height * (main.hasSub ? 0.34 : 0.9), root.s * 0.18)) : 0
-                            horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            visible: root.distanceString !== ""
-                            text: root.distanceString
-                            color: root.near ? Theme.warn : Theme.accent
-                            font.family: Theme.fontFamily
-                            font.pixelSize: height
-                            minimumPixelSize: 10
-                            fontSizeMode: Text.Fit
-                            elide: Text.ElideRight
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                        }
+                        height: Math.max(16, textBox.height * 0.88)
+                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        visible: main.hasSub
+                        text: root.mainSub
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.bold: true
+                        font.pixelSize: height
+                        minimumPixelSize: 9
+                        fontSizeMode: Text.Fit
+                        elide: Text.ElideRight
                     }
                 }
             }
