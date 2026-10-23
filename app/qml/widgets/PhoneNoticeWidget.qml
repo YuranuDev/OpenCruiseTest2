@@ -15,10 +15,10 @@ WidgetBase {
     readonly property int maxItems: Math.max(1, Math.min(5, config.maxItems || 3))
     readonly property real m: Math.max(10, root.s * 0.07)
     // 文字サイズは上限つき(ウィジェットを大きくしても通知文が巨大化してはみ出さない)
-    readonly property real fsHead: Math.max(12, Math.min(root.s * 0.07, 16))
-    readonly property real fsBody: Math.max(11, Math.min(root.s * 0.058, 15))
-    readonly property real fsBig:  Math.max(13, Math.min(root.s * 0.072, 20))
-    readonly property real fsSub:  Math.max(9,  Math.min(root.s * 0.048, 12))
+    readonly property real fsHead: Math.max(13, Math.min(root.s * 0.075, 18))
+    readonly property real fsBody: Math.max(12, Math.min(root.s * 0.064, 17))
+    readonly property real fsBig:  Math.max(14, Math.min(root.s * 0.078, 22))
+    readonly property real fsSub:  Math.max(10, Math.min(root.s * 0.052, 13))
     property real nowMs: Date.now()
 
     Timer {   // 「n 分前」の表示を更新する

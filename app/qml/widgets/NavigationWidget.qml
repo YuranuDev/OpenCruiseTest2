@@ -1,7 +1,7 @@
 // ナビ案内ウィジェット(Android Auto 連携)。NavigationStatus チャネルの次の曲がり角を表示する。
 //
 // レイアウト(ウィジェットの縦横比に追従して自動で切り替わる):
-//   ・主案内   … 方向アイコン + 距離(大きく) + 道路名(または方向名)。横長なら左右、縦長・正方形なら上下に並ぶ
+//   ・主案内   … 方向アイコン + 道路名(または方向名) + 距離。横長なら左右、縦長・正方形なら上下に並ぶ
 //   ・その次   … 横長なら右側の列、縦長なら下の帯。2 件目の距離はプロトコルから来ないので方向と道路名だけ
 //   ・コンパクト … 主案内だけを大きく表示する
 // 設定(config): frame / layout / distanceUnit / showRoad / showNext / nearHighlight(「設定」参照)
@@ -167,35 +167,35 @@ WidgetBase {
                     anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
                     spacing: Math.max(1, textBox.height * 0.03)
 
-                    Text {   // 距離
+                    Text {   // 道路名(なければ方向名)を主表示
                         width: parent.width
-                        height: Math.max(16, textBox.height * (main.hasSub ? 0.62 : 0.9))
-                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        visible: root.distanceString !== ""
-                        text: root.distanceString
-                        color: root.near ? Theme.warn : Theme.accent
-                        font.family: Theme.fontFamily
-                        font.bold: true
-                        font.pixelSize: height
-                        minimumPixelSize: 10
-                        fontSizeMode: Text.Fit
-                        elide: Text.ElideRight
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                    }
-                    Text {   // 道路名(なければ方向名)
-                        width: parent.width
-                        height: main.hasSub ? Math.max(12, Math.min(textBox.height * 0.28, root.s * 0.14)) : 0
+                        height: Math.max(16, textBox.height * (root.distanceString !== "" ? 0.62 : 0.9))
                         horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         visible: main.hasSub
                         text: root.mainSub
                         color: Theme.textPrimary
                         font.family: Theme.fontFamily
+                        font.bold: true
                         font.pixelSize: height
                         minimumPixelSize: 9
                         fontSizeMode: Text.Fit
                         elide: Text.ElideRight
+                    }
+                    Text {   // 距離
+                        width: parent.width
+                        height: root.distanceString !== "" ? Math.max(12, Math.min(textBox.height * (main.hasSub ? 0.3 : 0.9), root.s * 0.14)) : 0
+                        horizontalAlignment: main.horizontal ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        visible: root.distanceString !== ""
+                        text: root.distanceString
+                        color: root.near ? Theme.warn : Theme.accent
+                        font.family: Theme.fontFamily
+                        font.pixelSize: height
+                        minimumPixelSize: 10
+                        fontSizeMode: Text.Fit
+                        elide: Text.ElideRight
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
                 }
             }
