@@ -38,6 +38,7 @@ public:
      * @param parent 親オブジェクト
      */
     explicit AppSettings(QObject *parent = nullptr);
+    ~AppSettings() override;
 
     QString userName() const { return userName_; }
     QString fontFamily() const { return fontFamily_; }
@@ -53,6 +54,7 @@ public:
     /** @brief アプリの電源モードを変更して保存する。 */
     void setPowerMode(int mode);
     void applyPowerMode();
+    void restorePowerMode();
 
 signals:
     void userNameChanged();
@@ -75,6 +77,7 @@ private:
     QStringList fontFamilies_;
     int powerMode_ = 0;
     QString powerModeStatus_;
+    QString originalPowerProfile_;
 };
 
 } // namespace opencruise

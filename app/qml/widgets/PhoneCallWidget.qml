@@ -56,9 +56,12 @@ WidgetBase {
     Row {
         id: header
         anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.8; leftMargin: root.m }
+        width: Math.max(0, root.width - root.m * 2 - (mockBadge.visible ? mockBadge.width + root.m : 0))
         spacing: 8
         height: Math.max(20, root.s * 0.11)
+        clip: true
         MaterialIcon {
+            id: headerIcon
             anchors.verticalCenter: parent.verticalCenter
             name: root.incoming ? "ring_volume" : (root.active ? "phone_in_talk" : (root.hold ? "phone_paused" : "call"))
             size: parent.height
@@ -66,17 +69,20 @@ WidgetBase {
             opacity: root.incoming ? root.blink : 1
         }
         Text {
+            width: Math.max(0, header.width - headerIcon.width - header.spacing)
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontFamily
             text: "通話"
             color: Theme.textSecondary
             font.pixelSize: Math.max(13, root.s * 0.085)
+            elide: Text.ElideRight
         }
     }
     Rectangle {
+        id: mockBadge
         visible: phoneStatus.callIsMock
         anchors { verticalCenter: header.verticalCenter; right: parent.right; rightMargin: root.m }
-        width: mockTag.implicitWidth + 14
+        width: Math.min(mockTag.implicitWidth + 14, root.width * 0.35)
         height: mockTag.implicitHeight + 6
         radius: height / 2
         color: "transparent"
@@ -84,17 +90,24 @@ WidgetBase {
         Text {
             id: mockTag
             anchors.centerIn: parent
+            width: Math.max(0, parent.width - 8)
             font.family: Theme.fontFamily
             text: "モック"
             color: Theme.warn
             font.pixelSize: Math.max(10, root.s * 0.06)
+            minimumPixelSize: 8
+            fontSizeMode: Text.Fit
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
         }
     }
 
     // ---- 本体 ----
     Item {
+        id: callDetails
         anchors { top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
                   margins: root.m; topMargin: root.m * 0.4 }
+        clip: true
 
         // 通話なし
         Column {
@@ -109,41 +122,54 @@ WidgetBase {
                 opacity: 0.6
             }
             Text {
+                width: callDetails.width
+                height: Math.max(18, callDetails.height * 0.22)
                 anchors.horizontalCenter: parent.horizontalCenter
                 font.family: Theme.fontFamily
                 text: !phoneStatus.connected && !phoneStatus.callIsMock ? "スマートフォンを接続してください"
                                                                         : "通話はありません"
                 color: Theme.textSecondary
-                font.pixelSize: Math.max(13, root.s * 0.085)
+                font.pixelSize: Math.max(10, Math.min(root.s * 0.085, height * 0.8))
+                minimumPixelSize: 9
+                fontSizeMode: Text.Fit
+                wrapMode: Text.NoWrap
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
             }
         }
 
         // 着信中・通話中・保留中
         Column {
             visible: !root.idle
-            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-            spacing: root.m * 0.3
+            anchors.fill: parent
+            spacing: root.m * 0.12
+            clip: true
 
             Text {
                 width: parent.width
+                height: parent.height * 0.18
                 horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
                 font.family: Theme.fontFamily
                 font.bold: true
-                font.pixelSize: Math.max(12, root.s * 0.08)
+                font.pixelSize: Math.max(10, Math.min(root.s * 0.08, height * 0.72))
+                minimumPixelSize: 9
+                fontSizeMode: Text.Fit
                 color: root.stateColor
                 opacity: root.incoming ? root.blink : 1
                 text: root.incoming ? "着信中" : (root.hold ? "保留中" : "通話中")
             }
             Text {
                 width: parent.width
-                height: Math.max(26, root.height * 0.22)
+                height: parent.height * 0.34
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.family: Theme.fontFamily
                 font.bold: true
-                font.pixelSize: 200
-                minimumPixelSize: 14
+                font.pixelSize: Math.min(root.s * 0.24, height * 0.72)
+                minimumPixelSize: 11
                 fontSizeMode: Text.Fit
+                wrapMode: Text.NoWrap
                 elide: Text.ElideRight
                 color: Theme.textPrimary
                 text: root.partyName
@@ -151,9 +177,14 @@ WidgetBase {
             Text {
                 visible: root.showNumberLine
                 width: parent.width
+                height: visible ? parent.height * 0.16 : 0
                 horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(12, root.s * 0.07)
+                font.pixelSize: Math.max(9, Math.min(root.s * 0.07, height * 0.72))
+                minimumPixelSize: 9
+                fontSizeMode: Text.Fit
+                wrapMode: Text.NoWrap
                 elide: Text.ElideRight
                 color: Theme.textSecondary
                 text: phoneStatus.callNumber
@@ -161,10 +192,15 @@ WidgetBase {
             Text {
                 visible: root.active
                 width: parent.width
+                height: visible ? parent.height * 0.20 : 0
                 horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
                 font.family: Theme.fontFamily
                 font.bold: true
-                font.pixelSize: Math.max(16, root.s * 0.13)
+                font.pixelSize: Math.max(10, Math.min(root.s * 0.13, height * 0.72))
+                minimumPixelSize: 9
+                fontSizeMode: Text.Fit
+                wrapMode: Text.NoWrap
                 color: Theme.ok
                 // tick を読むことで、1 秒ごとに通話時間を読み直す
                 text: { root.tick; return root.durationText(phoneStatus.callDurationSec) }

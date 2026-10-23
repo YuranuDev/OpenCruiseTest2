@@ -14,6 +14,9 @@
 #include <aap_protobuf/service/navigationstatus/message/NavigationNextTurnDistanceEvent.pb.h>
 #include <aap_protobuf/service/navigationstatus/message/NavigationNextTurnEvent.pb.h>
 #include <aap_protobuf/service/navigationstatus/message/NavigationStatus.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationState.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationCurrentPosition.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationManeuver.pb.h>
 #include <aap_protobuf/service/navigationstatus/NavigationStatusService.pb.h>
 #include <aap_protobuf/service/phonestatus/message/PhoneStatus.pb.h>
 #include <aap_protobuf/shared/MessageStatus.pb.h>
@@ -23,6 +26,40 @@ namespace opencruise::aa {
 namespace proto = aap_protobuf;
 
 namespace {
+
+void normalizeManeuver(int type, int &maneuver, int &side) {
+    using Maneuver = proto::service::navigationstatus::message::NavigationManeuver;
+    switch (type) {
+    case Maneuver::KEEP_LEFT: case Maneuver::TURN_SLIGHT_LEFT: case Maneuver::TURN_NORMAL_LEFT:
+    case Maneuver::TURN_SHARP_LEFT: case Maneuver::ON_RAMP_SLIGHT_LEFT: case Maneuver::ON_RAMP_NORMAL_LEFT:
+    case Maneuver::ON_RAMP_SHARP_LEFT: case Maneuver::OFF_RAMP_SLIGHT_LEFT: case Maneuver::OFF_RAMP_NORMAL_LEFT:
+    case Maneuver::FORK_LEFT: case Maneuver::MERGE_LEFT: case Maneuver::U_TURN_LEFT:
+    case Maneuver::DESTINATION_LEFT: case Maneuver::ROUNDABOUT_ENTER_AND_EXIT_CCW:
+    case Maneuver::ROUNDABOUT_ENTER_AND_EXIT_CCW_WITH_ANGLE:
+        side = 1; break;
+    case Maneuver::KEEP_RIGHT: case Maneuver::TURN_SLIGHT_RIGHT: case Maneuver::TURN_NORMAL_RIGHT:
+    case Maneuver::TURN_SHARP_RIGHT: case Maneuver::ON_RAMP_SLIGHT_RIGHT: case Maneuver::ON_RAMP_NORMAL_RIGHT:
+    case Maneuver::ON_RAMP_SHARP_RIGHT: case Maneuver::OFF_RAMP_SLIGHT_RIGHT: case Maneuver::OFF_RAMP_NORMAL_RIGHT:
+    case Maneuver::FORK_RIGHT: case Maneuver::MERGE_RIGHT: case Maneuver::U_TURN_RIGHT:
+    case Maneuver::DESTINATION_RIGHT: case Maneuver::ROUNDABOUT_ENTER_AND_EXIT_CW:
+    case Maneuver::ROUNDABOUT_ENTER_AND_EXIT_CW_WITH_ANGLE:
+        side = 2; break;
+    default: side = 0; break;
+    }
+    if (type >= Maneuver::TURN_SLIGHT_LEFT && type <= Maneuver::TURN_SLIGHT_RIGHT) maneuver = 3;
+    else if (type >= Maneuver::TURN_NORMAL_LEFT && type <= Maneuver::TURN_NORMAL_RIGHT) maneuver = 4;
+    else if (type >= Maneuver::TURN_SHARP_LEFT && type <= Maneuver::TURN_SHARP_RIGHT) maneuver = 5;
+    else if (type == Maneuver::U_TURN_LEFT || type == Maneuver::U_TURN_RIGHT) maneuver = 6;
+    else if (type >= Maneuver::ON_RAMP_SLIGHT_LEFT && type <= Maneuver::ON_RAMP_U_TURN_RIGHT) maneuver = 7;
+    else if (type >= Maneuver::OFF_RAMP_SLIGHT_LEFT && type <= Maneuver::OFF_RAMP_NORMAL_RIGHT) maneuver = 8;
+    else if (type == Maneuver::FORK_LEFT || type == Maneuver::FORK_RIGHT) maneuver = 9;
+    else if (type >= Maneuver::MERGE_LEFT && type <= Maneuver::MERGE_SIDE_UNSPECIFIED) maneuver = 10;
+    else if (type >= Maneuver::ROUNDABOUT_ENTER && type <= Maneuver::ROUNDABOUT_ENTER_AND_EXIT_CCW_WITH_ANGLE) maneuver = 11;
+    else if (type == Maneuver::STRAIGHT) maneuver = 14;
+    else if (type == Maneuver::DESTINATION || type == Maneuver::DESTINATION_STRAIGHT ||
+             type == Maneuver::DESTINATION_LEFT || type == Maneuver::DESTINATION_RIGHT) maneuver = 19;
+    else maneuver = 0;
+}
 
 /// 送信完了を待つ Promise。失敗してもセッションは終了せず、ログに残すだけにする
 aasdk::channel::SendPromise::Pointer makeLoggingPromise(boost::asio::io_service::strand &strand,
@@ -260,21 +297,86 @@ void AasdkNavigationHandler::onChannelOpenRequest(const proto::service::control:
 
 void AasdkNavigationHandler::onStatusUpdate(const proto::service::navigationstatus::message::NavigationStatus &status) {
     info_.status = static_cast<int>(status.status());
-    if (info_.status != 1) { info_.distanceMeters = -1; info_.road.clear(); }
+    if (info_.status != 1) {
+        info_.distanceMeters = -1;
+        info_.distanceLabel.clear();
+        info_.road.clear();
+        info_.nextRoad.clear();
+        info_.maneuver = 0;
+        info_.side = 0;
+        info_.nextManeuver = 0;
+        info_.nextSide = 0;
+    }
     publish();
     channel_->receive(shared_from_this());
 }
 
 void AasdkNavigationHandler::onTurnEvent(const proto::service::navigationstatus::message::NavigationNextTurnEvent &turn) {
+    info_.status = 1;
     info_.road = turn.road();
     info_.maneuver = turn.has_event() ? static_cast<int>(turn.event()) : 0;
     info_.side = turn.has_turn_side() ? static_cast<int>(turn.turn_side()) : 0;
+    info_.distanceMeters = -1;
+    info_.distanceLabel.clear();
+    info_.nextManeuver = 0;
+    info_.nextSide = 0;
+    info_.nextRoad.clear();
     publish();
     channel_->receive(shared_from_this());
 }
 
 void AasdkNavigationHandler::onDistanceEvent(const proto::service::navigationstatus::message::NavigationNextTurnDistanceEvent &distance) {
+    info_.status = 1;
     info_.distanceMeters = distance.distance_meters();
+    info_.distanceLabel.clear();
+    publish();
+    channel_->receive(shared_from_this());
+}
+
+void AasdkNavigationHandler::onStateUpdate(const proto::service::navigationstatus::message::NavigationState &state) {
+    info_.status = state.steps_size() > 0 ? 1 : 2;
+    if (state.steps_size() > 0) {
+        const auto &step = state.steps(0);
+        info_.road = step.has_road() && step.road().has_name() ? step.road().name() : std::string();
+        if (step.has_maneuver() && step.maneuver().has_type()) {
+            normalizeManeuver(static_cast<int>(step.maneuver().type()), info_.maneuver, info_.side);
+        } else {
+            info_.maneuver = 0;
+            info_.side = 0;
+        }
+    } else {
+        info_.road.clear();
+        info_.maneuver = 0;
+        info_.side = 0;
+    }
+    if (state.steps_size() > 1) {
+        const auto &step = state.steps(1);
+        info_.nextRoad = step.has_road() && step.road().has_name() ? step.road().name() : std::string();
+        if (step.has_maneuver() && step.maneuver().has_type()) {
+            normalizeManeuver(static_cast<int>(step.maneuver().type()), info_.nextManeuver, info_.nextSide);
+        } else {
+            info_.nextManeuver = 0;
+            info_.nextSide = 0;
+        }
+    } else {
+        info_.nextRoad.clear();
+        info_.nextManeuver = 0;
+        info_.nextSide = 0;
+    }
+    publish();
+    channel_->receive(shared_from_this());
+}
+
+void AasdkNavigationHandler::onCurrentPosition(
+    const proto::service::navigationstatus::message::NavigationCurrentPosition &position) {
+    if (position.has_step_distance() && position.step_distance().has_distance()) {
+        const auto &distance = position.step_distance().distance();
+        info_.distanceMeters = distance.has_meters() ? distance.meters() : -1;
+        info_.distanceLabel = distance.has_display_value() ? distance.display_value() : std::string();
+    } else {
+        info_.distanceMeters = -1;
+        info_.distanceLabel.clear();
+    }
     publish();
     channel_->receive(shared_from_this());
 }

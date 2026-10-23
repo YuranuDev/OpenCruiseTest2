@@ -113,6 +113,8 @@ AppSettings::AppSettings(QObject *parent) : QObject(parent) {
     }
 }
 
+AppSettings::~AppSettings() { restorePowerMode(); }
+
 void AppSettings::setUserName(const QString &name) {
     const QString trimmed = name.trimmed();
     if (trimmed == userName_) {
@@ -152,6 +154,15 @@ void AppSettings::applyPowerMode() {
         return;
     }
 
+    if (originalPowerProfile_.isEmpty()) {
+        QProcess current;
+        current.start(executable, {QStringLiteral("get")});
+        if (current.waitForStarted(1000) && current.waitForFinished(1500) &&
+            current.exitStatus() == QProcess::NormalExit && current.exitCode() == 0) {
+            originalPowerProfile_ = QString::fromLocal8Bit(current.readAllStandardOutput()).trimmed();
+        }
+    }
+
     const QStringList profiles = {QStringLiteral("balanced"), QStringLiteral("power-saver"),
                                   QStringLiteral("performance")};
     QProcess process;
@@ -165,6 +176,24 @@ void AppSettings::applyPowerMode() {
     powerModeStatus_ = QStringLiteral("%1 を適用しました").arg(profiles.at(powerMode_));
 #else
     powerModeStatus_ = QStringLiteral("Linux 以外では利用できません");
+#endif
+}
+
+void AppSettings::restorePowerMode() {
+#ifdef Q_OS_LINUX
+    if (originalPowerProfile_.isEmpty()) {
+        return;
+    }
+    const QString executable = QStandardPaths::findExecutable(QStringLiteral("powerprofilesctl"));
+    if (executable.isEmpty()) {
+        return;
+    }
+    QProcess process;
+    process.start(executable, {QStringLiteral("set"), originalPowerProfile_});
+    if (!process.waitForStarted(1000) || !process.waitForFinished(2000) ||
+        process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+        log::warn("POWER", QStringLiteral("以前の Linux 電源プロファイルを復元できませんでした: ") + originalPowerProfile_);
+    }
 #endif
 }
 

@@ -20,6 +20,6 @@ WidgetSettingsBase {
         }
     }
     SettingsNote {
-        text: "案内内容は接続中の Android Auto ナビアプリが送信する情報に従います。現行の NavigationStatus は次の 1 案内のみを送信するため、2 件先までの表示には対応する案内データが必要です。"
+        text: "2 件分の矢印は Android Auto の NavigationState が送信するステップを表示します。距離は現在位置から次の曲がり角までの値です。2 件目までの距離はプロトコルから提供されません。"
     }
 }

@@ -43,7 +43,11 @@ struct NavigationInfo {
     int maneuver = 0;
     int side = 0;
     int distanceMeters = -1;
+    std::string distanceLabel;
     std::string road;
+    int nextManeuver = 0;
+    int nextSide = 0;
+    std::string nextRoad;
 };
 
 } // namespace opencruise::aa

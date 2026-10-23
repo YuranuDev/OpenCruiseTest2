@@ -146,6 +146,8 @@ public:
     void onStatusUpdate(const aap_protobuf::service::navigationstatus::message::NavigationStatus &status) override;
     void onTurnEvent(const aap_protobuf::service::navigationstatus::message::NavigationNextTurnEvent &turn) override;
     void onDistanceEvent(const aap_protobuf::service::navigationstatus::message::NavigationNextTurnDistanceEvent &distance) override;
+    void onStateUpdate(const aap_protobuf::service::navigationstatus::message::NavigationState &state) override;
+    void onCurrentPosition(const aap_protobuf::service::navigationstatus::message::NavigationCurrentPosition &position) override;
     void onChannelError(const aasdk::error::Error &e) override;
 private:
     void publish();

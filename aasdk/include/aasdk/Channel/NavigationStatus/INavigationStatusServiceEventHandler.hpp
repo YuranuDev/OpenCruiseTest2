@@ -21,6 +21,8 @@
 #include <aap_protobuf/service/navigationstatus/message/NavigationNextTurnDistanceEvent.pb.h>
 #include <aap_protobuf/service/navigationstatus/message/NavigationNextTurnEvent.pb.h>
 #include <aap_protobuf/service/navigationstatus/message/NavigationStatus.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationState.pb.h>
+#include <aap_protobuf/service/navigationstatus/message/NavigationCurrentPosition.pb.h>
 #include "aasdk/Error/Error.hpp"
 
 namespace aasdk::channel::navigationstatus {
@@ -43,6 +45,10 @@ namespace aasdk::channel::navigationstatus {
 
     virtual void
     onDistanceEvent(const aap_protobuf::service::navigationstatus::message::NavigationNextTurnDistanceEvent &distanceEvent) = 0;
+
+    virtual void onStateUpdate(const aap_protobuf::service::navigationstatus::message::NavigationState &navigationState) = 0;
+
+    virtual void onCurrentPosition(const aap_protobuf::service::navigationstatus::message::NavigationCurrentPosition &position) = 0;
   };
 
 }

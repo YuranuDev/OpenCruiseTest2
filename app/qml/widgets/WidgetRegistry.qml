@@ -79,7 +79,7 @@ QtObject {
         },
         {
             type: "navigation", genre: "androidauto", name: "ナビ案内", icon: "navigation",
-            description: "Android Auto の次の曲がり角と距離",
+            description: "Android Auto の次の曲がり角までの距離と、その次の方向",
             component: navigationComp, settings: navigationSettings,
             defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 4 },
             defaultConfig: { showRoad: true, distanceUnit: "auto" },

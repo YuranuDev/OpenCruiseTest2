@@ -77,7 +77,11 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(int navigationManeuver READ navigationManeuver NOTIFY navigationChanged)
     Q_PROPERTY(int navigationSide READ navigationSide NOTIFY navigationChanged)
     Q_PROPERTY(int navigationDistanceMeters READ navigationDistanceMeters NOTIFY navigationChanged)
+    Q_PROPERTY(QString navigationDistanceLabel READ navigationDistanceLabel NOTIFY navigationChanged)
     Q_PROPERTY(bool navigationActive READ navigationActive NOTIFY navigationChanged)
+    Q_PROPERTY(QString nextNavigationRoad READ nextNavigationRoad NOTIFY navigationChanged)
+    Q_PROPERTY(int nextNavigationManeuver READ nextNavigationManeuver NOTIFY navigationChanged)
+    Q_PROPERTY(int nextNavigationSide READ nextNavigationSide NOTIFY navigationChanged)
 
 public:
     /**
@@ -127,7 +131,11 @@ public:
     int navigationManeuver() const { return navigationManeuver_; }
     int navigationSide() const { return navigationSide_; }
     int navigationDistanceMeters() const { return navigationDistanceMeters_; }
+    QString navigationDistanceLabel() const { return navigationDistanceLabel_; }
     bool navigationActive() const { return navigationActive_; }
+    QString nextNavigationRoad() const { return nextNavigationRoad_; }
+    int nextNavigationManeuver() const { return nextNavigationManeuver_; }
+    int nextNavigationSide() const { return nextNavigationSide_; }
 
     /**
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
@@ -259,7 +267,11 @@ private:
     int navigationManeuver_ = 0;
     int navigationSide_ = 0;
     int navigationDistanceMeters_ = -1;
+    QString navigationDistanceLabel_;
     bool navigationActive_ = false;
+    QString nextNavigationRoad_;
+    int nextNavigationManeuver_ = 0;
+    int nextNavigationSide_ = 0;
     QString videoInfo_ = QStringLiteral("-");
     std::atomic<qulonglong> frameCount_{0};
     std::atomic<bool> decoderErrorReported_{false};

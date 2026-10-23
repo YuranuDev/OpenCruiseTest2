@@ -303,15 +303,23 @@ void AndroidAutoController::start() {
     };
     callbacks.onNavigation = [this](const aa::NavigationInfo &navigation) {
         const QString road = QString::fromStdString(navigation.road);
+        const QString nextRoad = QString::fromStdString(navigation.nextRoad);
         const int maneuver = navigation.maneuver;
         const int side = navigation.side;
+        const int nextManeuver = navigation.nextManeuver;
+        const int nextSide = navigation.nextSide;
         const int distance = navigation.distanceMeters;
+        const QString distanceLabel = QString::fromStdString(navigation.distanceLabel);
         const bool active = navigation.status == 1;
-        QMetaObject::invokeMethod(this, [this, road, maneuver, side, distance, active]() {
+        QMetaObject::invokeMethod(this, [this, road, nextRoad, maneuver, side, nextManeuver, nextSide, distance, distanceLabel, active]() {
             navigationRoad_ = road;
             navigationManeuver_ = maneuver;
             navigationSide_ = side;
+            nextNavigationRoad_ = nextRoad;
+            nextNavigationManeuver_ = nextManeuver;
+            nextNavigationSide_ = nextSide;
             navigationDistanceMeters_ = distance;
+            navigationDistanceLabel_ = distanceLabel;
             navigationActive_ = active;
             emit navigationChanged();
         }, Qt::QueuedConnection);
@@ -642,7 +650,11 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
         navigationRoad_.clear();
         navigationManeuver_ = 0;
         navigationSide_ = 0;
+        nextNavigationRoad_.clear();
+        nextNavigationManeuver_ = 0;
+        nextNavigationSide_ = 0;
         navigationDistanceMeters_ = -1;
+        navigationDistanceLabel_.clear();
         emit navigationChanged();
     }
 
