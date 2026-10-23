@@ -53,13 +53,15 @@ qt_add_executable(opencruise
     core/SystemSound.cpp
     core/VehicleDataManager.cpp
     core/SystemStats.cpp
+    core/PhoneStatus.cpp
+    core/WidgetStore.cpp
     androidauto/AndroidAutoController.cpp
     androidauto/AudioPlayer.cpp
     androidauto/MicrophoneInput.cpp
     androidauto/H264Decoder.cpp
     androidauto/TestVideoFeeder.cpp)
 
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Theme.qml qml/widgets/WidgetRegistry.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(opencruise
     URI OpenCruise
@@ -102,6 +104,25 @@ qt_add_qml_module(opencruise
         qml/NotificationPopup.qml
         qml/NotificationBell.qml
         qml/NotificationHistoryPanel.qml
+        qml/widgets/WidgetRegistry.qml
+        qml/widgets/WidgetBase.qml
+        qml/widgets/WidgetHost.qml
+        qml/widgets/WidgetArea.qml
+        qml/widgets/WidgetSettingsBase.qml
+        qml/widgets/WidgetSettingsDialog.qml
+        qml/widgets/WidgetPicker.qml
+        qml/widgets/WSStepper.qml
+        qml/widgets/WSTextField.qml
+        qml/widgets/ClockWidget.qml
+        qml/widgets/ClockSettings.qml
+        qml/widgets/GreetingWidget.qml
+        qml/widgets/GreetingSettings.qml
+        qml/widgets/TurboGaugeWidget.qml
+        qml/widgets/TurboGaugeSettings.qml
+        qml/widgets/PhoneStatusWidget.qml
+        qml/widgets/PhoneStatusSettings.qml
+        qml/widgets/PhoneNoticeWidget.qml
+        qml/widgets/PhoneNoticeSettings.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
         sounds/Click.wav

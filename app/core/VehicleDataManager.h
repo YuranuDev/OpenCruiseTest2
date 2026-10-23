@@ -37,6 +37,7 @@ class VehicleDataManager : public QObject {
     Q_PROPERTY(int rpm READ rpm NOTIFY changed)
     Q_PROPERTY(int coolantTempC READ coolantTempC NOTIFY changed)
     Q_PROPERTY(int fuelPercent READ fuelPercent NOTIFY changed)
+    Q_PROPERTY(double boostBar READ boostBar NOTIFY changed)
     Q_PROPERTY(QString sourceText READ sourceText CONSTANT)
 
 public:
@@ -77,6 +78,8 @@ public:
     int coolantTempC() const { return coolantTempC_; }
     /** @brief 燃料残量 [%]。 */
     int fuelPercent() const { return fuelPercent_; }
+    /** @brief ブースト圧(ゲージ圧) [bar]。負の値は負圧。現状はモック(疑似的な加減速パターン)。 */
+    double boostBar() const { return boostBar_; }
     /** @brief データの出所を示す表示用文字列（常に「ダミーデータ」）。 */
     QString sourceText() const { return QStringLiteral("ダミーデータ"); }
 
@@ -138,6 +141,11 @@ private:
      * @brief 燃料残量 [%]
      */
     int fuelPercent_ = 0;
+
+    /**
+     * @brief ブースト圧(ゲージ圧) [bar]
+     */
+    double boostBar_ = 0.0;
 };
 
 } // namespace opencruise

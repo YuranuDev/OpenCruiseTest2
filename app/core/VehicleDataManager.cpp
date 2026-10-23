@@ -68,6 +68,11 @@ void VehicleDataManager::update() {
     rpm_ = 850 + speedKmh_ * 24 + static_cast<int>(std::lround(120.0 * std::sin(2.0 * kPi * t / 1.9)));
     coolantTempC_ = static_cast<int>(std::min(90.0, 60.0 + t * 0.5));
     fuelPercent_ = static_cast<int>(std::max(0.0, 5.0 - t * 0.01));
+    // モックのブースト圧: 約 9 秒周期で加速(正圧)と減速(負圧)を繰り返し、約 37 秒周期でピークが高くなる。
+    // 警告値(既定 1.6bar)をときどき超えるので、警告表示の確認にも使える
+    const double pulse = std::pow(std::max(0.0, std::sin(2.0 * kPi * t / 9.0)), 2.0);
+    const double peak = 2.0 + 0.4 * std::sin(2.0 * kPi * t / 37.0);
+    boostBar_ = -0.6 + peak * pulse + 0.02 * std::sin(2.0 * kPi * t / 0.7);
     emit changed();
 }
 

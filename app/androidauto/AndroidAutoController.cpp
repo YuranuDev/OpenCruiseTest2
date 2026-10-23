@@ -3,6 +3,7 @@
  * @brief AndroidAutoController の実装。
  */
 #include "AndroidAutoController.h"
+#include "core/PhoneStatus.h"
 
 #include <cmath>
 
@@ -206,6 +207,17 @@ void AndroidAutoController::start() {
     // スマートフォンがマイクを開閉したとき。ワーカースレッドから来るので UI スレッドへ渡す
     callbacks.onMicrophoneRequest = [this](bool open) {
         QMetaObject::invokeMethod(this, [this, open]() { microphone_.setRequested(open); }, Qt::QueuedConnection);
+    };
+    // スマートフォンのバッテリー通知。ワーカースレッドから来るので UI スレッドへ渡す
+    callbacks.onPhoneBattery = [this](int level, int remainingSec, bool critical) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, level, remainingSec, critical]() {
+                if (phoneStatus_) {
+                    phoneStatus_->setBattery(level, remainingSec, critical);
+                }
+            },
+            Qt::QueuedConnection);
     };
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
@@ -522,6 +534,11 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
         NotificationManager::notify(QStringLiteral("Android Auto に接続しました"),
                                     QStringLiteral("スマートフォンとの接続が確立しました"),
                                     NotificationManager::Success, QStringLiteral("smartphone"));
+    }
+
+    // スマホ状態ウィジェット用: 接続が確立している間だけ「接続中」。切断で実データ(バッテリー等)を破棄する
+    if (phoneStatus_) {
+        phoneStatus_->setConnected(link == aa::LinkState::Connected || link == aa::LinkState::Streaming);
     }
 
     const bool wasActive = previous == aa::LinkState::Connecting || previous == aa::LinkState::Connected ||

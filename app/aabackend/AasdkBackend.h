@@ -38,6 +38,9 @@ struct BackendCallbacks {
     std::function<void(int)> onAudioStop;
     /// スマートフォンがマイクを開いた(true)/閉じた(false)。セッション終了時は、開いていれば false で通知される
     std::function<void(bool)> onMicrophoneRequest;
+    /// スマートフォンのバッテリー通知(BatteryStatusNotification)を受信したとき。
+    /// 引数は 残量[%] / 残り時間[秒](通知に無ければ -1) / 危険な残量か
+    std::function<void(int, int, bool)> onPhoneBattery;
     /// 診断ログ
     std::function<void(const std::string &)> onLog;
 };

@@ -484,9 +484,15 @@ void AasdkSession::onByeByeResponse(const proto::service::control::message::ByeB
 }
 
 /**
- * @brief バッテリー通知は使わないので読み捨てる。
+ * @brief スマートフォンのバッテリー通知を UI 側へ渡す(ウィジェット「スマホ状態」が使う)。
+ *        残り時間・危険フラグは任意項目なので、無ければ -1 / false で渡す。
  */
-void AasdkSession::onBatteryStatusNotification(const proto::service::control::message::BatteryStatusNotification &) {
+void AasdkSession::onBatteryStatusNotification(const proto::service::control::message::BatteryStatusNotification &notification) {
+    if (!finished_ && callbacks_.onPhoneBattery) {
+        callbacks_.onPhoneBattery(static_cast<int>(notification.battery_level()),
+                                  notification.has_time_remaining_s() ? static_cast<int>(notification.time_remaining_s()) : -1,
+                                  notification.has_critical_battery() && notification.critical_battery());
+    }
     controlChannel_->receive(shared_from_this());
 }
 

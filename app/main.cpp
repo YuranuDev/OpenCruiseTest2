@@ -33,6 +33,8 @@
 #include "core/VehicleDataManager.h"
 #include "core/Log.h"
 #include "core/NotificationManager.h"
+#include "core/PhoneStatus.h"
+#include "core/WidgetStore.h"
 #include "core/SystemSound.h"
 
 /**
@@ -91,6 +93,8 @@ int main(int argc, char *argv[]) {
     opencruise::VehicleDataManager can;
     opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
+    opencruise::PhoneStatus phoneStatus;   // スマホのバッテリー・電波・通知(ウィジェット「スマホ状態」「スマホ通知」が読む)
+    opencruise::WidgetStore widgetStore;   // ウィジェットの配置・設定の保存先
     opencruise::BootManager boot; // 起動(オープニング)画面の待ち管理。外部機器の接続待ちなどもここへ登録する
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
@@ -100,6 +104,7 @@ int main(int argc, char *argv[]) {
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
     androidAuto->setAudioSettings(audioSettings);
     androidAuto->setVehicleSource(&can); // モックの車両データ送信の取得元(ダミーの CAN データ)
+    androidAuto->setPhoneStatus(&phoneStatus); // スマホのバッテリー通知の反映先
     // AndroidAutoController オブジェクトを QGuiApplication の子オブジェクトとして関連付けることで
     // オブジェクトの寿命管理を強化し、QTimer::singleShot 使用時のダングリングポインタアクセスを回避
     app.setOrganizationName(QStringLiteral("OpenCruise"));
@@ -139,6 +144,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
+    engine.rootContext()->setContextProperty(QStringLiteral("phoneStatus"), &phoneStatus);
+    engine.rootContext()->setContextProperty(QStringLiteral("widgetStore"), &widgetStore);
     engine.rootContext()->setContextProperty(QStringLiteral("boot"), &boot);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);

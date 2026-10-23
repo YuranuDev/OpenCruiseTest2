@@ -32,6 +32,7 @@ namespace opencruise {
 
 class VideoSurfaceItem;
 class VehicleDataManager;
+class PhoneStatus;
 class AudioSettings;
 
 /**
@@ -122,6 +123,12 @@ public:
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
      */
     void setVehicleSource(VehicleDataManager *source) { vehicleSource_ = source; }
+
+    /**
+     * @brief スマホ状態の保持先を登録する(所有はしない。アプリ終了まで有効なこと)。
+     *        スマホのバッテリー通知の反映と、切断時のリセットに使う。
+     */
+    void setPhoneStatus(PhoneStatus *status) { phoneStatus_ = status; }
 
     /** @brief 解像度を変更して保存する。接続処理が動作中なら切断して再接続待機へ入る。 */
     void setResolutionIndex(int index);
@@ -216,6 +223,7 @@ private:
     bool mockVehicleData_ = false;
     QVariantList mockVehicleItems_;               ///< 画面表示用: 送信中の値の一覧
     VehicleDataManager *vehicleSource_ = nullptr; ///< 車両データの取得元(非所有)
+    PhoneStatus *phoneStatus_ = nullptr;          ///< スマホ状態の保持先(非所有)
     QTimer vehicleTimer_;                         ///< 車両データ送信の周期タイマー
     double mockAngleRad_ = 0.0;                   ///< モック位置: 周回コース上の現在角度
     qint64 mockLastMs_ = 0;                       ///< モック位置: 前回計算した時刻

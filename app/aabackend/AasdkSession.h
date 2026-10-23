@@ -48,6 +48,8 @@ struct SessionCallbacks {
     std::function<void(int)> onAudioStop; ///< 音声ストリーム停止
     /// スマートフォンがマイクを開いた(true)/閉じた(false)。セッション終了時は、開いていれば false で通知する
     std::function<void(bool)> onMicrophoneRequest;
+    /// スマートフォンのバッテリー通知。引数は 残量[%] / 残り時間[秒](無ければ -1) / 危険な残量か
+    std::function<void(int, int, bool)> onPhoneBattery;
     std::function<void(const std::string &)> onFinished; ///< セッション終了（理由つき、1回だけ呼ばれる）
 };
 

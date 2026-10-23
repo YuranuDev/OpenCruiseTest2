@@ -21,6 +21,7 @@ OpenCruise/
     │   ├── AasdkVideoHandler.* 映像チャネル(Open/Setup/Start/データ受信/ACK/フォーカス)
     │   └── AasdkConfig.h     車載機として申告する値（解像度 dpi 等、暫定値を1か所に集約）
     └── qml/                  Main / HomeScreen / SettingsScreen / CanPanel / ConnectionBadge / ActionButton / Theme
+        └── widgets/          ウィジェット基盤と各ウィジェット(下の「ウィジェット」参照)
 ```
 
 接続層 (`aabackend`) は Qt を一切含まず、UI は `AasdkBackend` の公開ヘッダだけを見る。
@@ -63,6 +64,43 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 
 ヘッドレス確認例: `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software ./build/app/opencruise --screenshot out.png`
 
+## ウィジェット
+
+初期画面の中央領域は、12 × 6 マスのウィジェット配置エリアになっている(時計・あいさつも、その中のウィジェット)。
+
+| 操作 | 内容 |
+|---|---|
+| 長押し(約 0.3 秒)→ドラッグ | 持ち上げて移動。移動中だけ配置エリア(グリッド)と移動先の枠が滑らかに現れ、離すと最寄りの空きマスへスナップ。空きマスが無ければ元の位置へ戻る |
+| ダブルタップ | 設定画面を持つウィジェットは設定ダイアログ(固有の設定 + サイズ + 削除)を開く |
+| ナビバーの「ウィジェット」 | 追加パネル(ジャンル別タブ)。「初期配置に戻す」も、ここ(2 回押しで実行) |
+
+配置と設定は `QSettings`(`widgets/layout`、version つき JSON)へ保存する。
+
+### ファイル構成(`app/qml/widgets/`)
+
+| 役割 | ファイル |
+|---|---|
+| 登録(新しいウィジェットを足すときに触る唯一の場所) | `WidgetRegistry.qml`(ジャンル・種類・既定サイズ/設定・初期配置) |
+| 共通基盤 | `WidgetBase`(ウィジェットの土台) / `WidgetHost`(ドラッグ・スナップ・タップ振り分け・表示アニメーション) / `WidgetArea`(グリッド・衝突・保存) |
+| 設定・追加 UI | `WidgetSettingsBase` / `WidgetSettingsDialog` / `WidgetPicker` / `WSStepper` / `WSTextField` |
+| 時計・あいさつ | `ClockWidget` / `GreetingWidget`(+ 各 `*Settings`) |
+| 車載連携 | `TurboGaugeWidget`(ターボ圧計。アナログ+デジタル、bar/psi、警告値・警告メッセージ。**モックデータ**) |
+| Android Auto 連携 | `PhoneStatusWidget`(スマホ状態。バッテリー残量は実データ、電波はモック) |
+| 通知連携 | `PhoneNoticeWidget`(スマホ通知。表示方法・カテゴリ別メッセージを設定可能。**モックの通知**) |
+
+新しいウィジェットの追加手順: ① `WidgetBase` を継承した qml を作る ② 設定が要るなら `WidgetSettingsBase` を継承した qml を作る
+③ `WidgetRegistry.qml` に Component と `types` の 1 項目を足す ④ `app/CMakeLists.txt` の `QML_FILES` に足す。
+設定が不要なウィジェットは `settings: null` にする(ダブルタップは何もしない)。独自のダブルタップ動作が欲しい場合は
+`doubleTapAction: "custom"` にして `doubleTapped()` を受ける。
+
+### Android Auto から取れる情報(`aasdk_phone_data.csv` の確認結果)
+
+- 実データ: スマホのバッテリー(残量・残り時間・危険フラグ。`BatteryStatusNotification`。サービス宣言なしで届く)。`AasdkSession` →
+  `AndroidAutoController` → `PhoneStatus::setBattery()`。バッテリー残量の単位(%)は実機での確認が必要。
+- 未宣言のため届かない(現状モック): 電波強度(PhoneStatus サービス)、通知(GenericNotification サービス: id / text / icon のみ)、
+  ナビ・再生中の曲。宣言を足したら `PhoneStatus::setSignal()` / `ingestNotice()` を呼ぶだけでウィジェットは実データに切り替わる。
+- そもそも取れない: 通知の送信元アプリ名・本文、連絡先・通話履歴・メッセージ本文(プロトコルに無い)。通知のカテゴリは文面から推定する。
+
 ## 実装状況
 
 ### 実装済み
@@ -70,7 +108,8 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 | 機能 | 状態 | 検証 |
 |---|---|---|
 | Qt Quick メイン画面（暗色、時計、接続状態、AA表示領域、CANパネル、設定ボタン） | 実装 | ビルド・起動・画面保存で確認 |
-| 現在時刻表示 | 実装 | 画面で確認 |
+| 現在時刻表示 | 実装(時計ウィジェットへ移行) | 画面で確認(旧実装) |
+| ウィジェットシステム(配置エリア・ドラッグ・スナップ・設定ダイアログ・追加パネル、時計/あいさつ/ターボ圧計/スマホ状態/スマホ通知) | コード実装 | **ビルド・実行とも未検証** |
 | CAN 情報の仮表示（速度/回転数/水温/燃料、「ダミーデータ」と明示） | 実装 | 画面で確認 |
 | 設定画面への遷移（StackView） | 実装 | 設定画面の描画を確認。ボタンのタップ操作は未確認 |
 | 接続状態表示（利用不可/待機中/接続中/接続済み/映像受信中、切断理由の保持） | 実装 | 「利用不可」「待機中」「映像受信中(テスト)」を画面で確認 |

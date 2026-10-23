@@ -30,6 +30,7 @@ Rectangle {
 
     // ---- 初期画面 ----
     LauncherScreen {
+        id: launcher
         anchors.fill: parent
         opacity: 1 - root.aaFade
         visible: opacity > 0
@@ -285,7 +286,7 @@ Rectangle {
             LauncherTile {
                 x: 2 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "widgets"; title: "ウィジェット"
-                onClicked: root.showMock("ウィジェット設定")
+                onClicked: { root.menuOpen = false; root.goHome(); launcher.openPicker() }
             }
             LauncherTile {
                 x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
