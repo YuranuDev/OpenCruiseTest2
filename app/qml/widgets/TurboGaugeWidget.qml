@@ -1,23 +1,31 @@
 // ターボ圧計。実際のブースト計のように、アナログ(目盛り・針・警告ゾーン)とデジタル(数値)を組み合わせたメーター。
 // 値は can.boostBar(現状はモック)。設定は bar 基準で保存され、表示と編集のときだけ psi に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
-//  - 最小値・最大値・単位(bar/psi)・アイコン表示・警告値・警告メッセージ
+//  - メーターの種類: クラシック(目盛り+警告帯) / シンプル(細いリング) / スポーツ(太い進捗リング)
+//  - 最小値・最大値・単位(bar/psi)・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
+//  - アイコン表示・警告値・警告メッセージ
 // 警告値以上になると、針と数値が赤になり、アイコンと警告メッセージが点滅する(解除は警告値より少し下がったとき)。
+//
+// レイアウトの考え方:
+//  1. 見出し(上)・警告欄(下、警告が有効なときだけ高さを確保)を除いた残りを本体とする
+//  2. アナログは「半径 1 の円」で、弧・中心円・数値表示が実際に占める範囲(外接矩形)を求め、
+//     その矩形が本体に最大で収まる半径 R を決める(弧の欠けている側の余白を無駄にしない)
+//  3. 目盛り(静的)・進捗リング(値に追従)・針は別々に描き、値が変わっても目盛りは描き直さない
 import QtQuick
 import OpenCruise
 
 WidgetBase {
     id: root
 
-    // ---- 設定(表示単位に換算済み) ----
+    // ---------------------------------------------------------------- 設定(表示単位に換算済み)
     readonly property string style: config.style === "analog" || config.style === "digital" ? config.style : "both"
     readonly property string dialStyle: config.dialStyle === "minimal" || config.dialStyle === "sport" ? config.dialStyle : "classic"
     readonly property bool usePsi: config.unit === "psi"
     readonly property real k: usePsi ? 14.5038 : 1.0           // bar → 表示単位
     readonly property string unitText: usePsi ? "psi" : "bar"
-    readonly property real minV: config.min * k
-    readonly property real maxV: Math.max(config.max * k, minV + 0.1)
-    readonly property real warnV: config.warn * k
+    readonly property real minV: Number(config.min) * k
+    readonly property real maxV: Math.max(Number(config.max) * k, minV + 0.1)
+    readonly property real warnV: Number(config.warn) * k
     readonly property bool warnOn: config.warnEnabled === true
     readonly property bool showIcon: config.showIcon !== false
     readonly property real startAngle: Math.max(-180, Math.min(-90, config.startAngle === undefined ? -135 : Number(config.startAngle)))
@@ -25,7 +33,7 @@ WidgetBase {
     readonly property real sweepAngle: endAngle - startAngle
     readonly property bool autoLabelPosition: config.autoLabelPosition !== false
     readonly property bool needleTail: config.needleTail !== false
-    readonly property real hubSize: Math.max(0.08, Math.min(0.32, (config.hubSize || 16) / 100))
+    readonly property real hubSize: Math.max(0.08, Math.min(0.32, (config.hubSize || 16) / 100))   // 直径 / 半径
     readonly property color needleColor: configuredColor("needleColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
     readonly property int decimals: usePsi ? 1 : 2
@@ -37,13 +45,22 @@ WidgetBase {
         return /^#[0-9a-f]{6}$/i.test(value) ? Qt.color(value) : fallback
     }
 
-    // ---- 値(針は滑らかに動かす) ----
+    // ---------------------------------------------------------------- 値
     readonly property real rawValue: can.boostBar * k
+    // 針・数値は滑らかに追従させる(データは約 10Hz)
     property real shown: rawValue
-    Behavior on shown { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-    function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
+    Behavior on shown { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
 
-    // ---- 警告(ヒステリシスつき) ----
+    function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
+    // 進捗の起点(大気圧 = 0)。範囲外なら近い端
+    readonly property real originV: Math.max(minV, Math.min(maxV, 0))
+    // 「-0.00」を出さない数値整形
+    function fmt(v, dec) {
+        const half = 0.5 * Math.pow(10, -dec)
+        return (Math.abs(v) < half ? 0 : v).toFixed(dec)
+    }
+
+    // ---------------------------------------------------------------- 警告(ヒステリシスつき)
     property bool warning: false
     function updateWarning() {
         const hysteresis = (maxV - minV) * 0.03
@@ -57,7 +74,6 @@ WidgetBase {
     Component.onCompleted: updateWarning()
 
     readonly property color valueColor: warning ? Theme.error : Theme.textPrimary
-    readonly property real m: Math.max(10, root.s * 0.05)
 
     // 点滅(警告中だけ動かす)
     property real blink: 1
@@ -69,114 +85,202 @@ WidgetBase {
         onRunningChanged: if (!running) root.blink = 1
     }
 
-    Rectangle {   // モックデータ中の表示
-        anchors { top: parent.top; right: parent.right; topMargin: root.m; rightMargin: root.m }
-        width: mockTag.implicitWidth + 14
-        height: mockTag.implicitHeight + 6
+    // ---------------------------------------------------------------- 寸法
+    readonly property real m: Math.max(10, root.s * 0.06)
+
+    // ================================================================ 見出し(他のウィジェットと同じ形・大きさ)
+    Row {
+        id: header
+        visible: root.titleVisible
+        anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
+        width: root.width - root.m * 2 - mockTag.width - 8
+        height: root.titleVisible ? root.titleBarHeight : 0
+        spacing: 8
+        MaterialIcon {
+            visible: root.showIcon
+            anchors.verticalCenter: parent.verticalCenter
+            name: root.warning ? "warning" : "speed"
+            size: parent.height
+            color: root.warning ? Theme.error : Theme.accent
+            opacity: root.warning ? root.blink : 1
+        }
+        Text {
+            width: Math.max(0, header.width - (root.showIcon ? header.height + header.spacing : 0))
+            anchors.verticalCenter: parent.verticalCenter
+            font.family: Theme.fontFamily
+            font.pixelSize: root.titleFontSize
+            color: Theme.textSecondary
+            text: root.titleText("ブースト")
+            elide: Text.ElideRight
+        }
+    }
+
+    // モックデータ中の表示(見出しの右端。見出しを隠しているときも右上に出す)
+    Rectangle {
+        id: mockTag
+        anchors { top: parent.top; right: parent.right; topMargin: root.m * 0.8; rightMargin: root.m }
+        width: mockText.implicitWidth + 14
+        height: Math.max(mockText.implicitHeight + 4, root.titleVisible ? root.titleBarHeight * 0.85 : 0)
         radius: height / 2
         color: "transparent"
         border.color: Theme.warn
         Text {
-            id: mockTag
+            id: mockText
             anchors.centerIn: parent
             font.family: Theme.fontFamily
+            font.pixelSize: Math.round(root.titleFontSize * 0.75)
             text: "モック"
             color: Theme.warn
-            font.pixelSize: root.detailFontSize
         }
     }
 
-    // ---- 下段: 警告メッセージ(警告値の案内と兼用。高さは常に確保して、警告の出入りで配置が動かないようにする) ----
+    // ================================================================ 警告欄(警告が有効なときだけ高さを確保し、出入りで配置が動かない)
     Item {
         id: footer
-        z: 1
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom
-                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m * 0.8 }
-        height: root.warning ? Math.max(26, root.s * 0.095) : 0
-        visible: root.warning
+                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.warnOn ? root.m * 0.7 : 0 }
+        height: root.warnOn ? Math.max(22, root.titleBarHeight) : 0
+        visible: root.warnOn
 
+        // 警告中: 点滅する帯
         Rectangle {
             anchors.fill: parent
             radius: height / 2
-            color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.18)
+            color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.16)
             border.color: Theme.error
-            opacity: root.warning ? root.blink : 0
-            visible: opacity > 0
+            opacity: root.blink
+            visible: root.warning
         }
-        Text {
+        Row {
+            visible: root.warning
             anchors.centerIn: parent
-            width: parent.width - 20
+            spacing: 6
+            MaterialIcon {
+                visible: root.showIcon
+                anchors.verticalCenter: parent.verticalCenter
+                name: "warning"
+                size: footer.height * 0.7
+                color: Theme.error
+                opacity: root.blink
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, footer.width - 24 - (root.showIcon ? footer.height : 0))
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.pixelSize: Math.round(root.titleFontSize * 0.9)
+                elide: Text.ElideRight
+                color: Theme.error
+                text: root.config.warnMessage || "警告"
+            }
+        }
+        // 平常時: 警告値の案内(控えめに)
+        Text {
+            visible: !root.warning
+            anchors.centerIn: parent
+            width: parent.width
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontFamily
-            font.bold: root.warning
-            font.pixelSize: root.bodyFontSize
+            font.pixelSize: Math.round(root.titleFontSize * 0.8)
             elide: Text.ElideRight
-            color: root.warning ? Theme.error : Theme.textSecondary
-            text: (root.showIcon ? "⚠ " : "") + (root.config.warnMessage || "警告")
+            color: Theme.textSecondary
+            text: "警告 " + root.fmt(root.warnV, root.decimals) + " " + root.unitText + " 以上"
         }
     }
 
-    // ---- 本体 ----
+    // ================================================================ 本体
     Item {
-        id: bodyBox
-        anchors {
-            top: parent.top; left: parent.left; right: parent.right
-            bottom: parent.bottom
-            margins: root.m * 0.5
-        }
+        id: body
+        anchors { top: header.bottom; bottom: footer.top; left: parent.left; right: parent.right
+                  topMargin: root.titleVisible ? root.m * 0.4 : root.m * 0.6
+                  bottomMargin: root.m * 0.4; leftMargin: root.m; rightMargin: root.m }
 
-        // ===== アナログ(アナログ+デジタル / アナログ) =====
+        // ============================================================ アナログ
         Item {
             id: dial
             visible: root.style !== "digital"
-            readonly property real size: Math.min(bodyBox.width, bodyBox.height)
-            readonly property real r: size / 2
-            width: size
-            height: size
+
+            // ---- 半径 1 の円で考えた配置(中心が原点、0° が真上・時計回り) ----
+            // 数値表示の枠。auto のときは弧の空き(開始と終了の間)の方向へ置き、中心円とは重ならないようにする
+            readonly property var readout: {
+                const w = 0.62, h = 0.4
+                const hubClear = root.hubSize / 2 + 0.05
+                let cx = 0, cy = 0.52
+                if (root.autoLabelPosition) {
+                    const g = ((root.startAngle + root.endAngle) / 2 + 180) * Math.PI / 180
+                    const rr = (360 - root.sweepAngle) >= 60 ? 0.56 : 0.5
+                    cx = Math.sin(g) * rr
+                    cy = -Math.cos(g) * rr
+                }
+                if (cy - h / 2 < hubClear) cy = hubClear + h / 2
+                return { x: cx - w / 2, y: cy - h / 2, w: w, h: h }
+            }
+            // アナログのみのときの単位表示(中心円の下)
+            readonly property real unitY: root.hubSize / 2 + 0.16
+
+            // 弧・中心円・数値表示が占める範囲
+            readonly property var bounds: {
+                const xs = [], ys = []
+                const add = (deg, r) => {
+                    const a = deg * Math.PI / 180
+                    xs.push(Math.sin(a) * r); ys.push(-Math.cos(a) * r)
+                }
+                add(root.startAngle, 1)
+                add(root.endAngle, 1)
+                for (let d = -180; d <= 180; d += 90) {
+                    if (d >= root.startAngle && d <= root.endAngle) add(d, 1)
+                }
+                const hr = root.hubSize / 2
+                xs.push(-hr, hr); ys.push(-hr, hr)
+                if (root.style === "both") {
+                    xs.push(readout.x, readout.x + readout.w)
+                    ys.push(readout.y, readout.y + readout.h)
+                } else {
+                    ys.push(unitY + 0.07)
+                }
+                const pad = 0.02
+                return { minX: Math.min(...xs) - pad, maxX: Math.max(...xs) + pad,
+                         minY: Math.min(...ys) - pad, maxY: Math.max(...ys) + pad }
+            }
+
+            // ---- 実寸(px) ----
+            readonly property real R: Math.max(1, Math.min(body.width / (bounds.maxX - bounds.minX),
+                                                           body.height / (bounds.maxY - bounds.minY)))
+            readonly property real cx: -bounds.minX * R
+            readonly property real cy: -bounds.minY * R
+            width: (bounds.maxX - bounds.minX) * R
+            height: (bounds.maxY - bounds.minY) * R
             anchors.centerIn: parent
 
-            // 目盛り・警告ゾーン(設定・サイズ・配色が変わったときだけ描き直す)
+            // メーターの種類ごとの寸法(R に対する比)
+            readonly property var spec: root.dialStyle === "sport"
+                ? { trackR: 0.93, trackW: 0.12, majorIn: 0.70, minorIn: 0.76, tickOut: 0.82, labelR: 0.59,
+                    majorW: 0.03, minorW: 0.012, sub: 4, labelPx: 0.105, progress: true }
+                : (root.dialStyle === "minimal"
+                   ? { trackR: 0.95, trackW: 0.035, majorIn: 0.80, minorIn: 0.85, tickOut: 0.89, labelR: 0.66,
+                       majorW: 0.022, minorW: 0.01, sub: 2, labelPx: 0.11, progress: true }
+                   : { trackR: 0.955, trackW: 0.03, majorIn: 0.72, minorIn: 0.79, tickOut: 0.86, labelR: 0.62,
+                       majorW: 0.025, minorW: 0.012, sub: 5, labelPx: 0.095, progress: false })
+
+            // 角度(度、0° が真上)→ Canvas の角度(ラジアン、0 が右)
+            function rad(deg) { return (deg - 90) * Math.PI / 180 }
+            function angOf(v) { return root.startAngle + root.frac(v) * root.sweepAngle }
+
+            // ---- 目盛り・警告帯(設定・大きさ・配色が変わったときだけ描き直す) ----
             Canvas {
                 id: face
                 anchors.fill: parent
-                property color cTrack: Theme.panelBorder
-                property color cText: Theme.textSecondary
-                property color cMajor: Theme.textPrimary
-                property color cWarn: Theme.error
-                property color cAccent: Theme.accent
-                property real vMin: root.minV
-                property real vMax: root.maxV
-                property real vWarn: root.warnV
-                property real vShown: root.shown
-                property bool wOn: root.warnOn
-                property string faceStyle: root.dialStyle
-                property string fam: Theme.fontFamily
-                onCTrackChanged: requestPaint()
-                onCTextChanged: requestPaint()
-                onCMajorChanged: requestPaint()
-                onCWarnChanged: requestPaint()
-                onCAccentChanged: requestPaint()
-                onVMinChanged: requestPaint()
-                onVMaxChanged: requestPaint()
-                onVWarnChanged: requestPaint()
-                onVShownChanged: requestPaint()
-                onWOnChanged: requestPaint()
-                onFaceStyleChanged: requestPaint()
-                onFamChanged: requestPaint()
-                onWidthChanged: requestPaint()
-
-                // 設定した開始角度から時計回りに描画。値表示は開始・終了角の間の空きへ置く。
-                property real startDegrees: root.startAngle
-                property real sweepDegrees: root.sweepAngle
-                readonly property real a0: (startDegrees - 90) * Math.PI / 180
-                readonly property real sweep: sweepDegrees * Math.PI / 180
-                onStartDegreesChanged: requestPaint()
-                onSweepDegreesChanged: requestPaint()
+                renderStrategy: Canvas.Cooperative
+                readonly property string key: [width, height, dial.cx, dial.cy, dial.R, root.minV, root.maxV, root.warnV,
+                                               root.warnOn, root.dialStyle, root.startAngle, root.endAngle,
+                                               Theme.panelBorder, Theme.textSecondary, Theme.textPrimary, Theme.error,
+                                               Theme.accent, Theme.fontFamily].join("|")
+                onKeyChanged: requestPaint()
 
                 function niceStep(range) {
                     const c = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100]
                     for (let i = 0; i < c.length; ++i) {
-                        if (range / c[i] <= 8) return c[i]
+                        if (range / c[i] <= 7) return c[i]
                     }
                     return 100
                 }
@@ -184,261 +288,323 @@ WidgetBase {
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
-                    const R = width / 2
-                    if (R <= 0) return
-                    const cx = R, cy = R
-                    const range = vMax - vMin
-                    const ang = (v) => a0 + sweep * Math.max(0, Math.min(1, (v - vMin) / range))
+                    const R = dial.R, cx = dial.cx, cy = dial.cy, sp = dial.spec
+                    if (R <= 1) return
+                    const a0 = dial.rad(root.startAngle), a1 = dial.rad(root.endAngle)
+                    const angV = (v) => dial.rad(dial.angOf(v))
+                    const warnFrom = Math.max(root.warnV, root.minV)
+                    const hasWarn = root.warnOn && root.warnV < root.maxV
 
-                    // 外周のトラックと警告ゾーン
-                    const tr = R * 0.9
-                    ctx.lineCap = "butt"
-                    ctx.lineWidth = R * 0.06
-                    ctx.strokeStyle = cTrack
+                    // 文字盤の帯(クラシックのみ。弧の形に沿った薄い面で、円が途中で切れないようにする)
+                    if (root.dialStyle === "classic") {
+                        ctx.lineCap = "round"
+                        ctx.lineWidth = R * 0.2
+                        ctx.strokeStyle = Theme.mix(Theme.panel, Theme.panelBorder, 0.35)
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * 0.82, a0, a1)
+                        ctx.stroke()
+                    }
+
+                    // 外周のトラック
+                    ctx.lineCap = root.dialStyle === "classic" ? "butt" : "round"
+                    ctx.lineWidth = R * sp.trackW
+                    ctx.strokeStyle = Theme.panelBorder
                     ctx.beginPath()
-                    ctx.arc(cx, cy, tr, a0, a0 + sweep)
+                    ctx.arc(cx, cy, R * sp.trackR, a0, a1)
                     ctx.stroke()
-                    if (faceStyle === "sport" && vShown > vMin) {
-                        ctx.strokeStyle = cAccent
-                        ctx.beginPath()
-                        ctx.arc(cx, cy, tr, a0, ang(vShown))
-                        ctx.stroke()
-                    }
-                    if (wOn && vWarn < vMax) {
-                        ctx.strokeStyle = cWarn
-                        ctx.beginPath()
-                        ctx.arc(cx, cy, tr, ang(Math.max(vWarn, vMin)), a0 + sweep)
-                        ctx.stroke()
+
+                    // 警告ゾーン
+                    if (hasWarn) {
+                        if (root.dialStyle === "classic") {
+                            // 目盛りの外側に赤い帯
+                            ctx.lineCap = "butt"
+                            ctx.lineWidth = R * 0.05
+                            ctx.strokeStyle = Theme.error
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * 0.89, angV(warnFrom), a1)
+                            ctx.stroke()
+                        } else {
+                            // トラックの警告側を赤く染める
+                            ctx.lineCap = "butt"
+                            ctx.lineWidth = R * sp.trackW
+                            ctx.strokeStyle = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * sp.trackR, angV(warnFrom), a1)
+                            ctx.stroke()
+                        }
                     }
 
-                    // 目盛り(大目盛りに数字、間に小目盛り 4 本)
+                    // 目盛り(大目盛りに数字。0 は強調)
+                    const range = root.maxV - root.minV
                     const step = niceStep(range)
-                    const dec = step >= 1 ? 0 : (step >= 0.1 ? 1 : 2)
-                    const subdivisions = faceStyle === "minimal" ? 2 : (faceStyle === "sport" ? 4 : 5)
-                    const minor = step / subdivisions
-                    const first = Math.ceil(vMin / minor - 1e-9)
-                    for (let n = first; n * minor <= vMax + 1e-9; ++n) {
+                    const dec = step >= 1 ? 0 : (Math.abs(step * 10 - Math.round(step * 10)) < 1e-6 ? 1 : 2)
+                    const minor = step / sp.sub
+                    const first = Math.ceil(root.minV / minor - 1e-9)
+                    ctx.lineCap = "butt"
+                    ctx.textAlign = "center"
+                    ctx.textBaseline = "middle"
+                    const px = Math.max(9, Math.round(R * sp.labelPx))
+                    for (let n = first; n * minor <= root.maxV + 1e-9; ++n) {
                         const v = n * minor
                         const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6
-                        const a = ang(v)
-                        const inner = R * (isMajor ? 0.72 : (faceStyle === "minimal" ? 0.8 : 0.78))
-                        const outer = R * (faceStyle === "minimal" ? 0.85 : 0.83)
-                        ctx.lineWidth = isMajor ? R * (faceStyle === "sport" ? 0.032 : 0.025)
-                                                : R * (faceStyle === "minimal" ? 0.008 : 0.012)
-                        ctx.strokeStyle = (wOn && v >= vWarn - 1e-9) ? cWarn : (isMajor ? cMajor : cText)
+                        const isZero = Math.abs(v) < 1e-9
+                        const inWarn = hasWarn && v >= root.warnV - 1e-9
+                        const a = angV(v)
+                        const inner = R * (isMajor ? sp.majorIn : sp.minorIn)
+                        const outer = R * sp.tickOut
+                        ctx.lineWidth = R * (isMajor ? sp.majorW : sp.minorW)
+                        ctx.strokeStyle = inWarn ? Theme.error
+                                                 : (isZero ? Theme.accent : (isMajor ? Theme.textPrimary : Theme.textSecondary))
                         ctx.beginPath()
                         ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
                         ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer)
                         ctx.stroke()
                         if (isMajor) {
-                            ctx.fillStyle = (wOn && v >= vWarn - 1e-9) ? cWarn : cText
-                            ctx.font = "bold " + Math.max(9, Math.round(R * (faceStyle === "minimal" ? 0.095 : 0.085))) + "px '" + fam + "'"
-                            ctx.textAlign = "center"
-                            ctx.textBaseline = "middle"
-                            const lr = R * (faceStyle === "sport" ? 0.58 : 0.6)
-                            ctx.fillText((Math.abs(v) < 1e-9 ? 0 : v).toFixed(dec), cx + Math.cos(a) * lr, cy + Math.sin(a) * lr)
+                            ctx.fillStyle = inWarn ? Theme.error : (isZero ? Theme.textPrimary : Theme.textSecondary)
+                            ctx.font = "bold " + px + "px '" + Theme.fontFamily + "'"
+                            ctx.fillText((isZero ? 0 : v).toFixed(dec),
+                                         cx + Math.cos(a) * R * sp.labelR, cy + Math.sin(a) * R * sp.labelR)
                         }
                     }
                 }
             }
 
-            // 針(中心に回転軸。値の変化はスムージング済みの shown に追従する)
+            // ---- 進捗リング(シンプル・スポーツ。0 から現在値まで。警告値より上は警告色) ----
+            Canvas {
+                id: progress
+                anchors.fill: parent
+                visible: dial.spec.progress
+                renderStrategy: Canvas.Cooperative
+                readonly property string key: !visible ? "" :
+                    [width, height, dial.R, root.shown.toFixed(3), root.minV, root.maxV, root.warnV, root.warnOn,
+                     root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.error].join("|")
+                onKeyChanged: if (visible) requestPaint()
+
+                onPaint: {
+                    const ctx = getContext("2d")
+                    ctx.reset()
+                    const R = dial.R, sp = dial.spec
+                    if (R <= 1) return
+                    const lo = Math.min(root.originV, root.shown), hi = Math.max(root.originV, root.shown)
+                    if (dial.angOf(hi) - dial.angOf(lo) < 0.2) return
+                    const seg = (from, to, color) => {
+                        if (to <= from) return
+                        ctx.strokeStyle = color
+                        ctx.beginPath()
+                        ctx.arc(dial.cx, dial.cy, R * sp.trackR, dial.rad(dial.angOf(from)), dial.rad(dial.angOf(to)))
+                        ctx.stroke()
+                    }
+                    ctx.lineCap = "butt"
+                    ctx.lineWidth = R * sp.trackW
+                    if (root.warnOn && root.warnV < hi) {
+                        seg(lo, Math.max(lo, root.warnV), Theme.accent)
+                        seg(Math.max(lo, root.warnV), hi, Theme.error)
+                    } else {
+                        seg(lo, hi, Theme.accent)
+                    }
+                }
+            }
+
+            // ---- 針(先細りの形。回転だけで値に追従し、形は大きさ・色が変わったときだけ描き直す) ----
             Item {
                 id: needle
-                x: dial.r
-                y: dial.r
+                x: dial.cx
+                y: dial.cy
                 width: 0
                 height: 0
-                rotation: root.startAngle + root.frac(root.shown) * root.sweepAngle
-                Rectangle {
+                rotation: dial.angOf(root.shown)
+
+                Canvas {
+                    id: needleShape
+                    readonly property real tip: dial.R * (root.dialStyle === "sport" ? 0.84 : 0.88)
+                    readonly property real tail: root.needleTail ? dial.R * 0.22 : 0
+                    readonly property real base: Math.max(4, dial.R * 0.07)
+                    readonly property color needleFill: root.warning ? Theme.error : root.needleColor
                     x: -width / 2
-                    y: -dial.r * 0.8
-                    width: Math.max(3, dial.r * 0.045)
-                    height: dial.r * (root.needleTail ? 0.92 : 0.8)
+                    y: -tip
+                    width: Math.ceil(base + 2)
+                    height: Math.ceil(tip + tail + 2)
+                    renderStrategy: Canvas.Cooperative
+                    readonly property string key: [width, height, tip, tail, base, needleFill].join("|")
+                    onKeyChanged: requestPaint()
+
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
+                        const c = width / 2
+                        const tipHalf = Math.max(0.75, base * 0.1)
+                        const baseHalf = base / 2
+                        const tailHalf = base * 0.32
+                        ctx.fillStyle = needleFill
+                        ctx.beginPath()
+                        ctx.moveTo(c - tipHalf, 0)
+                        ctx.lineTo(c + tipHalf, 0)
+                        ctx.lineTo(c + baseHalf, tip)
+                        if (tail > 0) {
+                            ctx.lineTo(c + tailHalf, tip + tail)
+                            ctx.lineTo(c - tailHalf, tip + tail)
+                        }
+                        ctx.lineTo(c - baseHalf, tip)
+                        ctx.closePath()
+                        ctx.fill()
+                    }
+                }
+            }
+
+            // ---- 中心円 ----
+            Rectangle {
+                x: dial.cx - width / 2
+                y: dial.cy - height / 2
+                width: dial.R * root.hubSize
+                height: width
+                radius: width / 2
+                color: root.hubColor
+                border.width: Math.max(1, dial.R * 0.02)
+                border.color: root.warning ? Theme.error : Theme.panelBorder
+                Rectangle {   // 針の色の芯
+                    anchors.centerIn: parent
+                    width: parent.width * 0.32
+                    height: width
                     radius: width / 2
                     color: root.warning ? Theme.error : root.needleColor
                 }
             }
-            Rectangle {   // 針の軸
-                anchors.centerIn: parent
-                width: dial.r * root.hubSize
-                height: width
-                radius: width / 2
-                color: root.hubColor
-                border.width: Math.max(1, dial.r * 0.025)
-                border.color: root.warning ? Theme.error : Theme.panelBorder
-            }
 
-            // ゲージの見出しは針の中心より少し上に重ねて表示する。
-            Row {
-                id: dialTitle
-                visible: root.titleVisible
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: dial.r * 0.57
-                width: Math.min(dial.width * 0.74, 260)
-                height: Math.max(18, dial.r * 0.16)
-                spacing: Math.max(4, dial.r * 0.04)
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.radius
-                    color: Theme.panel
-                    opacity: 0.92
-                    border.color: Theme.panelBorder
-                }
-                MaterialIcon {
-                    visible: root.showIcon
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: root.warning ? "warning" : "speed"
-                    size: Math.min(parent.height * 0.8, dial.r * 0.14)
-                    color: root.warning ? Theme.error : Theme.accent
-                    opacity: root.warning ? root.blink : 1
-                }
-                Text {
-                    width: Math.max(0, dialTitle.width - (root.showIcon ? dialTitle.height * 0.8 + dialTitle.spacing : 0))
-                    height: parent.height
-                    anchors.verticalCenter: parent.verticalCenter
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(10, Math.min(root.headerFontSize, dial.r * 0.13))
-                    font.bold: true
-                    color: Theme.textPrimary
-                    text: root.titleText("ブースト")
-                    elide: Text.ElideRight
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
-
-            // デジタル表示(アナログ+デジタルのときだけ。針軸から離して外側へ配置)
+            // ---- デジタル表示(アナログ+デジタル) ----
             Column {
                 visible: root.style === "both"
-                readonly property real gapAngle: (root.endAngle - 90 + (360 - root.sweepAngle) / 2) * Math.PI / 180
-                readonly property real gapRadius: dial.r * 0.72
-                readonly property bool horizontalGap: Math.abs(Math.cos(gapAngle)) > Math.abs(Math.sin(gapAngle))
-                readonly property real hubClearance: dial.r * root.hubSize / 2 + dial.r * 0.06
-                width: horizontalGap ? dial.r * 0.73 : Math.min(dial.width * 0.82, dial.r * 1.6)
-                height: dial.r * 0.46
-                x: root.autoLabelPosition
-                   ? (horizontalGap && Math.cos(gapAngle) > 0
-                      ? Math.max(0, Math.min(dial.width - width - dial.r * 0.05,
-                                             Math.max(dial.r + hubClearance, dial.r + Math.cos(gapAngle) * gapRadius - width / 2)))
-                      : (horizontalGap ? Math.max(0, Math.min(dial.width - width - dial.r * 0.05,
-                                                              Math.min(dial.r - hubClearance - width,
-                                                                       dial.r + Math.cos(gapAngle) * gapRadius - width / 2)))
-                         : Math.max(0, Math.min(dial.width - width - dial.r * 0.05, dial.r + Math.cos(gapAngle) * gapRadius - width / 2))))
-                   : (dial.width - width) / 2
-                y: root.autoLabelPosition
-                   ? (!horizontalGap && Math.sin(gapAngle) > 0
-                      ? Math.min(dial.height - height - dial.r * 0.05,
-                                 Math.max(dial.r + hubClearance, dial.r + Math.sin(gapAngle) * gapRadius - height / 2))
-                      : (!horizontalGap ? Math.max(0, Math.min(dial.r - hubClearance - height,
-                                                               dial.r + Math.sin(gapAngle) * gapRadius - height / 2))
-                         : Math.max(0, Math.min(dial.height - height - dial.r * 0.05,
-                                                dial.r + Math.sin(gapAngle) * gapRadius - height / 2))))
-                   : dial.r + dial.r * 0.4
-                spacing: 0
+                x: dial.cx + dial.readout.x * dial.R
+                y: dial.cy + dial.readout.y * dial.R
+                width: dial.readout.w * dial.R
+                height: dial.readout.h * dial.R
                 Text {
                     width: parent.width
-                    height: dial.r * 0.34
+                    height: parent.height * 0.72
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.bold: true
                     font.pixelSize: 300
-                    minimumPixelSize: 14
+                    minimumPixelSize: 12
                     fontSizeMode: Text.Fit
-                    text: root.shown.toFixed(root.decimals)
+                    text: root.fmt(root.shown, root.decimals)
                     color: root.valueColor
                 }
                 Text {
                     width: parent.width
-                    height: dial.r * 0.12
+                    height: parent.height * 0.28
                     horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                    verticalAlignment: Text.AlignTop
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(9, dial.r * 0.11)
+                    font.pixelSize: Math.max(9, dial.R * 0.09)
                     text: root.unitText
                     color: Theme.textSecondary
                 }
+            }
+
+            // ---- 単位(アナログのみ) ----
+            Text {
+                visible: root.style === "analog"
+                x: dial.cx - width / 2
+                y: dial.cy + dial.unitY * dial.R - height / 2
+                font.family: Theme.fontFamily
+                font.pixelSize: Math.max(9, dial.R * 0.09)
+                text: root.unitText
+                color: Theme.textSecondary
             }
         }
 
-        // ===== デジタルのみ: 大きな数字と横バー =====
+        // ============================================================ デジタルのみ: 大きな数字と横バー
         Item {
+            id: digital
             visible: root.style === "digital"
             anchors.fill: parent
 
-            Row {
-                visible: root.titleVisible
-                anchors { horizontalCenter: parent.horizontalCenter; top: parent.top }
-                width: Math.min(parent.width * 0.8, 260)
-                height: Math.max(20, root.s * 0.11)
-                spacing: 8
-                MaterialIcon {
-                    visible: root.showIcon
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: root.warning ? "warning" : "speed"
-                    size: parent.height
-                    color: root.warning ? Theme.error : Theme.accent
-                    opacity: root.warning ? root.blink : 1
-                }
-                Text {
-                    width: Math.max(0, parent.width - (root.showIcon ? parent.height + parent.spacing : 0))
-                    height: parent.height
-                    anchors.verticalCenter: parent.verticalCenter
-                    font.family: Theme.fontFamily
-                    font.pixelSize: root.headerFontSize
-                    font.bold: true
-                    text: root.titleText("ブースト")
-                    color: Theme.textSecondary
-                    elide: Text.ElideRight
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
+            readonly property real barH: Math.max(8, root.s * 0.045)
+            readonly property real scaleH: Math.round(root.titleFontSize * 0.8) + 4
 
-            Column {
-                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                anchors.verticalCenterOffset: root.titleVisible ? parent.height * 0.1 : 0
-                spacing: root.m * 0.4
+            // 数値 + 単位(数値の右下に単位)
+            Item {
+                id: valueBox
+                anchors { top: parent.top; left: parent.left; right: parent.right; bottom: barBox.top
+                          bottomMargin: root.m * 0.5 }
                 Text {
-                    width: parent.width
-                    height: Math.max(30, bodyBox.height * 0.45)
-                    horizontalAlignment: Text.AlignHCenter
+                    id: valueText
+                    anchors { left: parent.left; right: unitLabel.left; top: parent.top; bottom: parent.bottom
+                              rightMargin: 6 }
+                    horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.bold: true
                     font.pixelSize: 300
                     minimumPixelSize: 14
                     fontSizeMode: Text.Fit
-                    text: root.shown.toFixed(root.decimals)
+                    text: root.fmt(root.shown, root.decimals)
                     color: root.valueColor
                 }
                 Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
+                    id: unitLabel
+                    anchors { right: parent.right; baseline: valueText.baseline }
+                    width: Math.max(implicitWidth, parent.width * 0.18)
                     font.family: Theme.fontFamily
-                    font.pixelSize: root.detailFontSize
+                    font.pixelSize: Math.max(12, Math.min(valueBox.height * 0.22, 28))
                     text: root.unitText
                     color: Theme.textSecondary
                 }
-                Item {   // 横バー(警告ゾーンつき)
-                    width: parent.width - root.m
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    height: Math.max(10, root.s * 0.05)
+            }
+
+            // 横バー(0 から現在値まで塗る。警告ゾーン・0 の目印つき)と、両端の値
+            Item {
+                id: barBox
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: digital.barH + digital.scaleH + 4
+
+                Item {
+                    id: bar
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                    height: digital.barH
+                    readonly property real originX: width * root.frac(root.originV)
+                    readonly property real valueX: width * root.frac(root.shown)
+
                     Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.panelBorder }
-                    Rectangle {
-                        visible: root.warnOn
-                        x: parent.width * root.frac(root.warnV)
-                        width: parent.width - x
+                    Rectangle {   // 警告ゾーン
+                        visible: root.warnOn && root.warnV < root.maxV
+                        x: bar.width * root.frac(root.warnV)
+                        width: bar.width - x
                         height: parent.height
                         radius: height / 2
-                        color: Theme.error
-                        opacity: 0.55
+                        color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.4)
                     }
-                    Rectangle {
-                        width: Math.max(parent.height, parent.width * root.frac(root.shown))
+                    Rectangle {   // 現在値
+                        x: Math.min(bar.originX, bar.valueX)
+                        width: Math.max(2, Math.abs(bar.valueX - bar.originX))
                         height: parent.height
                         radius: height / 2
                         color: root.warning ? Theme.error : Theme.accent
                     }
+                    Rectangle {   // 0 の目印
+                        visible: root.originV > root.minV && root.originV < root.maxV
+                        x: bar.originX - width / 2
+                        y: -2
+                        width: 2
+                        height: parent.height + 4
+                        color: Theme.textPrimary
+                        opacity: 0.6
+                    }
+                }
+                Text {
+                    anchors { left: parent.left; top: bar.bottom; topMargin: 4 }
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Math.round(root.titleFontSize * 0.8)
+                    color: Theme.textSecondary
+                    text: root.fmt(root.minV, root.usePsi ? 0 : 1)
+                }
+                Text {
+                    anchors { right: parent.right; top: bar.bottom; topMargin: 4 }
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Math.round(root.titleFontSize * 0.8)
+                    color: root.warnOn ? Theme.error : Theme.textSecondary
+                    text: root.fmt(root.maxV, root.usePsi ? 0 : 1)
                 }
             }
         }

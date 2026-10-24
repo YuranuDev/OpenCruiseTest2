@@ -38,7 +38,7 @@ WidgetBase {
         visible: root.titleVisible
         anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
         spacing: 8
-        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        height: root.titleVisible ? root.titleBarHeight : 0
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
             name: root.low ? "battery_alert" : "smartphone"

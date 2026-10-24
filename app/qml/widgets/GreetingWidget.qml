@@ -20,7 +20,7 @@ WidgetBase {
         visible: root.titleVisible
         anchors { top: parent.top; left: parent.left; leftMargin: Math.max(14, Math.min(28, root.s * 0.3)); topMargin: root.titleVisible ? 8 : 0 }
         spacing: 8
-        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        height: root.titleVisible ? root.titleBarHeight : 0
         MaterialIcon { anchors.verticalCenter: parent.verticalCenter; name: "waving_hand"; size: parent.height; color: Theme.accent }
         Text {
             width: Math.max(0, root.width - 2 * Math.max(14, Math.min(28, root.s * 0.3)) - parent.height - parent.spacing)

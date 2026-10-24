@@ -59,7 +59,7 @@ WidgetBase {
         anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
         width: Math.max(0, root.width - root.m * 2 - (mockBadge.visible ? mockBadge.width + root.m : 0))
         spacing: 8
-        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        height: root.titleVisible ? root.titleBarHeight : 0
         clip: true
         MaterialIcon {
             id: headerIcon

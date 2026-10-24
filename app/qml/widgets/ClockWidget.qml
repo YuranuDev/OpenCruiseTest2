@@ -15,7 +15,7 @@ WidgetBase {
         visible: root.titleVisible
         anchors { top: parent.top; left: parent.left; leftMargin: root.m; topMargin: root.titleVisible ? root.m * 0.8 : 0 }
         spacing: 8
-        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        height: root.titleVisible ? root.titleBarHeight : 0
         MaterialIcon { anchors.verticalCenter: parent.verticalCenter; name: "schedule"; size: parent.height; color: Theme.accent }
         Text {
             width: Math.max(0, root.width - root.m * 2 - parent.height - parent.spacing)

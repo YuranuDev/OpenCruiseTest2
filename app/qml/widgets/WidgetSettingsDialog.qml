@@ -1,5 +1,6 @@
 // ウィジェットの設定ダイアログ。ウィジェットをダブルタップすると開く(設定画面を持つウィジェットだけ)。
-// 中身は、種類ごとの設定画面(WidgetRegistry の settings)+ 全ウィジェット共通の「サイズ」「削除」。
+// 中身は、種類ごとの設定画面(WidgetRegistry の settings)+ 全ウィジェット共通の「タイトル」「サイズ」「削除」。
+// 左に設定、右にプレビュー(実際の配置と同じ大きさ・設定のウィジェットを縮小表示)を並べる。
 // 設定は変更のたびに WidgetArea へ反映・保存される(「完了」で閉じるだけ)。
 import QtQuick
 import OpenCruise
@@ -18,8 +19,15 @@ Item {
     readonly property var cfg: { if (area) area.revision; return area ? area.configOf(wid) : ({}) }
     readonly property var size: { if (area) area.revision; return area ? area.sizeOf(wid) : ({ w: 1, h: 1 }) }
 
+    // 設定部分の表示倍率(部品は車載向けに大きいので、プレビューを並べるため少し縮める。タッチ領域も同じ比率で縮む)
+    readonly property real contentScale: 0.84
+
     function show(id) { wid = id; open = true }
-    function close() { open = false }
+    function close() {
+        // 入力中のテキスト欄からフォーカスを外し、確定(editingFinished)させてから閉じる
+        panel.forceActiveFocus()
+        open = false
+    }
 
     visible: scrim.opacity > 0
 
@@ -35,8 +43,8 @@ Item {
     Rectangle {
         id: panel
         anchors.centerIn: parent
-        width: Math.min(parent.width - 2 * Theme.margin, 820 * root.unit)
-        height: Math.min(parent.height - 2 * Theme.margin, 700 * root.unit)
+        width: Math.min(parent.width - 2 * Theme.margin, 1220 * root.unit)
+        height: Math.min(parent.height - 2 * Theme.margin, 660 * root.unit)
         radius: Theme.radius + 8
         color: Theme.panel
         border.color: Theme.panelBorder
@@ -52,21 +60,21 @@ Item {
             id: titleBar
             anchors { top: parent.top; left: parent.left; right: parent.right
                       leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
-            height: 84 * root.unit
+            height: 72 * root.unit
             Row {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 14 * root.unit
                 MaterialIcon {
                     anchors.verticalCenter: parent.verticalCenter
                     name: root.def ? root.def.icon : "widgets"
-                    size: 40 * root.unit
+                    size: 34 * root.unit
                     color: Theme.accent
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
                     font.bold: true
-                    font.pixelSize: 30 * root.unit
+                    font.pixelSize: 26 * root.unit
                     color: Theme.textPrimary
                     text: root.def ? root.def.name + " の設定" : "ウィジェットの設定"
                 }
@@ -78,20 +86,23 @@ Item {
             }
         }
 
-        // ---- 設定の中身 ----
+        // ---- 設定の中身(左) ----
         Flickable {
             id: flick
-            anchors { top: titleBar.bottom; bottom: footer.top; left: parent.left; right: parent.right
-                      leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
+            anchors { top: titleBar.bottom; bottom: footer.top; left: parent.left; right: divider.left
+                      leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin }
             clip: true
             contentWidth: width
-            contentHeight: col.height
+            contentHeight: col.height * root.contentScale
             boundsBehavior: Flickable.StopAtBounds
             interactive: contentHeight > height
 
             Column {
                 id: col
-                width: flick.width
+                // 縮小表示ぶん広く組んでから、左上を基準に縮める
+                width: flick.width / root.contentScale
+                scale: root.contentScale
+                transformOrigin: Item.TopLeft
 
                 Loader {
                     id: settingsLoader
@@ -152,12 +163,89 @@ Item {
             }
         }
 
+        // ---- 区切り線 ----
+        Rectangle {
+            id: divider
+            anchors { top: titleBar.bottom; bottom: footer.top; right: preview.left
+                      topMargin: Theme.margin; bottomMargin: Theme.margin; rightMargin: Theme.margin }
+            width: 1
+            color: Theme.panelBorder
+        }
+
+        // ---- プレビュー(右) ----
+        Item {
+            id: preview
+            anchors { top: titleBar.bottom; bottom: footer.top; right: parent.right
+                      topMargin: Theme.margin; bottomMargin: Theme.margin; rightMargin: Theme.margin * 1.5 }
+            width: Math.round(panel.width * 0.4)
+
+            // ホーム画面上での実際の大きさ(px)。この大きさで作ってから、枠に収まるよう縮小する
+            readonly property real natW: root.area ? Math.max(1, root.area.cellW * root.size.w - 2 * root.area.pad) : 1
+            readonly property real natH: root.area ? Math.max(1, root.area.cellH * root.size.h - 2 * root.area.pad) : 1
+
+            Item {
+                id: previewHead
+                anchors { top: parent.top; left: parent.left; right: parent.right }
+                height: 36 * root.unit
+                Text {
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 20 * root.unit
+                    font.bold: true
+                    color: Theme.textSecondary
+                    text: "プレビュー"
+                }
+                Text {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 18 * root.unit
+                    color: Theme.textSecondary
+                    text: root.size.w + " × " + root.size.h + " マス"
+                }
+            }
+
+            Rectangle {
+                id: stage
+                anchors { top: previewHead.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
+                          topMargin: 8 * root.unit }
+                radius: Theme.radius + 6
+                color: Theme.background
+                border.color: Theme.panelBorder
+                clip: true
+
+                Item {
+                    id: previewBox
+                    readonly property real inner: 20 * root.unit
+                    readonly property real fit: Math.min(1, (stage.width - 2 * inner) / preview.natW,
+                                                            (stage.height - 2 * inner) / preview.natH)
+                    width: preview.natW
+                    height: preview.natH
+                    anchors.centerIn: parent
+                    scale: Math.max(0.05, fit)
+
+                    Loader {
+                        id: previewLoader
+                        anchors.fill: parent
+                        // 開いている間(閉じるアニメーション中も含む)だけ作る
+                        active: root.visible && root.def !== null
+                        sourceComponent: root.def ? root.def.component : null
+                    }
+                    Binding { target: previewLoader.item; property: "config"; value: root.cfg; when: previewLoader.item !== null }
+                    Binding { target: previewLoader.item; property: "gridW"; value: root.size.w; when: previewLoader.item !== null }
+                    Binding { target: previewLoader.item; property: "gridH"; value: root.size.h; when: previewLoader.item !== null }
+                }
+
+                // プレビューは見るだけ(タップ・ドラッグを受けない)
+                MouseArea { anchors.fill: parent }
+            }
+        }
+
         // ---- 下段 ----
         Item {
             id: footer
             anchors { bottom: parent.bottom; left: parent.left; right: parent.right
                       leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
-            height: 96 * root.unit
+            height: 84 * root.unit
             Rectangle {
                 anchors { left: parent.left; right: parent.right; top: parent.top }
                 height: 1

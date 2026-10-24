@@ -103,7 +103,7 @@ WidgetBase {
         anchors { top: parent.top; left: parent.left; right: parent.right
                   topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m; rightMargin: root.m }
         spacing: 8
-        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        height: root.titleVisible ? root.titleBarHeight : 0
 
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter

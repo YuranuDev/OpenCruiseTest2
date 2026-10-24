@@ -29,7 +29,7 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "メーターの種類"
-        description: "スポーツは進捗リング、シンプルは目盛りを減らした表示です"
+        description: "クラシックは目盛りと警告帯、シンプルは細いリング、スポーツは太い進捗リングです"
         SettingsChoice {
             model: ["クラシック", "シンプル", "スポーツ"]
             currentIndex: root.config.dialStyle === "minimal" ? 1 : (root.config.dialStyle === "sport" ? 2 : 0)
