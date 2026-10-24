@@ -244,12 +244,13 @@ WidgetBase {
             }
 
             // ---- 実寸(px) ----
-            readonly property real R: Math.max(1, Math.min(body.width / (bounds.maxX - bounds.minX),
-                                                           body.height / (bounds.maxY - bounds.minY)))
-            readonly property real cx: -bounds.minX * R
-            readonly property real cy: -bounds.minY * R
-            width: (bounds.maxX - bounds.minX) * R
-            height: (bounds.maxY - bounds.minY) * R
+            // 半径(px)。QML のプロパティ名は小文字始まりが必須なので rpx とする
+            readonly property real rpx: Math.max(1, Math.min(body.width / (bounds.maxX - bounds.minX),
+                                                             body.height / (bounds.maxY - bounds.minY)))
+            readonly property real cx: -bounds.minX * rpx
+            readonly property real cy: -bounds.minY * rpx
+            width: (bounds.maxX - bounds.minX) * rpx
+            height: (bounds.maxY - bounds.minY) * rpx
             anchors.centerIn: parent
 
             // メーターの種類ごとの寸法(R に対する比)
@@ -271,7 +272,7 @@ WidgetBase {
                 id: face
                 anchors.fill: parent
                 renderStrategy: Canvas.Cooperative
-                readonly property string key: [width, height, dial.cx, dial.cy, dial.R, root.minV, root.maxV, root.warnV,
+                readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
                                                root.warnOn, root.dialStyle, root.startAngle, root.endAngle,
                                                Theme.panelBorder, Theme.textSecondary, Theme.textPrimary, Theme.error,
                                                Theme.accent, Theme.fontFamily].join("|")
@@ -288,7 +289,7 @@ WidgetBase {
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
-                    const R = dial.R, cx = dial.cx, cy = dial.cy, sp = dial.spec
+                    const R = dial.rpx, cx = dial.cx, cy = dial.cy, sp = dial.spec
                     if (R <= 1) return
                     const a0 = dial.rad(root.startAngle), a1 = dial.rad(root.endAngle)
                     const angV = (v) => dial.rad(dial.angOf(v))
@@ -376,14 +377,14 @@ WidgetBase {
                 visible: dial.spec.progress
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: !visible ? "" :
-                    [width, height, dial.R, root.shown.toFixed(3), root.minV, root.maxV, root.warnV, root.warnOn,
+                    [width, height, dial.rpx, root.shown.toFixed(3), root.minV, root.maxV, root.warnV, root.warnOn,
                      root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.error].join("|")
                 onKeyChanged: if (visible) requestPaint()
 
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
-                    const R = dial.R, sp = dial.spec
+                    const R = dial.rpx, sp = dial.spec
                     if (R <= 1) return
                     const lo = Math.min(root.originV, root.shown), hi = Math.max(root.originV, root.shown)
                     if (dial.angOf(hi) - dial.angOf(lo) < 0.2) return
@@ -416,9 +417,9 @@ WidgetBase {
 
                 Canvas {
                     id: needleShape
-                    readonly property real tip: dial.R * (root.dialStyle === "sport" ? 0.84 : 0.88)
-                    readonly property real tail: root.needleTail ? dial.R * 0.22 : 0
-                    readonly property real base: Math.max(4, dial.R * 0.07)
+                    readonly property real tip: dial.rpx * (root.dialStyle === "sport" ? 0.84 : 0.88)
+                    readonly property real tail: root.needleTail ? dial.rpx * 0.22 : 0
+                    readonly property real base: Math.max(4, dial.rpx * 0.07)
                     readonly property color needleFill: root.warning ? Theme.error : root.needleColor
                     x: -width / 2
                     y: -tip
@@ -455,11 +456,11 @@ WidgetBase {
             Rectangle {
                 x: dial.cx - width / 2
                 y: dial.cy - height / 2
-                width: dial.R * root.hubSize
+                width: dial.rpx * root.hubSize
                 height: width
                 radius: width / 2
                 color: root.hubColor
-                border.width: Math.max(1, dial.R * 0.02)
+                border.width: Math.max(1, dial.rpx * 0.02)
                 border.color: root.warning ? Theme.error : Theme.panelBorder
                 Rectangle {   // 針の色の芯
                     anchors.centerIn: parent
@@ -473,10 +474,10 @@ WidgetBase {
             // ---- デジタル表示(アナログ+デジタル) ----
             Column {
                 visible: root.style === "both"
-                x: dial.cx + dial.readout.x * dial.R
-                y: dial.cy + dial.readout.y * dial.R
-                width: dial.readout.w * dial.R
-                height: dial.readout.h * dial.R
+                x: dial.cx + dial.readout.x * dial.rpx
+                y: dial.cy + dial.readout.y * dial.rpx
+                width: dial.readout.w * dial.rpx
+                height: dial.readout.h * dial.rpx
                 Text {
                     width: parent.width
                     height: parent.height * 0.72
@@ -496,7 +497,7 @@ WidgetBase {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignTop
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(9, dial.R * 0.09)
+                    font.pixelSize: Math.max(9, dial.rpx * 0.09)
                     text: root.unitText
                     color: Theme.textSecondary
                 }
@@ -506,9 +507,9 @@ WidgetBase {
             Text {
                 visible: root.style === "analog"
                 x: dial.cx - width / 2
-                y: dial.cy + dial.unitY * dial.R - height / 2
+                y: dial.cy + dial.unitY * dial.rpx - height / 2
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(9, dial.R * 0.09)
+                font.pixelSize: Math.max(9, dial.rpx * 0.09)
                 text: root.unitText
                 color: Theme.textSecondary
             }
