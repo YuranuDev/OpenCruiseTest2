@@ -141,8 +141,8 @@ qt_add_qml_module(opencruise
         qml/widgets/NavigationSettings.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
-        sounds/Click.wav
-        sounds/Start.wav)
+        sounds/click/Click.wav
+        sounds/start/Start.wav)
 
 target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -172,3 +172,15 @@ foreach(font_dir IN LISTS OPENCRUISE_BUNDLED_FONT_DIRS)
     install(DIRECTORY fonts/${font_dir} DESTINATION share/opencruise/fonts)
 endforeach()
 install(FILES fonts/README-FONTS.md DESTINATION share/opencruise/fonts)
+
+# ---------------------------------------------------------------------------
+# 効果音(カテゴリごとのフォルダ: sounds/click = 操作音、sounds/start = 起動音。WAV のみ)。
+# 実行ファイルの隣の sounds/ へコピーし、設定「サウンド」の一覧に出す(SystemSound が読む)。
+# 既定の Click.wav / Start.wav は、フォルダが無い環境でも鳴らせるようリソースにも埋め込む(上の RESOURCES)。
+# ---------------------------------------------------------------------------
+add_custom_command(TARGET opencruise POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/sounds
+        $<TARGET_FILE_DIR:opencruise>/sounds
+    COMMENT "効果音をコピー")
+install(DIRECTORY sounds/ DESTINATION share/opencruise/sounds)

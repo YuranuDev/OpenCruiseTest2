@@ -1,14 +1,20 @@
 /**
  * @file SystemSound.cpp
- * @brief SystemSound の実装(同梱 WAV の読み込みと再生)。
+ * @brief SystemSound の実装(効果音フォルダの一覧・選択・再生)。
  */
 #include "SystemSound.h"
 
+#include <QCoreApplication>
+#include <QDir>
 #include <QEvent>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QMouseEvent>
+#include <QSettings>
+#include <QStandardPaths>
 #include <QTouchEvent>
 #include <QUrl>
+#include <QVariantMap>
 
 #include "AudioSettings.h"
 #include "Log.h"
@@ -17,12 +23,44 @@ namespace opencruise {
 
 namespace {
 constexpr qint64 kClickMinIntervalMs = 70; ///< 操作音を連打したときの最短間隔
+
+const QString kNone = QStringLiteral("none");
+const QString kBuiltinPrefix = QStringLiteral("builtin:");
+const QString kUserPrefix = QStringLiteral("user:");
+
+QSettings openStore() {
+    return QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                     QStringLiteral("OpenCruise"));
+}
+
+/// カテゴリの既定の音(同梱フォルダのファイル名)と、同梱フォルダが無いときに使うリソースの音
+QString defaultFile(const QString &category) {
+    return category == QStringLiteral("start") ? QStringLiteral("Start.wav") : QStringLiteral("Click.wav");
+}
+QString fallbackResource(const QString &category) {
+    return QStringLiteral("qrc:/OpenCruise/sounds/%1/%2").arg(category, defaultFile(category));
+}
+bool isCategory(const QString &category) {
+    return category == QStringLiteral("click") || category == QStringLiteral("start");
+}
 } // namespace
 
 SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
-    : QObject(parent), settings_(settings), click_(this), start_(this) {
-    setupEffect(click_, clickPending_, QStringLiteral("qrc:/OpenCruise/sounds/Click.wav"));
-    setupEffect(start_, startPending_, QStringLiteral("qrc:/OpenCruise/sounds/Start.wav"));
+    : QObject(parent), settings_(settings), click_(this), start_(this), preview_(this) {
+    setupEffect(click_, clickPending_);
+    setupEffect(start_, startPending_);
+    setupEffect(preview_, previewPending_);
+
+    // ユーザーフォルダ(カテゴリごと)を作っておく。ここへ WAV を置くと一覧に出る
+    for (const QString &category : {QStringLiteral("click"), QStringLiteral("start")}) {
+        QDir().mkpath(userSoundDirectory() + QLatin1Char('/') + category);
+    }
+    log::info("AUDIO", QStringLiteral("効果音フォルダ: 同梱=%1 / ユーザー=%2")
+                           .arg(builtinSoundDirectory().isEmpty() ? QStringLiteral("(見つかりません)") : builtinSoundDirectory(),
+                                userSoundDirectory()));
+    loadCategory(QStringLiteral("click"));
+    loadCategory(QStringLiteral("start"));
+
     sinceClick_.start();
     if (auto *app = QGuiApplication::instance()) {
         app->installEventFilter(this); // パネルへの触れ/離れを監視する
@@ -40,11 +78,133 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
     applySettings();
 }
 
-void SystemSound::setupEffect(QSoundEffect &effect, bool &pending, const QString &resourcePath) {
-    effect.setSource(QUrl(resourcePath));
-    connect(&effect, &QSoundEffect::statusChanged, this, [this, &effect, &pending, resourcePath]() {
+QString SystemSound::userSoundDirectory() const {
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/OpenCruise/sounds");
+}
+
+QString SystemSound::builtinSoundDirectory() const {
+    const QString appDir = QCoreApplication::applicationDirPath();
+    for (const QString &dir : {appDir + QStringLiteral("/sounds"),
+                               QDir::cleanPath(appDir + QStringLiteral("/../share/opencruise/sounds"))}) {
+        if (QFileInfo(dir).isDir()) {
+            return dir;
+        }
+    }
+    return {};
+}
+
+QStringList SystemSound::wavFiles(const QString &directory) {
+    if (directory.isEmpty()) {
+        return {};
+    }
+    return QDir(directory).entryList({QStringLiteral("*.wav"), QStringLiteral("*.WAV")}, QDir::Files | QDir::Readable,
+                                     QDir::Name | QDir::IgnoreCase);
+}
+
+QVariantList SystemSound::soundOptions(const QString &category) const {
+    QVariantList list;
+    list.append(QVariantMap{{QStringLiteral("id"), kNone}, {QStringLiteral("name"), QStringLiteral("なし(鳴らさない)")},
+                            {QStringLiteral("folder"), QString()}});
+    if (!isCategory(category)) {
+        return list;
+    }
+    const QString builtin = builtinSoundDirectory();
+    QStringList builtinFiles = wavFiles(builtin.isEmpty() ? QString() : builtin + QLatin1Char('/') + category);
+    if (builtinFiles.isEmpty()) {
+        builtinFiles << defaultFile(category); // 同梱フォルダが無くても、既定の音(リソース)は選べるようにする
+    }
+    for (const QString &file : builtinFiles) {
+        list.append(QVariantMap{{QStringLiteral("id"), kBuiltinPrefix + file},
+                                {QStringLiteral("name"), QFileInfo(file).completeBaseName()},
+                                {QStringLiteral("folder"), QStringLiteral("同梱")}});
+    }
+    for (const QString &file : wavFiles(userSoundDirectory() + QLatin1Char('/') + category)) {
+        list.append(QVariantMap{{QStringLiteral("id"), kUserPrefix + file},
+                                {QStringLiteral("name"), QFileInfo(file).completeBaseName()},
+                                {QStringLiteral("folder"), QStringLiteral("ユーザー")}});
+    }
+    return list;
+}
+
+QString SystemSound::selectedSound(const QString &category) const {
+    return openStore().value(QStringLiteral("sound/") + category, kBuiltinPrefix + defaultFile(category)).toString();
+}
+
+void SystemSound::setSelectedSound(const QString &category, const QString &id) {
+    if (!isCategory(category)) {
+        return;
+    }
+    openStore().setValue(QStringLiteral("sound/") + category, id);
+    loadCategory(category);
+    applySettings();
+    ++revision_;
+    emit soundsChanged();
+}
+
+QUrl SystemSound::urlFor(const QString &category, const QString &id) const {
+    if (id.startsWith(kBuiltinPrefix)) {
+        const QString file = id.mid(kBuiltinPrefix.size());
+        const QString builtin = builtinSoundDirectory();
+        const QString path = builtin + QLatin1Char('/') + category + QLatin1Char('/') + file;
+        if (!builtin.isEmpty() && QFileInfo::exists(path)) {
+            return QUrl::fromLocalFile(path);
+        }
+        if (file == defaultFile(category)) {
+            return QUrl(fallbackResource(category)); // 同梱フォルダが無い環境でも既定の音は鳴らす
+        }
+    } else if (id.startsWith(kUserPrefix)) {
+        const QString path = userSoundDirectory() + QLatin1Char('/') + category + QLatin1Char('/') + id.mid(kUserPrefix.size());
+        if (QFileInfo::exists(path)) {
+            return QUrl::fromLocalFile(path);
+        }
+    }
+    return {};
+}
+
+void SystemSound::loadCategory(const QString &category) {
+    const QString id = selectedSound(category);
+    const bool muted = id == kNone;
+    QUrl url = muted ? QUrl() : urlFor(category, id);
+    if (!muted && url.isEmpty()) {
+        // 選んでいたファイルが消えている: 既定の音に戻す(設定はそのまま。ファイルが戻れば次回から使う)
+        log::warn("AUDIO", QStringLiteral("効果音が見つかりません(%1: %2)。既定の音を使います").arg(category, id));
+        url = urlFor(category, kBuiltinPrefix + defaultFile(category));
+    }
+    QSoundEffect &effect = category == QStringLiteral("start") ? start_ : click_;
+    (category == QStringLiteral("start") ? startMuted_ : clickMuted_) = muted;
+    (category == QStringLiteral("start") ? startPending_ : clickPending_) = false;
+    if (effect.source() != url) {
+        effect.setSource(url);
+    }
+}
+
+void SystemSound::preview(const QString &category, const QString &id) {
+    if (id == kNone || !isCategory(category)) {
+        preview_.stop();
+        return;
+    }
+    const QUrl url = urlFor(category, id);
+    if (url.isEmpty()) {
+        return;
+    }
+    preview_.stop();
+    if (preview_.source() != url) {
+        preview_.setSource(url);
+    }
+    playEffect(preview_, previewPending_);
+}
+
+void SystemSound::rescan() {
+    loadCategory(QStringLiteral("click"));
+    loadCategory(QStringLiteral("start"));
+    ++revision_;
+    emit soundsChanged();
+}
+
+void SystemSound::setupEffect(QSoundEffect &effect, bool &pending) {
+    connect(&effect, &QSoundEffect::statusChanged, this, [&effect, &pending]() {
         if (effect.status() == QSoundEffect::Error) {
-            log::warn("AUDIO", QStringLiteral("システム音を読み込めません: ") + resourcePath);
+            log::warn("AUDIO", QStringLiteral("システム音を読み込めません: ") + effect.source().toString());
             pending = false;
         } else if (effect.status() == QSoundEffect::Ready && pending) {
             pending = false;
@@ -59,7 +219,7 @@ void SystemSound::applySettings() {
     }
     const float gain = static_cast<float>(settings_->gain(AudioSettings::System));
     const QAudioDevice device = settings_->device(AudioSettings::System);
-    for (QSoundEffect *effect : {&click_, &start_}) {
+    for (QSoundEffect *effect : {&click_, &start_, &preview_}) {
         effect->setVolume(gain);
         if (!device.isNull() && effect->audioDevice().id() != device.id()) {
             effect->setAudioDevice(device);
@@ -82,13 +242,15 @@ void SystemSound::playEffect(QSoundEffect &effect, bool &pending) {
 
 void SystemSound::play(const QString &name) {
     if (name == QStringLiteral("click")) {
-        if (sinceClick_.elapsed() < kClickMinIntervalMs) {
+        if (clickMuted_ || sinceClick_.elapsed() < kClickMinIntervalMs) {
             return;
         }
         sinceClick_.restart();
         playEffect(click_, clickPending_);
     } else if (name == QStringLiteral("start")) {
-        playEffect(start_, startPending_);
+        if (!startMuted_) {
+            playEffect(start_, startPending_);
+        }
     }
 }
 
