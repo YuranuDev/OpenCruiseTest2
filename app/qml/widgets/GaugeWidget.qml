@@ -6,7 +6,8 @@
 //  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) / スポーツ(セグメント式のバー)
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
-//  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
+//  - アイコン表示・警告値・警告メッセージ
+//  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。目盛りの数字などを省いて数値を大きくする(燃料計のように「この値以下で警告」の計測値もある)
 // 警告になると、針と数値が赤になり、メーター内の名前が警告アイコン+警告メッセージに変わって点滅する
 // (解除は警告値から少し戻ったとき)。
 //
@@ -124,6 +125,8 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 寸法
     readonly property real m: root.innerMargin
+    // 小型表示(短辺 2 マス以下、2×2 など)。目盛りの数字・小目盛り・名前の文字・両端の値を省き、数値を大きく見せる
+    readonly property bool compact: Math.min(gridW, gridH) <= 2
 
     // ---------------------------------------------------------------- メーター内の名前(上部の見出しの代わり)
     // アイコン+名前。警告中はアイコンが警告マークになり点滅する。警告メッセージは下の帯をメーターに重ねて出す
@@ -147,7 +150,7 @@ WidgetBase {
             id: mockText
             anchors.centerIn: parent
             font.family: Theme.fontFamily
-            font.pixelSize: Math.round(root.titleFontSize * 0.75)
+            font.pixelSize: Math.round(root.titleFontSize * (root.compact ? 0.65 : 0.75))
             text: "モック"
             color: Theme.warn
         }
@@ -166,7 +169,8 @@ WidgetBase {
             // ---- 半径 1 の円で考えた配置(中心が原点、0° が真上・時計回り) ----
             // 数値表示の枠。auto のときは弧の空き(開始と終了の間)の方向へ置き、中心円とは重ならないようにする
             readonly property var readout: {
-                const w = 0.72, h = 0.5   // 数値を大きく見せるため広めに取る
+                // 数値を大きく見せるため広めに取る(小型表示は目盛りの数字が無いので、さらに広げる)
+                const w = root.compact ? 0.84 : 0.72, h = root.compact ? 0.6 : 0.5
                 const hubClear = root.hubSize / 2 + 0.05
                 let cx = 0, cy = 0.52
                 if (root.autoLabelPosition) {
@@ -265,7 +269,7 @@ WidgetBase {
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
                                                root.warnOn, root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
-                                               root.endAngle, Theme.panel, Theme.panelBorder, Theme.textSecondary,
+                                               root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
                                                Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily].join("|")
                 onKeyChanged: requestPaint()
 
@@ -348,7 +352,7 @@ WidgetBase {
                     const step = niceStep(range / root.labelDiv, maxMajors) * root.labelDiv
                     const stepShown = step / root.labelDiv
                     const dec = stepShown >= 1 ? 0 : (Math.abs(stepShown * 10 - Math.round(stepShown * 10)) < 1e-6 ? 1 : 2)
-                    const minor = step / dm.sub
+                    const minor = root.compact ? step : step / dm.sub   // 小型表示は大目盛りだけ
                     const first = Math.ceil(root.minV / minor - 1e-9)
                     ctx.lineCap = "butt"
                     ctx.textAlign = "center"
@@ -368,7 +372,7 @@ WidgetBase {
                         ctx.moveTo(cx + Math.cos(a) * R * (isMajor ? dm.majorIn : dm.minorIn), cy + Math.sin(a) * R * (isMajor ? dm.majorIn : dm.minorIn))
                         ctx.lineTo(cx + Math.cos(a) * R * dm.tickOut, cy + Math.sin(a) * R * dm.tickOut)
                         ctx.stroke()
-                        if (isMajor) {
+                        if (isMajor && !root.compact) {
                             ctx.fillStyle = inWarn ? Theme.error : (isZero || root.dialStyle === "sport" ? Theme.textPrimary : Theme.textSecondary)
                             ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(dec),
                                          cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
@@ -487,7 +491,7 @@ WidgetBase {
             Row {
                 id: dialLabel
                 visible: root.labelVisible
-                readonly property real h: dial.rpx * 0.13
+                readonly property real h: dial.rpx * (root.compact ? 0.17 : 0.13)
                 readonly property real cyU: -Math.max(root.hubSize / 2 + 0.1, 0.32)   // 中心からの位置(半径比)
                 // 内側の細い円(半径 0.6)に収まる幅
                 readonly property real maxW: 2 * Math.sqrt(Math.max(0.01, 0.58 * 0.58 - cyU * cyU)) * dial.rpx
@@ -506,6 +510,7 @@ WidgetBase {
                     opacity: root.warning ? root.blink : 1
                 }
                 Text {
+                    visible: !root.compact || !root.showIcon   // 小型表示はアイコンだけ(アイコンを隠しているときは名前)
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.min(implicitWidth, dialLabel.maxW - (root.showIcon ? dialLabel.h + dialLabel.spacing : 0))
                     font.family: Theme.fontFamily
@@ -588,7 +593,7 @@ WidgetBase {
             anchors.fill: parent
 
             readonly property real barH: Math.max(8, root.s * 0.045)
-            readonly property real scaleH: Math.round(root.titleFontSize * 0.8) + 4
+            readonly property real scaleH: root.compact ? 0 : Math.round(root.titleFontSize * 0.8) + 4
 
             // 名前(警告中は警告メッセージ)
             Row {
@@ -608,6 +613,7 @@ WidgetBase {
                     opacity: root.warning ? root.blink : 1
                 }
                 Text {
+                    visible: !root.compact || !root.showIcon
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.max(0, digitalLabel.width - (root.showIcon ? digitalLabel.height + digitalLabel.spacing : 0))
                     font.family: Theme.fontFamily
@@ -690,6 +696,7 @@ WidgetBase {
                     }
                 }
                 Text {
+                    visible: !root.compact
                     anchors { left: parent.left; top: bar.bottom; topMargin: 4 }
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
@@ -697,6 +704,7 @@ WidgetBase {
                     text: root.fmt(root.minV, root.unitDef.stepDec)
                 }
                 Text {
+                    visible: !root.compact
                     anchors { right: parent.right; top: bar.bottom; topMargin: 4 }
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
@@ -717,7 +725,7 @@ WidgetBase {
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: root.m }
         width: Math.min(parent.width - 2 * root.m,
                         warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height)
-        height: Math.max(26, Math.round(root.s * 0.13))
+        height: root.compact ? Math.max(20, Math.round(root.s * 0.17)) : Math.max(26, Math.round(root.s * 0.13))
         radius: height / 2
         color: Theme.mix(Theme.panel, Theme.error, 0.22)
         border.width: 2
