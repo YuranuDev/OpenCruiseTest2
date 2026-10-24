@@ -58,6 +58,27 @@ ApplicationWindow {
         width: Math.min(480, window.width - Theme.margin * 2)
         x: Math.round((window.width - width) / 2)
         y: Math.round((window.height - height) / 2)
+        padding: Theme.margin * 1.5
+        topPadding: Theme.margin
+
+        // Basic スタイルの既定(白背景・黒文字)だと夜間配色で文字が読めないため、テーマの色で描く
+        background: Rectangle {
+            radius: Theme.radius + 8
+            color: Theme.panel
+            border.color: Theme.panelBorder
+        }
+        header: Text {
+            text: exitConfirmation.title
+            color: Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.bold: true
+            font.pixelSize: 24
+            leftPadding: Theme.margin * 1.5
+            rightPadding: Theme.margin * 1.5
+            topPadding: Theme.margin * 1.5
+        }
+        // 背後を暗くする幕(既定の色は配色に合わないので指定する)
+        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.55) }
 
         contentItem: Column {
             spacing: Theme.margin
