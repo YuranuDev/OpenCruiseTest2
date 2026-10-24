@@ -531,13 +531,6 @@ WidgetBase {
                 color: root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
                 border.color: root.warning ? Theme.error : (root.dialStyle === "sport" ? Theme.accent : Theme.panelBorder)
-                Rectangle {   // 針の色の芯
-                    anchors.centerIn: parent
-                    width: Math.min(parent.width * 0.32, dial.rpx * 0.06)
-                    height: width
-                    radius: width / 2
-                    color: root.warning ? Theme.error : root.needleColor
-                }
             }
 
             // ---- デジタル表示(アナログ+デジタル) ----
