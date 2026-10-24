@@ -172,7 +172,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "アイコンを表示"
-        description: "警告中はアイコンが警告マークに変わり、点滅します"
+        description: "メーター内の名前の横に出します。警告中は警告マークに変わり、点滅します"
         SettingsSwitch {
             checked: root.config.showIcon !== false
             onToggled: (v) => root.edit("showIcon", v)
@@ -203,7 +203,7 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.warnEnabled === true
         label: "警告メッセージ"
-        description: "警告中にメーターの下へ表示します"
+        description: "警告中にメーターへ重ねて表示します"
         stacked: true
         WSTextField {
             width: 520 * Theme.uiScale

@@ -7,10 +7,11 @@
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
 //  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
-// 警告になると、針と数値が赤になり、アイコンと警告メッセージが点滅する(解除は警告値から少し戻ったとき)。
+// 警告になると、針と数値が赤になり、メーター内の名前が警告アイコン+警告メッセージに変わって点滅する
+// (解除は警告値から少し戻ったとき)。
 //
 // レイアウトの考え方:
-//  1. 見出し(上)・警告欄(下、警告が有効なときだけ高さを確保)を除いた残りを本体とする
+//  1. 上部の見出し・下の警告欄は持たず、名前と警告メッセージはメーターの中(中心円の上)に出す
 //  2. アナログは「半径 1 の円」で、弧・中心円・数値表示が実際に占める範囲(外接矩形)を求め、
 //     その矩形が本体に最大で収まる半径を決める(弧の欠けている側の余白を無駄にしない)
 //  3. 目盛り(静的)・進捗(値に追従)・針は別々に描き、値が変わっても目盛りは描き直さない
@@ -124,39 +125,21 @@ WidgetBase {
     // ---------------------------------------------------------------- 寸法
     readonly property real m: root.innerMargin
 
-    // ================================================================ 見出し(他のウィジェットと同じ形・大きさ)
-    Row {
-        id: header
-        visible: root.titleVisible
-        anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
-        width: root.width - root.m * 2 - mockTag.width - 8
-        height: root.titleVisible ? root.titleBarHeight : 0
-        spacing: 8
-        MaterialIcon {
-            visible: root.showIcon
-            anchors.verticalCenter: parent.verticalCenter
-            name: root.warning ? "warning" : root.gauge.icon
-            size: parent.height
-            color: root.warning ? Theme.error : Theme.accent
-            opacity: root.warning ? root.blink : 1
-        }
-        Text {
-            width: Math.max(0, header.width - (root.showIcon ? header.height + header.spacing : 0))
-            anchors.verticalCenter: parent.verticalCenter
-            font.family: Theme.fontFamily
-            font.pixelSize: root.titleFontSize
-            color: Theme.textSecondary
-            text: root.titleText(root.gauge.title)
-            elide: Text.ElideRight
-        }
-    }
+    // ---------------------------------------------------------------- メーター内の名前(上部の見出しの代わり)
+    // アイコン+名前。警告中はアイコンが警告マークになり点滅する。警告メッセージは下の帯をメーターに重ねて出す
+    readonly property bool labelVisible: titleVisible
+    readonly property string labelIcon: warning ? "warning" : gauge.icon
+    readonly property string labelText: titleText(gauge.title)
+    readonly property color labelColor: warning ? Theme.error : Theme.textSecondary
+    readonly property real labelOpacity: 1
 
-    // モックデータ中の表示(見出しの右端。見出しを隠しているときも右上に出す)
+    // モックデータ中の表示(右上)
     Rectangle {
         id: mockTag
-        anchors { top: parent.top; right: parent.right; topMargin: root.m * 0.8; rightMargin: root.m }
+        z: 2
+        anchors { top: parent.top; right: parent.right; topMargin: root.m * 0.7; rightMargin: root.m }
         width: mockText.implicitWidth + 14
-        height: Math.max(mockText.implicitHeight + 4, root.titleVisible ? root.titleBarHeight * 0.85 : 0)
+        height: mockText.implicitHeight + 4
         radius: height / 2
         color: "transparent"
         border.color: Theme.warn
@@ -170,66 +153,10 @@ WidgetBase {
         }
     }
 
-    // ================================================================ 警告欄(警告が有効なときだけ高さを確保し、出入りで配置が動かない)
-    Item {
-        id: footer
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom
-                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.warnOn ? root.m * 0.7 : 0 }
-        height: root.warnOn ? Math.max(22, root.titleBarHeight) : 0
-        visible: root.warnOn
-
-        // 警告中: 点滅する帯
-        Rectangle {
-            anchors.fill: parent
-            radius: height / 2
-            color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.16)
-            border.color: Theme.error
-            opacity: root.blink
-            visible: root.warning
-        }
-        Row {
-            visible: root.warning
-            anchors.centerIn: parent
-            spacing: 6
-            MaterialIcon {
-                visible: root.showIcon
-                anchors.verticalCenter: parent.verticalCenter
-                name: "warning"
-                size: footer.height * 0.7
-                color: Theme.error
-                opacity: root.blink
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.min(implicitWidth, footer.width - 24 - (root.showIcon ? footer.height : 0))
-                font.family: Theme.fontFamily
-                font.bold: true
-                font.pixelSize: Math.round(root.titleFontSize * 0.9)
-                elide: Text.ElideRight
-                color: Theme.error
-                text: root.config.warnMessage || "警告"
-            }
-        }
-        // 平常時: 警告値の案内(控えめに)
-        Text {
-            visible: !root.warning
-            anchors.centerIn: parent
-            width: parent.width
-            horizontalAlignment: Text.AlignHCenter
-            font.family: Theme.fontFamily
-            font.pixelSize: Math.round(root.titleFontSize * 0.8)
-            elide: Text.ElideRight
-            color: Theme.textSecondary
-            text: "警告 " + root.fmt(root.warnV, root.decimals) + " " + root.unitText + (root.warnBelow ? " 以下" : " 以上")
-        }
-    }
-
     // ================================================================ 本体
     Item {
         id: body
-        anchors { top: header.bottom; bottom: footer.top; left: parent.left; right: parent.right
-                  topMargin: root.titleVisible ? root.m * 0.4 : root.m * 0.6
-                  bottomMargin: root.m * 0.4; leftMargin: root.m; rightMargin: root.m }
+        anchors { fill: parent; margins: root.m }
 
         // ============================================================ アナログ
         Item {
@@ -239,7 +166,7 @@ WidgetBase {
             // ---- 半径 1 の円で考えた配置(中心が原点、0° が真上・時計回り) ----
             // 数値表示の枠。auto のときは弧の空き(開始と終了の間)の方向へ置き、中心円とは重ならないようにする
             readonly property var readout: {
-                const w = 0.62, h = 0.4
+                const w = 0.72, h = 0.5   // 数値を大きく見せるため広めに取る
                 const hubClear = root.hubSize / 2 + 0.05
                 let cx = 0, cy = 0.52
                 if (root.autoLabelPosition) {
@@ -556,6 +483,40 @@ WidgetBase {
                 }
             }
 
+            // ---- 名前(中心円の上、内側の細い円の内側。針はこの上を通る) ----
+            Row {
+                id: dialLabel
+                visible: root.labelVisible
+                readonly property real h: dial.rpx * 0.13
+                readonly property real cyU: -Math.max(root.hubSize / 2 + 0.1, 0.32)   // 中心からの位置(半径比)
+                // 内側の細い円(半径 0.6)に収まる幅
+                readonly property real maxW: 2 * Math.sqrt(Math.max(0.01, 0.58 * 0.58 - cyU * cyU)) * dial.rpx
+                x: dial.cx - width / 2
+                y: dial.cy + cyU * dial.rpx - h / 2
+                height: h
+                spacing: h * 0.25
+                opacity: root.labelOpacity
+                MaterialIcon {
+                    id: dialLabelIcon
+                    visible: root.showIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: root.labelIcon
+                    size: dialLabel.h
+                    color: root.warning ? Theme.error : Theme.accent
+                    opacity: root.warning ? root.blink : 1
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, dialLabel.maxW - (root.showIcon ? dialLabel.h + dialLabel.spacing : 0))
+                    font.family: Theme.fontFamily
+                    font.bold: true
+                    font.pixelSize: Math.max(10, dialLabel.h * 0.78)
+                    elide: Text.ElideRight
+                    color: root.labelColor
+                    text: root.labelText
+                }
+            }
+
             // ---- 中心円 ----
             Rectangle {
                 x: dial.cx - width / 2
@@ -584,7 +545,7 @@ WidgetBase {
                 height: dial.readout.h * dial.rpx
                 Text {
                     width: parent.width
-                    height: parent.height * 0.72
+                    height: parent.height * 0.7
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
@@ -598,11 +559,11 @@ WidgetBase {
                 }
                 Text {
                     width: parent.width
-                    height: parent.height * 0.28
+                    height: parent.height * 0.3
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignTop
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(9, dial.rpx * 0.09)
+                    font.pixelSize: Math.max(11, dial.rpx * 0.13)
                     text: root.unitText
                     color: Theme.textSecondary
                 }
@@ -614,7 +575,7 @@ WidgetBase {
                 x: dial.cx - width / 2
                 y: dial.cy + dial.unitY * dial.rpx - height / 2
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(9, dial.rpx * 0.09)
+                font.pixelSize: Math.max(11, dial.rpx * 0.13)
                 text: dial.scaleUnitText
                 color: Theme.textSecondary
             }
@@ -629,10 +590,39 @@ WidgetBase {
             readonly property real barH: Math.max(8, root.s * 0.045)
             readonly property real scaleH: Math.round(root.titleFontSize * 0.8) + 4
 
+            // 名前(警告中は警告メッセージ)
+            Row {
+                id: digitalLabel
+                visible: root.labelVisible
+                anchors { top: parent.top; left: parent.left }
+                width: parent.width - mockTag.width - 8
+                height: visible ? Math.max(root.titleBarHeight, Math.round(digital.height * 0.12)) : 0
+                spacing: 8
+                opacity: root.labelOpacity
+                MaterialIcon {
+                    visible: root.showIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: root.labelIcon
+                    size: digitalLabel.height * 0.9
+                    color: root.warning ? Theme.error : Theme.accent
+                    opacity: root.warning ? root.blink : 1
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(0, digitalLabel.width - (root.showIcon ? digitalLabel.height + digitalLabel.spacing : 0))
+                    font.family: Theme.fontFamily
+                    font.bold: true
+                    font.pixelSize: Math.max(11, digitalLabel.height * 0.72)
+                    elide: Text.ElideRight
+                    color: root.labelColor
+                    text: root.labelText
+                }
+            }
+
             // 数値 + 単位(数値の右下に単位)
             Item {
                 id: valueBox
-                anchors { top: parent.top; left: parent.left; right: parent.right; bottom: barBox.top
+                anchors { top: digitalLabel.bottom; left: parent.left; right: parent.right; bottom: barBox.top
                           bottomMargin: root.m * 0.5 }
                 Text {
                     id: valueText
@@ -654,7 +644,7 @@ WidgetBase {
                     anchors { right: parent.right; baseline: valueText.baseline }
                     width: Math.max(implicitWidth, parent.width * 0.18)
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(12, Math.min(valueBox.height * 0.22, 28))
+                    font.pixelSize: Math.max(14, Math.min(valueBox.height * 0.3, 40))
                     text: root.unitText
                     color: Theme.textSecondary
                 }
@@ -713,6 +703,46 @@ WidgetBase {
                     color: root.warnOn && !root.warnBelow ? Theme.error : Theme.textSecondary
                     text: root.fmt(root.maxV, root.unitDef.stepDec)
                 }
+            }
+        }
+    }
+
+    // ================================================================ 警告メッセージ(警告中だけ、メーターの下側に重ねて表示)
+    Rectangle {
+        id: warnBanner
+        z: 3
+        visible: opacity > 0
+        opacity: root.warning ? (0.55 + 0.45 * root.blink) : 0
+        Behavior on opacity { enabled: !root.warning; NumberAnimation { duration: 180 } }
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: root.m }
+        width: Math.min(parent.width - 2 * root.m,
+                        warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height)
+        height: Math.max(26, Math.round(root.s * 0.13))
+        radius: height / 2
+        color: Theme.mix(Theme.panel, Theme.error, 0.22)
+        border.width: 2
+        border.color: Theme.error
+        Row {
+            id: warnRow
+            anchors.centerIn: parent
+            spacing: 6
+            MaterialIcon {
+                visible: root.showIcon
+                anchors.verticalCenter: parent.verticalCenter
+                name: "warning"
+                size: warnBanner.height * 0.62
+                color: Theme.error
+            }
+            Text {
+                id: warnText
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, warnBanner.width - warnBanner.height - (root.showIcon ? warnBanner.height * 0.62 + 6 : 0))
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.pixelSize: Math.max(12, Math.round(warnBanner.height * 0.5))
+                elide: Text.ElideRight
+                color: Theme.error
+                text: root.config.warnMessage || "警告"
             }
         }
     }
