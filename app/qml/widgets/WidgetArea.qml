@@ -108,23 +108,39 @@ Item {
     }
 
     // ---------------------------------------------------------------- 追加・削除・サイズ・設定
-    // 空いている最初の場所へ追加する。空きが無ければ通知して false
+    // 空いている場所へ追加する。既定サイズで置けなければ、最低サイズまで小さくして置ける場所を探す
+    // (置けるサイズのうち面積が最も大きいもの。同じ面積なら既定サイズの縦横比に近いもの)。
+    // 最低サイズでも置けなければ通知して false
+    function findFreeSpot(w, h) {
+        for (let r = 0; r <= rows - h; ++r) {
+            for (let c = 0; c <= cols - w; ++c) {
+                if (!overlaps(c, r, w, h, "")) return { col: c, row: r }
+            }
+        }
+        return null
+    }
     function addWidget(type) {
         const def = WidgetRegistry.find(type)
         if (!def) return false
-        const w = def.defaultSize.w
-        const h = def.defaultSize.h
-        for (let r = 0; r <= rows - h; ++r) {
-            for (let c = 0; c <= cols - w; ++c) {
-                if (!overlaps(c, r, w, h, "")) {
-                    layout.append({ wid: newId(), wtype: type, col: c, row: r, w: w, h: h, config: {} })
-                    saveLayout()
-                    return true
-                }
+        const dw = Math.min(cols, def.defaultSize.w), dh = Math.min(rows, def.defaultSize.h)
+        const mw = Math.min(dw, def.minSize.w), mh = Math.min(dh, def.minSize.h)
+        let best = null
+        for (let w = dw; w >= mw; --w) {
+            for (let h = dh; h >= mh; --h) {
+                const area = w * h
+                const shapeDiff = (dw - w) + (dh - h)
+                if (best && (area < best.area || (area === best.area && shapeDiff >= best.shapeDiff))) continue
+                const spot = findFreeSpot(w, h)
+                if (spot) best = { col: spot.col, row: spot.row, w: w, h: h, area: area, shapeDiff: shapeDiff }
             }
         }
-        notifications.show("空きがありません", "ウィジェットを削除するか、サイズを小さくしてください", 2, "widgets")
-        return false
+        if (!best) {
+            notifications.show("空きがありません", "ウィジェットを削除するか、サイズを小さくしてください", 2, "widgets")
+            return false
+        }
+        layout.append({ wid: newId(), wtype: type, col: best.col, row: best.row, w: best.w, h: best.h, config: {} })
+        saveLayout()
+        return true
     }
 
     function removeWidget(wid) {
