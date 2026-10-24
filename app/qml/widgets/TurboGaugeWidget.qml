@@ -302,17 +302,18 @@ WidgetBase {
                 readonly property real gapAngle: (root.endAngle - 90 + (360 - root.sweepAngle) / 2) * Math.PI / 180
                 readonly property real gapRadius: dial.r * 0.4
                 width: Math.min(dial.width * 0.82, dial.r * 1.6)
-                height: dial.r * 0.58
+                height: dial.r * 0.46
                 x: root.autoLabelPosition
                    ? Math.max(0, Math.min(dial.width - width, dial.r + Math.cos(gapAngle) * gapRadius - width / 2))
                    : (dial.width - width) / 2
                 y: root.autoLabelPosition
-                   ? Math.max(0, Math.min(dial.height - height, dial.r + Math.sin(gapAngle) * gapRadius - height / 2))
+                   ? Math.max(dial.r + dial.r * root.hubSize / 2 + dial.r * 0.05,
+                              Math.max(0, Math.min(dial.height - height, dial.r + Math.sin(gapAngle) * gapRadius - height / 2)))
                    : dial.r + dial.r * 0.3
                 spacing: 0
                 Text {
                     width: parent.width
-                    height: dial.r * 0.38
+                    height: dial.r * 0.34
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
@@ -325,11 +326,11 @@ WidgetBase {
                 }
                 Text {
                     width: parent.width
-                    height: dial.r * 0.18
+                    height: dial.r * 0.12
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(11, dial.r * 0.14)
+                    font.pixelSize: Math.max(9, dial.r * 0.11)
                     text: root.unitText
                     color: Theme.textSecondary
                 }
