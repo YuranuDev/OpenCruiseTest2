@@ -66,7 +66,7 @@ WidgetBase {
             anchors.verticalCenter: parent.verticalCenter
             name: root.incoming ? "ring_volume" : (root.active ? "phone_in_talk" : (root.hold ? "phone_paused" : "call"))
             size: parent.height
-            color: root.stateColor
+            color: Theme.accent   // 見出しのアイコンは他のウィジェットと同じ色(状態の色は本文側で示す)
             opacity: root.incoming ? root.blink : 1
         }
         Text {

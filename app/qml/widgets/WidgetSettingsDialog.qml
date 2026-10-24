@@ -115,6 +115,17 @@ Item {
                     function onEdit(key, value) { if (root.area) root.area.setConfigValue(root.wid, key, value) }
                 }
 
+                // ---- 全ウィジェット共通: 枠 ----
+                SettingsRow {
+                    label: "枠"
+                    description: "「なし」にすると背景のカードを描きません"
+                    SettingsChoice {
+                        model: ["カード", "なし"]
+                        currentIndex: root.cfg.frame === "plain" ? 1 : 0
+                        onPicked: (i) => { if (root.area) root.area.setConfigValue(root.wid, "frame", i === 1 ? "plain" : "card") }
+                    }
+                }
+
                 // ---- 全ウィジェット共通: タイトル ----
                 SettingsRow {
                     label: "上部タイトルを表示"

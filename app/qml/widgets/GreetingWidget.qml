@@ -6,7 +6,6 @@ import OpenCruise
 
 WidgetBase {
     id: root
-    framed: config.frame !== "plain"
 
     readonly property string greeting: {
         const h = clock.hour

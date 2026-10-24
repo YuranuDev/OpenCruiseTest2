@@ -1,6 +1,6 @@
 // すべてのウィジェットの土台。ウィジェットは WidgetBase を継承し、中身(子要素)だけを書けばよい。
 //   WidgetBase {
-//       framed: true                       // カード背景を描くか
+//       framed: false                      // カード背景を描くか(既定は共通設定 config.frame に従う)
 //       doubleTapAction: "settings"        // ダブルタップの動作: "settings"(設定画面) / "custom"(doubleTapped を使う) / "none"
 //       Text { text: config.title }        // 子要素はこの中に置かれる(余白なし・全面)
 //   }
@@ -34,7 +34,8 @@ Item {
     }
 
     // ---- 継承側が決める ----
-    property bool framed: true
+    // カード背景。既定は全ウィジェット共通の設定「枠」(config.frame: "card" / "plain")に従う
+    property bool framed: config.frame !== "plain"
     property string doubleTapAction: "settings"
     // ---- 見出し(上部タイトル)の大きさ。短辺のマス数で 3 段階(1 / 2 / 3 以上は同じ) ----
     readonly property int titleTier: Math.max(1, Math.min(3, Math.min(gridW, gridH)))

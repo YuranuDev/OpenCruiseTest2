@@ -1,19 +1,10 @@
-// 時計ウィジェットの設定: 枠・配置・日付。
+// 時計ウィジェットの設定: 配置・日付。(枠は全ウィジェット共通の設定)
 import QtQuick
 import OpenCruise
 
 WidgetSettingsBase {
     id: root
 
-    SettingsRow {
-        label: "枠"
-        description: "「なし」にすると背景のカードを描きません"
-        SettingsChoice {
-            model: ["カード", "なし"]
-            currentIndex: root.config.frame === "plain" ? 1 : 0
-            onPicked: (i) => root.edit("frame", i === 1 ? "plain" : "card")
-        }
-    }
     SettingsRow {
         label: "配置"
         SettingsChoice {

@@ -14,7 +14,6 @@ import OpenCruise
 WidgetBase {
     id: root
 
-    framed: config.frame !== "plain"
 
     // ---- 設定 ----
     readonly property bool compact: config.layout === "compact"

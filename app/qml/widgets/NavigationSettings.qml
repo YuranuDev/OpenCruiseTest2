@@ -1,19 +1,10 @@
-// ナビ案内ウィジェットの設定: 枠・レイアウト・距離の単位・道路名・「その次」・接近の強調。
+// ナビ案内ウィジェットの設定(枠は全ウィジェット共通): レイアウト・距離の単位・道路名・「その次」・接近の強調。
 import QtQuick
 import OpenCruise
 
 WidgetSettingsBase {
     id: root
 
-    SettingsRow {
-        label: "枠"
-        description: "「なし」にすると背景のカードを描きません"
-        SettingsChoice {
-            model: ["カード", "なし"]
-            currentIndex: root.config.frame === "plain" ? 1 : 0
-            onPicked: (i) => root.edit("frame", i === 1 ? "plain" : "card")
-        }
-    }
     SettingsRow {
         label: "レイアウト"
         description: "コンパクトは「その次」を出さず、主案内だけを大きく表示します"
