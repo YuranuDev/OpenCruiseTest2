@@ -5,6 +5,13 @@
  * このクラスは車両の各種状態データを管理し、更新や通知を行う。
  * 将来的にESP32から取得する車両データを扱えるように設計されている。
  * DummyCanModelの機能を統合した実装。
+ *
+ * 実 CAN 通信が入るまでは、簡易的な車両シミュレーション(モック)で値を作る:
+ *  - 運転者: 停止・発進・巡航・全開加速・減速を組み合わせた走行パターンを、ランダムに選んで繰り返す
+ *  - 駆動系: 6 速 AT 相当のギア比・最終減速比・タイヤ半径から、車速と回転数を一致させる(変速あり)
+ *  - エンジン: 回転数ごとのトルク特性 + ターボ(回転数とアクセル開度で決まる目標ブーストへ遅れて追従)
+ *  - 水温: 燃焼の発熱で暖機し、サーモスタット(約 86℃)が開くとラジエーターで 86〜90℃前後に保つ
+ *  - 燃料: 出力から燃料消費を求め、タンク容量に対する残量を減らす
  */
 #pragma once
 
@@ -12,6 +19,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <memory>
+#include <random>
 
 namespace opencruise {
 
@@ -32,12 +40,14 @@ enum class HeadlightState {
  */
 class VehicleDataManager : public QObject {
     Q_OBJECT
-    // CANデータ用プロパティ（QMLで使用される）
-    Q_PROPERTY(int speedKmh READ speedKmh NOTIFY changed)
-    Q_PROPERTY(int rpm READ rpm NOTIFY changed)
-    Q_PROPERTY(int coolantTempC READ coolantTempC NOTIFY changed)
-    Q_PROPERTY(int fuelPercent READ fuelPercent NOTIFY changed)
+    // CANデータ用プロパティ（QMLで使用される）。値はすべて小数を含む(表示側で丸める)
+    Q_PROPERTY(double speedKmh READ speedKmh NOTIFY changed)
+    Q_PROPERTY(double rpm READ rpm NOTIFY changed)
+    Q_PROPERTY(double coolantTempC READ coolantTempC NOTIFY changed)
+    Q_PROPERTY(double fuelPercent READ fuelPercent NOTIFY changed)
     Q_PROPERTY(double boostBar READ boostBar NOTIFY changed)
+    Q_PROPERTY(int gear READ gear NOTIFY changed)
+    Q_PROPERTY(double throttlePercent READ throttlePercent NOTIFY changed)
     Q_PROPERTY(QString sourceText READ sourceText CONSTANT)
 
 public:
@@ -71,15 +81,19 @@ public:
     bool isNightMode() const;
 
     /** @brief 車速 [km/h]。 */
-    int speedKmh() const { return speedKmh_; }
+    double speedKmh() const { return speedKmh_; }
     /** @brief エンジン回転数 [rpm]。 */
-    int rpm() const { return rpm_; }
+    double rpm() const { return rpm_; }
     /** @brief 冷却水温 [℃]。 */
-    int coolantTempC() const { return coolantTempC_; }
+    double coolantTempC() const { return coolantTempC_; }
     /** @brief 燃料残量 [%]。 */
-    int fuelPercent() const { return fuelPercent_; }
-    /** @brief ブースト圧(ゲージ圧) [bar]。負の値は負圧。現状はモック(疑似的な加減速パターン)。 */
+    double fuelPercent() const { return fuelPercent_; }
+    /** @brief ブースト圧(ゲージ圧) [bar]。負の値は負圧。 */
     double boostBar() const { return boostBar_; }
+    /** @brief 現在のギア(1〜6)。停車中は 1。 */
+    int gear() const { return gear_; }
+    /** @brief アクセル開度 [%]。 */
+    double throttlePercent() const { return throttle_ * 100.0; }
     /** @brief データの出所を示す表示用文字列（常に「ダミーデータ」）。 */
     QString sourceText() const { return QStringLiteral("ダミーデータ"); }
 
@@ -102,10 +116,40 @@ signals:
     void changed();
 
 private:
+    /// 運転者の行動(走行パターンの 1 区間)
+    enum class Phase {
+        Stop,   ///< 停車(信号待ちなど)
+        Cruise, ///< 目標速度まで加速(または減速)して巡航
+        Pull    ///< アクセル全開で目標速度まで加速
+    };
+
     /**
-     * @brief 経過時間から疑似的な走行パターンを計算して値を更新する。
+     * @brief 経過時間から 1 ステップ分のシミュレーションを進めて値を更新する。
      */
     void update();
+
+    /**
+     * @brief 次の走行区間をランダムに選ぶ。
+     */
+    void nextPhase();
+
+    /**
+     * @brief 運転者のアクセル・ブレーキ操作を決める。
+     * @param dt 経過時間 [s]
+     * @param brakeDecel ブレーキによる減速度 [m/s²](出力)
+     */
+    void driveControl(double dt, double &brakeDecel);
+
+    /**
+     * @brief 回転数とアクセル開度から、自然吸気分のエンジントルク [Nm] を求める。
+     * @param rpm エンジン回転数
+     */
+    static double baseTorqueNm(double rpm);
+
+    /**
+     * @brief 車速とギアから、エンジン回転数 [rpm] を求める(クラッチ・トルコンの滑りは別途)。
+     */
+    double rpmFromSpeed(double speedMs, int gear) const;
 
     /**
      * @brief ヘッドライト状態
@@ -122,30 +166,27 @@ private:
      */
     QElapsedTimer elapsed_;
 
-    /**
-     * @brief 車速 [km/h]
-     */
-    int speedKmh_ = 0;
+    /// 前回の更新時刻 [ms](elapsed_ 基準)
+    qint64 lastMs_ = 0;
 
-    /**
-     * @brief エンジン回転数 [rpm]
-     */
-    int rpm_ = 0;
+    // ---- 公開する値 ----
+    double speedKmh_ = 0.0;      ///< 車速 [km/h]
+    double rpm_ = 0.0;           ///< エンジン回転数 [rpm]
+    double coolantTempC_ = 0.0;  ///< 冷却水温 [℃]
+    double fuelPercent_ = 0.0;   ///< 燃料残量 [%]
+    double boostBar_ = 0.0;      ///< ブースト圧(ゲージ圧) [bar]
 
-    /**
-     * @brief 冷却水温 [℃]
-     */
-    int coolantTempC_ = 0;
-
-    /**
-     * @brief 燃料残量 [%]
-     */
-    int fuelPercent_ = 0;
-
-    /**
-     * @brief ブースト圧(ゲージ圧) [bar]
-     */
-    double boostBar_ = 0.0;
+    // ---- シミュレーションの状態 ----
+    std::mt19937 rng_;
+    Phase phase_ = Phase::Stop;
+    double phaseLeftS_ = 0.0;    ///< 今の区間の残り時間 [s]
+    double targetMs_ = 0.0;      ///< 目標速度 [m/s]
+    double maxThrottle_ = 0.6;   ///< この区間で踏み込む上限(運転のおとなしさ)
+    double speedMs_ = 0.0;       ///< 車速 [m/s]
+    double throttle_ = 0.0;      ///< アクセル開度 0〜1
+    int gear_ = 1;               ///< ギア(1〜6)
+    double shiftLeftS_ = 0.0;    ///< 変速中の残り時間 [s](この間は駆動力が抜ける)
+    double fuelLiters_ = 0.0;    ///< 燃料 [L]
 };
 
 } // namespace opencruise

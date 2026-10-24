@@ -45,6 +45,7 @@ WidgetBase {
     readonly property real maxV: Math.max(toShown(config.max), minV + 0.1)
     readonly property real warnV: toShown(config.warn)
     readonly property bool warnOn: config.warnEnabled === true
+    readonly property bool showWarnMessage: config.showWarnMessage !== false   // false なら色・アイコンだけで知らせる
     readonly property bool showIcon: config.showIcon !== false
     readonly property real startAngle: Math.max(-180, Math.min(-90, config.startAngle === undefined ? -135 : Number(config.startAngle)))
     readonly property real endAngle: Math.max(90, Math.min(180, config.endAngle === undefined ? 135 : Number(config.endAngle)))
@@ -711,8 +712,8 @@ WidgetBase {
         id: warnBanner
         z: 3
         visible: opacity > 0
-        opacity: root.warning ? (0.55 + 0.45 * root.blink) : 0
-        Behavior on opacity { enabled: !root.warning; NumberAnimation { duration: 180 } }
+        opacity: root.warning && root.showWarnMessage ? (0.55 + 0.45 * root.blink) : 0
+        Behavior on opacity { enabled: !(root.warning && root.showWarnMessage); NumberAnimation { duration: 180 } }
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: root.m }
         width: Math.min(parent.width - 2 * root.m,
                         warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height)

@@ -202,6 +202,15 @@ WidgetSettingsBase {
     }
     SettingsRow {
         visible: root.config.warnEnabled === true
+        label: "警告メッセージを表示"
+        description: "オフにすると、メッセージは出さずに色とアイコンだけで知らせます"
+        SettingsSwitch {
+            checked: root.config.showWarnMessage !== false
+            onToggled: (v) => root.edit("showWarnMessage", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.warnEnabled === true && root.config.showWarnMessage !== false
         label: "警告メッセージ"
         description: "警告中にメーターへ重ねて表示します"
         stacked: true

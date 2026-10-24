@@ -413,9 +413,10 @@ void AndroidAutoController::pushVehicleData() {
     mockLastMs_ = now;
 
     aa::VehicleSnapshot snapshot;
-    snapshot.speedKmh = vehicleSource_->speedKmh();
-    snapshot.rpm = vehicleSource_->rpm();
-    snapshot.fuelPercent = vehicleSource_->fuelPercent();
+    // 車両データは小数を含むので、Android Auto へ送る整数値に丸める
+    snapshot.speedKmh = static_cast<int>(std::lround(vehicleSource_->speedKmh()));
+    snapshot.rpm = static_cast<int>(std::lround(vehicleSource_->rpm()));
+    snapshot.fuelPercent = static_cast<int>(std::lround(vehicleSource_->fuelPercent()));
     snapshot.lowFuel = snapshot.fuelPercent < 10;
     snapshot.gear = snapshot.speedKmh > 0 ? aa::VehicleGear::Drive : aa::VehicleGear::Park;
     snapshot.parkingBrake = snapshot.speedKmh == 0;

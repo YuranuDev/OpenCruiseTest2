@@ -34,6 +34,15 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
+        label: "警告メッセージを表示"
+        description: "オフにすると、メッセージは出さずに色とアイコンだけで知らせます"
+        SettingsSwitch {
+            checked: root.config.showLowMessage !== false
+            onToggled: (v) => root.edit("showLowMessage", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.showLowMessage !== false
         label: "警告メッセージ"
         stacked: true
         WSTextField {

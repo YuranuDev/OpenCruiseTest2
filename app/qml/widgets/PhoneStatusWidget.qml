@@ -102,7 +102,9 @@ WidgetBase {
         elide: Text.ElideRight
         color: Theme.error
         text: root.config.lowMessage || "バッテリー残量が少なくなっています"
-        opacity: root.low ? root.blink : 0
+        // 「警告メッセージを表示」がオフなら場所も取らない(色・アイコンだけで知らせる)
+        height: root.config.showLowMessage !== false ? implicitHeight : 0
+        opacity: root.low && root.config.showLowMessage !== false ? root.blink : 0
         visible: opacity > 0
     }
 
