@@ -38,8 +38,10 @@ Item {
     property string doubleTapAction: "settings"
     // ---- 見出し(上部タイトル)の大きさ。短辺のマス数で 3 段階(1 / 2 / 3 以上は同じ) ----
     readonly property int titleTier: Math.max(1, Math.min(3, Math.min(gridW, gridH)))
-    readonly property real titleFontSize: Math.max(11, Math.round([15, 18, 21][titleTier - 1] * Theme.uiScale))
+    readonly property real titleFontSize: Math.max(11, Math.round([12, 14, 16][titleTier - 1] * Theme.uiScale))
     readonly property real titleBarHeight: Math.round(titleFontSize * 1.35)
+    // ウィジェット内側の余白(各ウィジェットの m はこれを使う)。大きくしても余白が広がりすぎないよう上限つき
+    readonly property real innerMargin: Math.max(7, Math.min(14, s * 0.045))
     // ウィジェット共通の文字階層。個別の値表示・大見出しは各ウィジェット側で調整する。
     // headerFontSize は見出し用(titleFontSize と同じ。既存ウィジェットとの互換のため残す)
     readonly property real headerFontSize: titleFontSize

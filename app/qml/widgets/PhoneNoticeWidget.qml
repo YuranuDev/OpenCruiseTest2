@@ -13,7 +13,7 @@ WidgetBase {
 
     readonly property string mode: config.mode === "latest" || config.mode === "badge" ? config.mode : "list"
     readonly property int maxItems: Math.max(1, Math.min(5, config.maxItems || 3))
-    readonly property real m: Math.max(10, root.s * 0.07)
+    readonly property real m: root.innerMargin
     // 文字サイズは上限つき(ウィジェットを大きくしても通知文が巨大化してはみ出さない)
     readonly property real fsHead: root.headerFontSize
     readonly property real fsBody: Math.max(14, Math.min(root.bodyFontSize, 19))

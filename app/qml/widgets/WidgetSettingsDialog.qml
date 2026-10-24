@@ -132,6 +132,8 @@ Item {
                         text: root.cfg.titleText || ""
                         placeholder: root.def ? root.def.name : "タイトル"
                         maxLength: 32
+                        // 入力中はウィジェットとプレビューに即反映、保存は確定時(WSTextField の edited)
+                        onChanging: (t) => { if (root.area) root.area.previewConfigValue(root.wid, "titleText", t) }
                         onEdited: (t) => { if (root.area) root.area.setConfigValue(root.wid, "titleText", t) }
                     }
                 }

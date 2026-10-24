@@ -14,7 +14,7 @@ WidgetBase {
     readonly property bool low: known && (level <= (config.lowThreshold || 20) || phoneStatus.batteryCritical)
     readonly property color batteryColor: !known ? Theme.textSecondary : (low ? Theme.error : (level <= 40 ? Theme.warn : Theme.ok))
     readonly property bool anyMock: phoneStatus.batteryIsMock || (config.showSignal !== false && phoneStatus.signalIsMock)
-    readonly property real m: Math.max(10, root.s * 0.07)
+    readonly property real m: root.innerMargin
 
     property real blink: 1
     SequentialAnimation on blink {

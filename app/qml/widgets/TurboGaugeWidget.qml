@@ -86,7 +86,7 @@ WidgetBase {
     }
 
     // ---------------------------------------------------------------- 寸法
-    readonly property real m: Math.max(10, root.s * 0.06)
+    readonly property real m: root.innerMargin
 
     // ================================================================ 見出し(他のウィジェットと同じ形・大きさ)
     Row {

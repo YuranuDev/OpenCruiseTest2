@@ -18,12 +18,12 @@ WidgetBase {
     Row {
         id: header
         visible: root.titleVisible
-        anchors { top: parent.top; left: parent.left; leftMargin: Math.max(14, Math.min(28, root.s * 0.3)); topMargin: root.titleVisible ? 8 : 0 }
+        anchors { top: parent.top; left: parent.left; leftMargin: Math.max(10, Math.min(18, root.s * 0.2)); topMargin: root.titleVisible ? 6 : 0 }
         spacing: 8
         height: root.titleVisible ? root.titleBarHeight : 0
         MaterialIcon { anchors.verticalCenter: parent.verticalCenter; name: "waving_hand"; size: parent.height; color: Theme.accent }
         Text {
-            width: Math.max(0, root.width - 2 * Math.max(14, Math.min(28, root.s * 0.3)) - parent.height - parent.spacing)
+            width: Math.max(0, root.width - 2 * Math.max(10, Math.min(18, root.s * 0.2)) - parent.height - parent.spacing)
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontFamily; font.pixelSize: root.headerFontSize
             color: Theme.textSecondary; text: root.titleText("あいさつ"); elide: Text.ElideRight
@@ -36,7 +36,7 @@ WidgetBase {
         anchors.topMargin: root.titleVisible ? 4 : 0
 
         Text {
-        readonly property real margin: Math.max(14, Math.min(28, root.s * 0.3))
+        readonly property real margin: Math.max(10, Math.min(18, root.s * 0.2))
         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
                   leftMargin: margin; rightMargin: margin }
         horizontalAlignment: root.config.align === "center" ? Text.AlignHCenter : Text.AlignLeft

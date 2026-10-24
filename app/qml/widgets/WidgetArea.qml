@@ -16,7 +16,7 @@ Item {
     readonly property real cellW: width / cols
     readonly property real cellH: height / rows
     // ウィジェット同士の隙間の半分
-    readonly property real pad: 6 * Theme.uiScale
+    readonly property real pad: 4 * Theme.uiScale
 
     // ---- 状態 ----
     property bool animReady: false     // false の間は位置・大きさの変化をアニメーションしない(起動直後・リサイズ中)
@@ -186,6 +186,17 @@ Item {
         cur[key] = value
         layout.setProperty(i, "config", cur)
         saveLayout()
+    }
+
+    // 設定値を画面にだけ反映する(保存しない)。文字入力中のリアルタイム表示用。確定時は setConfigValue で保存する
+    function previewConfigValue(wid, key, value) {
+        const i = indexOfId(wid)
+        if (i < 0) return
+        const cur = Object.assign({}, layout.get(i).config)
+        if (cur[key] === value) return
+        cur[key] = value
+        layout.setProperty(i, "config", cur)
+        revision++
     }
 
     function resetLayout() {

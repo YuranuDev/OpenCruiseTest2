@@ -35,7 +35,7 @@ WidgetBase {
                                       ? androidAuto.nextNavigationRoad
                                       : maneuverName(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
 
-    readonly property real m: Math.max(8, Math.min(16, s * 0.07))
+    readonly property real m: innerMargin
     readonly property bool wide: width >= height * 1.5
 
     // ---- 変換 ----

@@ -13,7 +13,7 @@ WidgetBase {
     readonly property bool active: callKind === "active"
     readonly property bool hold: callKind === "hold"
     readonly property bool idle: !incoming && !active && !hold
-    readonly property real m: Math.max(10, root.s * 0.07)
+    readonly property real m: root.innerMargin
     readonly property color stateColor: incoming ? Theme.warn : (active ? Theme.ok : (hold ? Theme.accent : Theme.textSecondary))
 
     // 通話時間を 1 秒ごとに読み直すための刻み

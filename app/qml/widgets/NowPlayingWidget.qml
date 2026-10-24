@@ -11,7 +11,7 @@ WidgetBase {
 
     readonly property bool playing: phoneStatus.playbackState === "playing"
     readonly property bool paused: phoneStatus.playbackState === "paused"
-    readonly property real m: Math.max(10, root.s * 0.07)
+    readonly property real m: root.innerMargin
     readonly property int duration: phoneStatus.trackDurationSec
     readonly property bool showAlbum: config.showAlbum !== false
     readonly property bool showProgress: config.showProgress !== false && duration > 0

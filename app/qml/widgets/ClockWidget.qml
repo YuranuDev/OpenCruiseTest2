@@ -7,7 +7,7 @@ WidgetBase {
     id: root
     framed: config.frame !== "plain"
 
-    readonly property real m: Math.max(10, root.s * 0.07)
+    readonly property real m: root.innerMargin
     readonly property int hAlign: config.align === "center" ? Text.AlignHCenter : Text.AlignLeft
 
     Row {
