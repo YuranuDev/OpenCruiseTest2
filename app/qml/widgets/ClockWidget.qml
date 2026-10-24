@@ -6,7 +6,9 @@ import OpenCruise
 WidgetBase {
     id: root
 
-    readonly property real m: root.innerMargin
+    // 時計は文字を大きく見せたいので、共通の余白よりさらに詰める
+    readonly property real m: Math.max(5, root.innerMargin * 0.6)
+    readonly property bool dateShown: root.config.showDate !== false
     readonly property int hAlign: config.align === "center" ? Text.AlignHCenter : Text.AlignLeft
 
     Row {
@@ -27,16 +29,18 @@ WidgetBase {
     Item {
         id: body
         anchors { top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right }
-        anchors.topMargin: root.titleVisible ? root.m * 0.25 : 0
+        anchors.topMargin: root.titleVisible ? root.m * 0.25 : root.m
+        anchors.bottomMargin: root.m
 
         Column {
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
                       leftMargin: root.m; rightMargin: root.m }
-        spacing: 2
+        spacing: 0
 
+        // 本体の高さいっぱいを使う(横幅で決まる大きさを超える分は取らない)
         Text {
             width: parent.width
-            height: Math.min(root.height * 0.42, root.width * 0.32)
+            height: Math.min(body.height * (root.dateShown ? 0.72 : 0.95), parent.width * 0.48)
             horizontalAlignment: root.hAlign
             verticalAlignment: Text.AlignVCenter
             font.family: Theme.fontFamily
@@ -49,7 +53,7 @@ WidgetBase {
         }
         Text {
             width: parent.width
-            height: Math.min(root.height * 0.14, root.width * 0.09)
+            height: root.dateShown ? Math.min(body.height * 0.24, parent.width * 0.13) : 0
             horizontalAlignment: root.hAlign
             verticalAlignment: Text.AlignVCenter
             font.family: Theme.fontFamily
@@ -58,7 +62,7 @@ WidgetBase {
             fontSizeMode: Text.Fit
             text: clock.dateText
             color: Theme.textSecondary
-            opacity: root.config.showDate === false ? 0 : 1
+            opacity: root.dateShown ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 200 } }
         }
         }
