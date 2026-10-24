@@ -50,6 +50,8 @@ qt_add_executable(opencruise
     core/BrightnessController.cpp
     core/BootManager.cpp
     core/ClockModel.cpp
+    core/DisplaySettings.cpp
+    core/OsDisplayMirror.cpp
     core/Log.cpp
     core/NotificationManager.cpp
     core/NotificationHistoryModel.cpp

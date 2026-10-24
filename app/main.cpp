@@ -30,6 +30,8 @@
 #include "core/AudioSettings.h"
 #include "core/BrightnessController.h"
 #include "core/BootManager.h"
+#include "core/DisplaySettings.h"
+#include "core/OsDisplayMirror.h"
 #include "core/ClockModel.h"
 #include "core/SystemStats.h"
 #include "core/VehicleDataManager.h"
@@ -44,6 +46,8 @@
  * @return QGuiApplication の終了コード。QML のロードに失敗した場合は -1
  */
 int main(int argc, char *argv[]) {
+    // eglfs(KMS)で OS のミラーを使う設定なら、プラットフォームを読み込む前(QGuiApplication の前)に複製の設定を用意する
+    opencruise::OsDisplayMirror::prepareEglfs(argc, argv);
     QGuiApplication app(argc, argv);
     QGuiApplication::setOverrideCursor(Qt::ArrowCursor);
     QGuiApplication::setApplicationName(QStringLiteral("OpenCruise"));
@@ -91,9 +95,12 @@ int main(int argc, char *argv[]) {
     opencruise::log::info("APP", opencruise::log::describeEnvironment());
     opencruise::log::info("APP", QStringLiteral("ログ出力先: ") + opencruise::log::currentFilePath());
     opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
+    // 描画方式・垂直同期は、ウィンドウ(QML)を作る前にしか変えられないので、ここで適用する
+    opencruise::DisplaySettings::applyStartupSettings();
 
     opencruise::ClockModel clock;
     opencruise::AppInfo appInfo; // アプリと Linux の情報(設定「情報」)
+    opencruise::DisplaySettings displaySettings; // 表示する画面(外部画面)・回転・描画の設定(設定「表示」)
     opencruise::VehicleDataManager can;
     opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
@@ -147,6 +154,7 @@ int main(int argc, char *argv[]) {
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("appInfo"), &appInfo);
+    engine.rootContext()->setContextProperty(QStringLiteral("displaySettings"), &displaySettings);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);

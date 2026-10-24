@@ -1,0 +1,326 @@
+/**
+ * @file OsDisplayMirror.cpp
+ * @brief OsDisplayMirror の実装。
+ */
+#include "OsDisplayMirror.h"
+
+#include "Log.h"
+
+#include <QDir>
+#include <QFile>
+#include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QProcess>
+#include <QRegularExpression>
+#include <QSettings>
+#include <QStandardPaths>
+
+#include <cstdlib>
+#include <cstring>
+
+namespace opencruise {
+
+namespace {
+QString g_startupNote;
+
+/// 内蔵パネルらしい接続名か(DisplaySettings の外部画面の判定と同じ)
+bool isInternalName(const QString &name) {
+    for (const char *prefix : {"eDP", "LVDS", "DSI", "DPI"}) {
+        if (name.startsWith(QLatin1String(prefix), Qt::CaseInsensitive)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// /sys/class/drm の接続名(例: HDMI-A-1)を、eglfs(KMS)の出力名(例: HDMI1)にする
+QString kmsName(const QString &sysfsName) {
+    const int dash = sysfsName.lastIndexOf(QLatin1Char('-'));
+    if (dash <= 0) {
+        return sysfsName;
+    }
+    const QString type = sysfsName.left(dash);
+    const QString index = sysfsName.mid(dash + 1);
+    static const QList<QPair<QString, QString>> kTypes = {
+        {QStringLiteral("HDMI-A"), QStringLiteral("HDMI")}, {QStringLiteral("HDMI-B"), QStringLiteral("HDMI")},
+        {QStringLiteral("DVI-I"), QStringLiteral("DVI")},   {QStringLiteral("DVI-D"), QStringLiteral("DVI")},
+        {QStringLiteral("DVI-A"), QStringLiteral("DVI")},   {QStringLiteral("DP"), QStringLiteral("DP")},
+        {QStringLiteral("eDP"), QStringLiteral("eDP")},     {QStringLiteral("LVDS"), QStringLiteral("LVDS")},
+        {QStringLiteral("DSI"), QStringLiteral("DSI")},     {QStringLiteral("DPI"), QStringLiteral("DPI")},
+        {QStringLiteral("VGA"), QStringLiteral("VGA")},     {QStringLiteral("Virtual"), QStringLiteral("Virtual")}};
+    for (const auto &t : kTypes) {
+        if (type == t.first) {
+            return t.second + index;
+        }
+    }
+    return type + index;
+}
+
+/// 起動引数・環境変数から、eglfs で起動するかを判定する
+bool wantsEglfs(int argc, char *argv[]) {
+    for (int i = 1; i + 1 < argc; ++i) {
+        if (std::strcmp(argv[i], "-platform") == 0 || std::strcmp(argv[i], "--platform") == 0) {
+            return QString::fromLocal8Bit(argv[i + 1]).startsWith(QLatin1String("eglfs"));
+        }
+    }
+    return qEnvironmentVariable("QT_QPA_PLATFORM").startsWith(QLatin1String("eglfs"));
+}
+} // namespace
+
+void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
+    if (!wantsEglfs(argc, argv)) {
+        return;
+    }
+    if (qEnvironmentVariableIsSet("QT_QPA_EGLFS_KMS_CONFIG")) {
+        g_startupNote = QStringLiteral("QT_QPA_EGLFS_KMS_CONFIG が設定済みのため、OS のミラー設定は作りません");
+        return;
+    }
+    const QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                          QStringLiteral("OpenCruise"));
+    if (!store.value(QStringLiteral("display/mirrorAll"), true).toBool() ||
+        store.value(QStringLiteral("display/mirrorMethod"), 0).toInt() != 1) {
+        return;
+    }
+
+    // 接続中の画面(/sys/class/drm/card*-*/status が connected)
+    QStringList connected;
+    const QDir drm(QStringLiteral("/sys/class/drm"));
+    for (const QString &entry : drm.entryList({QStringLiteral("card*-*")}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+        QFile status(drm.filePath(entry + QStringLiteral("/status")));
+        if (status.open(QIODevice::ReadOnly) && status.readAll().trimmed() == "connected") {
+            connected << kmsName(entry.section(QLatin1Char('-'), 1));   // "card0-HDMI-A-1" → "HDMI1"
+        }
+    }
+    if (connected.size() < 2) {
+        g_startupNote = QStringLiteral("eglfs: 接続中の画面が 1 つ以下のため、ミラーは不要です");
+        return;
+    }
+
+    // 複製元: 保存した画面(eglfs の名前) → 内蔵パネル → 先頭の順
+    QString target = store.value(QStringLiteral("display/screen")).toString();
+    if (!connected.contains(target)) {
+        target.clear();
+        for (const QString &name : connected) {
+            if (isInternalName(name)) {
+                target = name;
+                break;
+            }
+        }
+        if (target.isEmpty()) {
+            target = connected.first();
+        }
+    }
+    QJsonArray outputs;
+    for (const QString &name : connected) {
+        if (name != target) {
+            outputs.append(QJsonObject{{QStringLiteral("name"), name}, {QStringLiteral("clone"), target}});
+        }
+    }
+    const QString path = QDir::tempPath() + QStringLiteral("/opencruise-eglfs-kms.json");
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        g_startupNote = QStringLiteral("eglfs: ミラーの設定ファイルを作れません: ") + path;
+        return;
+    }
+    file.write(QJsonDocument(QJsonObject{{QStringLiteral("outputs"), outputs}}).toJson());
+    file.close();
+    qputenv("QT_QPA_EGLFS_KMS_CONFIG", path.toLocal8Bit());
+    QStringList others = connected;
+    others.removeAll(target);
+    g_startupNote = QStringLiteral("eglfs: %1 の表示を %2 に複製します(設定ファイル %3)")
+                        .arg(target, others.join(QStringLiteral(", ")), path);
+}
+
+QString OsDisplayMirror::startupNote() { return g_startupNote; }
+
+OsDisplayMirror::OsDisplayMirror(QObject *parent) : QObject(parent) {
+    const QString platform = QGuiApplication::platformName();
+    if (platform == QLatin1String("xcb")) {
+        program_ = QStandardPaths::findExecutable(QStringLiteral("xrandr"));
+        backend_ = program_.isEmpty() ? Backend::None : Backend::Xrandr;
+        status_ = program_.isEmpty() ? QStringLiteral("xrandr が見つからないため使えません") : QStringLiteral("使えます(xrandr)");
+    } else if (platform.startsWith(QLatin1String("wayland"))) {
+        program_ = QStandardPaths::findExecutable(QStringLiteral("kscreen-doctor"));
+        const bool kde = qEnvironmentVariable("XDG_CURRENT_DESKTOP").contains(QLatin1String("KDE"), Qt::CaseInsensitive);
+        backend_ = (kde && !program_.isEmpty()) ? Backend::KScreen : Backend::None;
+        status_ = backend_ == Backend::KScreen
+                      ? QStringLiteral("使えます(kscreen-doctor)")
+                      : QStringLiteral("この Wayland 環境では、外からミラーを設定できません(KDE Plasma のみ対応)");
+    } else if (platform.startsWith(QLatin1String("eglfs"))) {
+        backend_ = Backend::Eglfs;
+        status_ = g_startupNote.isEmpty() ? QStringLiteral("再起動すると反映されます(KMS の複製表示)") : g_startupNote;
+    } else {
+        status_ = QStringLiteral("このプラットフォーム(%1)では使えません").arg(platform);
+    }
+    if (!g_startupNote.isEmpty()) {
+        log::info("DISPLAY", g_startupNote);
+    }
+}
+
+OsDisplayMirror::~OsDisplayMirror() { restore(); }
+
+QString OsDisplayMirror::backendName() const {
+    switch (backend_) {
+    case Backend::Xrandr: return QStringLiteral("xrandr");
+    case Backend::KScreen: return QStringLiteral("kscreen-doctor");
+    case Backend::Eglfs: return QStringLiteral("eglfs(KMS)");
+    default: return {};
+    }
+}
+
+void OsDisplayMirror::setStatus(const QString &text) {
+    if (status_ != text) {
+        status_ = text;
+        emit statusChanged();
+    }
+}
+
+bool OsDisplayMirror::run(const QString &program, const QStringList &args, QString *output, QString *error) {
+    QProcess process;
+    process.start(program, args);
+    if (!process.waitForFinished(5000)) {
+        process.kill();
+        *error = QStringLiteral("%1 が応答しません").arg(program);
+        return false;
+    }
+    if (output) {
+        *output = QString::fromLocal8Bit(process.readAllStandardOutput());
+    }
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+        *error = QString::fromLocal8Bit(process.readAllStandardError()).trimmed();
+        if (error->isEmpty()) {
+            *error = QStringLiteral("終了コード %1").arg(process.exitCode());
+        }
+        return false;
+    }
+    return true;
+}
+
+void OsDisplayMirror::update(bool on, const QString &target, const QStringList &screens) {
+    if (backend_ == Backend::Eglfs) {
+        return;   // 起動時に決まる(prepareEglfs)。変更は再起動で反映
+    }
+    if (backend_ == Backend::None) {
+        return;
+    }
+    QStringList sorted = screens;
+    sorted.sort();
+    const QString key = on ? target + QLatin1Char('|') + sorted.join(QLatin1Char(',')) : QString();
+    if (key == appliedKey_) {
+        return;
+    }
+    appliedKey_ = key;
+    if (on && !target.isEmpty()) {
+        apply(target, screens);
+    } else {
+        restore();
+        setStatus(QStringLiteral("使えます(%1)").arg(backendName()));
+    }
+}
+
+void OsDisplayMirror::apply(const QString &target, const QStringList &screens) {
+    QString error;
+    if (backend_ == Backend::Xrandr) {
+        // 接続中の出力と、操作する画面の解像度を調べる
+        QString text;
+        if (!run(program_, {QStringLiteral("--query")}, &text, &error)) {
+            setStatus(QStringLiteral("ミラーにできません: ") + error);
+            return;
+        }
+        static const QRegularExpression kLine(QStringLiteral("^(\\S+) connected(?: primary)?(?: (\\d+)x(\\d+)\\+\\d+\\+\\d+)?"),
+                                              QRegularExpression::MultilineOption);
+        QStringList outputs;
+        QString targetSize;
+        for (auto it = kLine.globalMatch(text); it.hasNext();) {
+            const auto m = it.next();
+            outputs << m.captured(1);
+            if (m.captured(1) == target && !m.captured(2).isEmpty()) {
+                targetSize = m.captured(2) + QLatin1Char('x') + m.captured(3);
+            }
+        }
+        if (!outputs.contains(target) || targetSize.isEmpty()) {
+            setStatus(QStringLiteral("ミラーにできません: 操作する画面 %1 が xrandr で見つかりません").arg(target));
+            return;
+        }
+        QStringList args;
+        QStringList mirrored;
+        for (const QString &name : outputs) {
+            if (name == target) continue;
+            args << QStringLiteral("--output") << name << QStringLiteral("--auto")
+                 << QStringLiteral("--scale-from") << targetSize << QStringLiteral("--same-as") << target;
+            mirrored << name;
+        }
+        if (mirrored.isEmpty()) {
+            setStatus(QStringLiteral("ミラーにする画面がありません(xrandr)"));
+            return;
+        }
+        if (!run(program_, args, nullptr, &error)) {
+            setStatus(QStringLiteral("ミラーにできません: ") + error);
+            log::warn("DISPLAY", QStringLiteral("xrandr でミラーにできません: ") + error);
+            return;
+        }
+        for (const QString &name : mirrored) {
+            if (!mirrored_.contains(name)) mirrored_ << name;
+        }
+        target_ = target;
+        setStatus(QStringLiteral("%1 の表示を %2 に複製中(xrandr)").arg(target, mirrored.join(QStringLiteral(", "))));
+        log::info("DISPLAY", status_);
+    } else if (backend_ == Backend::KScreen) {
+        QStringList args;
+        QStringList mirrored;
+        for (const QString &name : screens) {
+            if (name == target) continue;
+            args << QStringLiteral("output.%1.mirror.%2").arg(name, target);
+            mirrored << name;
+        }
+        if (mirrored.isEmpty()) {
+            setStatus(QStringLiteral("ミラーにする画面がありません(kscreen-doctor)"));
+            return;
+        }
+        if (!run(program_, args, nullptr, &error)) {
+            setStatus(QStringLiteral("ミラーにできません(Plasma 6 以降が必要です): ") + error);
+            log::warn("DISPLAY", QStringLiteral("kscreen-doctor でミラーにできません: ") + error);
+            return;
+        }
+        for (const QString &name : mirrored) {
+            if (!mirrored_.contains(name)) mirrored_ << name;
+        }
+        target_ = target;
+        setStatus(QStringLiteral("%1 の表示を %2 に複製中(kscreen-doctor)").arg(target, mirrored.join(QStringLiteral(", "))));
+        log::info("DISPLAY", status_);
+    }
+}
+
+void OsDisplayMirror::restore() {
+    if (mirrored_.isEmpty() || target_.isEmpty()) {
+        mirrored_.clear();
+        return;
+    }
+    QString error;
+    QStringList args;
+    if (backend_ == Backend::Xrandr) {
+        // 操作する画面の右へ、順に横へ並べ直す(拡張表示)
+        QString left = target_;
+        for (const QString &name : mirrored_) {
+            args << QStringLiteral("--output") << name << QStringLiteral("--auto") << QStringLiteral("--scale")
+                 << QStringLiteral("1x1") << QStringLiteral("--right-of") << left;
+            left = name;
+        }
+    } else if (backend_ == Backend::KScreen) {
+        for (const QString &name : mirrored_) {
+            args << QStringLiteral("output.%1.mirror.none").arg(name);
+        }
+    }
+    if (!args.isEmpty()) {
+        if (run(program_, args, nullptr, &error)) {
+            log::info("DISPLAY", QStringLiteral("ミラーを解除しました: ") + mirrored_.join(QStringLiteral(", ")));
+        } else {
+            log::warn("DISPLAY", QStringLiteral("ミラーを解除できません: ") + error);
+        }
+    }
+    mirrored_.clear();
+}
+
+} // namespace opencruise
