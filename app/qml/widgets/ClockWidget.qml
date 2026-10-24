@@ -10,9 +10,29 @@ WidgetBase {
     readonly property real m: Math.max(10, root.s * 0.07)
     readonly property int hAlign: config.align === "center" ? Text.AlignHCenter : Text.AlignLeft
 
-    Column {
-        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
-                  leftMargin: root.m; rightMargin: root.m }
+    Row {
+        id: header
+        visible: root.titleVisible
+        anchors { top: parent.top; left: parent.left; leftMargin: root.m; topMargin: root.titleVisible ? root.m * 0.8 : 0 }
+        spacing: 8
+        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        MaterialIcon { anchors.verticalCenter: parent.verticalCenter; name: "schedule"; size: parent.height; color: Theme.accent }
+        Text {
+            width: Math.max(0, root.width - root.m * 2 - parent.height - parent.spacing)
+            anchors.verticalCenter: parent.verticalCenter
+            font.family: Theme.fontFamily; font.pixelSize: root.headerFontSize
+            color: Theme.textSecondary; text: root.titleText("時計"); elide: Text.ElideRight
+        }
+    }
+
+    Item {
+        id: body
+        anchors { top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right }
+        anchors.topMargin: root.titleVisible ? root.m * 0.25 : 0
+
+        Column {
+            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
+                      leftMargin: root.m; rightMargin: root.m }
         spacing: 2
 
         Text {
@@ -41,6 +61,7 @@ WidgetBase {
             color: Theme.textSecondary
             opacity: root.config.showDate === false ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: 200 } }
+        }
         }
     }
 }

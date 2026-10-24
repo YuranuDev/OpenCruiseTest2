@@ -47,9 +47,11 @@ WidgetBase {
     // ---- 上段: 名称・再生元・モック表示 ----
     Row {
         id: header
-        anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.8; leftMargin: root.m }
+        visible: root.titleVisible
+        anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
+        width: root.width - root.m * 2
         spacing: 8
-        height: Math.max(20, root.s * 0.11)
+        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
             name: root.playing ? "music_note" : "queue_music"
@@ -57,9 +59,11 @@ WidgetBase {
             color: Theme.accent
         }
         Text {
+            width: Math.max(0, parent.width - parent.height - parent.spacing)
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontFamily
-            text: "再生中"
+            text: root.titleText("再生中")
+            elide: Text.ElideRight
             color: Theme.textSecondary
             font.pixelSize: root.headerFontSize
         }
@@ -100,7 +104,7 @@ WidgetBase {
     Item {
         id: bodyBox
         anchors { top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
-                  margins: root.m; topMargin: root.m * 0.4 }
+                  margins: root.m; topMargin: root.titleVisible ? root.m * 0.4 : 0 }
 
         // 曲が無いとき
         Column {

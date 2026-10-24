@@ -99,10 +99,11 @@ WidgetBase {
     // ---- ウィジェット見出し(ナビが待機中でも表示) ----
     Row {
         id: header
+        visible: root.titleVisible
         anchors { top: parent.top; left: parent.left; right: parent.right
-                  topMargin: root.m * 0.8; leftMargin: root.m; rightMargin: root.m }
+                  topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m; rightMargin: root.m }
         spacing: 8
-        height: Math.max(20, root.s * 0.11)
+        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
 
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
@@ -114,7 +115,7 @@ WidgetBase {
             width: Math.max(0, header.width - header.spacing - header.height)
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontFamily
-            text: "ナビ案内"
+            text: root.titleText("ナビ案内")
             color: Theme.textSecondary
             font.pixelSize: root.headerFontSize
             elide: Text.ElideRight
@@ -125,7 +126,7 @@ WidgetBase {
     Item {
         id: idleArea
         anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
-                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m; topMargin: root.m * 0.4 }
+                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m; topMargin: root.titleVisible ? root.m * 0.4 : 0 }
         visible: !root.active
         opacity: 0.8
 
@@ -160,7 +161,7 @@ WidgetBase {
     Item {
         id: body
         anchors { top: header.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
-                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m; topMargin: root.m * 0.4 }
+                  leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m; topMargin: root.titleVisible ? root.m * 0.4 : 0 }
         visible: root.active
 
         // 「その次」の領域の大きさ(出さないときは 0)

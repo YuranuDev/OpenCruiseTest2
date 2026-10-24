@@ -15,7 +15,27 @@ WidgetBase {
     readonly property bool useName: config.showName !== false && appSettings.userName !== ""
     readonly property string greetingText: useName ? greeting + "、" + appSettings.userName + " さん" : greeting
 
-    Text {
+    Row {
+        id: header
+        visible: root.titleVisible
+        anchors { top: parent.top; left: parent.left; leftMargin: Math.max(14, Math.min(28, root.s * 0.3)); topMargin: root.titleVisible ? 8 : 0 }
+        spacing: 8
+        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
+        MaterialIcon { anchors.verticalCenter: parent.verticalCenter; name: "waving_hand"; size: parent.height; color: Theme.accent }
+        Text {
+            width: Math.max(0, root.width - 2 * Math.max(14, Math.min(28, root.s * 0.3)) - parent.height - parent.spacing)
+            anchors.verticalCenter: parent.verticalCenter
+            font.family: Theme.fontFamily; font.pixelSize: root.headerFontSize
+            color: Theme.textSecondary; text: root.titleText("あいさつ"); elide: Text.ElideRight
+        }
+    }
+
+    Item {
+        id: body
+        anchors { top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right }
+        anchors.topMargin: root.titleVisible ? 4 : 0
+
+        Text {
         readonly property real margin: Math.max(14, Math.min(28, root.s * 0.3))
         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
                   leftMargin: margin; rightMargin: margin }
@@ -25,10 +45,11 @@ WidgetBase {
         font.pixelSize: 100
         minimumPixelSize: 10
         fontSizeMode: Text.Fit
-        // 高さに上限を付けて、1 行の見出しとして従来(26px 前後)と同程度の大きさに収める
+        // 1 行に収め、狭い場合は文字サイズを縮める
         height: Math.min(parent.height - 8, 36)
         elide: Text.ElideRight
         text: root.greetingText
         color: Theme.textSecondary
+        }
     }
 }

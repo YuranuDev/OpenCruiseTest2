@@ -144,6 +144,19 @@ ApplicationWindow {
         z: 90
     }
 
+    // スマートフォン通知は、設定で許可したときだけ画面上部にポップアップする。
+    Connections {
+        target: phoneStatus
+        function onNoticeReceived(notice) {
+            if (!appSettings.phoneNoticePopupEnabled)
+                return
+            const message = String(notice.text || "").trim()
+            if (message === "")
+                return
+            notifications.show("スマホ通知", message, 0, notice.icon || "notifications", 5000)
+        }
+    }
+
     // 画面上部のポップアップ通知（映像表示中も最前面）
     NotificationPopup {
         z: 100

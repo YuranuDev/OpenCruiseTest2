@@ -54,9 +54,11 @@ WidgetBase {
     // ---- 上段: 名称・件数・モック表示 ----
     Row {
         id: header
-        anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.8; leftMargin: root.m }
+        visible: root.titleVisible
+        anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
+        width: root.width - root.m * 2
         spacing: 8
-        height: Math.max(20, root.s * 0.11)
+        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
             name: root.visibleNotices.length > 0 ? "notifications_active" : "notifications_none"
@@ -64,11 +66,13 @@ WidgetBase {
             color: Theme.accent
         }
         Text {
+            width: Math.max(0, parent.width - parent.height - parent.spacing)
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontFamily
-            text: "スマホ通知"
+            text: root.titleText("スマホ通知")
             color: Theme.textSecondary
             font.pixelSize: Math.min(root.fsHead, parent.height * 0.72)
+            elide: Text.ElideRight
         }
     }
     Row {
@@ -97,7 +101,7 @@ WidgetBase {
     Item {
         id: bodyBox
         anchors { top: header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
-                  margins: root.m; topMargin: root.m * 0.5 }
+                  margins: root.m; topMargin: root.titleVisible ? root.m * 0.5 : 0 }
         clip: true
 
         Text {   // 通知が無いとき

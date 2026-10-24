@@ -35,9 +35,10 @@ WidgetBase {
     // ---- 上段: 名称・接続状態 ----
     Row {
         id: header
-        anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.8; leftMargin: root.m }
+        visible: root.titleVisible
+        anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m * 0.8 : 0; leftMargin: root.m }
         spacing: 8
-        height: Math.max(20, root.s * 0.11)
+        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
         MaterialIcon {
             anchors.verticalCenter: parent.verticalCenter
             name: root.low ? "battery_alert" : "smartphone"
@@ -46,11 +47,13 @@ WidgetBase {
             opacity: root.low ? root.blink : 1
         }
         Text {
+            width: Math.max(0, root.width - root.m * 2 - parent.height - parent.spacing - root.s * 0.3)
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontFamily
-            text: "スマートフォン"
+            text: root.titleText("スマートフォン")
             color: Theme.textSecondary
             font.pixelSize: root.headerFontSize
+            elide: Text.ElideRight
         }
     }
     Row {
@@ -107,7 +110,7 @@ WidgetBase {
     Item {
         id: bodyBox
         anchors { top: header.bottom; bottom: lowText.top; left: parent.left; right: parent.right
-                  leftMargin: root.m; rightMargin: root.m; topMargin: root.m * 0.4 }
+                  leftMargin: root.m; rightMargin: root.m; topMargin: root.titleVisible ? root.m * 0.4 : 0 }
 
         Column {
             id: batteryCol

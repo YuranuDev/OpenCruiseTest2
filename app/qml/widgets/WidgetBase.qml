@@ -21,6 +21,12 @@ Item {
     // ---- WidgetHost が注入する ----
     property var config: ({})
     property bool lifting: false
+    readonly property bool titleVisible: config.showTitle !== false
+
+    function titleText(fallback) {
+        const custom = String(config.titleText || "").trim()
+        return custom !== "" ? custom : fallback
+    }
 
     // ---- 継承側が決める ----
     property bool framed: true

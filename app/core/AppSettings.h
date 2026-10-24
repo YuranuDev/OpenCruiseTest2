@@ -31,6 +31,9 @@ class AppSettings : public QObject {
     /** アプリが選択する電源モード(0:標準、1:省電力、2:高性能) */
     Q_PROPERTY(int powerMode READ powerMode WRITE setPowerMode NOTIFY powerModeChanged)
     Q_PROPERTY(QString powerModeStatus READ powerModeStatus NOTIFY powerModeChanged)
+    /** スマートフォン通知を画面上部のポップアップにも表示するか */
+    Q_PROPERTY(bool phoneNoticePopupEnabled READ phoneNoticePopupEnabled WRITE setPhoneNoticePopupEnabled
+                   NOTIFY phoneNoticePopupEnabledChanged)
 
 public:
     /**
@@ -45,6 +48,7 @@ public:
     QStringList fontFamilies() const { return fontFamilies_; }
     int powerMode() const { return powerMode_; }
     QString powerModeStatus() const { return powerModeStatus_; }
+    bool phoneNoticePopupEnabled() const { return phoneNoticePopupEnabled_; }
 
     /** @brief ユーザー名を変更して保存する(前後の空白は除く)。 */
     void setUserName(const QString &name);
@@ -53,6 +57,8 @@ public:
     void setFontFamily(const QString &family);
     /** @brief アプリの電源モードを変更して保存する。 */
     void setPowerMode(int mode);
+    /** @brief スマートフォン通知のポップアップ表示を保存する。既定はオフ。 */
+    void setPhoneNoticePopupEnabled(bool enabled);
     void applyPowerMode();
     void restorePowerMode();
 
@@ -60,6 +66,7 @@ signals:
     void userNameChanged();
     void fontFamilyChanged();
     void powerModeChanged();
+    void phoneNoticePopupEnabledChanged();
 
 private:
     /**
@@ -77,6 +84,7 @@ private:
     QStringList fontFamilies_;
     int powerMode_ = 0;
     QString powerModeStatus_;
+    bool phoneNoticePopupEnabled_ = false;
     QString originalPowerProfile_;
 };
 

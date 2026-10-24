@@ -100,6 +100,7 @@ AppSettings::AppSettings(QObject *parent) : QObject(parent) {
     const QSettings store = openStore();
     userName_ = store.value(QStringLiteral("user/name"), QString()).toString().trimmed();
     powerMode_ = qBound(0, store.value(QStringLiteral("power/mode"), 0).toInt(), 2);
+    phoneNoticePopupEnabled_ = store.value(QStringLiteral("notifications/phonePopups"), false).toBool();
     applyPowerMode();
 
     // 保存値が選択肢に無い(フォント未同梱・設定の破損など)場合は既定、既定も無ければ OS 既定
@@ -144,6 +145,15 @@ void AppSettings::setPowerMode(int mode) {
     openStore().setValue(QStringLiteral("power/mode"), powerMode_);
     applyPowerMode();
     emit powerModeChanged();
+}
+
+void AppSettings::setPhoneNoticePopupEnabled(bool enabled) {
+    if (enabled == phoneNoticePopupEnabled_) {
+        return;
+    }
+    phoneNoticePopupEnabled_ = enabled;
+    openStore().setValue(QStringLiteral("notifications/phonePopups"), phoneNoticePopupEnabled_);
+    emit phoneNoticePopupEnabledChanged();
 }
 
 void AppSettings::applyPowerMode() {

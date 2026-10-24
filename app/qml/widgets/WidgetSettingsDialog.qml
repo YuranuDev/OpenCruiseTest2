@@ -104,6 +104,27 @@ Item {
                     function onEdit(key, value) { if (root.area) root.area.setConfigValue(root.wid, key, value) }
                 }
 
+                // ---- 全ウィジェット共通: タイトル ----
+                SettingsRow {
+                    label: "上部タイトルを表示"
+                    SettingsSwitch {
+                        checked: root.cfg.showTitle !== false
+                        onToggled: (v) => { if (root.area) root.area.setConfigValue(root.wid, "showTitle", v) }
+                    }
+                }
+                SettingsRow {
+                    label: "タイトル文字"
+                    description: "空欄ならウィジェット標準の名前を表示します"
+                    stacked: true
+                    WSTextField {
+                        width: 520 * Theme.uiScale
+                        text: root.cfg.titleText || ""
+                        placeholder: root.def ? root.def.name : "タイトル"
+                        maxLength: 32
+                        onEdited: (t) => { if (root.area) root.area.setConfigValue(root.wid, "titleText", t) }
+                    }
+                }
+
                 // ---- 共通: サイズ ----
                 SettingsRow {
                     label: "サイズ(横)"

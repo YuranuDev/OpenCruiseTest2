@@ -92,6 +92,7 @@ qt_add_qml_module(opencruise
         qml/SettingsSlider.qml
         qml/SettingsDeviceList.qml
         qml/SettingsPageAndroidAuto.qml
+        qml/SettingsPageNotifications.qml
         qml/SettingsPageVehicle.qml
         qml/SettingsPageSystem.qml
         qml/SettingsPageAbout.qml
