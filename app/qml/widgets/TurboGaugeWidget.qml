@@ -69,35 +69,8 @@ WidgetBase {
         onRunningChanged: if (!running) root.blink = 1
     }
 
-    // ---- 上段: アイコンと名称 ----
-    Row {
-        id: header
-        visible: root.titleVisible
-        anchors { top: parent.top; left: parent.left; topMargin: root.titleVisible ? root.m : 0; leftMargin: root.m }
-        width: root.width - root.m * 2
-        spacing: 8
-        height: root.titleVisible ? Math.max(20, root.s * 0.11) : 0
-        MaterialIcon {
-            visible: root.showIcon
-            anchors.verticalCenter: parent.verticalCenter
-            name: root.warning ? "warning" : "speed"
-            size: parent.height
-            color: root.warning ? Theme.error : Theme.accent
-            opacity: root.warning ? root.blink : 1
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(0, header.width - (root.showIcon ? header.height + header.spacing : 0))
-            elide: Text.ElideRight
-            font.family: Theme.fontFamily
-            visible: root.titleVisible
-            text: root.titleText("ブースト")
-            color: Theme.textSecondary
-            font.pixelSize: root.headerFontSize
-        }
-    }
     Rectangle {   // モックデータ中の表示
-        anchors { verticalCenter: header.verticalCenter; right: parent.right; rightMargin: root.m }
+        anchors { top: parent.top; right: parent.right; topMargin: root.m; rightMargin: root.m }
         width: mockTag.implicitWidth + 14
         height: mockTag.implicitHeight + 6
         radius: height / 2
@@ -147,7 +120,7 @@ WidgetBase {
     Item {
         id: bodyBox
         anchors {
-            top: header.bottom; left: parent.left; right: parent.right
+            top: parent.top; left: parent.left; right: parent.right
             bottom: parent.bottom
             margins: root.m * 0.5
         }
@@ -296,20 +269,71 @@ WidgetBase {
                 border.color: root.warning ? Theme.error : Theme.panelBorder
             }
 
-            // デジタル表示(アナログ+デジタルのときだけ。下の開いた部分に置く)
+            // ゲージの見出しは針の中心より少し上に重ねて表示する。
+            Row {
+                id: dialTitle
+                visible: root.titleVisible
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: dial.r * 0.57
+                width: Math.min(dial.width * 0.74, 260)
+                height: Math.max(18, dial.r * 0.16)
+                spacing: Math.max(4, dial.r * 0.04)
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.radius
+                    color: Theme.panel
+                    opacity: 0.92
+                    border.color: Theme.panelBorder
+                }
+                MaterialIcon {
+                    visible: root.showIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: root.warning ? "warning" : "speed"
+                    size: Math.min(parent.height * 0.8, dial.r * 0.14)
+                    color: root.warning ? Theme.error : Theme.accent
+                    opacity: root.warning ? root.blink : 1
+                }
+                Text {
+                    width: Math.max(0, dialTitle.width - (root.showIcon ? dialTitle.height * 0.8 + dialTitle.spacing : 0))
+                    height: parent.height
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Math.max(10, Math.min(root.headerFontSize, dial.r * 0.13))
+                    font.bold: true
+                    color: Theme.textPrimary
+                    text: root.titleText("ブースト")
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+
+            // デジタル表示(アナログ+デジタルのときだけ。針軸から離して外側へ配置)
             Column {
                 visible: root.style === "both"
                 readonly property real gapAngle: (root.endAngle - 90 + (360 - root.sweepAngle) / 2) * Math.PI / 180
-                readonly property real gapRadius: dial.r * 0.4
-                width: Math.min(dial.width * 0.82, dial.r * 1.6)
+                readonly property real gapRadius: dial.r * 0.72
+                readonly property bool horizontalGap: Math.abs(Math.cos(gapAngle)) > Math.abs(Math.sin(gapAngle))
+                readonly property real hubClearance: dial.r * root.hubSize / 2 + dial.r * 0.06
+                width: horizontalGap ? dial.r * 0.73 : Math.min(dial.width * 0.82, dial.r * 1.6)
                 height: dial.r * 0.46
                 x: root.autoLabelPosition
-                   ? Math.max(0, Math.min(dial.width - width, dial.r + Math.cos(gapAngle) * gapRadius - width / 2))
+                   ? (horizontalGap && Math.cos(gapAngle) > 0
+                      ? Math.max(0, Math.min(dial.width - width - dial.r * 0.05,
+                                             Math.max(dial.r + hubClearance, dial.r + Math.cos(gapAngle) * gapRadius - width / 2)))
+                      : (horizontalGap ? Math.max(0, Math.min(dial.width - width - dial.r * 0.05,
+                                                              Math.min(dial.r - hubClearance - width,
+                                                                       dial.r + Math.cos(gapAngle) * gapRadius - width / 2)))
+                         : Math.max(0, Math.min(dial.width - width - dial.r * 0.05, dial.r + Math.cos(gapAngle) * gapRadius - width / 2))))
                    : (dial.width - width) / 2
                 y: root.autoLabelPosition
-                   ? Math.max(dial.r + dial.r * root.hubSize / 2 + dial.r * 0.05,
-                              Math.max(0, Math.min(dial.height - height, dial.r + Math.sin(gapAngle) * gapRadius - height / 2)))
-                   : dial.r + dial.r * 0.3
+                   ? (!horizontalGap && Math.sin(gapAngle) > 0
+                      ? Math.min(dial.height - height - dial.r * 0.05,
+                                 Math.max(dial.r + hubClearance, dial.r + Math.sin(gapAngle) * gapRadius - height / 2))
+                      : (!horizontalGap ? Math.max(0, Math.min(dial.r - hubClearance - height,
+                                                               dial.r + Math.sin(gapAngle) * gapRadius - height / 2))
+                         : Math.max(0, Math.min(dial.height - height - dial.r * 0.05,
+                                                dial.r + Math.sin(gapAngle) * gapRadius - height / 2))))
+                   : dial.r + dial.r * 0.4
                 spacing: 0
                 Text {
                     width: parent.width
@@ -342,8 +366,37 @@ WidgetBase {
             visible: root.style === "digital"
             anchors.fill: parent
 
+            Row {
+                visible: root.titleVisible
+                anchors { horizontalCenter: parent.horizontalCenter; top: parent.top }
+                width: Math.min(parent.width * 0.8, 260)
+                height: Math.max(20, root.s * 0.11)
+                spacing: 8
+                MaterialIcon {
+                    visible: root.showIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: root.warning ? "warning" : "speed"
+                    size: parent.height
+                    color: root.warning ? Theme.error : Theme.accent
+                    opacity: root.warning ? root.blink : 1
+                }
+                Text {
+                    width: Math.max(0, parent.width - (root.showIcon ? parent.height + parent.spacing : 0))
+                    height: parent.height
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.pixelSize: root.headerFontSize
+                    font.bold: true
+                    text: root.titleText("ブースト")
+                    color: Theme.textSecondary
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+
             Column {
                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                anchors.verticalCenterOffset: root.titleVisible ? parent.height * 0.1 : 0
                 spacing: root.m * 0.4
                 Text {
                     width: parent.width
