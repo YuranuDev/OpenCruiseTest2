@@ -116,6 +116,7 @@ WidgetBase {
     // ---- 下段: 警告メッセージ(警告値の案内と兼用。高さは常に確保して、警告の出入りで配置が動かないようにする) ----
     Item {
         id: footer
+        z: 1
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom
                   leftMargin: root.m; rightMargin: root.m; bottomMargin: root.m * 0.8 }
         height: root.warning ? Math.max(26, root.s * 0.095) : 0
@@ -147,7 +148,7 @@ WidgetBase {
         id: bodyBox
         anchors {
             top: header.bottom; left: parent.left; right: parent.right
-            bottom: root.warning ? footer.top : parent.bottom
+            bottom: parent.bottom
             margins: root.m * 0.5
         }
 
@@ -243,11 +244,6 @@ WidgetBase {
                     const subdivisions = faceStyle === "minimal" ? 2 : (faceStyle === "sport" ? 4 : 5)
                     const minor = step / subdivisions
                     const first = Math.ceil(vMin / minor - 1e-9)
-                    const firstMajor = Math.ceil(vMin / step - 1e-9)
-                    const lastMajor = Math.floor(vMax / step + 1e-9)
-                    const majorCount = Math.max(1, lastMajor - firstMajor + 1)
-                    // 小さいウィジェットでは全目盛り数字が重なるため、最大 5 個に間引く。
-                    const labelStride = Math.max(1, Math.ceil((majorCount - 1) / 4))
                     for (let n = first; n * minor <= vMax + 1e-9; ++n) {
                         const v = n * minor
                         const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6
@@ -261,8 +257,7 @@ WidgetBase {
                         ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
                         ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer)
                         ctx.stroke()
-                        const majorIndex = Math.round(v / step) - firstMajor
-                        if (isMajor && (majorIndex % labelStride === 0 || n * minor >= vMax - minor * 0.25)) {
+                        if (isMajor) {
                             ctx.fillStyle = (wOn && v >= vWarn - 1e-9) ? cWarn : cText
                             ctx.font = "bold " + Math.max(9, Math.round(R * (faceStyle === "minimal" ? 0.095 : 0.085))) + "px '" + fam + "'"
                             ctx.textAlign = "center"
