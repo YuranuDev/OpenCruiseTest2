@@ -73,7 +73,9 @@ QtObject {
             component: turboComp, settings: turboSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 3, h: 3 }, maxSize: { w: 8, h: 6 },
             // 値は bar 基準で保存する(単位を切り替えても警告値などがずれない)
-            defaultConfig: { style: "both", unit: "bar", min: -1.0, max: 2.0,
+            defaultConfig: { style: "both", dialStyle: "classic", unit: "bar", min: -1.0, max: 2.0,
+                             startAngle: -135, endAngle: 135, autoLabelPosition: true,
+                             needleTail: true, hubSize: 16, hubColor: "panel", needleColor: "theme",
                              showIcon: true, warnEnabled: true, warn: 1.6, warnMessage: "ブースト圧が高すぎます" },
             dragStart: "hold", mock: true
         },

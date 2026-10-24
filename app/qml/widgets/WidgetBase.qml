@@ -25,6 +25,10 @@ Item {
     // ---- 継承側が決める ----
     property bool framed: true
     property string doubleTapAction: "settings"
+    // ウィジェット共通の文字階層。個別の値表示・大見出しは各ウィジェット側で調整する。
+    readonly property real headerFontSize: Math.max(13, Math.min(s * 0.085, 26))
+    readonly property real bodyFontSize: Math.max(12, Math.min(s * 0.075, 22))
+    readonly property real detailFontSize: Math.max(11, Math.min(s * 0.065, 18))
     signal tapped()
     signal doubleTapped()
 

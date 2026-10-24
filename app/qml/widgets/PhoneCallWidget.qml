@@ -74,7 +74,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "通話"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(13, root.s * 0.085)
+            font.pixelSize: root.headerFontSize
             elide: Text.ElideRight
         }
     }
@@ -94,7 +94,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "モック"
             color: Theme.warn
-            font.pixelSize: Math.max(10, root.s * 0.06)
+            font.pixelSize: root.detailFontSize
             minimumPixelSize: 8
             fontSizeMode: Text.Fit
             horizontalAlignment: Text.AlignHCenter
@@ -129,7 +129,7 @@ WidgetBase {
                 text: !phoneStatus.connected && !phoneStatus.callIsMock ? "スマートフォンを接続してください"
                                                                         : "通話はありません"
                 color: Theme.textSecondary
-                font.pixelSize: Math.max(10, Math.min(root.s * 0.085, height * 0.8))
+                font.pixelSize: Math.max(10, Math.min(root.bodyFontSize, height * 0.8))
                 minimumPixelSize: 9
                 fontSizeMode: Text.Fit
                 wrapMode: Text.NoWrap
@@ -152,7 +152,7 @@ WidgetBase {
                 verticalAlignment: Text.AlignVCenter
                 font.family: Theme.fontFamily
                 font.bold: true
-                font.pixelSize: Math.max(10, Math.min(root.s * 0.08, height * 0.72))
+                font.pixelSize: Math.max(10, Math.min(root.bodyFontSize, height * 0.72))
                 minimumPixelSize: 9
                 fontSizeMode: Text.Fit
                 color: root.stateColor
@@ -181,7 +181,7 @@ WidgetBase {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(9, Math.min(root.s * 0.07, height * 0.72))
+                font.pixelSize: Math.min(root.detailFontSize, height * 0.72)
                 minimumPixelSize: 9
                 fontSizeMode: Text.Fit
                 wrapMode: Text.NoWrap

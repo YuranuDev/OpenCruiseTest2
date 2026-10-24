@@ -50,7 +50,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "スマートフォン"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(13, root.s * 0.085)
+            font.pixelSize: root.headerFontSize
         }
     }
     Row {
@@ -70,7 +70,7 @@ WidgetBase {
                 font.family: Theme.fontFamily
                 text: "モック"
                 color: Theme.warn
-                font.pixelSize: Math.max(10, root.s * 0.06)
+                font.pixelSize: root.detailFontSize
             }
         }
         Rectangle {   // 接続状態
@@ -83,7 +83,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: phoneStatus.connected ? "接続中" : "未接続"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(12, root.s * 0.075)
+            font.pixelSize: root.bodyFontSize
         }
     }
 
@@ -95,7 +95,7 @@ WidgetBase {
         horizontalAlignment: Text.AlignHCenter
         font.family: Theme.fontFamily
         font.bold: true
-        font.pixelSize: Math.max(13, root.s * 0.085)
+        font.pixelSize: root.bodyFontSize
         elide: Text.ElideRight
         color: Theme.error
         text: root.config.lowMessage || "バッテリー残量が少なくなっています"
@@ -144,7 +144,7 @@ WidgetBase {
                 width: parent.width
                 visible: root.config.showRemaining !== false
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.max(12, root.s * 0.075)
+                font.pixelSize: root.bodyFontSize
                 elide: Text.ElideRight
                 color: Theme.textSecondary
                 text: !phoneStatus.connected && !phoneStatus.batteryIsMock ? "スマートフォンを接続してください"
@@ -181,7 +181,7 @@ WidgetBase {
                 font.family: Theme.fontFamily
                 text: "電波"
                 color: Theme.textSecondary
-                font.pixelSize: Math.max(11, root.s * 0.065)
+                font.pixelSize: root.detailFontSize
             }
         }
     }

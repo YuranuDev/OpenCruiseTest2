@@ -11,6 +11,7 @@ WidgetBase {
 
     // ---- 設定(表示単位に換算済み) ----
     readonly property string style: config.style === "analog" || config.style === "digital" ? config.style : "both"
+    readonly property string dialStyle: config.dialStyle === "minimal" || config.dialStyle === "sport" ? config.dialStyle : "classic"
     readonly property bool usePsi: config.unit === "psi"
     readonly property real k: usePsi ? 14.5038 : 1.0           // bar → 表示単位
     readonly property string unitText: usePsi ? "psi" : "bar"
@@ -19,7 +20,22 @@ WidgetBase {
     readonly property real warnV: config.warn * k
     readonly property bool warnOn: config.warnEnabled === true
     readonly property bool showIcon: config.showIcon !== false
+    readonly property real startAngle: Math.max(-180, Math.min(-90, config.startAngle === undefined ? -135 : Number(config.startAngle)))
+    readonly property real endAngle: Math.max(90, Math.min(180, config.endAngle === undefined ? 135 : Number(config.endAngle)))
+    readonly property real sweepAngle: endAngle - startAngle
+    readonly property bool autoLabelPosition: config.autoLabelPosition !== false
+    readonly property bool needleTail: config.needleTail !== false
+    readonly property real hubSize: Math.max(0.08, Math.min(0.32, (config.hubSize || 16) / 100))
+    readonly property color needleColor: configuredColor("needleColor", Theme.accent)
+    readonly property color hubColor: configuredColor("hubColor", Theme.panel)
     readonly property int decimals: usePsi ? 1 : 2
+
+    function configuredColor(key, fallback) {
+        const value = String(config[key] || "")
+        if (value === "theme") return Theme.accent
+        if (value === "panel") return Theme.panel
+        return /^#[0-9a-f]{6}$/i.test(value) ? Qt.color(value) : fallback
+    }
 
     // ---- 値(針は滑らかに動かす) ----
     readonly property real rawValue: can.boostBar * k
@@ -58,7 +74,7 @@ WidgetBase {
         id: header
         anchors { top: parent.top; left: parent.left; topMargin: root.m; leftMargin: root.m }
         spacing: 8
-        height: Math.max(22, root.s * 0.075)
+        height: Math.max(20, root.s * 0.11)
         MaterialIcon {
             visible: root.showIcon
             anchors.verticalCenter: parent.verticalCenter
@@ -72,7 +88,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "ブースト"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(13, root.s * 0.055)
+            font.pixelSize: root.headerFontSize
         }
     }
     Rectangle {   // モックデータ中の表示
@@ -88,7 +104,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "モック"
             color: Theme.warn
-            font.pixelSize: Math.max(10, root.s * 0.035)
+            font.pixelSize: root.detailFontSize
         }
     }
 
@@ -114,7 +130,7 @@ WidgetBase {
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontFamily
             font.bold: root.warning
-            font.pixelSize: Math.max(13, root.s * 0.055)
+            font.pixelSize: root.bodyFontSize
             elide: Text.ElideRight
             color: root.warning ? Theme.error : Theme.textSecondary
             text: root.warning
@@ -150,25 +166,35 @@ WidgetBase {
                 property color cText: Theme.textSecondary
                 property color cMajor: Theme.textPrimary
                 property color cWarn: Theme.error
+                property color cAccent: Theme.accent
                 property real vMin: root.minV
                 property real vMax: root.maxV
                 property real vWarn: root.warnV
+                property real vShown: root.shown
                 property bool wOn: root.warnOn
+                property string faceStyle: root.dialStyle
                 property string fam: Theme.fontFamily
                 onCTrackChanged: requestPaint()
                 onCTextChanged: requestPaint()
                 onCMajorChanged: requestPaint()
                 onCWarnChanged: requestPaint()
+                onCAccentChanged: requestPaint()
                 onVMinChanged: requestPaint()
                 onVMaxChanged: requestPaint()
                 onVWarnChanged: requestPaint()
+                onVShownChanged: requestPaint()
                 onWOnChanged: requestPaint()
+                onFaceStyleChanged: requestPaint()
                 onFamChanged: requestPaint()
                 onWidthChanged: requestPaint()
 
-                // 135° から時計回りに 270°(下が開いた形)
-                readonly property real a0: Math.PI * 0.75
-                readonly property real sweep: Math.PI * 1.5
+                // 設定した開始角度から時計回りに描画。値表示は開始・終了角の間の空きへ置く。
+                property real startDegrees: root.startAngle
+                property real sweepDegrees: root.sweepAngle
+                readonly property real a0: (startDegrees - 90) * Math.PI / 180
+                readonly property real sweep: sweepDegrees * Math.PI / 180
+                onStartDegreesChanged: requestPaint()
+                onSweepDegreesChanged: requestPaint()
 
                 function niceStep(range) {
                     const c = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100]
@@ -195,6 +221,12 @@ WidgetBase {
                     ctx.beginPath()
                     ctx.arc(cx, cy, tr, a0, a0 + sweep)
                     ctx.stroke()
+                    if (faceStyle === "sport" && vShown > vMin) {
+                        ctx.strokeStyle = cAccent
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, tr, a0, ang(vShown))
+                        ctx.stroke()
+                    }
                     if (wOn && vWarn < vMax) {
                         ctx.strokeStyle = cWarn
                         ctx.beginPath()
@@ -205,15 +237,17 @@ WidgetBase {
                     // 目盛り(大目盛りに数字、間に小目盛り 4 本)
                     const step = niceStep(range)
                     const dec = step >= 1 ? 0 : (step >= 0.1 ? 1 : 2)
-                    const minor = step / 5
+                    const subdivisions = faceStyle === "minimal" ? 2 : (faceStyle === "sport" ? 4 : 5)
+                    const minor = step / subdivisions
                     const first = Math.ceil(vMin / minor - 1e-9)
                     for (let n = first; n * minor <= vMax + 1e-9; ++n) {
                         const v = n * minor
                         const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6
                         const a = ang(v)
-                        const inner = R * (isMajor ? 0.72 : 0.78)
-                        const outer = R * 0.83
-                        ctx.lineWidth = isMajor ? R * 0.025 : R * 0.012
+                        const inner = R * (isMajor ? 0.72 : (faceStyle === "minimal" ? 0.8 : 0.78))
+                        const outer = R * (faceStyle === "minimal" ? 0.85 : 0.83)
+                        ctx.lineWidth = isMajor ? R * (faceStyle === "sport" ? 0.032 : 0.025)
+                                                : R * (faceStyle === "minimal" ? 0.008 : 0.012)
                         ctx.strokeStyle = (wOn && v >= vWarn - 1e-9) ? cWarn : (isMajor ? cMajor : cText)
                         ctx.beginPath()
                         ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
@@ -224,7 +258,7 @@ WidgetBase {
                             ctx.font = "bold " + Math.round(R * 0.11) + "px '" + fam + "'"
                             ctx.textAlign = "center"
                             ctx.textBaseline = "middle"
-                            const lr = R * 0.6
+                            const lr = R * (faceStyle === "sport" ? 0.58 : 0.6)
                             ctx.fillText((Math.abs(v) < 1e-9 ? 0 : v).toFixed(dec), cx + Math.cos(a) * lr, cy + Math.sin(a) * lr)
                         }
                     }
@@ -238,41 +272,58 @@ WidgetBase {
                 y: dial.r
                 width: 0
                 height: 0
-                rotation: -135 + root.frac(root.shown) * 270
+                rotation: root.startAngle + root.frac(root.shown) * root.sweepAngle
                 Rectangle {
                     x: -width / 2
                     y: -dial.r * 0.8
                     width: Math.max(3, dial.r * 0.045)
-                    height: dial.r * 0.8 + dial.r * 0.12
+                    height: dial.r * (root.needleTail ? 0.92 : 0.8)
                     radius: width / 2
-                    color: root.warning ? Theme.error : Theme.accent
+                    color: root.warning ? Theme.error : root.needleColor
                 }
             }
             Rectangle {   // 針の軸
                 anchors.centerIn: parent
-                width: dial.r * 0.16
+                width: dial.r * root.hubSize
                 height: width
                 radius: width / 2
-                color: Theme.panel
-                border.width: Math.max(2, dial.r * 0.03)
-                border.color: root.warning ? Theme.error : Theme.accent
+                color: root.hubColor
+                border.width: Math.max(1, dial.r * 0.025)
+                border.color: root.warning ? Theme.error : Theme.panelBorder
             }
 
             // デジタル表示(アナログ+デジタルのときだけ。下の開いた部分に置く)
             Column {
                 visible: root.style === "both"
-                anchors { horizontalCenter: parent.horizontalCenter; top: parent.verticalCenter; topMargin: dial.r * 0.3 }
+                readonly property real gapAngle: (root.endAngle - 90 + (360 - root.sweepAngle) / 2) * Math.PI / 180
+                readonly property real gapRadius: dial.r * 0.4
+                width: Math.min(dial.width * 0.82, dial.r * 1.6)
+                height: dial.r * 0.58
+                x: root.autoLabelPosition
+                   ? Math.max(0, Math.min(dial.width - width, dial.r + Math.cos(gapAngle) * gapRadius - width / 2))
+                   : (dial.width - width) / 2
+                y: root.autoLabelPosition
+                   ? Math.max(0, Math.min(dial.height - height, dial.r + Math.sin(gapAngle) * gapRadius - height / 2))
+                   : dial.r + dial.r * 0.3
                 spacing: 0
                 Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: parent.width
+                    height: dial.r * 0.38
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.bold: true
-                    font.pixelSize: Math.max(16, dial.r * 0.38)
+                    font.pixelSize: 300
+                    minimumPixelSize: 14
+                    fontSizeMode: Text.Fit
                     text: root.shown.toFixed(root.decimals)
                     color: root.valueColor
                 }
                 Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: parent.width
+                    height: dial.r * 0.18
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.max(11, dial.r * 0.14)
                     text: root.unitText
@@ -306,7 +357,7 @@ WidgetBase {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(12, root.s * 0.075)
+                    font.pixelSize: root.detailFontSize
                     text: root.unitText
                     color: Theme.textSecondary
                 }

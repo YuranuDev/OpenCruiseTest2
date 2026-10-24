@@ -116,7 +116,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "ナビ案内"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(13, root.s * 0.085)
+            font.pixelSize: root.headerFontSize
             elide: Text.ElideRight
         }
     }

@@ -13,12 +13,29 @@ WidgetSettingsBase {
     readonly property int dec: psi ? 0 : 1
     // 最小値と最大値の最低の幅(bar)
     readonly property real minSpan: 0.5
+    readonly property var colorOptions: [
+        { label: "テーマ", value: "theme" }, { label: "パネル", value: "panel" },
+        { label: "白", value: "#ffffff" }, { label: "赤", value: "#f44336" },
+        { label: "橙", value: "#ff9800" }, { label: "黄", value: "#ffeb3b" },
+        { label: "緑", value: "#4caf50" }, { label: "青", value: "#2196f3" },
+        { label: "紫", value: "#9c27b0" }
+    ]
 
     // 表示単位の値 → bar に直して保存(psi は 0.1bar 未満が出ないよう丸める)
     function save(key, shownValue) {
         root.edit(key, Number((shownValue / root.k).toFixed(3)))
     }
 
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "メーターの種類"
+        description: "スポーツは進捗リング、シンプルは目盛りを減らした表示です"
+        SettingsChoice {
+            model: ["クラシック", "シンプル", "スポーツ"]
+            currentIndex: root.config.dialStyle === "minimal" ? 1 : (root.config.dialStyle === "sport" ? 2 : 0)
+            onPicked: (i) => root.edit("dialStyle", i === 1 ? "minimal" : (i === 2 ? "sport" : "classic"))
+        }
+    }
     SettingsRow {
         label: "表示方式"
         SettingsChoice {
@@ -59,6 +76,87 @@ WidgetSettingsBase {
             decimals: root.dec
             suffix: root.suffix
             onMoved: (v) => root.save("max", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "開始角度"
+        description: "針が動き始める位置(-180°〜-90°)"
+        WSStepper {
+            value: root.config.startAngle === undefined ? -135 : root.config.startAngle
+            from: -180
+            to: -90
+            step: 5
+            suffix: "°"
+            onMoved: (v) => root.edit("startAngle", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "終了角度"
+        description: "針が動き終わる位置(90°〜180°)"
+        WSStepper {
+            value: root.config.endAngle === undefined ? 135 : root.config.endAngle
+            from: 90
+            to: 180
+            step: 5
+            suffix: "°"
+            onMoved: (v) => root.edit("endAngle", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style === "both"
+        label: "数値を空き位置に配置"
+        description: "開始角度と終了角度の間の空きに現在値を表示します"
+        SettingsSwitch {
+            checked: root.config.autoLabelPosition !== false
+            onToggled: (v) => root.edit("autoLabelPosition", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "針の反対側の出っ張り"
+        description: "針の軸から反対側へ伸びる部分を表示します"
+        SettingsSwitch {
+            checked: root.config.needleTail !== false
+            onToggled: (v) => root.edit("needleTail", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "中心円のサイズ"
+        description: "針の軸にある丸の大きさ(半径に対する割合)"
+        WSStepper {
+            value: root.config.hubSize || 16
+            from: 8
+            to: 32
+            step: 2
+            suffix: "%"
+            onMoved: (v) => root.edit("hubSize", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "中心円の色"
+        description: "中央の丸だけに適用する色"
+        stacked: true
+        SettingsColorPalette {
+            width: Math.min(root.width, 620 * Theme.uiScale)
+            options: root.colorOptions
+            selectedValue: root.config.hubColor || "panel"
+            onPicked: (v) => root.edit("hubColor", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.style !== "digital"
+        label: "針の色"
+        description: "警告中は警告色で表示します"
+        stacked: true
+        SettingsColorPalette {
+            width: Math.min(root.width, 620 * Theme.uiScale)
+            options: root.colorOptions
+            selectedValue: root.config.needleColor || "theme"
+            onPicked: (v) => root.edit("needleColor", v)
         }
     }
     SettingsRow {

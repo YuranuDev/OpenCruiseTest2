@@ -61,7 +61,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: "再生中"
             color: Theme.textSecondary
-            font.pixelSize: Math.max(13, root.s * 0.085)
+            font.pixelSize: root.headerFontSize
         }
     }
     Row {
@@ -73,7 +73,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             text: phoneStatus.playbackSource
             color: Theme.textSecondary
-            font.pixelSize: Math.max(11, root.s * 0.065)
+            font.pixelSize: root.detailFontSize
             elide: Text.ElideRight
             width: Math.min(implicitWidth, root.width * 0.4)
         }
@@ -91,7 +91,7 @@ WidgetBase {
                 font.family: Theme.fontFamily
                 text: "モック"
                 color: Theme.warn
-                font.pixelSize: Math.max(10, root.s * 0.06)
+                font.pixelSize: root.detailFontSize
             }
         }
     }
@@ -119,7 +119,7 @@ WidgetBase {
                 font.family: Theme.fontFamily
                 text: !phoneStatus.connected ? "スマートフォンを接続してください" : "再生中の曲はありません"
                 color: Theme.textSecondary
-                font.pixelSize: Math.max(13, root.s * 0.085)
+                font.pixelSize: root.bodyFontSize
             }
         }
 
@@ -143,7 +143,7 @@ WidgetBase {
                 width: parent.width
                 height: Math.max(18, root.s * 0.1)
                 fontFamily: Theme.fontFamily
-                pixelSize: Math.max(12, root.s * 0.08)
+                pixelSize: root.bodyFontSize
                 color: Theme.textSecondary
                 text: root.subtitle
                 paused: root.lifting
@@ -180,7 +180,7 @@ WidgetBase {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         font.family: Theme.fontFamily
-                        font.pixelSize: Math.max(11, root.s * 0.07)
+                        font.pixelSize: root.detailFontSize
                         color: Theme.textSecondary
                         text: root.playing ? "再生中" : (root.paused ? "一時停止" : "停止")
                     }
@@ -189,7 +189,7 @@ WidgetBase {
                     visible: root.showProgress || root.position > 0
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                     font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(11, root.s * 0.07)
+                    font.pixelSize: root.detailFontSize
                     color: Theme.textSecondary
                     text: root.timeText(root.position) + (root.duration > 0 ? " / " + root.timeText(root.duration) : "")
                 }

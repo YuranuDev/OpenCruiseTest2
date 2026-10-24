@@ -119,6 +119,7 @@ qt_add_qml_module(opencruise
         qml/widgets/WidgetPicker.qml
         qml/widgets/WSStepper.qml
         qml/widgets/WSTextField.qml
+        qml/widgets/SettingsColorPalette.qml
         qml/widgets/ClockWidget.qml
         qml/widgets/ClockSettings.qml
         qml/widgets/GreetingWidget.qml
