@@ -36,8 +36,8 @@ QtObject {
     property Component clockSettings: Component { ClockSettings {} }
     property Component greetingComp: Component { GreetingWidget {} }
     property Component greetingSettings: Component { GreetingSettings {} }
-    property Component turboComp: Component { TurboGaugeWidget {} }
-    property Component turboSettings: Component { TurboGaugeSettings {} }
+    property Component gaugeComp: Component { GaugeWidget {} }        // メーター系(ターボ圧計・タコメーターなど)で共通
+    property Component gaugeSettings: Component { GaugeSettings {} }
     property Component phoneComp: Component { PhoneStatusWidget {} }
     property Component phoneSettings: Component { PhoneStatusSettings {} }
     property Component noticeComp: Component { PhoneNoticeWidget {} }
@@ -48,6 +48,43 @@ QtObject {
     property Component playingSettings: Component { NowPlayingSettings {} }
     property Component navigationComp: Component { NavigationWidget {} }
     property Component navigationSettings: Component { NavigationSettings {} }
+
+    // ---- メーター(GaugeWidget)で測れる値の定義。種類ごとの defaultConfig の metric で選ぶ ----
+    //   title / icon     既定の見出しとアイコン
+    //   units            単位の候補(先頭が既定)。表示値 = 基本単位の値 × scale + offset
+    //                    dec: 表示の小数桁 / step, stepDec: 設定の刻みと小数桁 / labelDiv: 目盛りの数字を割る値
+    //   limitMin / limitMax / minSpan   設定できる最小値・最大値の範囲と、最小〜最大の最低の幅(基本単位)
+    //   warnBelow        true なら「警告値以下」で警告(燃料など)
+    //   warnMessage      警告メッセージの入力欄の例
+    readonly property var gaugeSpecs: ({
+        boost: { title: "ブースト", icon: "speed",
+                 units: [{ id: "bar", label: "bar", scale: 1, dec: 2, step: 0.1, stepDec: 1 },
+                         { id: "psi", label: "psi", scale: 14.5038, dec: 1, step: 1, stepDec: 0 }],
+                 limitMin: -1.0, limitMax: 5.0, minSpan: 0.5,
+                 minLabel: "最小値(負圧側)", minHint: "目盛りの左端。負圧を測れるよう、通常は 0 より小さくします",
+                 warnMessage: "ブースト圧が高すぎます" },
+        rpm:   { title: "回転数", icon: "av_timer",
+                 units: [{ id: "rpm", label: "rpm", scale: 1, dec: 0, step: 500, stepDec: 0, labelDiv: 1000 }],
+                 limitMin: 0, limitMax: 12000, minSpan: 1000, warnMessage: "回転数が高すぎます" },
+        speed: { title: "速度", icon: "directions_car",
+                 units: [{ id: "kmh", label: "km/h", scale: 1, dec: 0, step: 10, stepDec: 0 },
+                         { id: "mph", label: "mph", scale: 0.621371, dec: 0, step: 5, stepDec: 0 }],
+                 limitMin: 0, limitMax: 400, minSpan: 40, warnMessage: "速度に注意してください" },
+        coolant: { title: "水温", icon: "thermostat",
+                 units: [{ id: "c", label: "℃", scale: 1, dec: 0, step: 5, stepDec: 0 },
+                         { id: "f", label: "℉", scale: 1.8, offset: 32, dec: 0, step: 5, stepDec: 0 }],
+                 limitMin: -40, limitMax: 150, minSpan: 20, warnMessage: "水温が高すぎます" },
+        fuel:  { title: "燃料", icon: "local_gas_station",
+                 units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 5, stepDec: 0 }],
+                 limitMin: 0, limitMax: 100, minSpan: 20, warnBelow: true, warnMessage: "燃料が残りわずかです" }
+    })
+
+    // メーターの共通の既定値に、種類ごとの値を重ねる
+    function gaugeConfig(extra) {
+        return Object.assign({ style: "both", dialStyle: "classic", startAngle: -135, endAngle: 135,
+                               autoLabelPosition: true, needleTail: true, hubSize: 16, hubColor: "panel",
+                               needleColor: "theme", showIcon: true }, extra)
+    }
 
     // ---- 種類の一覧 ----
     readonly property var types: [
@@ -70,13 +107,49 @@ QtObject {
         {
             type: "turbo", genre: "vehicle", name: "ターボ圧計", icon: "speed",
             description: "ブースト圧のアナログ+デジタルメーター(警告値あり)",
-            component: turboComp, settings: turboSettings,
+            component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 3, h: 3 }, maxSize: { w: 8, h: 6 },
             // 値は bar 基準で保存する(単位を切り替えても警告値などがずれない)
-            defaultConfig: { style: "both", dialStyle: "classic", unit: "bar", min: -1.0, max: 2.0,
-                             startAngle: -135, endAngle: 135, autoLabelPosition: true,
-                             needleTail: true, hubSize: 16, hubColor: "panel", needleColor: "theme",
-                             showIcon: true, warnEnabled: true, warn: 1.6, warnMessage: "ブースト圧が高すぎます" },
+            defaultConfig: gaugeConfig({ metric: "boost", unit: "bar", min: -1.0, max: 2.0,
+                                         warnEnabled: true, warn: 1.6, warnMessage: "ブースト圧が高すぎます" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "tacho", genre: "vehicle", name: "タコメーター", icon: "av_timer",
+            description: "エンジン回転数のメーター(レッドゾーンの警告あり)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 4, h: 5 }, minSize: { w: 3, h: 3 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "rpm", unit: "rpm", min: 0, max: 8000, dialStyle: "sport",
+                                         warnEnabled: true, warn: 6500, warnMessage: "回転数が高すぎます" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "speedGauge", genre: "vehicle", name: "スピードメーター", icon: "directions_car",
+            description: "車速のメーター(km/h・mph)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 4, h: 5 }, minSize: { w: 3, h: 3 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "speed", unit: "kmh", min: 0, max: 180,
+                                         warnEnabled: false, warn: 120, warnMessage: "速度に注意してください" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "coolant", genre: "vehicle", name: "水温計", icon: "thermostat",
+            description: "冷却水の温度のメーター(オーバーヒートの警告あり)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 3, h: 3 }, minSize: { w: 3, h: 3 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "coolant", unit: "c", min: 40, max: 130,
+                                         dialStyle: "minimal", startAngle: -90, endAngle: 90,
+                                         warnEnabled: true, warn: 105, warnMessage: "水温が高すぎます" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "fuel", genre: "vehicle", name: "燃料計", icon: "local_gas_station",
+            description: "燃料の残量のメーター(残りわずかの警告あり)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 3, h: 3 }, minSize: { w: 3, h: 3 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "fuel", unit: "pct", min: 0, max: 100,
+                                         dialStyle: "minimal", startAngle: -90, endAngle: 90,
+                                         warnEnabled: true, warn: 15, warnMessage: "燃料が残りわずかです" }),
             dragStart: "hold", mock: true
         },
         {

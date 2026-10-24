@@ -1,31 +1,46 @@
-// ターボ圧計。実際のブースト計のように、アナログ(目盛り・針・警告ゾーン)とデジタル(数値)を組み合わせたメーター。
-// 値は can.boostBar(現状はモック)。設定は bar 基準で保存され、表示と編集のときだけ psi に換算する。
+// 汎用のメーター(ターボ圧計・タコメーター・スピードメーター・水温計・燃料計で共通)。
+// 何を測るかは config.metric(WidgetRegistry の defaultConfig で種類ごとに固定)で決まり、計測値の定義
+// (データ元・単位・換算・設定できる範囲・既定の見出し)は WidgetRegistry.gaugeSpecs にまとめてある。
+// 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / %)で保存し、表示と編集のときだけ選んだ単位に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
-//  - メーターの種類: クラシック(目盛り+警告帯) / シンプル(細いリング) / スポーツ(太い進捗リング)
-//  - 最小値・最大値・単位(bar/psi)・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
-//  - アイコン表示・警告値・警告メッセージ
-// 警告値以上になると、針と数値が赤になり、アイコンと警告メッセージが点滅する(解除は警告値より少し下がったとき)。
+//  - メーターの種類: クラシック(目盛り+警告帯) / シンプル(細いリング) / スポーツ(セグメント式のバー)
+//  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
+//  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
+// 警告になると、針と数値が赤になり、アイコンと警告メッセージが点滅する(解除は警告値から少し戻ったとき)。
 //
 // レイアウトの考え方:
 //  1. 見出し(上)・警告欄(下、警告が有効なときだけ高さを確保)を除いた残りを本体とする
 //  2. アナログは「半径 1 の円」で、弧・中心円・数値表示が実際に占める範囲(外接矩形)を求め、
-//     その矩形が本体に最大で収まる半径 R を決める(弧の欠けている側の余白を無駄にしない)
-//  3. 目盛り(静的)・進捗リング(値に追従)・針は別々に描き、値が変わっても目盛りは描き直さない
+//     その矩形が本体に最大で収まる半径を決める(弧の欠けている側の余白を無駄にしない)
+//  3. 目盛り(静的)・進捗(値に追従)・針は別々に描き、値が変わっても目盛りは描き直さない
 import QtQuick
 import OpenCruise
 
 WidgetBase {
     id: root
 
+    // ---------------------------------------------------------------- 計測値の定義と単位
+    readonly property string metric: WidgetRegistry.gaugeSpecs[config.metric] ? config.metric : "boost"
+    readonly property var gauge: WidgetRegistry.gaugeSpecs[metric]
+    readonly property var unitDef: {
+        const list = gauge.units
+        for (let i = 0; i < list.length; ++i) {
+            if (list[i].id === config.unit) return list[i]
+        }
+        return list[0]
+    }
+    function toShown(base) { return Number(base) * unitDef.scale + (unitDef.offset || 0) }
+    readonly property string unitText: unitDef.label
+    readonly property int decimals: unitDef.dec
+    readonly property real labelDiv: unitDef.labelDiv || 1        // 目盛りの数字を割る値(回転数の ×1000 など)
+    readonly property bool warnBelow: gauge.warnBelow === true    // true なら「警告値以下」で警告
+
     // ---------------------------------------------------------------- 設定(表示単位に換算済み)
     readonly property string style: config.style === "analog" || config.style === "digital" ? config.style : "both"
     readonly property string dialStyle: config.dialStyle === "minimal" || config.dialStyle === "sport" ? config.dialStyle : "classic"
-    readonly property bool usePsi: config.unit === "psi"
-    readonly property real k: usePsi ? 14.5038 : 1.0           // bar → 表示単位
-    readonly property string unitText: usePsi ? "psi" : "bar"
-    readonly property real minV: Number(config.min) * k
-    readonly property real maxV: Math.max(Number(config.max) * k, minV + 0.1)
-    readonly property real warnV: Number(config.warn) * k
+    readonly property real minV: toShown(config.min)
+    readonly property real maxV: Math.max(toShown(config.max), minV + 0.1)
+    readonly property real warnV: toShown(config.warn)
     readonly property bool warnOn: config.warnEnabled === true
     readonly property bool showIcon: config.showIcon !== false
     readonly property real startAngle: Math.max(-180, Math.min(-90, config.startAngle === undefined ? -135 : Number(config.startAngle)))
@@ -33,10 +48,9 @@ WidgetBase {
     readonly property real sweepAngle: endAngle - startAngle
     readonly property bool autoLabelPosition: config.autoLabelPosition !== false
     readonly property bool needleTail: config.needleTail !== false
-    readonly property real hubSize: Math.max(0.08, Math.min(0.32, (config.hubSize || 16) / 100))   // 直径 / 半径
+    readonly property real hubSize: Math.max(0.08, Math.min(0.5, (config.hubSize || 16) / 100))   // 直径 / 半径
     readonly property color needleColor: configuredColor("needleColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
-    readonly property int decimals: usePsi ? 1 : 2
 
     function configuredColor(key, fallback) {
         const value = String(config[key] || "")
@@ -46,14 +60,29 @@ WidgetBase {
     }
 
     // ---------------------------------------------------------------- 値
-    readonly property real rawValue: can.boostBar * k
+    // データ元(現状は VehicleDataManager のモック)。束縛の依存を確実に取るため、プロパティを直接読む
+    readonly property real sourceValue: {
+        switch (metric) {
+        case "rpm": return can.rpm
+        case "speed": return can.speedKmh
+        case "coolant": return can.coolantTempC
+        case "fuel": return can.fuelPercent
+        default: return can.boostBar
+        }
+    }
+    readonly property real rawValue: toShown(sourceValue)
     // 針・数値は滑らかに追従させる(データは約 10Hz)
     property real shown: rawValue
     Behavior on shown { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
 
     function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
-    // 進捗の起点(大気圧 = 0)。範囲外なら近い端
+    // 進捗の起点(0。範囲外なら近い端。ブーストの負圧は 0 から左へ伸びる)
     readonly property real originV: Math.max(minV, Math.min(maxV, 0))
+    // 警告ゾーン(表示単位)。上側警告なら [警告値, 最大]、下側警告なら [最小, 警告値]
+    readonly property bool hasWarnZone: warnOn && (warnBelow ? warnV > minV : warnV < maxV)
+    readonly property real zoneLo: warnBelow ? minV : Math.max(warnV, minV)
+    readonly property real zoneHi: warnBelow ? Math.min(warnV, maxV) : maxV
+    function inZone(v) { return hasWarnZone && (warnBelow ? v <= warnV + 1e-9 : v >= warnV - 1e-9) }
     // 「-0.00」を出さない数値整形
     function fmt(v, dec) {
         const half = 0.5 * Math.pow(10, -dec)
@@ -65,12 +94,18 @@ WidgetBase {
     function updateWarning() {
         const hysteresis = (maxV - minV) * 0.03
         if (!warnOn) warning = false
-        else if (!warning && rawValue >= warnV) warning = true
-        else if (warning && rawValue < warnV - hysteresis) warning = false
+        else if (warnBelow) {
+            if (!warning && rawValue <= warnV) warning = true
+            else if (warning && rawValue > warnV + hysteresis) warning = false
+        } else {
+            if (!warning && rawValue >= warnV) warning = true
+            else if (warning && rawValue < warnV - hysteresis) warning = false
+        }
     }
     onRawValueChanged: updateWarning()
     onWarnOnChanged: updateWarning()
     onWarnVChanged: updateWarning()
+    onWarnBelowChanged: updateWarning()
     Component.onCompleted: updateWarning()
 
     readonly property color valueColor: warning ? Theme.error : Theme.textPrimary
@@ -99,7 +134,7 @@ WidgetBase {
         MaterialIcon {
             visible: root.showIcon
             anchors.verticalCenter: parent.verticalCenter
-            name: root.warning ? "warning" : "speed"
+            name: root.warning ? "warning" : root.gauge.icon
             size: parent.height
             color: root.warning ? Theme.error : Theme.accent
             opacity: root.warning ? root.blink : 1
@@ -110,7 +145,7 @@ WidgetBase {
             font.family: Theme.fontFamily
             font.pixelSize: root.titleFontSize
             color: Theme.textSecondary
-            text: root.titleText("ブースト")
+            text: root.titleText(root.gauge.title)
             elide: Text.ElideRight
         }
     }
@@ -184,7 +219,7 @@ WidgetBase {
             font.pixelSize: Math.round(root.titleFontSize * 0.8)
             elide: Text.ElideRight
             color: Theme.textSecondary
-            text: "警告 " + root.fmt(root.warnV, root.decimals) + " " + root.unitText + " 以上"
+            text: "警告 " + root.fmt(root.warnV, root.decimals) + " " + root.unitText + (root.warnBelow ? " 以下" : " 以上")
         }
     }
 
@@ -217,6 +252,7 @@ WidgetBase {
             }
             // アナログのみのときの単位表示(中心円の下)
             readonly property real unitY: root.hubSize / 2 + 0.16
+            readonly property string scaleUnitText: root.labelDiv > 1 ? "×" + root.labelDiv + " " + root.unitText : root.unitText
 
             // 弧・中心円・数値表示が占める範囲
             readonly property var bounds: {
@@ -253,19 +289,35 @@ WidgetBase {
             height: (bounds.maxY - bounds.minY) * rpx
             anchors.centerIn: parent
 
-            // メーターの種類ごとの寸法(R に対する比)
-            readonly property var spec: root.dialStyle === "sport"
-                ? { trackR: 0.93, trackW: 0.12, majorIn: 0.70, minorIn: 0.76, tickOut: 0.82, labelR: 0.59,
-                    majorW: 0.03, minorW: 0.012, sub: 4, labelPx: 0.105, progress: true }
+            // メーターの種類ごとの寸法(半径に対する比)
+            readonly property var dims: root.dialStyle === "sport"
+                ? { trackR: 0.92, trackW: 0.12, majorIn: 0.78, minorIn: 0.80, tickOut: 0.835, labelR: 0.68,
+                    majorW: 0.03, minorW: 0.012, sub: 2, labelPx: 0.12, needleTip: 0.8 }
                 : (root.dialStyle === "minimal"
                    ? { trackR: 0.95, trackW: 0.035, majorIn: 0.80, minorIn: 0.85, tickOut: 0.89, labelR: 0.66,
-                       majorW: 0.022, minorW: 0.01, sub: 2, labelPx: 0.11, progress: true }
+                       majorW: 0.022, minorW: 0.01, sub: 2, labelPx: 0.11, needleTip: 0.88 }
                    : { trackR: 0.955, trackW: 0.03, majorIn: 0.72, minorIn: 0.79, tickOut: 0.86, labelR: 0.62,
-                       majorW: 0.025, minorW: 0.012, sub: 5, labelPx: 0.095, progress: false })
+                       majorW: 0.025, minorW: 0.012, sub: 5, labelPx: 0.095, needleTip: 0.88 })
+
+            // スポーツのセグメント(数と 1 つあたりの角度。セグメントの間は少し空ける)
+            readonly property int segCount: Math.max(16, Math.round(root.sweepAngle / 6))
+            readonly property real segDeg: root.sweepAngle / segCount
+            readonly property real segGap: Math.min(1.8, segDeg * 0.3)
 
             // 角度(度、0° が真上)→ Canvas の角度(ラジアン、0 が右)
             function rad(deg) { return (deg - 90) * Math.PI / 180 }
             function angOf(v) { return root.startAngle + root.frac(v) * root.sweepAngle }
+            // セグメント i の中央の値
+            function segValue(i) { return root.minV + (root.maxV - root.minV) * (i + 0.5) / segCount }
+            // セグメント i を描く(角度は弧の上の位置)
+            function drawSeg(ctx, i, R, color) {
+                const d0 = root.startAngle + i * segDeg + segGap / 2
+                const d1 = root.startAngle + (i + 1) * segDeg - segGap / 2
+                ctx.strokeStyle = color
+                ctx.beginPath()
+                ctx.arc(cx, cy, R * dims.trackR, rad(d0), rad(d1))
+                ctx.stroke()
+            }
 
             // ---- 目盛り・警告帯(設定・大きさ・配色が変わったときだけ描き直す) ----
             Canvas {
@@ -273,136 +325,182 @@ WidgetBase {
                 anchors.fill: parent
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
-                                               root.warnOn, root.dialStyle, root.startAngle, root.endAngle,
-                                               Theme.panelBorder, Theme.textSecondary, Theme.textPrimary, Theme.error,
-                                               Theme.accent, Theme.fontFamily].join("|")
+                                               root.warnOn, root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
+                                               root.endAngle, Theme.panel, Theme.panelBorder, Theme.textSecondary,
+                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily].join("|")
                 onKeyChanged: requestPaint()
 
-                function niceStep(range) {
-                    const c = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100]
-                    for (let i = 0; i < c.length; ++i) {
-                        if (range / c[i] <= 7) return c[i]
+                // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
+                function niceStep(range, maxMajors) {
+                    const c = []
+                    for (let e = -2; e <= 5; ++e) {
+                        const p = Math.pow(10, e)
+                        c.push(p, 2 * p)
+                        if (e === -1) c.push(0.25)
+                        c.push(5 * p)
                     }
-                    return 100
+                    c.sort((a, b) => a - b)
+                    for (let i = 0; i < c.length; ++i) {
+                        if (range / c[i] <= maxMajors) return c[i]
+                    }
+                    return c[c.length - 1]
                 }
 
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
-                    const R = dial.rpx, cx = dial.cx, cy = dial.cy, sp = dial.spec
+                    const R = dial.rpx, cx = dial.cx, cy = dial.cy, dm = dial.dims
                     if (R <= 1) return
                     const a0 = dial.rad(root.startAngle), a1 = dial.rad(root.endAngle)
                     const angV = (v) => dial.rad(dial.angOf(v))
-                    const warnFrom = Math.max(root.warnV, root.minV)
-                    const hasWarn = root.warnOn && root.warnV < root.maxV
+                    const zoneColor = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
 
-                    // 文字盤の帯(クラシックのみ。弧の形に沿った薄い面で、円が途中で切れないようにする)
                     if (root.dialStyle === "classic") {
+                        // 文字盤の帯(弧の形に沿った薄い面で、円が途中で切れないようにする)
                         ctx.lineCap = "round"
                         ctx.lineWidth = R * 0.2
                         ctx.strokeStyle = Theme.mix(Theme.panel, Theme.panelBorder, 0.35)
                         ctx.beginPath()
                         ctx.arc(cx, cy, R * 0.82, a0, a1)
                         ctx.stroke()
-                    }
-
-                    // 外周のトラック
-                    ctx.lineCap = root.dialStyle === "classic" ? "butt" : "round"
-                    ctx.lineWidth = R * sp.trackW
-                    ctx.strokeStyle = Theme.panelBorder
-                    ctx.beginPath()
-                    ctx.arc(cx, cy, R * sp.trackR, a0, a1)
-                    ctx.stroke()
-
-                    // 警告ゾーン
-                    if (hasWarn) {
-                        if (root.dialStyle === "classic") {
-                            // 目盛りの外側に赤い帯
-                            ctx.lineCap = "butt"
+                        // 外周
+                        ctx.lineCap = "butt"
+                        ctx.lineWidth = R * dm.trackW
+                        ctx.strokeStyle = Theme.panelBorder
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * dm.trackR, a0, a1)
+                        ctx.stroke()
+                        // 警告ゾーン: 目盛りの外側に赤い帯
+                        if (root.hasWarnZone) {
                             ctx.lineWidth = R * 0.05
                             ctx.strokeStyle = Theme.error
                             ctx.beginPath()
-                            ctx.arc(cx, cy, R * 0.89, angV(warnFrom), a1)
-                            ctx.stroke()
-                        } else {
-                            // トラックの警告側を赤く染める
-                            ctx.lineCap = "butt"
-                            ctx.lineWidth = R * sp.trackW
-                            ctx.strokeStyle = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * sp.trackR, angV(warnFrom), a1)
+                            ctx.arc(cx, cy, R * 0.89, angV(root.zoneLo), angV(root.zoneHi))
                             ctx.stroke()
                         }
+                    } else if (root.dialStyle === "minimal") {
+                        ctx.lineCap = "round"
+                        ctx.lineWidth = R * dm.trackW
+                        ctx.strokeStyle = Theme.panelBorder
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * dm.trackR, a0, a1)
+                        ctx.stroke()
+                        if (root.hasWarnZone) {
+                            ctx.lineCap = "butt"
+                            ctx.strokeStyle = zoneColor
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * dm.trackR, angV(root.zoneLo), angV(root.zoneHi))
+                            ctx.stroke()
+                        }
+                    } else {
+                        // スポーツ: 消灯したセグメント(警告ゾーンは赤みを帯びる)と、内側の細い縁
+                        ctx.lineCap = "butt"
+                        ctx.lineWidth = R * dm.trackW
+                        for (let i = 0; i < dial.segCount; ++i) {
+                            dial.drawSeg(ctx, i, R, root.inZone(dial.segValue(i)) ? zoneColor
+                                                                                  : Theme.mix(Theme.panel, Theme.panelBorder, 0.9))
+                        }
+                        ctx.lineWidth = Math.max(1, R * 0.008)
+                        ctx.strokeStyle = Theme.panelBorder
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * 0.6, a0, a1)
+                        ctx.stroke()
                     }
 
                     // 目盛り(大目盛りに数字。0 は強調)
                     const range = root.maxV - root.minV
-                    const step = niceStep(range)
-                    const dec = step >= 1 ? 0 : (Math.abs(step * 10 - Math.round(step * 10)) < 1e-6 ? 1 : 2)
-                    const minor = step / sp.sub
+                    const maxMajors = Math.max(4, Math.round(root.sweepAngle / 30))
+                    const step = niceStep(range / root.labelDiv, maxMajors) * root.labelDiv
+                    const stepShown = step / root.labelDiv
+                    const dec = stepShown >= 1 ? 0 : (Math.abs(stepShown * 10 - Math.round(stepShown * 10)) < 1e-6 ? 1 : 2)
+                    const minor = step / dm.sub
                     const first = Math.ceil(root.minV / minor - 1e-9)
                     ctx.lineCap = "butt"
                     ctx.textAlign = "center"
                     ctx.textBaseline = "middle"
-                    const px = Math.max(9, Math.round(R * sp.labelPx))
+                    const px = Math.max(9, Math.round(R * dm.labelPx))
+                    ctx.font = "bold " + px + "px '" + Theme.fontFamily + "'"
                     for (let n = first; n * minor <= root.maxV + 1e-9; ++n) {
                         const v = n * minor
                         const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6
                         const isZero = Math.abs(v) < 1e-9
-                        const inWarn = hasWarn && v >= root.warnV - 1e-9
+                        const inWarn = root.inZone(v)
                         const a = angV(v)
-                        const inner = R * (isMajor ? sp.majorIn : sp.minorIn)
-                        const outer = R * sp.tickOut
-                        ctx.lineWidth = R * (isMajor ? sp.majorW : sp.minorW)
+                        ctx.lineWidth = R * (isMajor ? dm.majorW : dm.minorW)
                         ctx.strokeStyle = inWarn ? Theme.error
                                                  : (isZero ? Theme.accent : (isMajor ? Theme.textPrimary : Theme.textSecondary))
                         ctx.beginPath()
-                        ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
-                        ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer)
+                        ctx.moveTo(cx + Math.cos(a) * R * (isMajor ? dm.majorIn : dm.minorIn), cy + Math.sin(a) * R * (isMajor ? dm.majorIn : dm.minorIn))
+                        ctx.lineTo(cx + Math.cos(a) * R * dm.tickOut, cy + Math.sin(a) * R * dm.tickOut)
                         ctx.stroke()
                         if (isMajor) {
-                            ctx.fillStyle = inWarn ? Theme.error : (isZero ? Theme.textPrimary : Theme.textSecondary)
-                            ctx.font = "bold " + px + "px '" + Theme.fontFamily + "'"
-                            ctx.fillText((isZero ? 0 : v).toFixed(dec),
-                                         cx + Math.cos(a) * R * sp.labelR, cy + Math.sin(a) * R * sp.labelR)
+                            ctx.fillStyle = inWarn ? Theme.error : (isZero || root.dialStyle === "sport" ? Theme.textPrimary : Theme.textSecondary)
+                            ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(dec),
+                                         cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
                         }
                     }
                 }
             }
 
-            // ---- 進捗リング(シンプル・スポーツ。0 から現在値まで。警告値より上は警告色) ----
+            // ---- 進捗(シンプル: 細いリング / スポーツ: 点灯するセグメント)。0 から現在値まで ----
             Canvas {
                 id: progress
                 anchors.fill: parent
-                visible: dial.spec.progress
+                visible: root.dialStyle !== "classic"
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: !visible ? "" :
                     [width, height, dial.rpx, root.shown.toFixed(3), root.minV, root.maxV, root.warnV, root.warnOn,
-                     root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.error].join("|")
+                     root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
+                     Theme.error].join("|")
                 onKeyChanged: if (visible) requestPaint()
 
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
-                    const R = dial.rpx, sp = dial.spec
+                    const R = dial.rpx, dm = dial.dims
                     if (R <= 1) return
                     const lo = Math.min(root.originV, root.shown), hi = Math.max(root.originV, root.shown)
+                    ctx.lineCap = "butt"
+                    ctx.lineWidth = R * dm.trackW
+
+                    if (root.dialStyle === "sport") {
+                        // 警告値の手前(範囲の 10%)は注意色、警告ゾーンは警告色
+                        const near = (root.maxV - root.minV) * 0.1
+                        const colorOf = (v) => {
+                            if (root.inZone(v)) return Theme.error
+                            if (root.hasWarnZone && (root.warnBelow ? v <= root.warnV + near : v >= root.warnV - near)) return Theme.warn
+                            return Theme.accent
+                        }
+                        ctx.shadowBlur = R * 0.05
+                        for (let i = 0; i < dial.segCount; ++i) {
+                            const v = dial.segValue(i)
+                            if (v < lo || v > hi) continue
+                            const c = colorOf(v)
+                            ctx.shadowColor = Qt.rgba(c.r, c.g, c.b, 0.55)
+                            dial.drawSeg(ctx, i, R, c)
+                        }
+                        return
+                    }
+
                     if (dial.angOf(hi) - dial.angOf(lo) < 0.2) return
                     const seg = (from, to, color) => {
                         if (to <= from) return
                         ctx.strokeStyle = color
                         ctx.beginPath()
-                        ctx.arc(dial.cx, dial.cy, R * sp.trackR, dial.rad(dial.angOf(from)), dial.rad(dial.angOf(to)))
+                        ctx.arc(dial.cx, dial.cy, R * dm.trackR, dial.rad(dial.angOf(from)), dial.rad(dial.angOf(to)))
                         ctx.stroke()
                     }
-                    ctx.lineCap = "butt"
-                    ctx.lineWidth = R * sp.trackW
-                    if (root.warnOn && root.warnV < hi) {
-                        seg(lo, Math.max(lo, root.warnV), Theme.accent)
-                        seg(Math.max(lo, root.warnV), hi, Theme.error)
-                    } else {
-                        seg(lo, hi, Theme.accent)
+                    if (root.hasWarnZone) {
+                        // 警告ゾーンと重なる部分だけ警告色
+                        const zLo = Math.max(lo, root.zoneLo), zHi = Math.min(hi, root.zoneHi)
+                        if (zHi > zLo) {
+                            seg(lo, zLo, Theme.accent)
+                            seg(zLo, zHi, Theme.error)
+                            seg(zHi, hi, Theme.accent)
+                            return
+                        }
                     }
+                    seg(lo, hi, Theme.accent)
                 }
             }
 
@@ -417,9 +515,9 @@ WidgetBase {
 
                 Canvas {
                     id: needleShape
-                    readonly property real tip: dial.rpx * (root.dialStyle === "sport" ? 0.84 : 0.88)
+                    readonly property real tip: dial.rpx * dial.dims.needleTip
                     readonly property real tail: root.needleTail ? dial.rpx * 0.22 : 0
-                    readonly property real base: Math.max(4, dial.rpx * 0.07)
+                    readonly property real base: Math.max(4, dial.rpx * (root.dialStyle === "sport" ? 0.055 : 0.07))
                     readonly property color needleFill: root.warning ? Theme.error : root.needleColor
                     x: -width / 2
                     y: -tip
@@ -461,10 +559,10 @@ WidgetBase {
                 radius: width / 2
                 color: root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
-                border.color: root.warning ? Theme.error : Theme.panelBorder
+                border.color: root.warning ? Theme.error : (root.dialStyle === "sport" ? Theme.accent : Theme.panelBorder)
                 Rectangle {   // 針の色の芯
                     anchors.centerIn: parent
-                    width: parent.width * 0.32
+                    width: Math.min(parent.width * 0.32, dial.rpx * 0.06)
                     height: width
                     radius: width / 2
                     color: root.warning ? Theme.error : root.needleColor
@@ -485,6 +583,7 @@ WidgetBase {
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.bold: true
+                    font.italic: root.dialStyle === "sport"
                     font.pixelSize: 300
                     minimumPixelSize: 12
                     fontSizeMode: Text.Fit
@@ -510,7 +609,7 @@ WidgetBase {
                 y: dial.cy + dial.unitY * dial.rpx - height / 2
                 font.family: Theme.fontFamily
                 font.pixelSize: Math.max(9, dial.rpx * 0.09)
-                text: root.unitText
+                text: dial.scaleUnitText
                 color: Theme.textSecondary
             }
         }
@@ -569,9 +668,9 @@ WidgetBase {
 
                     Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.panelBorder }
                     Rectangle {   // 警告ゾーン
-                        visible: root.warnOn && root.warnV < root.maxV
-                        x: bar.width * root.frac(root.warnV)
-                        width: bar.width - x
+                        visible: root.hasWarnZone
+                        x: bar.width * root.frac(root.zoneLo)
+                        width: bar.width * root.frac(root.zoneHi) - x
                         height: parent.height
                         radius: height / 2
                         color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.4)
@@ -597,15 +696,15 @@ WidgetBase {
                     anchors { left: parent.left; top: bar.bottom; topMargin: 4 }
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
-                    color: Theme.textSecondary
-                    text: root.fmt(root.minV, root.usePsi ? 0 : 1)
+                    color: root.warnOn && root.warnBelow ? Theme.error : Theme.textSecondary
+                    text: root.fmt(root.minV, root.unitDef.stepDec)
                 }
                 Text {
                     anchors { right: parent.right; top: bar.bottom; topMargin: 4 }
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
-                    color: root.warnOn ? Theme.error : Theme.textSecondary
-                    text: root.fmt(root.maxV, root.usePsi ? 0 : 1)
+                    color: root.warnOn && !root.warnBelow ? Theme.error : Theme.textSecondary
+                    text: root.fmt(root.maxV, root.unitDef.stepDec)
                 }
             }
         }

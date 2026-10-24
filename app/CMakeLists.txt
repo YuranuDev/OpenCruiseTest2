@@ -44,6 +44,7 @@ target_compile_options(opencruise_aa PRIVATE -Wall -Wextra)
 # ---------------------------------------------------------------------------
 qt_add_executable(opencruise
     main.cpp
+    core/AppInfo.cpp
     core/AppSettings.cpp
     core/AudioSettings.cpp
     core/BrightnessController.cpp
@@ -125,8 +126,8 @@ qt_add_qml_module(opencruise
         qml/widgets/ClockSettings.qml
         qml/widgets/GreetingWidget.qml
         qml/widgets/GreetingSettings.qml
-        qml/widgets/TurboGaugeWidget.qml
-        qml/widgets/TurboGaugeSettings.qml
+        qml/widgets/GaugeWidget.qml
+        qml/widgets/GaugeSettings.qml
         qml/widgets/PhoneStatusWidget.qml
         qml/widgets/PhoneStatusSettings.qml
         qml/widgets/PhoneNoticeWidget.qml

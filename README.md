@@ -107,7 +107,7 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 | 共通基盤 | `WidgetBase`(ウィジェットの土台) / `WidgetHost`(ドラッグ・スナップ・タップ振り分け・表示アニメーション) / `WidgetArea`(グリッド・衝突・保存) |
 | 設定・追加 UI | `WidgetSettingsBase` / `WidgetSettingsDialog` / `WidgetPicker` / `WSStepper` / `WSTextField` |
 | 時計・あいさつ | `ClockWidget` / `GreetingWidget`(+ 各 `*Settings`) |
-| 車載連携 | `TurboGaugeWidget`(ターボ圧計。アナログ+デジタル、bar/psi、警告値・警告メッセージ。**モックデータ**) |
+| 車載連携 | `GaugeWidget` / `GaugeSettings`(メーター共通。ターボ圧計・タコメーター・スピードメーター・水温計・燃料計。計測値の定義は `WidgetRegistry.gaugeSpecs`。アナログ+デジタル、単位切替、警告値・警告メッセージ。**モックデータ**) |
 | Android Auto 連携 | `PhoneStatusWidget`(スマホ状態。バッテリー残量は実データ、電波はモック) |
 | 通知連携 | `PhoneNoticeWidget`(スマホ通知。表示方法・カテゴリ別メッセージを設定可能。**モックの通知**) |
 

@@ -25,6 +25,7 @@
 #include <exception>
 
 #include "androidauto/AndroidAutoController.h"
+#include "core/AppInfo.h"
 #include "core/AppSettings.h"
 #include "core/AudioSettings.h"
 #include "core/BrightnessController.h"
@@ -46,6 +47,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     QGuiApplication::setOverrideCursor(Qt::ArrowCursor);
     QGuiApplication::setApplicationName(QStringLiteral("OpenCruise"));
+    QGuiApplication::setApplicationVersion(QStringLiteral("0.1.0")); // 起動ログと設定「情報」に出る
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     QCommandLineParser parser;
@@ -91,6 +93,7 @@ int main(int argc, char *argv[]) {
     opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
 
     opencruise::ClockModel clock;
+    opencruise::AppInfo appInfo; // アプリと Linux の情報(設定「情報」)
     opencruise::VehicleDataManager can;
     opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
@@ -143,6 +146,7 @@ int main(int argc, char *argv[]) {
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
+    engine.rootContext()->setContextProperty(QStringLiteral("appInfo"), &appInfo);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
