@@ -3,7 +3,8 @@
 // (データ元・単位・換算・設定できる範囲・既定の見出し)は WidgetRegistry.gaugeSpecs にまとめてある。
 // 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / %)で保存し、表示と編集のときだけ選んだ単位に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
-//  - メーターの種類: クラシック(目盛り+警告帯) / シンプル(細いリング) / スポーツ(セグメント式のバー)
+//  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) / スポーツ(セグメント式のバー)
+//    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
 //  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
 // 警告になると、針と数値が赤になり、アイコンと警告メッセージが点滅する(解除は警告値から少し戻ったとき)。
@@ -290,19 +291,30 @@ WidgetBase {
             anchors.centerIn: parent
 
             // メーターの種類ごとの寸法(半径に対する比)
+            // どの種類も、数字は内側の細い円(ringR)の外側、目盛りはさらに外側に置く
             readonly property var dims: root.dialStyle === "sport"
-                ? { trackR: 0.92, trackW: 0.12, majorIn: 0.78, minorIn: 0.80, tickOut: 0.835, labelR: 0.68,
-                    majorW: 0.03, minorW: 0.012, sub: 2, labelPx: 0.12, needleTip: 0.8 }
+                ? { trackR: 0.92, trackW: 0.12, majorIn: 0.78, minorIn: 0.80, tickOut: 0.835, labelR: 0.69,
+                    majorW: 0.03, minorW: 0.012, sub: 2, labelPx: 0.12, needleTip: 0.8, ringR: 0.6 }
                 : (root.dialStyle === "minimal"
-                   ? { trackR: 0.95, trackW: 0.035, majorIn: 0.80, minorIn: 0.85, tickOut: 0.89, labelR: 0.66,
-                       majorW: 0.022, minorW: 0.01, sub: 2, labelPx: 0.11, needleTip: 0.88 }
-                   : { trackR: 0.955, trackW: 0.03, majorIn: 0.72, minorIn: 0.79, tickOut: 0.86, labelR: 0.62,
-                       majorW: 0.025, minorW: 0.012, sub: 5, labelPx: 0.095, needleTip: 0.88 })
+                   ? { trackR: 0.95, trackW: 0.03, majorIn: 0.83, minorIn: 0.86, tickOut: 0.89, labelR: 0.71,
+                       majorW: 0.02, minorW: 0.01, sub: 2, labelPx: 0.11, needleTip: 0.86, ringR: 0.6 }
+                   : { trackR: 0.96, trackW: 0.025, majorIn: 0.77, minorIn: 0.82, tickOut: 0.87, labelR: 0.685,
+                       majorW: 0.026, minorW: 0.011, sub: 5, labelPx: 0.105, needleTip: 0.88, ringR: 0.6 })
 
             // スポーツのセグメント(数と 1 つあたりの角度。セグメントの間は少し空ける)
             readonly property int segCount: Math.max(16, Math.round(root.sweepAngle / 6))
             readonly property real segDeg: root.sweepAngle / segCount
             readonly property real segGap: Math.min(1.8, segDeg * 0.3)
+
+            // 点灯するセグメントの範囲(中央の値が 0〜現在値の間にあるもの)。変わったときだけ描き直す
+            readonly property int litFrom: {
+                const lo = Math.min(root.originV, root.shown)
+                return Math.max(0, Math.ceil((lo - root.minV) / (root.maxV - root.minV) * segCount - 0.5 - 1e-9))
+            }
+            readonly property int litTo: {
+                const hi = Math.max(root.originV, root.shown)
+                return Math.min(segCount - 1, Math.floor((hi - root.minV) / (root.maxV - root.minV) * segCount - 0.5 + 1e-9))
+            }
 
             // 角度(度、0° が真上)→ Canvas の角度(ラジアン、0 が右)
             function rad(deg) { return (deg - 90) * Math.PI / 180 }
@@ -356,14 +368,7 @@ WidgetBase {
                     const zoneColor = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
 
                     if (root.dialStyle === "classic") {
-                        // 文字盤の帯(弧の形に沿った薄い面で、円が途中で切れないようにする)
-                        ctx.lineCap = "round"
-                        ctx.lineWidth = R * 0.2
-                        ctx.strokeStyle = Theme.mix(Theme.panel, Theme.panelBorder, 0.35)
-                        ctx.beginPath()
-                        ctx.arc(cx, cy, R * 0.82, a0, a1)
-                        ctx.stroke()
-                        // 外周
+                        // 外周の細い線
                         ctx.lineCap = "butt"
                         ctx.lineWidth = R * dm.trackW
                         ctx.strokeStyle = Theme.panelBorder
@@ -372,10 +377,10 @@ WidgetBase {
                         ctx.stroke()
                         // 警告ゾーン: 目盛りの外側に赤い帯
                         if (root.hasWarnZone) {
-                            ctx.lineWidth = R * 0.05
+                            ctx.lineWidth = R * 0.04
                             ctx.strokeStyle = Theme.error
                             ctx.beginPath()
-                            ctx.arc(cx, cy, R * 0.89, angV(root.zoneLo), angV(root.zoneHi))
+                            ctx.arc(cx, cy, R * 0.905, angV(root.zoneLo), angV(root.zoneHi))
                             ctx.stroke()
                         }
                     } else if (root.dialStyle === "minimal") {
@@ -393,19 +398,22 @@ WidgetBase {
                             ctx.stroke()
                         }
                     } else {
-                        // スポーツ: 消灯したセグメント(警告ゾーンは赤みを帯びる)と、内側の細い縁
+                        // スポーツ: 消灯したセグメント(警告ゾーンは赤みを帯びる)
                         ctx.lineCap = "butt"
                         ctx.lineWidth = R * dm.trackW
                         for (let i = 0; i < dial.segCount; ++i) {
                             dial.drawSeg(ctx, i, R, root.inZone(dial.segValue(i)) ? zoneColor
                                                                                   : Theme.mix(Theme.panel, Theme.panelBorder, 0.9))
                         }
-                        ctx.lineWidth = Math.max(1, R * 0.008)
-                        ctx.strokeStyle = Theme.panelBorder
-                        ctx.beginPath()
-                        ctx.arc(cx, cy, R * 0.6, a0, a1)
-                        ctx.stroke()
                     }
+
+                    // 内側の細い円(全種類共通。数字の内側の区切り)
+                    ctx.lineCap = "butt"
+                    ctx.lineWidth = Math.max(1, R * 0.008)
+                    ctx.strokeStyle = Theme.panelBorder
+                    ctx.beginPath()
+                    ctx.arc(cx, cy, R * dm.ringR, a0, a1)
+                    ctx.stroke()
 
                     // 目盛り(大目盛りに数字。0 は強調)
                     const range = root.maxV - root.minV
@@ -449,7 +457,9 @@ WidgetBase {
                 visible: root.dialStyle !== "classic"
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: !visible ? "" :
-                    [width, height, dial.rpx, root.shown.toFixed(3), root.minV, root.maxV, root.warnV, root.warnOn,
+                    [width, height, dial.rpx,
+                     root.dialStyle === "sport" ? dial.litFrom + ":" + dial.litTo : dial.angOf(root.shown).toFixed(1),
+                     root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
                      Theme.error].join("|")
                 onKeyChanged: if (visible) requestPaint()
@@ -471,13 +481,9 @@ WidgetBase {
                             if (root.hasWarnZone && (root.warnBelow ? v <= root.warnV + near : v >= root.warnV - near)) return Theme.warn
                             return Theme.accent
                         }
-                        ctx.shadowBlur = R * 0.05
-                        for (let i = 0; i < dial.segCount; ++i) {
-                            const v = dial.segValue(i)
-                            if (v < lo || v > hi) continue
-                            const c = colorOf(v)
-                            ctx.shadowColor = Qt.rgba(c.r, c.g, c.b, 0.55)
-                            dial.drawSeg(ctx, i, R, c)
+                        // 光彩(shadowBlur)は描画が重いので使わない。点灯している範囲だけ描く
+                        for (let i = dial.litFrom; i <= dial.litTo; ++i) {
+                            dial.drawSeg(ctx, i, R, colorOf(dial.segValue(i)))
                         }
                         return
                     }
@@ -583,7 +589,7 @@ WidgetBase {
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.bold: true
-                    font.italic: root.dialStyle === "sport"
+                    font.italic: true   // 数値は全種類で太字の斜体
                     font.pixelSize: 300
                     minimumPixelSize: 12
                     fontSizeMode: Text.Fit
@@ -636,6 +642,7 @@ WidgetBase {
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
                     font.bold: true
+                    font.italic: true
                     font.pixelSize: 300
                     minimumPixelSize: 14
                     fontSizeMode: Text.Fit
