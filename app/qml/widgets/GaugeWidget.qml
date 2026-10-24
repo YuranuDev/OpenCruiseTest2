@@ -7,7 +7,7 @@
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
 //  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
-//  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。目盛りの数字を間引いて大きめにし、小目盛りを省く
+//  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。目盛りの数字を間引いて大きめにする
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
 //
@@ -125,8 +125,7 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 寸法
     readonly property real m: root.innerMargin
-    // 小型表示(短辺 2 マス以下、2×2 など)。名前・目盛りの数字は残し、目盛りの数字を間引いて大きめにする。
-    // 小目盛りとデジタルの両端の値は省く
+    // 小型表示(短辺 2 マス以下、2×2 など)。目盛りの数字を間引いて大きめにする。デジタルの両端の値は省く
     readonly property bool compact: Math.min(gridW, gridH) <= 2
 
     // ---------------------------------------------------------------- メーター内の名前(上部の見出しの代わり)
@@ -355,7 +354,7 @@ WidgetBase {
                     const step = niceStep(range / root.labelDiv, maxMajors) * root.labelDiv
                     const stepShown = step / root.labelDiv
                     const dec = stepShown >= 1 ? 0 : (Math.abs(stepShown * 10 - Math.round(stepShown * 10)) < 1e-6 ? 1 : 2)
-                    const minor = root.compact ? step : step / dm.sub   // 小型表示は大目盛りだけ
+                    const minor = step / dm.sub
                     const first = Math.ceil(root.minV / minor - 1e-9)
                     ctx.lineCap = "butt"
                     ctx.textAlign = "center"
