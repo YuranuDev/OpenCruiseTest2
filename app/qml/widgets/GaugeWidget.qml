@@ -10,11 +10,17 @@
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
+// ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。右上に「MAX 値 ↺」を出し、
+//   タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
 // 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
 //   鳴っている間はメーター全体を赤く点滅させ、太い赤枠と「消音」の印を出して、どのメーターが鳴っているか分かるようにする。
 //   タップすると、その警告が解除されるまで音を止める(赤い表示は残す)。設定画面のプレビューでは鳴らさない。
-// ポップアップ通知(config.warnPopup): 警告になったときに通知を出す(同じメーターは 30 秒に 1 回まで)。
-//   config.warnPopupDetail がオンなら、そのときの値と警告値も通知に入れる。
+// ポップアップ通知(config.warnPopupMode。通知はどれも赤いエラー表示):
+//   "once": 警告になったときに 1 回だけ通知を出す(同じメーターは 30 秒に 1 回まで)
+//   "live": 警告中は通知を出し続け、今の値を 0.5 秒ごとに更新する。警告が解除されると消える。
+//           タップで消すと、その警告が解除されるまでは出し直さない
+//   config.warnPopupDetail がオンなら、警告値も通知に入れる(once はそのときの値も入れる)。
+//   以前の設定(config.warnPopup === true)は "once" として扱う。
 //
 // レイアウトの考え方:
 //  1. 上部の見出し・下の警告欄は持たず、名前と警告メッセージはメーターの中(中心円の上)に出す
@@ -114,13 +120,25 @@ WidgetBase {
             else if (warning && rawValue < warnV - hysteresis) warning = false
         }
     }
-    onRawValueChanged: updateWarning()
+    onRawValueChanged: { updateWarning(); updatePeak() }
     onWarnOnChanged: updateWarning()
     onWarnVChanged: updateWarning()
     onWarnBelowChanged: updateWarning()
     Component.onCompleted: updateWarning()
 
-    readonly property color valueColor: warning ? Theme.error : Theme.textPrimary
+    // 警告音が鳴っている間は背景が赤く点滅するので、数値は白にして読みやすくする
+    readonly property color valueColor: beeping ? "#ffffff" : (warning ? Theme.error : Theme.textPrimary)
+
+    // ---------------------------------------------------------------- ピーク(最大・最小)
+    readonly property string peakMode: config.peakMode === "min" || config.peakMode === "off" ? config.peakMode : "max"
+    property real peak: NaN
+    function updatePeak() {
+        if (isNaN(peak)) peak = rawValue
+        else if (peakMode === "min" ? rawValue < peak : rawValue > peak) peak = rawValue
+    }
+    function resetPeak() { peak = rawValue }
+    onPeakModeChanged: resetPeak()
+    onUnitDefChanged: resetPeak()
 
     // 点滅(警告中だけ動かす)
     property real blink: 1
@@ -134,7 +152,10 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 警告音・ポップアップ通知
     readonly property bool beepOn: warnOn && config.warnBeep === true
-    readonly property bool popupOn: warnOn && config.warnPopup === true
+    readonly property string popupMode: config.warnPopupMode === "once" || config.warnPopupMode === "live"
+                                        || config.warnPopupMode === "off"
+                                        ? config.warnPopupMode : (config.warnPopup === true ? "once" : "off")
+    readonly property bool popupOn: warnOn && popupMode === "once"
     readonly property bool popupDetail: config.warnPopupDetail !== false
     // 警告音を出したい状態(配置されているウィジェットだけ。プレビューは widgetId が空)
     readonly property bool alarming: beepOn && warning && widgetId !== ""
@@ -151,22 +172,58 @@ WidgetBase {
     }
     onAlarmingChanged: syncAlarm()
     onWidgetIdChanged: syncAlarm()
-    Component.onDestruction: if (raisedKey !== "") WarningAlarm.clear(raisedKey)
+    Component.onDestruction: {
+        if (raisedKey !== "") WarningAlarm.clear(raisedKey)
+        if (liveNoticeId >= 0) notifications.dismiss(liveNoticeId)
+    }
     onTapped: if (beeping) WarningAlarm.acknowledge(widgetId)
 
+    readonly property string warnTitle: labelText + "の警告"
+    function warnPopupText(withValue) {
+        let message = config.warnMessage || gauge.warnMessage || "警告"
+        const limit = "警告値 " + fmt(warnV, decimals) + " " + unitText + (warnBelow ? " 以下" : " 以上")
+        if (withValue) {
+            message += "\n現在 " + fmt(rawValue, decimals) + " " + unitText + (popupDetail ? "(" + limit + ")" : "")
+        } else if (popupDetail) {
+            message += "\n" + limit
+        }
+        return message
+    }
     property real lastPopupMs: 0
     function showWarnPopup() {
         const now = Date.now()
         if (now - lastPopupMs < 30000) return
         lastPopupMs = now
-        let message = config.warnMessage || gauge.warnMessage || "警告"
-        if (popupDetail) {
-            message += "\n現在 " + fmt(rawValue, decimals) + " " + unitText
-                     + "(警告値 " + fmt(warnV, decimals) + " " + unitText + (warnBelow ? " 以下" : " 以上") + ")"
-        }
-        notifications.show(labelText + "の警告", message, 2, gauge.icon, 8000)
+        notifications.show(warnTitle, warnPopupText(popupDetail), 3, gauge.icon, 8000)
     }
     onWarningChanged: if (warning && popupOn && widgetId !== "") showWarnPopup()
+
+    // 出し続ける通知("live")
+    readonly property bool wantLiveNotice: warnOn && popupMode === "live" && warning && widgetId !== ""
+    property int liveNoticeId: -1
+    property bool liveDismissed: false   // タップで消された(警告が解除されるまで出し直さない)
+    function syncLiveNotice() {
+        if (wantLiveNotice) {
+            if (liveNoticeId < 0 && !liveDismissed)
+                liveNoticeId = notifications.show(warnTitle, warnPopupText(true), 3, gauge.icon, 0)
+        } else {
+            if (liveNoticeId >= 0) notifications.dismiss(liveNoticeId)
+            liveNoticeId = -1
+            liveDismissed = false
+        }
+    }
+    onWantLiveNoticeChanged: syncLiveNotice()
+    Timer {   // 値の更新(0.5 秒ごと)。消されていたら止める
+        interval: 500
+        repeat: true
+        running: root.liveNoticeId >= 0
+        onTriggered: {
+            if (!notifications.update(root.liveNoticeId, root.warnTitle, root.warnPopupText(true), 3)) {
+                root.liveNoticeId = -1
+                root.liveDismissed = true
+            }
+        }
+    }
 
     // ---------------------------------------------------------------- 寸法
     readonly property real m: root.innerMargin
@@ -188,7 +245,7 @@ WidgetBase {
         radius: Theme.radius + 6
         color: Theme.error
         visible: opacity > 0
-        opacity: root.beeping ? 0.14 + 0.36 * (1 - root.blink) / 0.65 : (root.silenced ? 0.12 : 0)
+        opacity: root.beeping ? 0.12 + 0.26 * (1 - root.blink) / 0.65 : (root.silenced ? 0.1 : 0)
     }
 
     // モックデータ中の表示(右上)
@@ -208,6 +265,53 @@ WidgetBase {
             font.pixelSize: Math.round(root.titleFontSize * (root.compact ? 0.65 : 0.75))
             text: "モック"
             color: Theme.warn
+        }
+    }
+
+    // ピーク表示(モック表示の左)。タップでリセット
+    Rectangle {
+        id: peakTag
+        z: 2
+        visible: root.peakMode !== "off" && !isNaN(root.peak)
+        anchors { verticalCenter: mockTag.verticalCenter; right: mockTag.left; rightMargin: 6 }
+        height: Math.max(mockTag.height, Math.round(root.titleFontSize * (root.compact ? 1.3 : 1.55)))
+        width: visible ? peakRow.implicitWidth + height * 0.6 : 0
+        radius: height / 2
+        color: peakMouse.pressed ? Theme.mix(Theme.panel, Theme.accent, 0.3) : Theme.mix(Theme.panel, Theme.textSecondary, 0.12)
+        border.color: Theme.panelBorder
+        Row {
+            id: peakRow
+            anchors.centerIn: parent
+            spacing: 4
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.pixelSize: Math.round(peakTag.height * 0.42)
+                color: Theme.textSecondary
+                text: root.peakMode === "min" ? "MIN" : "MAX"
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.italic: true
+                font.pixelSize: Math.round(peakTag.height * 0.6)
+                color: root.inZone(root.peak) ? Theme.error : Theme.textPrimary
+                text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
+            }
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "restart_alt"
+                size: Math.round(peakTag.height * 0.7)
+                color: Theme.accent
+            }
+        }
+        MouseArea {
+            id: peakMouse
+            anchors.fill: parent
+            anchors.margins: -6   // 小さくても押しやすいように、少し広めに受ける
+            onClicked: root.resetPeak()
         }
     }
 
@@ -650,7 +754,7 @@ WidgetBase {
                 id: digitalLabel
                 visible: root.labelVisible
                 anchors { top: parent.top; left: parent.left }
-                width: parent.width - mockTag.width - 8
+                width: parent.width - mockTag.width - (peakTag.visible ? peakTag.width + 6 : 0) - 8
                 height: visible ? Math.max(root.titleBarHeight, Math.round(digital.height * 0.12)) : 0
                 spacing: 8
                 opacity: root.labelOpacity

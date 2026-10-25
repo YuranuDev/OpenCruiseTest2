@@ -13,6 +13,8 @@
  * 警告音(alert)は WAV のほかに「合成音」を選べる。波形・高さ(2 音目で交互にも)・回数・長さ・間隔・
  * フェード・音量を設定でき、その設定から WAV をキャッシュフォルダに作って鳴らす(設定を変えるたびに作り直す)。
  * 警告音を繰り返す間隔(alertInterval)は、WAV・合成音のどちらにも効く(繰り返すのは WarningAlarm)。
+ * 鳴らし方(alertContinuous)を「ずっと鳴らす」にすると、警告がある間(alertActive が true の間)は警告音を
+ * 途切れずにループ再生し続ける。合成音はつなぎ目で途切れないよう、末尾の無音を付けず、1 音の長さを波の周期に合わせる。
  *
  * 音量と出力先は AudioSettings の「システム」の設定に従い、設定が変わると再生器へ反映する。
  * 操作音(click)は、パネルに指が 1 本触れた時点で 1 回だけ鳴らす。すべての指が離れるまでは「鳴らし済み」の
@@ -64,6 +66,10 @@ class SystemSound : public QObject {
     Q_PROPERTY(int synthLengthMs READ synthLengthMs NOTIFY synthChanged)
     /// 警告音を繰り返す間隔[ms](WarningAlarm が使う)
     Q_PROPERTY(int alertInterval READ alertInterval WRITE setAlertInterval NOTIFY synthChanged)
+    /// 警告音の鳴らし方。false: 間隔をあけて繰り返す / true: 警告がある間ずっと鳴らし続ける(保存する)
+    Q_PROPERTY(bool alertContinuous READ alertContinuous WRITE setAlertContinuous NOTIFY synthChanged)
+    /// 警告が鳴っている(確認されていない警告がある)か。「ずっと鳴らす」のとき、true の間ループ再生する(Main.qml が流し込む)
+    Q_PROPERTY(bool alertActive READ alertActive WRITE setAlertActive NOTIFY alertActiveChanged)
 
 public:
     /**
@@ -98,7 +104,9 @@ public:
     Q_INVOKABLE void setSynthValue(const QString &key, const QVariant &value);
     /**
      * @brief 合成音の設定をまとめて切り替える(繰り返す間隔も変える)。
-     * @param name "pipi"(ピピッ)/ "pii"(ピー)/ "pipo"(ピポピポ)/ "fast"(速い連打)/ "chime"(チャイム)
+     * @param name "pipi"(ピピッ)/ "pii"(ピー)/ "pipo"(ピポピポ)/ "fast"(速い連打)/ "chime"(チャイム)/
+     *             "continuous"(警告中ずっと「ピーー」と鳴り続ける。鳴らし方も「ずっと鳴らす」にする)/
+     *             "continuousPipo"(警告中ずっと「ピポピポ」と鳴り続ける)
      */
     Q_INVOKABLE void applySynthPreset(const QString &name);
     /** @brief 今の合成音を 1 回鳴らす(設定画面の試聴)。 */
@@ -108,6 +116,10 @@ public:
     int synthLengthMs() const;
     int alertInterval() const { return alertInterval_; }
     void setAlertInterval(int ms);
+    bool alertContinuous() const { return alertContinuous_; }
+    void setAlertContinuous(bool on);
+    bool alertActive() const { return alertActive_; }
+    void setAlertActive(bool on);
 
     /** @brief フォルダを読み直す(ユーザーフォルダへ WAV を足したとき)。 */
     Q_INVOKABLE void rescan();
@@ -121,6 +133,7 @@ signals:
     void soundsChanged();
     /** @brief 合成音の設定・繰り返す間隔が変わったとき。 */
     void synthChanged();
+    void alertActiveChanged();
 
 protected:
     /** @brief パネルへの触れ/離れを監視し、触れた瞬間に 1 回だけ操作音を鳴らす。常に false(イベントは消費しない)。 */
@@ -145,6 +158,8 @@ private:
     void loadSynth();
     /** @brief 合成音の設定から WAV を作り、警告音に合成音を選んでいれば読み込み直す。 */
     void rebuildSynth();
+    /** @brief 「ずっと鳴らす」のループ再生を、alertActive / alertContinuous に合わせて始める・止める。 */
+    void updateAlertLoop();
     /** @brief フォルダ内の WAV のファイル名(名前順)。 */
     static QStringList wavFiles(const QString &directory);
 
@@ -165,6 +180,9 @@ private:
 
     QVariantMap synth_;
     int alertInterval_ = 1400;
+    bool alertContinuous_ = false;
+    bool alertActive_ = false;
+    bool alertLooping_ = false; ///< 「ずっと鳴らす」でループ再生している
     int synthSerial_ = 0;   ///< 作り直すたびに増やす(同じファイル名だと再生器が読み直さないため、名前を変える)
     QString synthPath_;     ///< 今の合成音の WAV
 

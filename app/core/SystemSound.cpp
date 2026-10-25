@@ -249,6 +249,13 @@ void SystemSound::loadCategory(const QString &category) {
     if (effect.source() != url) {
         effect.setSource(url);
     }
+    if (category == QStringLiteral("alert") && alertLooping_) {
+        alertLooping_ = false; // ずっと鳴らしている途中で音を変えたら、新しい音で鳴らし直す
+        alert_.setLoopCount(1);
+        updateAlertLoop();
+    } else if (category == QStringLiteral("alert")) {
+        updateAlertLoop();
+    }
 }
 
 QSoundEffect &SystemSound::effectOf(const QString &category) {
@@ -304,6 +311,7 @@ void SystemSound::loadSynth() {
     }
     alertInterval_ = std::clamp(store.value(QStringLiteral("sound/alertInterval"), kIntervalDefault).toInt(),
                                 kIntervalMin, kIntervalMax);
+    alertContinuous_ = store.value(QStringLiteral("sound/alertContinuous"), false).toBool();
     // 前回の起動で作った合成音の WAV を消しておく
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     for (const QString &file : QDir(dir).entryList({QStringLiteral("alert-synth-*.wav")}, QDir::Files)) {
@@ -323,13 +331,13 @@ void SystemSound::rebuildSynth() {
     const int f2raw = synth_.value(QStringLiteral("frequency2")).toInt();
     const double f2 = f2raw > 0 ? f2raw : f1;
     const int pulses = synth_.value(QStringLiteral("pulses")).toInt();
-    const int pulseLen = kSampleRate * synth_.value(QStringLiteral("pulseMs")).toInt() / 1000;
+    const int pulseMsLen = kSampleRate * synth_.value(QStringLiteral("pulseMs")).toInt() / 1000;
     const int gapLen = kSampleRate * synth_.value(QStringLiteral("gapMs")).toInt() / 1000;
-    const int fadeLen = std::min(kSampleRate * synth_.value(QStringLiteral("fadeMs")).toInt() / 1000, pulseLen / 2);
+    const int fadeMs = synth_.value(QStringLiteral("fadeMs")).toInt();
     const double amp = 0.9 * synth_.value(QStringLiteral("volume")).toInt() / 100.0;
 
     QByteArray pcm;
-    pcm.reserve((pulses * (pulseLen + gapLen) + kSampleRate / 50) * 2);
+    pcm.reserve((pulses * (pulseMsLen + gapLen) + kSampleRate / 50) * 2);
     const auto put = [&pcm](double s) {
         const auto v = static_cast<qint16>(std::lround(std::clamp(s, -1.0, 1.0) * 32767.0));
         pcm.append(char(v & 0xff));
@@ -337,6 +345,13 @@ void SystemSound::rebuildSynth() {
     };
     for (int p = 0; p < pulses; ++p) {
         const double f = (p % 2 == 1) ? f2 : f1; // 2 音目を違う高さにすると交互に鳴る
+        // ずっと鳴らすときは、1 音を波の周期の整数倍にして、つなぎ目(次の音・ループの頭)で「プツッ」と言わないようにする
+        int pulseLen = pulseMsLen;
+        if (alertContinuous_) {
+            const double period = kSampleRate / f;
+            pulseLen = std::max(1, static_cast<int>(std::lround(std::max(1.0, std::round(pulseMsLen / period)) * period)));
+        }
+        const int fadeLen = std::min(kSampleRate * fadeMs / 1000, pulseLen / 2);
         for (int i = 0; i < pulseLen; ++i) {
             const double phase = std::fmod(f * i / kSampleRate, 1.0);
             double s = 0;
@@ -358,8 +373,14 @@ void SystemSound::rebuildSynth() {
             }
         }
     }
-    for (int i = 0; i < kSampleRate / 50; ++i) { // 末尾に 20 ms の無音(切れ際のノイズ防止)
-        put(0);
+    if (!alertContinuous_) {
+        for (int i = 0; i < kSampleRate / 50; ++i) { // 末尾に 20 ms の無音(切れ際のノイズ防止。ループするときは付けない)
+            put(0);
+        }
+    } else if (gapLen > 0 && pulses > 0) {
+        for (int i = 0; i < gapLen; ++i) { // ループの頭へ戻るまでにも、音と音の間をあける
+            put(0);
+        }
     }
 
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
@@ -399,13 +420,16 @@ void SystemSound::applySynthPreset(const QString &name) {
     struct Preset {
         const char *name;
         int waveform, frequency, frequency2, pulses, pulseMs, gapMs, fadeMs, interval;
+        bool continuous;
     };
     static const Preset kPresets[] = {
-        {"pipi", 0, 2000, 0, 2, 90, 70, 4, 1400},   // ピピッ
-        {"pii", 0, 2400, 0, 1, 500, 0, 8, 1500},    // ピー(長め 1 音)
-        {"pipo", 0, 960, 770, 4, 160, 20, 6, 1600}, // ピポピポ(2 音を交互)
-        {"fast", 1, 3000, 0, 3, 50, 50, 2, 700},    // 速い連打(矩形波)
-        {"chime", 2, 1300, 1000, 2, 260, 40, 12, 2200}, // チャイム(三角波で下がる 2 音)
+        {"pipi", 0, 2000, 0, 2, 90, 70, 4, 1400, false},   // ピピッ
+        {"pii", 0, 2400, 0, 1, 500, 0, 8, 1500, false},    // ピー(長め 1 音)
+        {"pipo", 0, 960, 770, 4, 160, 20, 6, 1600, false}, // ピポピポ(2 音を交互)
+        {"fast", 1, 3000, 0, 3, 50, 50, 2, 700, false},    // 速い連打(矩形波)
+        {"chime", 2, 1300, 1000, 2, 260, 40, 12, 2200, false}, // チャイム(三角波で下がる 2 音)
+        {"continuous", 0, 2400, 0, 1, 500, 0, 0, 1400, true},  // 警告中ずっと「ピーー」
+        {"continuousPipo", 0, 960, 770, 2, 300, 0, 0, 1400, true}, // 警告中ずっと「ピーポーピーポー」
     };
     for (const Preset &p : kPresets) {
         if (name != QLatin1String(p.name)) {
@@ -421,8 +445,11 @@ void SystemSound::applySynthPreset(const QString &name) {
         }
         alertInterval_ = p.interval;
         store.setValue(QStringLiteral("sound/alertInterval"), alertInterval_);
+        alertContinuous_ = p.continuous;
+        store.setValue(QStringLiteral("sound/alertContinuous"), alertContinuous_);
         rebuildSynth();
         applySettings();
+        updateAlertLoop();
         emit synthChanged();
         return;
     }
@@ -448,6 +475,41 @@ void SystemSound::setAlertInterval(int ms) {
     alertInterval_ = ms;
     openStore().setValue(QStringLiteral("sound/alertInterval"), ms);
     emit synthChanged();
+}
+
+void SystemSound::setAlertContinuous(bool on) {
+    if (on == alertContinuous_) {
+        return;
+    }
+    alertContinuous_ = on;
+    openStore().setValue(QStringLiteral("sound/alertContinuous"), on);
+    rebuildSynth(); // つなぎ目の作り方が変わる
+    updateAlertLoop();
+    emit synthChanged();
+}
+
+void SystemSound::setAlertActive(bool on) {
+    if (on == alertActive_) {
+        return;
+    }
+    alertActive_ = on;
+    updateAlertLoop();
+    emit alertActiveChanged();
+}
+
+void SystemSound::updateAlertLoop() {
+    const bool loop = alertContinuous_ && alertActive_ && !alertMuted_;
+    if (loop && !alertLooping_) {
+        alertLooping_ = true;
+        alert_.stop();
+        alert_.setLoopCount(QSoundEffect::Infinite);
+        playEffect(alert_, alertPending_); // 読み込み中なら、読み込みが終わってから鳴らし始める
+    } else if (!loop && alertLooping_) {
+        alertLooping_ = false; // 繰り返しモードの 1 回分は止めない(ループしていたときだけ止める)
+        alert_.stop();
+        alert_.setLoopCount(1);
+        alertPending_ = false;
+    }
 }
 
 void SystemSound::setupEffect(QSoundEffect &effect, bool &pending) {
@@ -501,7 +563,7 @@ void SystemSound::play(const QString &name) {
             playEffect(start_, startPending_);
         }
     } else if (name == QStringLiteral("alert")) {
-        if (!alertMuted_) {
+        if (!alertMuted_ && !(alertContinuous_ && alertActive_)) { // ずっと鳴らしている間は、ループに任せる
             alert_.stop(); // 前の 1 回が残っていても頭から鳴らし直す
             playEffect(alert_, alertPending_);
         }

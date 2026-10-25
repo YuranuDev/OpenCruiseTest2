@@ -12,6 +12,10 @@
  *
  * 通知履歴: ユーザーが操作せずに消えた通知(表示時間の経過・同時表示数の超過)は history に残る。
  * ポップアップをタップして閉じた通知(dismiss)・clear() で消した通知は残さない。
+ *
+ * 出し続ける通知: durationMs を 0 にすると自動では消えない。update() で表示中の中身(タイトル・本文・レベル)を
+ * 書き換えられる(メーターの「警告中は出し続ける」通知が値を更新するのに使う)。タップすれば消せ、消えたかどうかは
+ * update() / contains() の戻り値で分かる。
  */
 #pragma once
 
@@ -68,6 +72,15 @@ public:
 
     /** @brief 指定IDの通知を消す(履歴には残さない。ポップアップのタップで閉じる操作もこれ)。存在しなければ何もしない。 */
     Q_INVOKABLE void dismiss(int id);
+
+    /**
+     * @brief 表示中の通知の中身を書き換える(UI スレッドから呼ぶ)。
+     * @return 書き換えたら true。その通知がもう無い(タップで閉じられた・押し出された)なら false
+     */
+    Q_INVOKABLE bool update(int id, const QString &title, const QString &message, int level);
+
+    /** @brief その通知がまだ表示されているか。 */
+    Q_INVOKABLE bool contains(int id) const;
 
     /** @brief すべての通知を消す(履歴には残さない)。 */
     Q_INVOKABLE void clear();

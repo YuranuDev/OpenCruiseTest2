@@ -184,6 +184,17 @@ SettingsPage {
         Timer { id: synthPreview; interval: 450; onTriggered: systemSound.previewSynth() }
 
         SettingsRow {
+            label: "警告音の鳴らし方"
+            description: "「ずっと鳴らす」にすると、警告がある間は途切れずに鳴り続けます(メーターをタップすると止まります)"
+            stacked: true
+            SettingsChoice {
+                model: ["間隔をあけて繰り返す", "警告中ずっと鳴らす"]
+                currentIndex: systemSound.alertContinuous ? 1 : 0
+                onPicked: (index) => systemSound.alertContinuous = index === 1
+            }
+        }
+        SettingsRow {
+            visible: !systemSound.alertContinuous
             label: "警告音を繰り返す間隔"
             description: "警告中、この間隔で警告音を繰り返します(WAV・合成音のどちらにも効きます)"
             WSStepper {
@@ -195,13 +206,13 @@ SettingsPage {
         SettingsRow {
             visible: soundSection.synthSelected
             label: "合成音のプリセット"
-            description: "まとめて設定を切り替えます(繰り返す間隔も変わります)。選ぶと試しに鳴らします"
+            description: "まとめて設定を切り替えます(鳴らし方・繰り返す間隔も変わります。「ずっと〜」は警告中ずっと鳴り続けます)。選ぶと試しに鳴らします"
             stacked: true
             SettingsChoice {
-                model: ["ピピッ", "ピー", "ピポピポ", "速い連打", "チャイム"]
+                model: ["ピピッ", "ピー", "ピポピポ", "速い連打", "チャイム", "ずっとピーー", "ずっとピーポー"]
                 currentIndex: -1
                 onPicked: (index) => {
-                    systemSound.applySynthPreset(["pipi", "pii", "pipo", "fast", "chime"][index])
+                    systemSound.applySynthPreset(["pipi", "pii", "pipo", "fast", "chime", "continuous", "continuousPipo"][index])
                     systemSound.previewSynth()
                 }
             }
@@ -291,7 +302,8 @@ SettingsPage {
             visible: soundSection.synthSelected
             label: "試しに鳴らす"
             description: "1 回の長さ: " + systemSound.synthLengthMs + " ms"
-                         + (systemSound.synthLengthMs > systemSound.alertInterval
+                         + (systemSound.alertContinuous ? "(警告中はこれをくり返し続けます)"
+                            : systemSound.synthLengthMs > systemSound.alertInterval
                             ? "(繰り返す間隔より長いため、次の音で途切れます)" : "")
             ActionButton {
                 text: "鳴らす"

@@ -179,6 +179,16 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
+        label: "ピーク表示"
+        description: "右上に最大値(MAX)または最小値(MIN)を出します。タップするとリセットします(再起動でもリセット)"
+        stacked: true
+        SettingsChoice {
+            model: ["オフ", "最大(MAX)", "最小(MIN)"]
+            currentIndex: root.config.peakMode === "off" ? 0 : (root.config.peakMode === "min" ? 2 : 1)
+            onPicked: (index) => root.edit("peakMode", ["off", "max", "min"][index])
+        }
+    }
+    SettingsRow {
         label: "警告"
         description: root.warnBelow ? "警告値以下で、色・アイコン・メッセージで知らせます"
                                     : "警告値以上で、色・アイコン・メッセージで知らせます"
@@ -219,19 +229,26 @@ WidgetSettingsBase {
             onToggled: (v) => root.edit("warnBeep", v)
         }
     }
+    // 以前の設定(warnPopup: true)は「1 回だけ」として扱う
+    readonly property string popupMode: config.warnPopupMode === "once" || config.warnPopupMode === "live"
+                                        || config.warnPopupMode === "off"
+                                        ? config.warnPopupMode : (config.warnPopup === true ? "once" : "off")
     SettingsRow {
         visible: root.config.warnEnabled === true
         label: "ポップアップ通知"
-        description: "警告になったとき、画面上部に通知を出します(同じメーターは 30 秒に 1 回まで)"
-        SettingsSwitch {
-            checked: root.config.warnPopup === true
-            onToggled: (v) => root.edit("warnPopup", v)
+        description: "「1 回だけ」: 警告になったときに通知を出します(同じメーターは 30 秒に 1 回まで)。\n"
+                     + "「出し続ける」: 警告中は通知を出したままにし、今の値を更新し続けます。タップで消せます"
+        stacked: true
+        SettingsChoice {
+            model: ["オフ", "1 回だけ", "警告中は出し続ける"]
+            currentIndex: ["off", "once", "live"].indexOf(root.popupMode)
+            onPicked: (index) => root.edit("warnPopupMode", ["off", "once", "live"][index])
         }
     }
     SettingsRow {
-        visible: root.config.warnEnabled === true && root.config.warnPopup === true
+        visible: root.config.warnEnabled === true && root.popupMode !== "off"
         label: "通知に詳細を表示"
-        description: "通知に、警告になったときの値と警告値を入れます"
+        description: "通知に警告値を入れます(「1 回だけ」は、警告になったときの値も入れます)"
         SettingsSwitch {
             checked: root.config.warnPopupDetail !== false
             onToggled: (v) => root.edit("warnPopupDetail", v)

@@ -167,6 +167,9 @@ ApplicationWindow {
             function onBeep() { systemSound.play("alert") }
         }
         Binding { target: WarningAlarm; property: "interval"; value: systemSound.alertInterval }
+        Binding { target: WarningAlarm; property: "continuous"; value: systemSound.alertContinuous }
+        // 「ずっと鳴らす」のとき、鳴らしている警告がある間はループ再生する
+        Binding { target: systemSound; property: "alertActive"; value: WarningAlarm.soundingCount > 0 }
 
         // 画面上部のポップアップ通知（映像表示中も最前面）
         NotificationPopup {

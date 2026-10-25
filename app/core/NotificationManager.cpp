@@ -107,6 +107,34 @@ void NotificationManager::dismiss(int id) {
     }
 }
 
+bool NotificationManager::update(int id, const QString &title, const QString &message, int level) {
+    for (int row = 0; row < items_.size(); ++row) {
+        Item &item = items_[row];
+        if (item.id != id) {
+            continue;
+        }
+        const int lv = qBound(static_cast<int>(Info), level, static_cast<int>(Error));
+        if (item.title != title || item.message != message || item.level != lv) {
+            item.title = title;
+            item.message = message;
+            item.level = lv;
+            const QModelIndex idx = index(row);
+            emit dataChanged(idx, idx, {TitleRole, MessageRole, LevelRole});
+        }
+        return true;
+    }
+    return false;
+}
+
+bool NotificationManager::contains(int id) const {
+    for (const Item &item : items_) {
+        if (item.id == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void NotificationManager::clear() {
     if (items_.isEmpty()) {
         return;

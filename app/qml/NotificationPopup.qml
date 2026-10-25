@@ -44,8 +44,9 @@ ListView {
             width: parent.width
             height: contentRow.implicitHeight + 24
             radius: Theme.radius
-            color: Theme.panel
-            border.width: 2
+            // エラー(メーターのしきい値超えなど)は、赤く塗って目立たせる
+            color: level === 3 ? Theme.mix(Theme.panel, Theme.error, 0.28) : Theme.panel
+            border.width: level === 3 ? 3 : 2
             border.color: list.levelColor(level)
 
             Row {

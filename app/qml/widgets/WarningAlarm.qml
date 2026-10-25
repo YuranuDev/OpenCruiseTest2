@@ -15,6 +15,9 @@ QtObject {
 
     /// ビープの間隔(ms)。Main.qml が設定(systemSound.alertInterval)を流し込む
     property int interval: 1400
+    /// true なら「ずっと鳴らす」: beep() は出さず、鳴らしている警告がある間(soundingCount > 0)ずっと鳴らしてもらう
+    /// (Main.qml が soundingCount を systemSound.alertActive へ流し、SystemSound がループ再生する)
+    property bool continuous: false
     /// 登録が変わるたびに増える(QML の束縛が isSounding などを読み直すため)
     property int revision: 0
     /// 鳴らしている(確認されていない)警告の数
@@ -61,7 +64,7 @@ QtObject {
     property Timer ticker: Timer {
         interval: alarm.interval
         repeat: true
-        running: alarm.soundingCount > 0
+        running: alarm.soundingCount > 0 && !alarm.continuous
         triggeredOnStart: true   // 最初の警告ではすぐ鳴らす。2 件目以降は今のリズムに合わせる
         onTriggered: alarm.beep()
     }
