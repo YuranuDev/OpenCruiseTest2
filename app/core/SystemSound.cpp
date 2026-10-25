@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QEvent>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMouseEvent>
@@ -19,6 +20,9 @@
 #include "AudioSettings.h"
 #include "Log.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace opencruise {
 
 namespace {
@@ -28,6 +32,54 @@ const QString kNone = QStringLiteral("none");
 const QString kBuiltinPrefix = QStringLiteral("builtin:");
 const QString kUserPrefix = QStringLiteral("user:");
 const QStringList kCategories = {QStringLiteral("click"), QStringLiteral("start"), QStringLiteral("alert")};
+const QString kSynthId = QStringLiteral("synth"); ///< 警告音の「合成音」
+
+/// 合成音の設定項目(範囲と既定値)
+struct SynthParam {
+    const char *key;
+    int min;
+    int max;
+    int def;
+};
+constexpr SynthParam kSynthParams[] = {
+    {"waveform", 0, 3, 0},       {"frequency", 200, 6000, 2000}, {"frequency2", 0, 6000, 0},
+    {"pulses", 1, 8, 2},         {"pulseMs", 20, 1000, 90},      {"gapMs", 0, 1000, 70},
+    {"fadeMs", 0, 50, 4},        {"volume", 10, 100, 80},
+};
+constexpr int kIntervalMin = 300;
+constexpr int kIntervalMax = 10000;
+constexpr int kIntervalDefault = 1400;
+constexpr int kSampleRate = 44100;
+
+const SynthParam *findParam(const QString &key) {
+    for (const SynthParam &p : kSynthParams) {
+        if (key == QLatin1String(p.key)) {
+            return &p;
+        }
+    }
+    return nullptr;
+}
+
+/** @brief 16 bit・モノラルの PCM を WAV ファイルに書く。 */
+bool writeWav(const QString &path, const QByteArray &pcm) {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        return false;
+    }
+    const auto u32 = [](quint32 v) {
+        const char b[4] = {char(v & 0xff), char((v >> 8) & 0xff), char((v >> 16) & 0xff), char((v >> 24) & 0xff)};
+        return QByteArray(b, 4);
+    };
+    const auto u16 = [](quint16 v) {
+        const char b[2] = {char(v & 0xff), char((v >> 8) & 0xff)};
+        return QByteArray(b, 2);
+    };
+    QByteArray head;
+    head += "RIFF" + u32(36 + pcm.size()) + "WAVE";
+    head += "fmt " + u32(16) + u16(1) + u16(1) + u32(kSampleRate) + u32(kSampleRate * 2) + u16(2) + u16(16);
+    head += "data" + u32(pcm.size());
+    return file.write(head) == head.size() && file.write(pcm) == pcm.size();
+}
 
 QSettings openStore() {
     return QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
@@ -63,6 +115,8 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
     for (const QString &category : kCategories) {
         QDir().mkpath(userSoundDirectory() + QLatin1Char('/') + category);
     }
+    loadSynth();
+    rebuildSynth();
     log::info("AUDIO", QStringLiteral("効果音フォルダ: 同梱=%1 / ユーザー=%2")
                            .arg(builtinSoundDirectory().isEmpty() ? QStringLiteral("(見つかりません)") : builtinSoundDirectory(),
                                 userSoundDirectory()));
@@ -117,6 +171,10 @@ QVariantList SystemSound::soundOptions(const QString &category) const {
     if (!isCategory(category)) {
         return list;
     }
+    if (category == QStringLiteral("alert")) {
+        list.append(QVariantMap{{QStringLiteral("id"), kSynthId}, {QStringLiteral("name"), QStringLiteral("合成音(自分で設定)")},
+                                {QStringLiteral("folder"), QStringLiteral("内蔵")}});
+    }
     const QString builtin = builtinSoundDirectory();
     QStringList builtinFiles = wavFiles(builtin.isEmpty() ? QString() : builtin + QLatin1Char('/') + category);
     if (builtinFiles.isEmpty()) {
@@ -151,6 +209,12 @@ void SystemSound::setSelectedSound(const QString &category, const QString &id) {
 }
 
 QUrl SystemSound::urlFor(const QString &category, const QString &id) const {
+    if (id == kSynthId) {
+        if (category == QStringLiteral("alert") && !synthPath_.isEmpty() && QFileInfo::exists(synthPath_)) {
+            return QUrl::fromLocalFile(synthPath_);
+        }
+        return {};
+    }
     if (id.startsWith(kBuiltinPrefix)) {
         const QString file = id.mid(kBuiltinPrefix.size());
         const QString builtin = builtinSoundDirectory();
@@ -230,6 +294,160 @@ void SystemSound::rescan() {
     }
     ++revision_;
     emit soundsChanged();
+}
+
+void SystemSound::loadSynth() {
+    QSettings store = openStore();
+    for (const SynthParam &p : kSynthParams) {
+        const int v = store.value(QStringLiteral("sound/synth/") + QLatin1String(p.key), p.def).toInt();
+        synth_.insert(QLatin1String(p.key), std::clamp(v, p.min, p.max));
+    }
+    alertInterval_ = std::clamp(store.value(QStringLiteral("sound/alertInterval"), kIntervalDefault).toInt(),
+                                kIntervalMin, kIntervalMax);
+    // 前回の起動で作った合成音の WAV を消しておく
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    for (const QString &file : QDir(dir).entryList({QStringLiteral("alert-synth-*.wav")}, QDir::Files)) {
+        QFile::remove(dir + QLatin1Char('/') + file);
+    }
+}
+
+int SystemSound::synthLengthMs() const {
+    const int pulses = synth_.value(QStringLiteral("pulses")).toInt();
+    return pulses * synth_.value(QStringLiteral("pulseMs")).toInt()
+           + std::max(0, pulses - 1) * synth_.value(QStringLiteral("gapMs")).toInt();
+}
+
+void SystemSound::rebuildSynth() {
+    const int waveform = synth_.value(QStringLiteral("waveform")).toInt();
+    const double f1 = synth_.value(QStringLiteral("frequency")).toInt();
+    const int f2raw = synth_.value(QStringLiteral("frequency2")).toInt();
+    const double f2 = f2raw > 0 ? f2raw : f1;
+    const int pulses = synth_.value(QStringLiteral("pulses")).toInt();
+    const int pulseLen = kSampleRate * synth_.value(QStringLiteral("pulseMs")).toInt() / 1000;
+    const int gapLen = kSampleRate * synth_.value(QStringLiteral("gapMs")).toInt() / 1000;
+    const int fadeLen = std::min(kSampleRate * synth_.value(QStringLiteral("fadeMs")).toInt() / 1000, pulseLen / 2);
+    const double amp = 0.9 * synth_.value(QStringLiteral("volume")).toInt() / 100.0;
+
+    QByteArray pcm;
+    pcm.reserve((pulses * (pulseLen + gapLen) + kSampleRate / 50) * 2);
+    const auto put = [&pcm](double s) {
+        const auto v = static_cast<qint16>(std::lround(std::clamp(s, -1.0, 1.0) * 32767.0));
+        pcm.append(char(v & 0xff));
+        pcm.append(char((v >> 8) & 0xff));
+    };
+    for (int p = 0; p < pulses; ++p) {
+        const double f = (p % 2 == 1) ? f2 : f1; // 2 音目を違う高さにすると交互に鳴る
+        for (int i = 0; i < pulseLen; ++i) {
+            const double phase = std::fmod(f * i / kSampleRate, 1.0);
+            double s = 0;
+            switch (waveform) {
+            case 1: s = (phase < 0.5 ? 1.0 : -1.0) * 0.55; break;      // 矩形(サインと聞こえの大きさをそろえる)
+            case 2: s = 1.0 - 4.0 * std::abs(phase - 0.5); break;      // 三角
+            case 3: s = (2.0 * phase - 1.0) * 0.65; break;             // のこぎり
+            default: s = std::sin(6.283185307179586 * phase); break;          // サイン
+            }
+            double env = 1.0;
+            if (fadeLen > 0) {
+                env = std::min({1.0, double(i) / fadeLen, double(pulseLen - i) / fadeLen});
+            }
+            put(s * env * amp);
+        }
+        if (p < pulses - 1) {
+            for (int i = 0; i < gapLen; ++i) {
+                put(0);
+            }
+        }
+    }
+    for (int i = 0; i < kSampleRate / 50; ++i) { // 末尾に 20 ms の無音(切れ際のノイズ防止)
+        put(0);
+    }
+
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QDir().mkpath(dir);
+    const QString path = dir + QStringLiteral("/alert-synth-%1.wav").arg(++synthSerial_);
+    if (!writeWav(path, pcm)) {
+        log::warn("AUDIO", QStringLiteral("合成音を書き出せません: ") + path);
+        return;
+    }
+    const QString old = synthPath_;
+    synthPath_ = path;
+    if (selectedSound(QStringLiteral("alert")) == kSynthId) {
+        loadCategory(QStringLiteral("alert"));
+    }
+    if (!old.isEmpty() && preview_.source() != QUrl::fromLocalFile(old)) {
+        QFile::remove(old);
+    }
+}
+
+void SystemSound::setSynthValue(const QString &key, const QVariant &value) {
+    const SynthParam *p = findParam(key);
+    if (!p) {
+        return;
+    }
+    const int v = std::clamp(value.toInt(), p->min, p->max);
+    if (synth_.value(key).toInt() == v) {
+        return;
+    }
+    synth_.insert(key, v);
+    openStore().setValue(QStringLiteral("sound/synth/") + key, v);
+    rebuildSynth();
+    applySettings();
+    emit synthChanged();
+}
+
+void SystemSound::applySynthPreset(const QString &name) {
+    struct Preset {
+        const char *name;
+        int waveform, frequency, frequency2, pulses, pulseMs, gapMs, fadeMs, interval;
+    };
+    static const Preset kPresets[] = {
+        {"pipi", 0, 2000, 0, 2, 90, 70, 4, 1400},   // ピピッ
+        {"pii", 0, 2400, 0, 1, 500, 0, 8, 1500},    // ピー(長め 1 音)
+        {"pipo", 0, 960, 770, 4, 160, 20, 6, 1600}, // ピポピポ(2 音を交互)
+        {"fast", 1, 3000, 0, 3, 50, 50, 2, 700},    // 速い連打(矩形波)
+        {"chime", 2, 1300, 1000, 2, 260, 40, 12, 2200}, // チャイム(三角波で下がる 2 音)
+    };
+    for (const Preset &p : kPresets) {
+        if (name != QLatin1String(p.name)) {
+            continue;
+        }
+        QSettings store = openStore();
+        const std::pair<const char *, int> values[] = {{"waveform", p.waveform}, {"frequency", p.frequency},
+                                                       {"frequency2", p.frequency2}, {"pulses", p.pulses},
+                                                       {"pulseMs", p.pulseMs}, {"gapMs", p.gapMs}, {"fadeMs", p.fadeMs}};
+        for (const auto &[key, v] : values) {
+            synth_.insert(QLatin1String(key), v);
+            store.setValue(QStringLiteral("sound/synth/") + QLatin1String(key), v);
+        }
+        alertInterval_ = p.interval;
+        store.setValue(QStringLiteral("sound/alertInterval"), alertInterval_);
+        rebuildSynth();
+        applySettings();
+        emit synthChanged();
+        return;
+    }
+}
+
+void SystemSound::previewSynth() {
+    const QUrl url = urlFor(QStringLiteral("alert"), kSynthId);
+    if (url.isEmpty()) {
+        return;
+    }
+    preview_.stop();
+    if (preview_.source() != url) {
+        preview_.setSource(url);
+    }
+    playEffect(preview_, previewPending_);
+}
+
+void SystemSound::setAlertInterval(int ms) {
+    ms = std::clamp(ms, kIntervalMin, kIntervalMax);
+    if (ms == alertInterval_) {
+        return;
+    }
+    alertInterval_ = ms;
+    openStore().setValue(QStringLiteral("sound/alertInterval"), ms);
+    emit synthChanged();
 }
 
 void SystemSound::setupEffect(QSoundEffect &effect, bool &pending) {

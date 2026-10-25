@@ -13,8 +13,8 @@ import QtQuick
 QtObject {
     id: alarm
 
-    /// ビープの間隔(ms)
-    readonly property int interval: 1400
+    /// ビープの間隔(ms)。Main.qml が設定(systemSound.alertInterval)を流し込む
+    property int interval: 1400
     /// 登録が変わるたびに増える(QML の束縛が isSounding などを読み直すため)
     property int revision: 0
     /// 鳴らしている(確認されていない)警告の数

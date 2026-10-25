@@ -165,6 +165,7 @@ ApplicationWindow {
             target: WarningAlarm
             function onBeep() { systemSound.play("alert") }
         }
+        Binding { target: WarningAlarm; property: "interval"; value: systemSound.alertInterval }
 
         // 画面上部のポップアップ通知（映像表示中も最前面）
         NotificationPopup {

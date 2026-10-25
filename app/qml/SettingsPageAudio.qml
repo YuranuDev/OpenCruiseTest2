@@ -2,9 +2,11 @@
 //   および Android Auto の音声入力に使うマイク(使用する/しない、入力元)。
 //   マップ音声 = Android Auto のナビ案内、音楽音声 = Android Auto のメディア、
 //   システム   = アプリの操作音・起動音と Android Auto のシステム音。
-//   効果音     = 操作音・起動音に使う WAV(フォルダ分けされた一覧から選ぶ。SystemSound)。
+//   効果音     = 操作音・起動音・警告音に使う WAV(フォルダ分けされた一覧から選ぶ。SystemSound)。
+//                警告音は WAV のほか合成音も選べ、波形・高さ・回数・長さ・音量と、繰り返す間隔を設定できる。
 //   マスター音量 = 上の 3 つすべてに掛かる共通の倍率(3 つの設定値は変わらない)。Ctrl+Shift+V/B でも変えられる。
 import QtQuick
+import OpenCruise
 
 SettingsPage {
     SettingsSection {
@@ -172,6 +174,128 @@ SettingsPage {
                     systemSound.setSelectedSound("alert", id)
                     systemSound.preview("alert", id)
                 }
+            }
+        }
+
+        // ---- 警告音の繰り返しと合成音 ----
+        readonly property bool synthSelected: { systemSound.revision; return systemSound.selectedSound("alert") === "synth" }
+        function setSynth(key, v) { systemSound.setSynthValue(key, v); synthPreview.restart() }
+        // 合成音の設定を変えたら、少し待ってから試しに鳴らす(＋−を連打・長押ししている間は鳴らさない)
+        Timer { id: synthPreview; interval: 450; onTriggered: systemSound.previewSynth() }
+
+        SettingsRow {
+            label: "警告音を繰り返す間隔"
+            description: "警告中、この間隔で警告音を繰り返します(WAV・合成音のどちらにも効きます)"
+            WSStepper {
+                value: systemSound.alertInterval / 1000
+                from: 0.3; to: 10; step: 0.1; decimals: 1; suffix: " 秒"
+                onMoved: (v) => systemSound.alertInterval = Math.round(v * 1000)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "合成音のプリセット"
+            description: "まとめて設定を切り替えます(繰り返す間隔も変わります)。選ぶと試しに鳴らします"
+            stacked: true
+            SettingsChoice {
+                model: ["ピピッ", "ピー", "ピポピポ", "速い連打", "チャイム"]
+                currentIndex: -1
+                onPicked: (index) => {
+                    systemSound.applySynthPreset(["pipi", "pii", "pipo", "fast", "chime"][index])
+                    systemSound.previewSynth()
+                }
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "波形"
+            description: "サインはやわらかい音、矩形・のこぎりは鋭く目立つ音、三角はその中間です"
+            stacked: true
+            SettingsChoice {
+                model: ["サイン", "矩形", "三角", "のこぎり"]
+                currentIndex: systemSound.synth.waveform
+                onPicked: (index) => soundSection.setSynth("waveform", index)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "音の高さ"
+            description: "1 音目の高さ。2000 Hz 前後が車内でも聞き取りやすい高さです"
+            WSStepper {
+                value: systemSound.synth.frequency
+                from: 200; to: 6000; step: 50; suffix: " Hz"
+                onMoved: (v) => soundSection.setSynth("frequency", v)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "2 音目の高さ"
+            description: "0 にすると 1 音目と同じ高さ。違う高さにすると、1 音ごとに交互に鳴らします(ピポピポ)"
+            WSStepper {
+                value: systemSound.synth.frequency2
+                from: 0; to: 6000; step: 50; suffix: " Hz"
+                onMoved: (v) => soundSection.setSynth("frequency2", v)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "音の数"
+            description: "1 回に鳴らす音の数"
+            WSStepper {
+                value: systemSound.synth.pulses
+                from: 1; to: 8; step: 1; suffix: " 回"
+                onMoved: (v) => soundSection.setSynth("pulses", v)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "1 音の長さ"
+            WSStepper {
+                value: systemSound.synth.pulseMs
+                from: 20; to: 1000; step: 10; suffix: " ms"
+                onMoved: (v) => soundSection.setSynth("pulseMs", v)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "音と音の間"
+            WSStepper {
+                value: systemSound.synth.gapMs
+                from: 0; to: 1000; step: 10; suffix: " ms"
+                onMoved: (v) => soundSection.setSynth("gapMs", v)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "立ち上がり・消え際"
+            description: "音の頭と終わりをなめらかにする長さ。0 にすると「プツッ」とした鋭い音になります"
+            WSStepper {
+                value: systemSound.synth.fadeMs
+                from: 0; to: 50; step: 1; suffix: " ms"
+                onMoved: (v) => soundSection.setSynth("fadeMs", v)
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "合成音の音量"
+            description: "システムの音量に、さらにこの割合を掛けます"
+            stacked: true
+            SettingsSlider {
+                value: systemSound.synth.volume
+                from: 10
+                onMoved: (v) => systemSound.setSynthValue("volume", v)
+                onReleased: systemSound.previewSynth()
+            }
+        }
+        SettingsRow {
+            visible: soundSection.synthSelected
+            label: "試しに鳴らす"
+            description: "1 回の長さ: " + systemSound.synthLengthMs + " ms"
+                         + (systemSound.synthLengthMs > systemSound.alertInterval
+                            ? "(繰り返す間隔より長いため、次の音で途切れます)" : "")
+            ActionButton {
+                text: "鳴らす"
+                onClicked: systemSound.previewSynth()
             }
         }
 
