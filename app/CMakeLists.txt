@@ -109,6 +109,7 @@ qt_add_qml_module(opencruise
         qml/BrightnessOsd.qml
         qml/ActionButton.qml
         qml/MaterialIcon.qml
+        qml/MdiCodes.js
         qml/SplashScreen.qml
         qml/LauncherScreen.qml
         qml/LauncherTile.qml
@@ -144,6 +145,7 @@ qt_add_qml_module(opencruise
         qml/widgets/NavigationSettings.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
+        fonts/materialdesignicons-webfont.ttf
         sounds/click/Click.wav
         sounds/start/Start.wav)
 

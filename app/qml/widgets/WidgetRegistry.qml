@@ -57,36 +57,36 @@ QtObject {
     //   warnBelow        true なら「警告値以下」で警告(燃料など)
     //   warnMessage      警告メッセージの入力欄の例
     readonly property var gaugeSpecs: ({
-        boost: { title: "ブースト", icon: "speed",
+        boost: { title: "ブースト", icon: "mdi:car-turbocharger",
                  units: [{ id: "bar", label: "bar", scale: 1, dec: 2, step: 0.1, stepDec: 1 },
                          { id: "psi", label: "psi", scale: 14.5038, dec: 1, step: 1, stepDec: 0 }],
                  limitMin: -1.0, limitMax: 5.0, minSpan: 0.5,
                  minLabel: "最小値(負圧側)", minHint: "目盛りの左端。負圧を測れるよう、通常は 0 より小さくします",
                  warnMessage: "ブースト圧が高すぎます" },
-        rpm:   { title: "回転数", icon: "av_timer",
+        rpm:   { title: "回転数", icon: "mdi:gauge",
                  units: [{ id: "rpm", label: "rpm", scale: 1, dec: 0, step: 500, stepDec: 0, labelDiv: 1000 }],
                  limitMin: 0, limitMax: 12000, minSpan: 1000, warnMessage: "回転数が高すぎます" },
-        speed: { title: "速度", icon: "directions_car",
+        speed: { title: "速度", icon: "mdi:speedometer",
                  units: [{ id: "kmh", label: "km/h", scale: 1, dec: 0, step: 10, stepDec: 0 },
                          { id: "mph", label: "mph", scale: 0.621371, dec: 0, step: 5, stepDec: 0 }],
                  limitMin: 0, limitMax: 400, minSpan: 40, warnMessage: "速度に注意してください" },
-        coolant: { title: "水温", icon: "thermostat",
+        coolant: { title: "水温", icon: "mdi:coolant-temperature",
                  units: [{ id: "c", label: "℃", scale: 1, dec: 0, step: 5, stepDec: 0 },
                          { id: "f", label: "℉", scale: 1.8, offset: 32, dec: 0, step: 5, stepDec: 0 }],
                  limitMin: -40, limitMax: 150, minSpan: 20, warnMessage: "水温が高すぎます" },
-        fuel:  { title: "燃料", icon: "local_gas_station",
+        fuel:  { title: "燃料", icon: "mdi:gas-station",
                  units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 5, stepDec: 0 }],
                  limitMin: 0, limitMax: 100, minSpan: 20, warnBelow: true, warnMessage: "燃料が残りわずかです" },
-        oilTemp: { title: "油温", icon: "device_thermostat",
+        oilTemp: { title: "油温", icon: "mdi:oil-temperature",
                  units: [{ id: "c", label: "℃", scale: 1, dec: 0, step: 5, stepDec: 0 },
                          { id: "f", label: "℉", scale: 1.8, offset: 32, dec: 0, step: 5, stepDec: 0 }],
                  limitMin: -40, limitMax: 180, minSpan: 20, warnMessage: "油温が高すぎます" },
-        oilPressure: { title: "油圧", icon: "oil_barrel",
+        oilPressure: { title: "油圧", icon: "mdi:oil",
                  units: [{ id: "bar", label: "bar", scale: 1, dec: 1, step: 0.5, stepDec: 1 },
                          { id: "psi", label: "psi", scale: 14.5038, dec: 0, step: 5, stepDec: 0 },
                          { id: "kpa", label: "kPa", scale: 100, dec: 0, step: 50, stepDec: 0 }],
                  limitMin: 0, limitMax: 10, minSpan: 1, warnBelow: true, warnMessage: "油圧が低すぎます" },
-        voltage: { title: "電圧", icon: "bolt",
+        voltage: { title: "電圧", icon: "mdi:car-battery",
                  units: [{ id: "v", label: "V", scale: 1, dec: 1, step: 0.5, stepDec: 1 }],
                  limitMin: 8, limitMax: 18, minSpan: 2, warnBelow: true, warnMessage: "電圧が低下しています" }
     })
@@ -117,7 +117,7 @@ QtObject {
             dragStart: "hold", mock: false
         },
         {
-            type: "turbo", genre: "vehicle", name: "ターボ圧計", icon: "speed",
+            type: "turbo", genre: "vehicle", name: "ターボ圧計", icon: "mdi:car-turbocharger",
             description: "ブースト圧のアナログ+デジタルメーター(警告値あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -127,7 +127,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "tacho", genre: "vehicle", name: "タコメーター", icon: "av_timer",
+            type: "tacho", genre: "vehicle", name: "タコメーター", icon: "mdi:gauge",
             description: "エンジン回転数のメーター(レッドゾーンの警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -136,7 +136,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "speedGauge", genre: "vehicle", name: "スピードメーター", icon: "directions_car",
+            type: "speedGauge", genre: "vehicle", name: "スピードメーター", icon: "mdi:speedometer",
             description: "車速のメーター(km/h・mph)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -145,7 +145,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "coolant", genre: "vehicle", name: "水温計", icon: "thermostat",
+            type: "coolant", genre: "vehicle", name: "水温計", icon: "mdi:coolant-temperature",
             description: "冷却水の温度のメーター(オーバーヒートの警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -155,7 +155,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "fuel", genre: "vehicle", name: "燃料計", icon: "local_gas_station",
+            type: "fuel", genre: "vehicle", name: "燃料計", icon: "mdi:gas-station",
             description: "燃料の残量のメーター(残りわずかの警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -165,7 +165,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "oilTemp", genre: "vehicle", name: "油温計", icon: "device_thermostat",
+            type: "oilTemp", genre: "vehicle", name: "油温計", icon: "mdi:oil-temperature",
             description: "エンジンオイルの温度のメーター(高温の警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -175,7 +175,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "oilPressure", genre: "vehicle", name: "油圧計", icon: "oil_barrel",
+            type: "oilPressure", genre: "vehicle", name: "油圧計", icon: "mdi:oil",
             description: "エンジンオイルの圧力のメーター(低下の警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -185,7 +185,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "voltage", genre: "vehicle", name: "電圧計", icon: "bolt",
+            type: "voltage", genre: "vehicle", name: "電圧計", icon: "mdi:car-battery",
             description: "バッテリー・電装系の電圧のメーター(低下の警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
