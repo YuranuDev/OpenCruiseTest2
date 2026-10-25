@@ -306,7 +306,37 @@ void VehicleDataManager::update() {
     const double rpmShown = rpm_ + noise(rng_) * (speedMs_ < 0.3 ? 12.0 : 6.0);
     rpm_ = std::max(kIdleRpm * 0.9, rpmShown);
     fuelPercent_ = fuelLiters_ / kTankLiters * 100.0;
+    updateEngineState(dt);
     emit changed();
+}
+
+void VehicleDataManager::updateEngineState(double dt) {
+    if (!engineRunning_) {
+        aboveStartS_ = rpm_ >= kEngineStartRpm ? aboveStartS_ + dt : 0.0;
+        if (aboveStartS_ >= kEngineConfirmSec) {
+            engineRunning_ = true;
+            runningS_ = 0.0;
+            belowStopS_ = 0.0;
+            qInfo() << "[vehicle] エンジン始動とみなしました(" << rpm_ << "rpm)";
+            emit engineStateChanged();
+        }
+        return;
+    }
+    runningS_ += dt;
+    belowStopS_ = rpm_ < kEngineStopRpm ? belowStopS_ + dt : 0.0;
+    if (belowStopS_ >= kEngineConfirmSec) {
+        engineRunning_ = false;
+        warningsArmed_ = false;
+        aboveStartS_ = 0.0;
+        qInfo() << "[vehicle] エンジン停止とみなしました。メーターの警告を無効にします";
+        emit engineStateChanged();
+        return;
+    }
+    if (!warningsArmed_ && runningS_ >= kWarnSettleSec) {
+        warningsArmed_ = true;
+        qInfo() << "[vehicle] メーターの警告を有効にしました";
+        emit engineStateChanged();
+    }
 }
 
 } // namespace opencruise

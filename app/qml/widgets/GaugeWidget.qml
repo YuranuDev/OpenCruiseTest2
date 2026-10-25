@@ -10,6 +10,8 @@
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
+// 警告(と、警告音・通知)は、エンジンが始動したとみなされてから有効になる(can.warningsArmed。判定は VehicleDataManager)。
+// エンジン停止とみなされると、警告中でも解除する(エンジンを止めたときの油圧・電圧の低下で鳴らないように)。
 // ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。数値のすぐ上に小さく「MAX 値 単位 ↺」を出し
 //   (アナログのみのときは単位の下)、タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
 // 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
@@ -112,9 +114,11 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 警告(ヒステリシスつき)
     property bool warning: false
+    readonly property bool warningsArmed: can.warningsArmed
+    onWarningsArmedChanged: updateWarning()
     function updateWarning() {
         const hysteresis = (maxV - minV) * 0.03
-        if (!warnOn) warning = false
+        if (!warnOn || !warningsArmed) warning = false
         else if (warnBelow) {
             if (!warning && rawValue <= warnV) warning = true
             else if (warning && rawValue > warnV + hysteresis) warning = false
@@ -271,9 +275,14 @@ WidgetBase {
             episodePeak = rawValue
             if (popupOn && widgetId !== "") showWarnPopup()
         } else if (onceNoticeId >= 0) {
-            // 「1 回だけ」の通知がまだ出ていれば、解除の表示(最大値)に変えて、表示時間を数え直す
-            if (!notifications.update(onceNoticeId, noticeTitle(), warnPopupText(), noticeLevel(), onceDurationMs))
+            if (!warningsArmed) {
+                // エンジン停止で警告を無効にした: 「正常に戻りました」とは言えないので、通知は閉じる
+                notifications.dismiss(onceNoticeId)
                 onceNoticeId = -1
+            } else if (!notifications.update(onceNoticeId, noticeTitle(), warnPopupText(), noticeLevel(), onceDurationMs)) {
+                // 「1 回だけ」の通知がまだ出ていれば、解除の表示(最大値)に変えて、表示時間を数え直す
+                onceNoticeId = -1
+            }
         }
     }
 
@@ -289,13 +298,13 @@ WidgetBase {
             liveNoticeId = notifications.show(noticeTitle(), warnPopupText(), 3, gauge.icon, 0)
         } else {
             if (liveNoticeId >= 0) {
-                if (!warning && warnOn && popupMode === "live" && widgetId !== "") {
+                if (!warning && warnOn && warningsArmed && popupMode === "live" && widgetId !== "") {
                     // 警告が解除された: 消さずに解除の表示(その警告の間の最大値)へ変え、しばらくしたら消す。
                     // id は覚えておき、消える前にまた警告になったら同じ通知を使う
                     if (!notifications.update(liveNoticeId, noticeTitle(), warnPopupText(), noticeLevel(), onceDurationMs))
                         liveNoticeId = -1
                 } else {
-                    notifications.dismiss(liveNoticeId)   // 設定を変えた・ウィジェットが消えた
+                    notifications.dismiss(liveNoticeId)   // 設定を変えた・ウィジェットが消えた・エンジン停止
                     liveNoticeId = -1
                 }
             }
