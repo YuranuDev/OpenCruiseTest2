@@ -156,7 +156,8 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
 
     // 同じ GPU(カード)の出力だけ複製できる。複製先は、複製元と同じ解像度があればそれを使う
     QJsonArray outputs;
-    QJsonObject targetEntry{{QStringLiteral("name"), target.kms}};
+    // 複製元をメイン画面にする(アプリのウィンドウはメイン画面に出る)
+    QJsonObject targetEntry{{QStringLiteral("name"), target.kms}, {QStringLiteral("primary"), true}};
     if (!targetMode.isEmpty()) targetEntry.insert(QStringLiteral("mode"), targetMode);
     outputs.append(targetEntry);
     QStringList clones;

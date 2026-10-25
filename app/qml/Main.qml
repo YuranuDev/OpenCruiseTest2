@@ -34,8 +34,14 @@ ApplicationWindow {
         }
         return list.length > 0 ? list[0] : null
     }
-    screen: findScreen(displaySettings.targetScreenName)
-    onScreenChanged: Qt.callLater(window.placeOnScreen)
+    // eglfs では、ウィンドウを作った後に別の画面へ移すと描画先が無くなり("Cannot sync before platform init!")
+    // 何も表示されない。eglfs はメイン画面(複製元。OsDisplayMirror が設定する)に任せ、画面は動かさない
+    Component.onCompleted: {
+        if (!displaySettings.isEglfs)
+            window.screen = Qt.binding(() => window.findScreen(displaySettings.targetScreenName))
+        systemSound.play("start")
+    }
+    onScreenChanged: if (!displaySettings.isEglfs) Qt.callLater(window.placeOnScreen)
     // 画面を移ったとき: 全画面なら一度ウィンドウに戻して出し直し、ウィンドウ表示なら新しい画面の中央へ置く
     function placeOnScreen() {
         if (!window.screen) return
@@ -51,8 +57,7 @@ ApplicationWindow {
     }
     color: Theme.background
 
-    // 起動音(起動画面が出るタイミングで鳴らす。音量・出力先は設定の「システム」に従う)
-    Component.onCompleted: systemSound.play("start")
+    // 起動音(起動画面が出るタイミングで鳴らす。音量・出力先は設定の「システム」に従う)は上の Component.onCompleted で鳴らす
 
     // 起動画面中の Esc はスキップ。フルスクリーン中はメニューを開閉し、ホームでは終了確認を出す。
     Shortcut {
