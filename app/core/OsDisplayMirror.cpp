@@ -135,17 +135,13 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
         return;
     }
 
-    // 複製元(= 操作する画面。DisplaySettings の「表示する画面」と同じ考え方で選ぶ):
-    //   画面を指定していればその画面 / 「外部画面があれば外部画面」(既定)なら内蔵パネル以外 / それ以外は内蔵パネル → 先頭
-    const QString saved = store.value(QStringLiteral("display/screen"), QStringLiteral("@external")).toString();
+    // 複製元(= アプリのウィンドウを出し、タッチを受ける画面): 画面を名前で指定していればその画面、
+    // それ以外は内蔵パネル(タッチパネルが付いているのは普通こちら) → 先頭の順。
+    // 外部画面を複製元にすると、内蔵パネルのタッチが外部画面の座標として扱われ、操作できなくなる
+    const QString saved = store.value(QStringLiteral("display/screen")).toString();
     int targetIndex = -1;
     for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
         if (connected[i].kms == saved) targetIndex = i;
-    }
-    if (saved == QLatin1String("@external")) {
-        for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
-            if (!isInternalName(connected[i].kms)) targetIndex = i;
-        }
     }
     for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
         if (isInternalName(connected[i].kms)) targetIndex = i;
@@ -158,6 +154,13 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
     QJsonArray outputs;
     // 複製元をメイン画面にする(アプリのウィンドウはメイン画面に出る)
     QJsonObject targetEntry{{QStringLiteral("name"), target.kms}, {QStringLiteral("primary"), true}};
+    // タッチパネルを複製元の画面に結び付ける(QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS の /dev/input/... を使う)
+    for (const QString &part : qEnvironmentVariable("QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS").split(QLatin1Char(':'))) {
+        if (part.startsWith(QLatin1String("/dev/input/"))) {
+            targetEntry.insert(QStringLiteral("touchDevice"), part);
+            break;
+        }
+    }
     if (!targetMode.isEmpty()) targetEntry.insert(QStringLiteral("mode"), targetMode);
     outputs.append(targetEntry);
     QStringList clones;
@@ -186,7 +189,8 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
         g_startupNote = QStringLiteral("eglfs: ミラーの設定ファイルを作れません: ") + path;
         return;
     }
-    file.write(QJsonDocument(config).toJson());
+    const QByteArray json = QJsonDocument(config).toJson(QJsonDocument::Compact);
+    file.write(json);
     file.close();
     qputenv("QT_QPA_EGLFS_KMS_CONFIG", path.toLocal8Bit());
     g_startupNote = QStringLiteral("eglfs: %1(%2)の表示を %3 に複製します")
@@ -196,6 +200,8 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
         g_startupNote += QStringLiteral("。%1 は同じ解像度に対応していないため、表示されないことがあります")
                              .arg(mismatched.join(QStringLiteral(", ")));
     }
+    // うまく複製されないときの調査用に、作った設定をそのまま残す
+    g_startupNote += QStringLiteral(" / 設定 %1: %2").arg(path, QString::fromUtf8(json));
 }
 
 QString OsDisplayMirror::startupNote() { return g_startupNote; }
