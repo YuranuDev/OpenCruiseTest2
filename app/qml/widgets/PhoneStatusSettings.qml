@@ -50,6 +50,7 @@ WidgetSettingsBase {
             text: root.config.lowMessage || ""
             placeholder: "スマホの充電が残りわずかです"
             maxLength: 24
+            onChanging: (t) => root.preview("lowMessage", t)
             onEdited: (t) => root.edit("lowMessage", t)
         }
     }

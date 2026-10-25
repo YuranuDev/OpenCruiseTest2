@@ -1,6 +1,7 @@
 // 設定 1 項目の行。左に項目名(と補足説明)、右に操作部品(選択ボタン・スイッチなど)を置く。
 //   SettingsRow { label: "解像度"; description: "..."; SettingsChoice { ... } }
 // 子要素が操作部品になる。stacked: true にすると、操作部品を項目名の下に置く(横幅が必要な部品向け)。
+// controlMaxWidth は操作部品に使える幅の目安(SettingsChoice はこれを超えると折り返す)。
 import QtQuick
 
 Item {
@@ -13,6 +14,7 @@ Item {
     readonly property real unit: Theme.uiScale
     readonly property real vpad: 12 * unit
     readonly property real gap: 24 * unit
+    readonly property real controlMaxWidth: stacked ? width : Math.max(240 * unit, width * 0.62)
 
     width: parent ? parent.width : implicitWidth
     implicitHeight: stacked

@@ -46,25 +46,25 @@ WidgetSettingsBase {
         description: "{text} が通知文になります"
         stacked: true
         WSTextField { width: 520 * Theme.uiScale; text: root.config.tplCall || ""; placeholder: "{text}"; maxLength: 40
-                      onEdited: (t) => root.edit("tplCall", t) }
+                      onChanging: (t) => root.preview("tplCall", t); onEdited: (t) => root.edit("tplCall", t) }
     }
     SettingsRow {
         label: "メッセージの通知"
         stacked: true
         WSTextField { width: 520 * Theme.uiScale; text: root.config.tplMessage || ""; placeholder: "{text}"; maxLength: 40
-                      onEdited: (t) => root.edit("tplMessage", t) }
+                      onChanging: (t) => root.preview("tplMessage", t); onEdited: (t) => root.edit("tplMessage", t) }
     }
     SettingsRow {
         label: "案内(ナビ)の通知"
         stacked: true
         WSTextField { width: 520 * Theme.uiScale; text: root.config.tplNavigation || ""; placeholder: "{text}"; maxLength: 40
-                      onEdited: (t) => root.edit("tplNavigation", t) }
+                      onChanging: (t) => root.preview("tplNavigation", t); onEdited: (t) => root.edit("tplNavigation", t) }
     }
     SettingsRow {
         label: "その他の通知"
         stacked: true
         WSTextField { width: 520 * Theme.uiScale; text: root.config.tplOther || ""; placeholder: "{text}"; maxLength: 40
-                      onEdited: (t) => root.edit("tplOther", t) }
+                      onChanging: (t) => root.preview("tplOther", t); onEdited: (t) => root.edit("tplOther", t) }
     }
     SettingsRow {
         label: "モックデータを使う"

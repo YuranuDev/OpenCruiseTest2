@@ -113,6 +113,8 @@ Item {
                 Connections {
                     target: settingsLoader.item
                     function onEdit(key, value) { if (root.area) root.area.setConfigValue(root.wid, key, value) }
+                    // 文字の入力中: 保存せずに、ウィジェットへだけすぐ反映する(確定時は onEdit で保存)
+                    function onPreview(key, value) { if (root.area) root.area.previewConfigValue(root.wid, key, value) }
                 }
 
                 // ---- 全ウィジェット共通: 枠 ----

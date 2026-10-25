@@ -10,8 +10,8 @@
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
-// ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。右下に「MAX 値 単位 ↺」を出し、
-//   タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
+// ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。数値のすぐ上に小さく「MAX 値 単位 ↺」を出し
+//   (アナログのみのときは単位の下)、タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
 // 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
 //   鳴っている間はメーター全体を赤く点滅させ、太い赤枠と「消音」の印を出して、どのメーターが鳴っているか分かるようにする。
 //   タップすると、その警告が解除されるまで音を止める(赤い表示は残す)。設定画面のプレビューでは鳴らさない。
@@ -137,6 +137,60 @@ WidgetBase {
         else if (peakMode === "min" ? rawValue < peak : rawValue > peak) peak = rawValue
     }
     function resetPeak() { peak = rawValue }
+    readonly property bool peakShown: peakMode !== "off" && !isNaN(peak)
+
+    // ピークの小さな表示(数値の上に置く)。タップでリセット
+    component PeakLabel: Item {
+        id: pl
+        property real px: 12
+        property int align: Text.AlignHCenter
+        visible: root.peakShown
+        height: Math.ceil(px * 1.35)
+        Row {
+            id: plRow
+            anchors.verticalCenter: parent.verticalCenter
+            x: pl.align === Text.AlignRight ? pl.width - width : (pl.align === Text.AlignLeft ? 0 : (pl.width - width) / 2)
+            spacing: Math.round(pl.px * 0.3)
+            opacity: plMouse.pressed ? 0.5 : 0.9
+            Text {
+                anchors.baseline: plValue.baseline
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.pixelSize: Math.round(pl.px * 0.75)
+                color: Theme.textSecondary
+                text: root.peakMode === "min" ? "MIN" : "MAX"
+            }
+            Text {
+                id: plValue
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.italic: true
+                font.pixelSize: Math.round(pl.px)
+                color: root.inZone(root.peak) ? Theme.error : Theme.textSecondary
+                text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
+            }
+            Text {
+                anchors.baseline: plValue.baseline
+                font.family: Theme.fontFamily
+                font.pixelSize: Math.round(pl.px * 0.75)
+                color: Theme.textSecondary
+                text: root.unitText
+            }
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "restart_alt"
+                size: Math.round(pl.px * 1.05)
+                color: Theme.textSecondary
+            }
+        }
+        MouseArea {
+            id: plMouse
+            // 小さくても押しやすいよう、文字より広めに受ける
+            x: plRow.x - pl.px; y: -pl.px * 0.5
+            width: plRow.width + pl.px * 2; height: pl.height + pl.px
+            onClicked: root.resetPeak()
+        }
+    }
     onPeakModeChanged: resetPeak()
     onUnitDefChanged: resetPeak()
 
@@ -268,69 +322,10 @@ WidgetBase {
         }
     }
 
-    // ピーク表示(右下。警告メッセージが出ている間はその上へよける)。タップでリセット
-    Rectangle {
-        id: peakTag
-        z: 2
-        readonly property bool enabledByMode: root.peakMode !== "off" && !isNaN(root.peak)
-        // 警告メッセージが横に入りきらないときは、警告中だけピーク表示を隠してメッセージを優先する
-        readonly property bool bannerCrowded: root.warning && root.showWarnMessage
-            && warnBanner.naturalW > root.width - 2 * root.m - (peakRow.implicitWidth + height * 0.6) - root.m * 0.5
-        visible: enabledByMode && !bannerCrowded
-        anchors { bottom: parent.bottom; right: parent.right; rightMargin: root.m * 0.7; bottomMargin: root.m * 0.6 }
-        height: Math.max(mockTag.height, Math.round(root.titleFontSize * (root.compact ? 1.3 : 1.55)))
-        width: visible ? peakRow.implicitWidth + height * 0.6 : 0
-        radius: height / 2
-        color: peakMouse.pressed ? Theme.mix(Theme.panel, Theme.accent, 0.3) : Theme.mix(Theme.panel, Theme.textSecondary, 0.12)
-        border.color: Theme.panelBorder
-        Row {
-            id: peakRow
-            anchors.centerIn: parent
-            spacing: 4
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                font.family: Theme.fontFamily
-                font.bold: true
-                font.pixelSize: Math.round(peakTag.height * 0.42)
-                color: Theme.textSecondary
-                text: root.peakMode === "min" ? "MIN" : "MAX"
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                font.family: Theme.fontFamily
-                font.bold: true
-                font.italic: true
-                font.pixelSize: Math.round(peakTag.height * 0.6)
-                color: root.inZone(root.peak) ? Theme.error : Theme.textPrimary
-                text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
-            }
-            Text {
-                anchors.baseline: parent.children[1].baseline
-                font.family: Theme.fontFamily
-                font.pixelSize: Math.round(peakTag.height * 0.4)
-                color: Theme.textSecondary
-                text: root.unitText
-            }
-            MaterialIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                name: "restart_alt"
-                size: Math.round(peakTag.height * 0.7)
-                color: Theme.accent
-            }
-        }
-        MouseArea {
-            id: peakMouse
-            anchors.fill: parent
-            anchors.margins: -6   // 小さくても押しやすいように、少し広めに受ける
-            onClicked: root.resetPeak()
-        }
-    }
-
     // ================================================================ 本体
     Item {
         id: body
-        // ピーク表示があるときは、下に 1 段(ピーク表示の高さ)あけて、メーターがそれに重ならないようにする
-        anchors { fill: parent; margins: root.m; bottomMargin: root.m + (peakTag.enabledByMode ? peakTag.height + root.m * 0.3 : 0) }
+        anchors { fill: parent; margins: root.m }
 
         // ============================================================ アナログ
         Item {
@@ -375,7 +370,8 @@ WidgetBase {
                     xs.push(readout.x, readout.x + readout.w)
                     ys.push(readout.y, readout.y + readout.h)
                 } else {
-                    ys.push(unitY + 0.07)
+                    // 単位と、その下のピーク表示(ある場合)まで
+                    ys.push(root.peakShown ? unitY + 0.29 : unitY + 0.07)
                 }
                 const pad = 0.02
                 return { minX: Math.min(...xs) - pad, maxX: Math.max(...xs) + pad,
@@ -715,6 +711,7 @@ WidgetBase {
                 width: dial.readout.w * dial.rpx
                 height: dial.readout.h * dial.rpx
                 Text {
+                    id: dialValue
                     width: parent.width
                     height: parent.height * 0.7
                     horizontalAlignment: Text.AlignHCenter
@@ -740,6 +737,17 @@ WidgetBase {
                 }
             }
 
+            // ピーク(アナログ+デジタル): 数値のすぐ上。数値の枠は小さくしない(数字の上の余白に重ねる)
+            PeakLabel {
+                visible: root.style === "both" && root.peakShown
+                width: dial.readout.w * dial.rpx * 1.3
+                x: dial.cx + (dial.readout.x + dial.readout.w / 2) * dial.rpx - width / 2
+                // 数値の字の上端(枠の 0.7 の段の中央から、字の高さの半分ほど上)の少し上
+                y: dial.cy + dial.readout.y * dial.rpx + dial.readout.h * dial.rpx * 0.35
+                   - Math.min(dialValue.contentHeight, dial.readout.h * dial.rpx * 0.7) * 0.5 - height * 0.85
+                px: Math.max(11, Math.round(dial.rpx * (root.compact ? 0.12 : 0.1)))
+            }
+
             // ---- 単位(アナログのみ) ----
             Text {
                 visible: root.style === "analog"
@@ -749,6 +757,13 @@ WidgetBase {
                 font.pixelSize: Math.max(11, dial.rpx * 0.13)
                 text: dial.scaleUnitText
                 color: Theme.textSecondary
+            }
+            PeakLabel {   // アナログのみ: 単位の下
+                visible: root.style === "analog" && root.peakShown
+                width: dial.rpx * 1.2
+                x: dial.cx - width / 2
+                y: dial.cy + (dial.unitY + 0.13) * dial.rpx
+                px: Math.max(11, Math.round(dial.rpx * 0.1))
             }
         }
 
@@ -795,10 +810,17 @@ WidgetBase {
                 id: valueBox
                 anchors { top: digitalLabel.bottom; left: parent.left; right: parent.right; bottom: barBox.top
                           bottomMargin: root.m * 0.5 }
+                PeakLabel {
+                    id: digitalPeak
+                    anchors { top: parent.top; right: parent.right }
+                    width: parent.width
+                    align: Text.AlignRight
+                    px: Math.max(11, Math.min(valueBox.height * 0.13, 20))
+                }
                 Text {
                     id: valueText
-                    anchors { left: parent.left; right: unitLabel.left; top: parent.top; bottom: parent.bottom
-                              rightMargin: 6 }
+                    anchors { left: parent.left; right: unitLabel.left; top: root.peakShown ? digitalPeak.bottom : parent.top
+                              bottom: parent.bottom; rightMargin: 6 }
                     horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter
                     font.family: Theme.fontFamily
@@ -933,14 +955,9 @@ WidgetBase {
         visible: opacity > 0
         opacity: root.warning && root.showWarnMessage ? (0.55 + 0.45 * root.blink) : 0
         Behavior on opacity { enabled: !(root.warning && root.showWarnMessage); NumberAnimation { duration: 180 } }
-        // ピーク表示があるときは、その左の空き(下の段)の中央に置く
-        readonly property real availW: parent.width - 2 * root.m - (peakTag.visible ? peakTag.width + root.m * 0.5 : 0)
-        x: root.m + (availW - width) / 2
-        // ピーク表示の段の中央にそろえる(はみ出す高さのときは、下端に収める)
-        y: peakTag.enabledByMode ? Math.min(peakTag.y + (peakTag.height - height) / 2, parent.height - root.m * 0.6 - height)
-                                 : parent.height - root.m - height
-        readonly property real naturalW: warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height
-        width: Math.min(availW, naturalW)
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: root.m }
+        width: Math.min(parent.width - 2 * root.m,
+                        warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height)
         height: root.compact ? Math.max(20, Math.round(root.s * 0.17)) : Math.max(26, Math.round(root.s * 0.13))
         radius: height / 2
         color: Theme.mix(Theme.panel, Theme.error, 0.22)

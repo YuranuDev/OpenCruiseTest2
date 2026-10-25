@@ -180,7 +180,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "ピーク表示"
-        description: "右下に最大値(MAX)または最小値(MIN)を単位つきで出します。タップするとリセットします(再起動でもリセット)"
+        description: "数値のすぐ上に、最大値(MAX)または最小値(MIN)を単位つきで小さく出します。タップするとリセットします(再起動でもリセット)"
         stacked: true
         SettingsChoice {
             model: ["オフ", "最大(MAX)", "最小(MIN)"]
@@ -264,6 +264,7 @@ WidgetSettingsBase {
             text: root.config.warnMessage || ""
             placeholder: root.gauge.warnMessage || "警告"
             maxLength: 24
+            onChanging: (t) => root.preview("warnMessage", t)
             onEdited: (t) => root.edit("warnMessage", t)
         }
     }

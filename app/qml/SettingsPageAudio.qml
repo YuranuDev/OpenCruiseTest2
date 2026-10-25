@@ -184,6 +184,20 @@ SettingsPage {
         Timer { id: synthPreview; interval: 450; onTriggered: systemSound.previewSynth() }
 
         SettingsRow {
+            visible: soundSection.synthSelected
+            label: "合成音のプリセット"
+            description: "まとめて設定を切り替えます(鳴らし方・繰り返す間隔も変わります。「ずっと〜」は警告中ずっと鳴り続けます)。選ぶと試しに鳴らします"
+            stacked: true
+            SettingsChoice {
+                model: ["ピピッ", "ピー", "ピポピポ", "速い連打", "チャイム", "ずっとピーー", "ずっとピーポー"]
+                currentIndex: -1
+                onPicked: (index) => {
+                    systemSound.applySynthPreset(["pipi", "pii", "pipo", "fast", "chime", "continuous", "continuousPipo"][index])
+                    systemSound.previewSynth()
+                }
+            }
+        }
+        SettingsRow {
             label: "警告音の鳴らし方"
             description: "「ずっと鳴らす」にすると、警告がある間は途切れずに鳴り続けます(メーターをタップすると止まります)"
             stacked: true
@@ -201,20 +215,6 @@ SettingsPage {
                 value: systemSound.alertInterval / 1000
                 from: 0.3; to: 10; step: 0.1; decimals: 1; suffix: " 秒"
                 onMoved: (v) => systemSound.alertInterval = Math.round(v * 1000)
-            }
-        }
-        SettingsRow {
-            visible: soundSection.synthSelected
-            label: "合成音のプリセット"
-            description: "まとめて設定を切り替えます(鳴らし方・繰り返す間隔も変わります。「ずっと〜」は警告中ずっと鳴り続けます)。選ぶと試しに鳴らします"
-            stacked: true
-            SettingsChoice {
-                model: ["ピピッ", "ピー", "ピポピポ", "速い連打", "チャイム", "ずっとピーー", "ずっとピーポー"]
-                currentIndex: -1
-                onPicked: (index) => {
-                    systemSound.applySynthPreset(["pipi", "pii", "pipo", "fast", "chime", "continuous", "continuousPipo"][index])
-                    systemSound.previewSynth()
-                }
             }
         }
         SettingsRow {

@@ -8,6 +8,7 @@
 // 「枠」「上部タイトル」「サイズ」は全ウィジェット共通で、WidgetSettingsDialog が出すので、ここには書かない。
 //   }
 // config は現在の設定(WidgetSettingsDialog が注入)。値を変えるときは edit(キー, 値) を呼ぶ(保存と反映は自動)。
+// 文字の入力中は preview(キー, 値) で、保存せずにウィジェットへだけすぐ反映できる(WSTextField の changing で使う)。
 import QtQuick
 import OpenCruise
 
@@ -15,5 +16,6 @@ Column {
     id: root
     property var config: ({})
     signal edit(string key, var value)
+    signal preview(string key, var value)
     width: parent ? parent.width : implicitWidth
 }
