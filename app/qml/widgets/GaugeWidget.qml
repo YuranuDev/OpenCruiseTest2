@@ -10,7 +10,7 @@
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
-// ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。右上に「MAX 値 ↺」を出し、
+// ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。右下に「MAX 値 単位 ↺」を出し、
 //   タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
 // 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
 //   鳴っている間はメーター全体を赤く点滅させ、太い赤枠と「消音」の印を出して、どのメーターが鳴っているか分かるようにする。
@@ -268,12 +268,16 @@ WidgetBase {
         }
     }
 
-    // ピーク表示(モック表示の左)。タップでリセット
+    // ピーク表示(右下。警告メッセージが出ている間はその上へよける)。タップでリセット
     Rectangle {
         id: peakTag
         z: 2
-        visible: root.peakMode !== "off" && !isNaN(root.peak)
-        anchors { verticalCenter: mockTag.verticalCenter; right: mockTag.left; rightMargin: 6 }
+        readonly property bool enabledByMode: root.peakMode !== "off" && !isNaN(root.peak)
+        // 警告メッセージが横に入りきらないときは、警告中だけピーク表示を隠してメッセージを優先する
+        readonly property bool bannerCrowded: root.warning && root.showWarnMessage
+            && warnBanner.naturalW > root.width - 2 * root.m - (peakRow.implicitWidth + height * 0.6) - root.m * 0.5
+        visible: enabledByMode && !bannerCrowded
+        anchors { bottom: parent.bottom; right: parent.right; rightMargin: root.m * 0.7; bottomMargin: root.m * 0.6 }
         height: Math.max(mockTag.height, Math.round(root.titleFontSize * (root.compact ? 1.3 : 1.55)))
         width: visible ? peakRow.implicitWidth + height * 0.6 : 0
         radius: height / 2
@@ -300,6 +304,13 @@ WidgetBase {
                 color: root.inZone(root.peak) ? Theme.error : Theme.textPrimary
                 text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
             }
+            Text {
+                anchors.baseline: parent.children[1].baseline
+                font.family: Theme.fontFamily
+                font.pixelSize: Math.round(peakTag.height * 0.4)
+                color: Theme.textSecondary
+                text: root.unitText
+            }
             MaterialIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 name: "restart_alt"
@@ -318,7 +329,8 @@ WidgetBase {
     // ================================================================ 本体
     Item {
         id: body
-        anchors { fill: parent; margins: root.m }
+        // ピーク表示があるときは、下に 1 段(ピーク表示の高さ)あけて、メーターがそれに重ならないようにする
+        anchors { fill: parent; margins: root.m; bottomMargin: root.m + (peakTag.enabledByMode ? peakTag.height + root.m * 0.3 : 0) }
 
         // ============================================================ アナログ
         Item {
@@ -754,7 +766,7 @@ WidgetBase {
                 id: digitalLabel
                 visible: root.labelVisible
                 anchors { top: parent.top; left: parent.left }
-                width: parent.width - mockTag.width - (peakTag.visible ? peakTag.width + 6 : 0) - 8
+                width: parent.width - mockTag.width - 8
                 height: visible ? Math.max(root.titleBarHeight, Math.round(digital.height * 0.12)) : 0
                 spacing: 8
                 opacity: root.labelOpacity
@@ -921,9 +933,14 @@ WidgetBase {
         visible: opacity > 0
         opacity: root.warning && root.showWarnMessage ? (0.55 + 0.45 * root.blink) : 0
         Behavior on opacity { enabled: !(root.warning && root.showWarnMessage); NumberAnimation { duration: 180 } }
-        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: root.m }
-        width: Math.min(parent.width - 2 * root.m,
-                        warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height)
+        // ピーク表示があるときは、その左の空き(下の段)の中央に置く
+        readonly property real availW: parent.width - 2 * root.m - (peakTag.visible ? peakTag.width + root.m * 0.5 : 0)
+        x: root.m + (availW - width) / 2
+        // ピーク表示の段の中央にそろえる(はみ出す高さのときは、下端に収める)
+        y: peakTag.enabledByMode ? Math.min(peakTag.y + (peakTag.height - height) / 2, parent.height - root.m * 0.6 - height)
+                                 : parent.height - root.m - height
+        readonly property real naturalW: warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height
+        width: Math.min(availW, naturalW)
         height: root.compact ? Math.max(20, Math.round(root.s * 0.17)) : Math.max(26, Math.round(root.s * 0.13))
         radius: height / 2
         color: Theme.mix(Theme.panel, Theme.error, 0.22)

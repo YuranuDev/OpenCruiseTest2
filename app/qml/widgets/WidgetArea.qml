@@ -1,7 +1,8 @@
-// ウィジェット配置エリア。初期画面の中央領域の全体を、cols × rows のグリッドとして使う。
-//  - 配置と設定(config)は ListModel(layout)に持ち、変更のたびに widgetStore へ JSON で保存する
+// ウィジェット配置エリア(1 ページ分)。初期画面の中央領域の全体を、cols × rows のグリッドとして使う。
+//  - 配置と設定(config)は ListModel(layout)に持ち、変更のたびに pages(WidgetPages)へ渡して保存してもらう
 //  - ドラッグ中(dragging)だけグリッドと移動先の枠をフェード表示し、離すと最寄りの空きマスへスナップする
-//  - 衝突は「重ならない最寄りのマス」へ寄せる(空きが無ければ元の位置へ戻す)
+//  - 置いてあるウィジェットの上に重ねると、重なったウィジェットを押しのける(重ねた位置から遠ざかる向きへ。
+//    動かしている間は押しのけた先へ仮に動かして見せ、離すと確定する)。押しのけられないときは、重ならない最寄りのマスへ寄せる
 // 外部(設定ダイアログ・追加パネル)からは、下の関数群(addWidget / removeWidget / setConfigValue /
 // resizeWidget / resetLayout / configOf)と settingsRequested シグナルを使う。
 import QtQuick
@@ -23,6 +24,19 @@ Item {
     property string dragId: ""
     readonly property bool dragging: dragId !== ""
     property var preview: ({ col: 0, row: 0, w: 1, h: 1, ok: true })
+    // ドラッグ中に押しのけたウィジェットの仮の位置(wid → { col, row })。WidgetHost がこちらを優先して表示する
+    property var tempPos: ({})
+    // ---- ページ ----
+    property Item pages: null          // WidgetPages(保存先)
+    property int pageIndex: 0
+    // このページに、警告音を鳴らしている(または消音中の)ウィジェットがあるか(ページのタブを赤くする)
+    readonly property bool alarmActive: {
+        WarningAlarm.revision; revision
+        for (let i = 0; i < layout.count; ++i) {
+            if (WarningAlarm.isActive(layout.get(i).wid)) return true
+        }
+        return false
+    }
     // 保存・設定変更のたびに増える。設定ダイアログが最新の設定を読み直すために束縛する
     property int revision: 0
     readonly property int count: layout.count
@@ -75,6 +89,68 @@ Item {
         return best ? best : { col: c, row: r, ok: false }
     }
 
+    // ---- 押しのけ ----
+    function rectsOverlap(a, b) {
+        return a.col < b.col + b.w && a.col + a.w > b.col && a.row < b.row + b.h && a.row + a.h > b.row
+    }
+    function fits(rect, fixed) {
+        if (rect.col < 0 || rect.row < 0 || rect.col + rect.w > cols || rect.row + rect.h > rows) return false
+        for (let i = 0; i < fixed.length; ++i) {
+            if (rectsOverlap(rect, fixed[i])) return false
+        }
+        return true
+    }
+    // wid を (c, r) に置くとき、重なるウィジェットを押しのける配置を考える。
+    // 押しのける向き: 重ねたウィジェットの中心から見て、相手の中心がある側(左右・上下のうち離れている軸を先に)。
+    // その向きでだめなら他の向き、それでもだめなら元の位置に近い空きマス。どれも無ければ ok:false
+    function planDrop(wid, c, r, w, h) {
+        c = Math.max(0, Math.min(cols - w, c))
+        r = Math.max(0, Math.min(rows - h, r))
+        const target = { col: c, row: r, w: w, h: h }
+        const hit = [], fixed = [target]
+        for (let i = 0; i < layout.count; ++i) {
+            const it = layout.get(i)
+            if (it.wid === wid) continue
+            const rect = { wid: it.wid, col: it.col, row: it.row, w: it.w, h: it.h }
+            if (rectsOverlap(rect, target)) hit.push(rect)
+            else fixed.push(rect)
+        }
+        const moves = {}
+        if (hit.length === 0) return { col: c, row: r, ok: true, moves: moves }
+        hit.sort((a, b) => b.w * b.h - a.w * a.h)   // 大きいものから場所を決める
+        const tcx = c + w / 2, tcy = r + h / 2
+        for (let k = 0; k < hit.length; ++k) {
+            const o = hit[k]
+            const dx = (o.col + o.w / 2) - tcx, dy = (o.row + o.h / 2) - tcy
+            const horiz = [dx < 0 ? { col: c - o.w, row: o.row } : { col: c + w, row: o.row },
+                           dx < 0 ? { col: c + w, row: o.row } : { col: c - o.w, row: o.row }]
+            const vert = [dy < 0 ? { col: o.col, row: r - o.h } : { col: o.col, row: r + h },
+                          dy < 0 ? { col: o.col, row: r + h } : { col: o.col, row: r - o.h }]
+            const cands = Math.abs(dx) / w >= Math.abs(dy) / h ? [horiz[0], vert[0], vert[1], horiz[1]]
+                                                               : [vert[0], horiz[0], horiz[1], vert[1]]
+            let placed = null
+            for (let j = 0; j < cands.length && !placed; ++j) {
+                const rect = { col: cands[j].col, row: cands[j].row, w: o.w, h: o.h }
+                if (fits(rect, fixed)) placed = rect
+            }
+            if (!placed) {   // 元の位置に近い空きマス
+                let bestD = 1e9
+                for (let rr = 0; rr <= rows - o.h; ++rr) {
+                    for (let cc = 0; cc <= cols - o.w; ++cc) {
+                        const rect = { col: cc, row: rr, w: o.w, h: o.h }
+                        if (!fits(rect, fixed)) continue
+                        const d = (cc - o.col) * (cc - o.col) + (rr - o.row) * (rr - o.row)
+                        if (d < bestD) { bestD = d; placed = rect }
+                    }
+                }
+            }
+            if (!placed) return { col: c, row: r, ok: false, moves: {} }
+            moves[o.wid] = { col: placed.col, row: placed.row }
+            fixed.push(placed)
+        }
+        return { col: c, row: r, ok: true, moves: moves }
+    }
+
     function newId() {
         return "w" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36)
     }
@@ -92,18 +168,40 @@ Item {
         const i = indexOfId(wid)
         if (i < 0) return
         const it = layout.get(i)
-        const s = resolveSpot(wid, Math.round((x - pad) / cellW), Math.round((y - pad) / cellH), it.w, it.h)
+        const c = Math.round((x - pad) / cellW), r = Math.round((y - pad) / cellH)
+        // まず押しのけを試し、だめなら重ならない最寄りのマスへ寄せる(従来どおり)
+        const plan = planDrop(wid, c, r, it.w, it.h)
+        if (plan.ok) {
+            preview = { col: plan.col, row: plan.row, w: it.w, h: it.h, ok: true }
+            if (JSON.stringify(plan.moves) !== JSON.stringify(tempPos)) tempPos = plan.moves
+            return
+        }
+        if (Object.keys(tempPos).length > 0) tempPos = ({})
+        const s = resolveSpot(wid, c, r, it.w, it.h)
         preview = s.ok ? { col: s.col, row: s.row, w: it.w, h: it.h, ok: true }
                        : { col: it.col, row: it.row, w: it.w, h: it.h, ok: false }
     }
 
     function dragEnd(wid) {
         const i = indexOfId(wid)
-        if (i >= 0 && preview.ok && (layout.get(i).col !== preview.col || layout.get(i).row !== preview.row)) {
-            layout.setProperty(i, "col", preview.col)
-            layout.setProperty(i, "row", preview.row)
-            saveLayout()
+        let changed = false
+        if (i >= 0 && preview.ok) {
+            // 押しのけたウィジェットを確定する
+            for (const other in tempPos) {
+                const j = indexOfId(other)
+                if (j < 0) continue
+                layout.setProperty(j, "col", tempPos[other].col)
+                layout.setProperty(j, "row", tempPos[other].row)
+                changed = true
+            }
+            if (layout.get(i).col !== preview.col || layout.get(i).row !== preview.row) {
+                layout.setProperty(i, "col", preview.col)
+                layout.setProperty(i, "row", preview.row)
+                changed = true
+            }
         }
+        tempPos = ({})
+        if (changed) saveLayout()
         dragId = ""
     }
 
@@ -119,7 +217,7 @@ Item {
         }
         return null
     }
-    function addWidget(type) {
+    function addWidget(type, initialConfig) {
         const def = WidgetRegistry.find(type)
         if (!def) return false
         const dw = Math.min(cols, def.defaultSize.w), dh = Math.min(rows, def.defaultSize.h)
@@ -138,7 +236,8 @@ Item {
             notifications.show("空きがありません", "ウィジェットを削除するか、サイズを小さくしてください", 2, "widgets")
             return false
         }
-        layout.append({ wid: newId(), wtype: type, col: best.col, row: best.row, w: best.w, h: best.h, config: {} })
+        layout.append({ wid: newId(), wtype: type, col: best.col, row: best.row, w: best.w, h: best.h,
+                        config: initialConfig ? Object.assign({}, initialConfig) : {} })
         saveLayout()
         return true
     }
@@ -215,10 +314,9 @@ Item {
         revision++
     }
 
+    // 全ページを初期配置に戻す(WidgetPages がページを作り直す)
     function resetLayout() {
-        widgetStore.layoutJson = ""
-        loadLayout()
-        revision++
+        if (pages) pages.resetAll()
     }
 
     // ---------------------------------------------------------------- 保存・復元
@@ -228,18 +326,15 @@ Item {
             const it = layout.get(i)
             list.push({ id: it.wid, type: it.wtype, col: it.col, row: it.row, w: it.w, h: it.h, config: it.config })
         }
-        widgetStore.layoutJson = JSON.stringify({ version: 1, widgets: list })
+        if (pages) pages.savePage(pageIndex, list)
         revision++
     }
 
     function loadLayout() {
         layout.clear()
-        let list = null
-        try {
-            const o = JSON.parse(widgetStore.layoutJson)
-            if (o && o.version === 1 && Array.isArray(o.widgets)) list = o.widgets
-        } catch (e) { /* 未保存・壊れている場合は初期配置を使う */ }
-        if (list === null) list = WidgetRegistry.defaultLayout
+        // このページの保存内容(null なら初期配置)
+        let list = pages ? pages.pageWidgets(pageIndex) : null
+        if (!Array.isArray(list)) list = WidgetRegistry.defaultLayout
         const used = {}
         for (let i = 0; i < list.length; ++i) {
             const e = list[i]

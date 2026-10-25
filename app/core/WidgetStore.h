@@ -4,7 +4,8 @@
  *
  * QML へは context property `widgetStore` として公開する。配置の意味づけ(グリッド・衝突・設定値)は
  * QML の WidgetArea が持ち、ここは他の設定と同じ QSettings(IniFormat, UserScope)へ読み書きするだけ。
- * 中身の形式は WidgetArea の saveLayout() を参照(version つきなので、将来の形式変更に対応できる)。
+ * 中身の形式は WidgetPages(ページの一覧)と WidgetArea の saveLayout()(1 ページ分)を参照
+ * (version つき。version 1 = 1 ページだけの以前の形式、version 2 = ページつき。どちらも読める)。
  */
 #pragma once
 

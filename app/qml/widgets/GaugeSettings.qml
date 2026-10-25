@@ -180,7 +180,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "ピーク表示"
-        description: "右上に最大値(MAX)または最小値(MIN)を出します。タップするとリセットします(再起動でもリセット)"
+        description: "右下に最大値(MAX)または最小値(MIN)を単位つきで出します。タップするとリセットします(再起動でもリセット)"
         stacked: true
         SettingsChoice {
             model: ["オフ", "最大(MAX)", "最小(MIN)"]

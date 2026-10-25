@@ -29,8 +29,12 @@ Item {
     readonly property var item: loader.item
 
     // ---- 目標位置(グリッド → ピクセル) ----
-    readonly property real tx: area.cellW * col + area.pad
-    readonly property real ty: area.cellH * row + area.pad
+    // 表示するマス。ドラッグ中に押しのけられている間は、仮の位置(area.tempPos)を使う
+    readonly property var temp: area.tempPos[wid]
+    readonly property int effCol: temp !== undefined ? temp.col : col
+    readonly property int effRow: temp !== undefined ? temp.row : row
+    readonly property real tx: area.cellW * effCol + area.pad
+    readonly property real ty: area.cellH * effRow + area.pad
     width: area.cellW * w - 2 * area.pad
     height: area.cellH * h - 2 * area.pad
     Behavior on width { enabled: area.animReady; NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }

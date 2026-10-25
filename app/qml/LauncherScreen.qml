@@ -1,4 +1,5 @@
-// 初期画面(ランチャー): 最上部にステータスバー、中央はウィジェット配置エリア(時計・あいさつもウィジェット)、下部にナビバー(大型ボタン 5 つ)。
+// 初期画面(ランチャー): 最上部にステータスバー(中央にウィジェットのページのタブ)、中央はウィジェット配置エリア
+// (ページごと。時計・あいさつもウィジェット)、下部にナビバー(大型ボタン 5 つ)。
 // 運転中でも迷わないよう、操作は下部バーに集約する。未実装の機能は押すとモック通知を出す。
 import QtQuick
 import OpenCruise
@@ -70,6 +71,7 @@ Item {
         height: 52
 
         Rectangle {
+            id: badgePill
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             height: parent.height
             width: badge.implicitWidth + 36
@@ -79,8 +81,18 @@ Item {
             ConnectionBadge { id: badge; anchors.centerIn: parent }
         }
 
+        // ウィジェットのページのタブ(左右の間の空き)
+        PageBar {
+            anchors { left: badgePill.right; right: rightButtons.left; verticalCenter: parent.verticalCenter
+                      leftMargin: Theme.margin; rightMargin: Theme.margin }
+            height: parent.height - 4
+            pages: widgetPages
+            onMenuRequested: (index) => pageMenu.show(index)
+        }
+
         // 補助操作(Android Auto へ戻る・通知)は控えめに右上へ
         Row {
+            id: rightButtons
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 12
             ActionButton {
@@ -102,10 +114,10 @@ Item {
             topMargin: Theme.margin; bottomMargin: Theme.margin
         }
 
-        WidgetArea {
-            id: widgetArea
+        WidgetPages {
+            id: widgetPages
             anchors.fill: parent
-            onSettingsRequested: (wid) => settingsDialog.show(wid)
+            onSettingsRequested: (area, wid) => { settingsDialog.area = area; settingsDialog.show(wid) }
             onPickerRequested: picker.show()
         }
     }
@@ -115,12 +127,18 @@ Item {
         id: settingsDialog
         anchors.fill: parent
         z: 20
-        area: widgetArea
+        area: widgetPages.currentArea
     }
     WidgetPicker {
         id: picker
         anchors.fill: parent
         z: 21
-        area: widgetArea
+        area: widgetPages.currentArea   // 追加するのは今のページ
+    }
+    PageMenu {
+        id: pageMenu
+        anchors.fill: parent
+        z: 22
+        pages: widgetPages
     }
 }

@@ -16,6 +16,8 @@
 //   defaultConfig 設定の既定値。保存値はこれに重ねられる(キーを増やしても古い保存データはそのまま動く)
 //   dragStart     "hold"(長押しで持ち上げ。既定) / "immediate"(少し動かすと持ち上げ)
 //   mock          true なら、現状はモックデータで動いている(追加パネルに「モック」と表示)
+//   hidden        true なら追加パネルのジャンルの一覧に出さない(グラフは「車載連携」のグラフ切り替えから、
+//                 計測値ごとの項目として出す。graphEntries())
 pragma Singleton
 import QtQuick
 import OpenCruise
@@ -48,6 +50,8 @@ QtObject {
     property Component playingSettings: Component { NowPlayingSettings {} }
     property Component navigationComp: Component { NavigationWidget {} }
     property Component navigationSettings: Component { NavigationSettings {} }
+    property Component graphComp: Component { GraphWidget {} }        // グラフ(計測値は config.metric)
+    property Component graphSettings: Component { GraphSettings {} }
 
     // ---- メーター(GaugeWidget)で測れる値の定義。種類ごとの defaultConfig の metric で選ぶ ----
     //   title / icon     既定の見出しとアイコン
@@ -237,8 +241,42 @@ QtObject {
             defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 5 },
             defaultConfig: { showAlbum: true, showProgress: true },
             dragStart: "hold", mock: true
+        },
+        {
+            type: "graph", genre: "vehicle", name: "グラフ", icon: "show_chart", hidden: true,
+            description: "計測値の直近の変化を折れ線グラフで表示",
+            component: graphComp, settings: graphSettings,
+            defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, maxSize: { w: 12, h: 6 },
+            defaultConfig: { metric: "boost", windowSec: 60, autoScale: false, fill: true, showStats: true },
+            dragStart: "hold", mock: true
         }
     ]
+
+    // ---- グラフ(追加パネルの「車載連携」→「グラフ」) ----
+    // 計測値ごとに、メーターの既定(範囲・警告値)を引き継いだグラフの項目を作る
+    function graphConfigFor(metric) {
+        for (let i = 0; i < types.length; ++i) {
+            const c = types[i].defaultConfig
+            if (types[i].component === gaugeComp && c && c.metric === metric) {
+                return { metric: metric, unit: c.unit, min: c.min, max: c.max, warnEnabled: c.warnEnabled === true,
+                         warn: c.warn, windowSec: 60, autoScale: false, fill: true, showStats: true }
+            }
+        }
+        return { metric: metric }
+    }
+    function graphEntries() {
+        const list = []
+        for (let i = 0; i < types.length; ++i) {
+            const t = types[i]
+            if (t.component !== gaugeComp || !t.defaultConfig) continue
+            const spec = gaugeSpecs[t.defaultConfig.metric]
+            if (!spec) continue
+            list.push({ type: "graph", name: spec.title + "のグラフ", icon: spec.icon, mock: t.mock,
+                        description: "直近の" + spec.title + "の変化を折れ線グラフで表示(最大・最小・平均、警告線あり)",
+                        config: graphConfigFor(t.defaultConfig.metric) })
+        }
+        return list
+    }
 
     // ---- 初期配置(従来の「左に時計カード、右にウィジェット領域」を再現し、右側に連携系を並べる) ----
     readonly property var defaultLayout: [
@@ -257,6 +295,6 @@ QtObject {
     }
 
     function ofGenre(genreId) {
-        return types.filter(t => t.genre === genreId)
+        return types.filter(t => t.genre === genreId && t.hidden !== true)
     }
 }

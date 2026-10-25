@@ -171,6 +171,17 @@ ApplicationWindow {
         // 「ずっと鳴らす」のとき、鳴らしている警告がある間はループ再生する
         Binding { target: systemSound; property: "alertActive"; value: WarningAlarm.soundingCount > 0 }
 
+        // グラフ用に、車両データ(メーターと同じ計測値。基本単位)を一定間隔で履歴へ入れる
+        Timer {
+            interval: VehicleHistory.sampleMs
+            running: true
+            repeat: true
+            onTriggered: VehicleHistory.push({
+                boost: can.boostBar, rpm: can.rpm, speed: can.speedKmh, coolant: can.coolantTempC,
+                fuel: can.fuelPercent, oilTemp: can.oilTempC, oilPressure: can.oilPressureBar, voltage: can.batteryVolts
+            })
+        }
+
         // 画面上部のポップアップ通知（映像表示中も最前面）
         NotificationPopup {
             z: 100

@@ -1,5 +1,6 @@
 // ウィジェットの追加パネル。ジャンルごとのタブに、追加できるウィジェットを並べる(WidgetRegistry の定義から自動生成)。
-// 追加するとエリアの空いている最初の場所に置かれ、パネルが閉じる。「初期配置に戻す」は 2 回押しで実行する。
+// 追加するとエリア(今のページ)の空いている最初の場所に置かれ、パネルが閉じる。「初期配置に戻す」は 2 回押しで実行する
+// (全ページが初期配置に戻る)。「車載連携」では一覧の上のスイッチで、メーターとグラフを切り替えて追加できる。
 import QtQuick
 import OpenCruise
 
@@ -10,6 +11,11 @@ Item {
     property bool open: false
     property string genre: WidgetRegistry.genres[0].id
     property bool confirmReset: false
+    // 「車載連携」の一覧: "gauge"(メーター) / "graph"(グラフ)
+    property string vehicleMode: "gauge"
+    readonly property bool showVehicleSwitch: genre === "vehicle"
+    readonly property var entries: showVehicleSwitch && vehicleMode === "graph" ? WidgetRegistry.graphEntries()
+                                                                              : WidgetRegistry.ofGenre(genre)
 
     readonly property real unit: Theme.uiScale
 
@@ -116,8 +122,47 @@ Item {
                 width: flick.width
                 spacing: Theme.margin * 0.7
 
+                // 「車載連携」だけ: メーター / グラフの切り替え
+                Row {
+                    visible: root.showVehicleSwitch
+                    spacing: Theme.margin * 0.6
+                    Repeater {
+                        model: [{ id: "gauge", label: "メーター", icon: "mdi:gauge" },
+                                { id: "graph", label: "グラフ", icon: "show_chart" }]
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool on: root.vehicleMode === modelData.id
+                            width: 220 * root.unit
+                            height: 64 * root.unit
+                            radius: height / 2
+                            color: on ? Theme.accentFill : Theme.mix(Theme.panel, Theme.accent, modeMouse.pressed ? 0.3 : 0)
+                            border.width: on ? 2 : 1
+                            border.color: on ? Theme.accent : Theme.panelBorder
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 8 * root.unit
+                                MaterialIcon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    name: modelData.icon
+                                    size: 30 * root.unit
+                                    color: parent.parent.on ? Theme.textOnAccent : Theme.accent
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    font.family: Theme.fontFamily
+                                    font.bold: true
+                                    font.pixelSize: 22 * root.unit
+                                    color: parent.parent.on ? Theme.textOnAccent : Theme.textPrimary
+                                    text: modelData.label
+                                }
+                            }
+                            MouseArea { id: modeMouse; anchors.fill: parent; onClicked: root.vehicleMode = modelData.id }
+                        }
+                    }
+                }
+
                 Repeater {
-                    model: WidgetRegistry.ofGenre(root.genre)
+                    model: root.entries
                     Rectangle {
                         required property var modelData
                         width: list.width
@@ -196,7 +241,7 @@ Item {
                             id: cardMouse
                             anchors.fill: parent
                             onClicked: {
-                                if (root.area && root.area.addWidget(modelData.type)) root.close()
+                                if (root.area && root.area.addWidget(modelData.type, modelData.config)) root.close()
                             }
                         }
                     }
