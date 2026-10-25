@@ -1,6 +1,7 @@
 // アプリのルート。メイン画面と設定画面を StackView で切り替える。
 import QtQuick
 import QtQuick.Controls
+import OpenCruise
 
 ApplicationWindow {
     id: window
