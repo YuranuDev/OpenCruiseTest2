@@ -20,6 +20,8 @@
 //           なったときにまだ出ていれば、新しく出さずに同じ通知を書き換えて、表示時間を数え直す
 //   "live": 警告中は通知を出し続け、今の値を 0.5 秒ごとに書き換える。警告が解除されると消える。
 //           タップで消すと、その警告が解除されるまでは出し直さない
+//   警告が解除された(警告値の内側へ戻った)ときは、その警告の間の最大値(下側で警告する計測値は最低値)を
+//   「解除」として通知に出す(赤 → 橙。8 秒で消える。出し続ける通知もこのとき消えずに解除の表示へ変わる)。
 //   config.warnPopupDetail がオンなら、警告値も通知に入れる。
 //   以前の設定(config.warnPopup === true)は "once" として扱う。
 //
@@ -121,7 +123,7 @@ WidgetBase {
             else if (warning && rawValue < warnV - hysteresis) warning = false
         }
     }
-    onRawValueChanged: { updateWarning(); updatePeak() }
+    onRawValueChanged: { updateWarning(); updatePeak(); if (warning) updateEpisode() }
     onWarnOnChanged: updateWarning()
     onWarnVChanged: updateWarning()
     onWarnBelowChanged: updateWarning()
@@ -234,11 +236,29 @@ WidgetBase {
     onTapped: if (beeping) WarningAlarm.acknowledge(widgetId)
 
     readonly property string warnTitle: labelText + "の警告"
+    // 今の警告の間の最大値(下側で警告する計測値は最低値)。警告になったときに測り始める
+    property real episodePeak: NaN
+    function updateEpisode() {
+        if (isNaN(episodePeak) || (warnBelow ? rawValue < episodePeak : rawValue > episodePeak)) episodePeak = rawValue
+    }
+    readonly property string episodeLabel: warnBelow ? "最低" : "最大"
+    // 通知のタイトル・レベル(警告中は赤、解除後は橙)。warning が変わった直後のハンドラーからも呼ぶので、
+    // 束縛ではなく関数にして、その時点の warning で決める
+    function noticeTitle() { return warning ? warnTitle : labelText + "の警告(解除)" }
+    function noticeLevel() { return warning ? 3 : 2 }
     function warnPopupText(withValue) {
-        let message = config.warnMessage || gauge.warnMessage || "警告"
         const limit = "警告値 " + fmt(warnV, decimals) + " " + unitText + (warnBelow ? " 以下" : " 以上")
+        const peakText = isNaN(episodePeak) ? "" : episodeLabel + " " + fmt(episodePeak, decimals) + " " + unitText
+        if (!warning) {   // 解除: その警告の間の最大値
+            return "警告が解除されました\n" + (peakText !== "" ? peakText : "") + (popupDetail ? "(" + limit + ")" : "")
+        }
+        let message = config.warnMessage || gauge.warnMessage || "警告"
         if (withValue) {
-            message += "\n現在 " + fmt(rawValue, decimals) + " " + unitText + (popupDetail ? "(" + limit + ")" : "")
+            message += "\n現在 " + fmt(rawValue, decimals) + " " + unitText
+            // 今の値より行き過ぎていたら、その警告の間の最大値も並べる
+            if (peakText !== "" && Math.abs(episodePeak - rawValue) >= Math.pow(10, -decimals))
+                message += " ・ " + peakText
+            if (popupDetail) message += "(" + limit + ")"
         } else if (popupDetail) {
             message += "\n" + limit
         }
@@ -249,10 +269,19 @@ WidgetBase {
     property int onceNoticeId: -1
     function showWarnPopup() {
         if (onceNoticeId >= 0
-                && notifications.update(onceNoticeId, warnTitle, warnPopupText(true), 3, onceDurationMs)) return
-        onceNoticeId = notifications.show(warnTitle, warnPopupText(true), 3, gauge.icon, onceDurationMs)
+                && notifications.update(onceNoticeId, noticeTitle(), warnPopupText(true), noticeLevel(), onceDurationMs)) return
+        onceNoticeId = notifications.show(noticeTitle(), warnPopupText(true), noticeLevel(), gauge.icon, onceDurationMs)
     }
-    onWarningChanged: if (warning && popupOn && widgetId !== "") showWarnPopup()
+    onWarningChanged: {
+        if (warning) {
+            episodePeak = rawValue
+            if (popupOn && widgetId !== "") showWarnPopup()
+        } else if (onceNoticeId >= 0) {
+            // 「1 回だけ」の通知がまだ出ていれば、解除の表示(最大値)に変えて、表示時間を数え直す
+            if (!notifications.update(onceNoticeId, noticeTitle(), warnPopupText(true), noticeLevel(), onceDurationMs))
+                onceNoticeId = -1
+        }
+    }
 
     // 出し続ける通知("live")
     readonly property bool wantLiveNotice: warnOn && popupMode === "live" && warning && widgetId !== ""
@@ -260,11 +289,22 @@ WidgetBase {
     property bool liveDismissed: false   // タップで消された(警告が解除されるまで出し直さない)
     function syncLiveNotice() {
         if (wantLiveNotice) {
-            if (liveNoticeId < 0 && !liveDismissed)
-                liveNoticeId = notifications.show(warnTitle, warnPopupText(true), 3, gauge.icon, 0)
+            if (liveDismissed) return
+            // 前の警告の解除の表示がまだ出ていれば、新しく出さずにそれを書き換える(消えないようにする)
+            if (liveNoticeId >= 0 && notifications.update(liveNoticeId, warnTitle, warnPopupText(true), 3, 0)) return
+            liveNoticeId = notifications.show(warnTitle, warnPopupText(true), 3, gauge.icon, 0)
         } else {
-            if (liveNoticeId >= 0) notifications.dismiss(liveNoticeId)
-            liveNoticeId = -1
+            if (liveNoticeId >= 0) {
+                if (!warning && warnOn && popupMode === "live" && widgetId !== "") {
+                    // 警告が解除された: 消さずに解除の表示(その警告の間の最大値)へ変え、しばらくしたら消す。
+                    // id は覚えておき、消える前にまた警告になったら同じ通知を使う
+                    if (!notifications.update(liveNoticeId, noticeTitle(), warnPopupText(true), noticeLevel(), onceDurationMs))
+                        liveNoticeId = -1
+                } else {
+                    notifications.dismiss(liveNoticeId)   // 設定を変えた・ウィジェットが消えた
+                    liveNoticeId = -1
+                }
+            }
             liveDismissed = false
         }
     }
@@ -274,14 +314,14 @@ WidgetBase {
         repeat: true
         running: root.onceNoticeId >= 0
         onTriggered: {
-            if (!notifications.update(root.onceNoticeId, root.warnTitle, root.warnPopupText(true), 3))
+            if (!notifications.update(root.onceNoticeId, root.noticeTitle(), root.warnPopupText(true), root.noticeLevel()))
                 root.onceNoticeId = -1   // 時間が来て消えた・タップで消された
         }
     }
     Timer {   // 出し続ける通知の値の更新(0.5 秒ごと)。消されていたら止める
         interval: 500
         repeat: true
-        running: root.liveNoticeId >= 0
+        running: root.liveNoticeId >= 0 && root.wantLiveNotice
         onTriggered: {
             if (!notifications.update(root.liveNoticeId, root.warnTitle, root.warnPopupText(true), 3)) {
                 root.liveNoticeId = -1
