@@ -41,7 +41,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "接近の強調"
-        description: "この距離以内になると、距離と矢印を警告色にします(0 でオフ)"
+        description: "この距離以内になると、距離と矢印を警告色にし、残り距離のバーを出します(0 でオフ)"
         WSStepper {
             value: root.config.nearHighlight === undefined ? 100 : root.config.nearHighlight
             from: 0
