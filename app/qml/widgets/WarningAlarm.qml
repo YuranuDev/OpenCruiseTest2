@@ -6,6 +6,7 @@
 //   WarningAlarm.raise(key, title)  警告を登録する(key はウィジェットごとに一意。同じ key は 1 件)
 //   WarningAlarm.clear(key)         警告が解除された・ウィジェットが消えた
 //   WarningAlarm.acknowledge(key)   確認した(タップ)。その警告が解除されるまで、その分のビープは止める
+//   WarningAlarm.acknowledgeAll()   鳴っているすべての警告を確認済みにする(ホーム画面・メニューの解除ボタン)
 //   WarningAlarm.isSounding(key)    その警告でビープが鳴っているか(revision を読んでから呼ぶと束縛が更新される)
 pragma Singleton
 import QtQuick
@@ -46,6 +47,13 @@ QtObject {
         if (e === undefined || e.acked) return
         e.acked = true
         update()
+    }
+    function acknowledgeAll() {
+        let changed = false
+        for (const k in entries) {
+            if (!entries[k].acked) { entries[k].acked = true; changed = true }
+        }
+        if (changed) update()
     }
     function isActive(key) { return entries[key] !== undefined }
     function isSounding(key) { const e = entries[key]; return e !== undefined && !e.acked }

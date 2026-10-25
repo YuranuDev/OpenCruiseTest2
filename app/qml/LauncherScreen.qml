@@ -102,6 +102,7 @@ Item {
                 onClicked: root.openAndroidAuto()
             }
             NotificationBell { }
+            AlarmClearButton { }   // 鳴っている警告をまとめて解除(右端)
         }
     }
 

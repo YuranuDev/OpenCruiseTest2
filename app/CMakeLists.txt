@@ -117,6 +117,7 @@ qt_add_qml_module(opencruise
         qml/LauncherTile.qml
         qml/NotificationPopup.qml
         qml/NotificationBell.qml
+        qml/AlarmClearButton.qml
         qml/NotificationHistoryPanel.qml
         qml/widgets/WidgetRegistry.qml
         qml/widgets/WarningAlarm.qml

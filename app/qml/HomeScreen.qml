@@ -245,7 +245,13 @@ Rectangle {
                 font.bold: true
             }
             ConnectionBadge {
+                anchors { right: alarmClear.left; rightMargin: Theme.margin; verticalCenter: parent.verticalCenter }
+            }
+            // 鳴っている警告をまとめて解除(右端)
+            AlarmClearButton {
+                id: alarmClear
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                size: Math.round(52 * root.sheetUnit)
             }
         }
 
