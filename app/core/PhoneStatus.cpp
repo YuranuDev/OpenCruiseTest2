@@ -84,6 +84,12 @@ void PhoneStatus::setConnected(bool connected) {
         realSource_.clear();
         realDurationSec_ = realPositionSec_ = 0;
         realPlaybackState_ = 1;
+        {
+            QMutexLocker lock(&artMutex_);
+            realArtData_.clear();
+            realArt_ = QImage();
+            ++artSerial_;
+        }
         emit callChanged();
         emit mediaChanged();
     }
@@ -154,7 +160,35 @@ void PhoneStatus::setCall(int state, const QString &name, const QString &number,
     emit callChanged();
 }
 
-void PhoneStatus::setTrack(const QString &song, const QString &artist, const QString &album, int durationSec) {
+QString PhoneStatus::trackArtUrl() const {
+    if (!hasRealTrack_) {
+        return QString();
+    }
+    QMutexLocker lock(&artMutex_);
+    return realArt_.isNull() ? QString() : QStringLiteral("image://albumart/%1").arg(artSerial_);
+}
+
+QImage PhoneStatus::albumArt() const {
+    QMutexLocker lock(&artMutex_);
+    return realArt_;
+}
+
+void PhoneStatus::setTrack(const QString &song, const QString &artist, const QString &album, int durationSec,
+                           const QByteArray &art) {
+    const bool sameSong = hasRealTrack_ && song == realSong_ && artist == realArtist_;
+    if (art != realArtData_ && !(art.isEmpty() && sameSong)) {
+        QImage image;
+        if (!art.isEmpty() && image.loadFromData(art)) {
+            // 表示は大きくても数百 px なので、大きすぎる画像は縮めておく(メモリと描画の負荷を抑える)
+            if (image.width() > 512 || image.height() > 512) {
+                image = image.scaled(512, 512, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            }
+        }
+        QMutexLocker lock(&artMutex_);
+        realArtData_ = art;
+        realArt_ = image;
+        ++artSerial_;
+    }
     hasRealTrack_ = true;
     realSong_ = song;
     realArtist_ = artist;

@@ -236,6 +236,9 @@ void AasdkPlaybackHandler::onMetadataUpdate(const proto::service::mediaplayback:
         info.artist = metadata.artist();
         info.album = metadata.album();
         info.durationSec = static_cast<int>(metadata.duration_seconds());
+        if (metadata.has_album_art()) {
+            info.albumArt = metadata.album_art();
+        }
         callbacks_.onTrack(info);
     }
     channel_->receive(shared_from_this());

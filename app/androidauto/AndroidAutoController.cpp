@@ -279,11 +279,12 @@ void AndroidAutoController::start() {
         const QString artist = QString::fromStdString(track.artist);
         const QString album = QString::fromStdString(track.album);
         const int duration = track.durationSec;
+        const QByteArray art = QByteArray::fromStdString(track.albumArt);
         QMetaObject::invokeMethod(
             this,
-            [this, song, artist, album, duration]() {
+            [this, song, artist, album, duration, art]() {
                 if (phoneStatus_) {
-                    phoneStatus_->setTrack(song, artist, album, duration);
+                    phoneStatus_->setTrack(song, artist, album, duration, art);
                 }
             },
             Qt::QueuedConnection);

@@ -38,6 +38,7 @@
 #include "core/Log.h"
 #include "core/NotificationManager.h"
 #include "core/PhoneStatus.h"
+#include "core/AlbumArtProvider.h"
 #include "core/WidgetStore.h"
 #include "core/SystemSound.h"
 
@@ -161,6 +162,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
     engine.rootContext()->setContextProperty(QStringLiteral("phoneStatus"), &phoneStatus);
+    // ジャケット画像(image://albumart/...)。エンジンが所有して破棄する
+    engine.addImageProvider(QStringLiteral("albumart"), new opencruise::AlbumArtProvider(&phoneStatus));
     engine.rootContext()->setContextProperty(QStringLiteral("widgetStore"), &widgetStore);
     engine.rootContext()->setContextProperty(QStringLiteral("boot"), &boot);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);

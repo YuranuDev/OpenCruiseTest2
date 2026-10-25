@@ -59,6 +59,7 @@ qt_add_executable(opencruise
     core/VehicleDataManager.cpp
     core/SystemStats.cpp
     core/PhoneStatus.cpp
+    core/AlbumArtProvider.cpp
     core/WidgetStore.cpp
     androidauto/AndroidAutoController.cpp
     androidauto/AudioPlayer.cpp

@@ -19,6 +19,9 @@
  */
 #pragma once
 
+#include <QByteArray>
+#include <QImage>
+#include <QMutex>
 #include <QObject>
 #include <QSettings>
 #include <QString>
@@ -59,6 +62,8 @@ class PhoneStatus : public QObject {
     Q_PROPERTY(QString trackAlbum READ trackAlbum NOTIFY mediaChanged)
     /** 曲の長さ[秒]。不明なら 0 */
     Q_PROPERTY(int trackDurationSec READ trackDurationSec NOTIFY mediaChanged)
+    /** ジャケット画像の URL(image://albumart/<番号>)。画像が届いていなければ空 */
+    Q_PROPERTY(QString trackArtUrl READ trackArtUrl NOTIFY mediaChanged)
     /** 再生状態: "stopped" / "playing" / "paused" */
     Q_PROPERTY(QString playbackState READ playbackState NOTIFY mediaChanged)
     /** 再生元アプリ名(無ければ空) */
@@ -94,6 +99,9 @@ public:
     QString trackArtist() const { return hasRealTrack_ ? realArtist_ : (mockEnabled_ ? mockArtist() : QString()); }
     QString trackAlbum() const { return hasRealTrack_ ? realAlbum_ : (mockEnabled_ ? mockAlbum() : QString()); }
     int trackDurationSec() const { return hasRealTrack_ ? realDurationSec_ : (mockEnabled_ ? kMockTrackSec : 0); }
+    QString trackArtUrl() const;
+    /** @brief 今のジャケット画像(無ければ null)。画像プロバイダーが別スレッドから呼ぶ */
+    QImage albumArt() const;
     QString playbackState() const;
     QString playbackSource() const { return hasRealPlayback_ ? realSource_ : (mockEnabled_ ? QStringLiteral("モック再生") : QString()); }
     int playbackPositionSec() const { return hasRealPlayback_ ? realPositionSec_ : (mockEnabled_ ? mockPositionSec_ : 0); }
@@ -119,8 +127,12 @@ public:
      * @param state PhoneStatus.State の値(0=不明 1=通話中 2=保留 3=待機 4=着信 5=会議 6=ミュート)。通話が無ければ -1
      */
     void setCall(int state, const QString &name, const QString &number, int durationSec);
-    /** @brief 再生中の曲の情報を反映する(MediaPlaybackStatus チャネルのメタデータ)。 */
-    void setTrack(const QString &song, const QString &artist, const QString &album, int durationSec);
+    /**
+     * @brief 再生中の曲の情報を反映する(MediaPlaybackStatus チャネルのメタデータ)。
+     * @param art ジャケット画像のデータ。空で、曲名・アーティストが前と同じなら、前の画像を残す
+     */
+    void setTrack(const QString &song, const QString &artist, const QString &album, int durationSec,
+                  const QByteArray &art = QByteArray());
     /** @brief 再生状態を反映する。state は 1=停止 2=再生中 3=一時停止、positionSec は再生位置[秒]。 */
     void setPlayback(int state, const QString &source, int positionSec);
 
@@ -180,6 +192,10 @@ private:
     QString realArtist_;
     QString realAlbum_;
     int realDurationSec_ = 0;
+    QByteArray realArtData_;   ///< 受け取ったジャケット画像のデータ(同じ画像を何度も読み直さないため)
+    QImage realArt_;           ///< 読み込んだジャケット画像(artMutex_ で守る)
+    int artSerial_ = 0;        ///< 画像が変わるたびに増やす(QML に読み直させる)
+    mutable QMutex artMutex_;
     bool hasRealPlayback_ = false;
     int realPlaybackState_ = 1;
     QString realSource_;

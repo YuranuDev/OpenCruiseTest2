@@ -28,6 +28,7 @@ struct MediaTrackInfo {
     std::string artist;
     std::string album;
     int durationSec = 0;
+    std::string albumArt; ///< ジャケット画像のデータ(JPEG / PNG など。届かなければ空)
 };
 
 /// 再生状態。state は 1=停止 2=再生中 3=一時停止。positionSec が不明なら 0

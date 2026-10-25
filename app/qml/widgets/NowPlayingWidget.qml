@@ -6,11 +6,11 @@
 //
 // レイアウト(本体 = 見出しの下の領域):
 //   - 横長・標準: 左にジャケット風のタイル、右に曲名/アーティスト/アルバム。再生位置のバーと時間は下段に横いっぱい
-//   - 縦長(高さが幅の 0.75 倍以上で十分な高さ): タイルを上に、文字は中央そろえで下に並べる
+//   - 縦長(高さが幅の 0.85 倍以上で十分な高さ): タイルを上に、文字は中央そろえで下に並べる
 //   - 低い(下段を置くと文字が入らない): 再生位置は文字列の下に細いバーだけ出す
-// 文字の大きさは曲名(fontT)を基準に、アーティスト・アルバム・時間をその比で決める(どのサイズでも同じ見た目の比率)。
-// タイルの色は曲(アルバム → アーティスト → 曲名)の文字列から決まる色相のグラデーション。ジャケット画像は
-// スマホから届かないため描かない。
+// 文字の大きさは曲名(fontT)を基準に、アーティスト・アルバムをその比で決める。時間とバーは高さで決める(どのサイズでも同じ見た目の比率)。
+// タイルはスマホからジャケット画像が届けばその画像、届かなければ曲(アルバム → アーティスト → 曲名)の
+// 文字列から決まる色相のグラデーション。曲名・アーティスト・アルバムは幅に収まらないときだけ横スクロールする。
 import QtQuick
 import OpenCruise
 
@@ -173,10 +173,7 @@ WidgetBase {
             readonly property real fontL: Math.round(Math.max(11, fontT * 0.56))   // アルバム
 
             readonly property real lineT: Math.ceil(fontT * 1.3)
-            // 曲名が 1 行に入らず、高さに余裕があれば 2 行で折り返す(入らなければ横スクロール)
-            readonly property bool titleWrap: songMetrics.width > blockW - 2
-                                              && textH >= lineT * 2 + (root.artistText !== "" ? lineA : 0) + 4
-            readonly property real titleH: titleWrap ? Math.ceil(fontT * 1.22) * 2 : lineT
+            readonly property real titleH: lineT
             readonly property real blockW: stacked ? width : width - tile - gap
             readonly property real lineA: Math.ceil(fontA * 1.35)
             readonly property real lineL: Math.ceil(fontL * 1.35)
@@ -199,14 +196,6 @@ WidgetBase {
                 ? Math.max(48, Math.min(width * 0.62, height - blockH - progH - gap * 2))
                 : Math.max(36, Math.min(textH, width * 0.4)))
 
-            TextMetrics {
-                id: songMetrics
-                font.family: Theme.fontFamily
-                font.pixelSize: card.fontT
-                font.bold: true
-                text: root.songText
-            }
-
             // ---- タイル ----
             Rectangle {
                 id: art
@@ -222,11 +211,23 @@ WidgetBase {
                     GradientStop { position: 1.0; color: Qt.hsla((root.hue + 0.09) % 1, 0.6, Theme.night ? 0.2 : 0.35, 1) }
                 }
                 MaterialIcon {
+                    visible: cover.status !== Image.Ready
                     anchors.centerIn: parent
                     name: "music_note"
                     size: Math.round(parent.width * 0.5)
                     color: "#ffffff"
                     opacity: 0.5
+                }
+                // ジャケット画像(スマホが送ってきたときだけ)。角の丸めと切り抜きは画像プロバイダーがする
+                Image {
+                    id: cover
+                    anchors.fill: parent
+                    visible: status === Image.Ready
+                    source: phoneStatus.trackArtUrl
+                    sourceSize: Qt.size(Math.ceil(card.tile), Math.ceil(card.tile))
+                    asynchronous: true
+                    cache: false
+                    smooth: true
                 }
                 // 再生状態の印(右下)。再生中はイコライザーが動く
                 Rectangle {
@@ -278,25 +279,7 @@ WidgetBase {
                 width: card.blockW
                 spacing: 0
 
-                Text {          // 曲名(2 行で折り返すとき)
-                    visible: card.titleWrap
-                    width: parent.width
-                    height: card.titleH
-                    text: root.songText
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: card.fontT
-                    font.bold: true
-                    wrapMode: Text.Wrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
-                    lineHeight: 1.22 * card.fontT
-                    lineHeightMode: Text.FixedHeight
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: card.stacked ? Text.AlignHCenter : Text.AlignLeft
-                }
                 MarqueeText {   // 曲名。幅に収まらないときだけ横スクロール
-                    visible: !card.titleWrap
                     width: parent.width
                     height: card.lineT
                     text: root.songText
