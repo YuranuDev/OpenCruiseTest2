@@ -12,6 +12,8 @@ Item {
     property bool bold: false
     property real gap: Math.max(28, root.pixelSize * 2)
     property bool paused: false
+    /// 収まるときは中央そろえにする(スクロール中は左から流れる)
+    property bool centered: false
 
     readonly property bool overflowing: sourceText.implicitWidth > width + 1
     readonly property real travel: sourceText.implicitWidth + ticker.spacing
@@ -28,6 +30,7 @@ Item {
         font.pixelSize: root.pixelSize
         font.bold: root.bold
         verticalAlignment: Text.AlignVCenter
+        horizontalAlignment: root.centered ? Text.AlignHCenter : Text.AlignLeft
         elide: Text.ElideRight
     }
 

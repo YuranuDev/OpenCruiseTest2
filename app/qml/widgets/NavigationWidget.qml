@@ -181,170 +181,138 @@ WidgetBase {
         }
 
         // ================================================================ 案内中
+        // 文字の大きさは本体の高さから 1 か所で決め、要素の大きさはすべてそこから導く(大きさの体系):
+        //   D = 距離の数値 / U = 単位(D の 45%)/ R = 道路名(D の 42%)/ N = その次(R の 85%)
+        //   タイル = 距離 1 行 + 道路名 1 行の高さ(左に置き、文字のまとまりと上下中央をそろえる)
+        // 「その次」は、下に帯を置く余裕があれば下、横に余裕があれば右、どちらも無ければ出さない
         Item {
             id: guide
             visible: root.active
             anchors.fill: parent
 
-            // 「その次」の置き場所: 右の列 / 下の帯 / 出さない
-            readonly property bool nextRight: root.showNext && width >= height * 2.4 && width >= 300
-            readonly property bool nextBottom: root.showNext && !nextRight && height >= 120
-            readonly property real nextW: nextRight ? Math.max(110, Math.min(width * 0.28, 260)) : 0
-            readonly property real nextH: nextBottom ? Math.max(26, Math.min(height * 0.26, 56)) : 0
+            readonly property bool hasRoad: root.mainSub !== ""
+            readonly property bool hasDistance: root.distanceString !== ""
+            // 「その次」の帯の高さ(下に置くとき)
+            readonly property real stripH: Math.round(Math.max(24, Math.min(40, height * 0.24)))
+            readonly property bool nextBottom: root.showNext && height - stripH - gapV >= 64
+            readonly property bool nextRight: root.showNext && !nextBottom && width >= 460
+            readonly property real nextW: nextRight ? Math.round(Math.min(220, width * 0.3)) : 0
+            readonly property real gapV: Math.round(Math.max(6, root.m * 0.8))
+            readonly property real gapH: Math.round(Math.max(8, root.m))
+
+            // 案内カードの領域
+            readonly property real cardW: width - (nextRight ? nextW + gapH : 0)
+            readonly property real cardH: height - (nextBottom ? stripH + gapV : 0)
+
+            // ---- 大きさの体系 ----
+            // カードが縦に高ければ縦積み(タイル → 距離 → 道路名。中央そろえ)、そうでなければ横並び(タイル | 距離・道路名)
+            readonly property bool stacked: cardH >= cardW * 0.62 && cardH >= 150
+            readonly property real lines: hasRoad ? 1.0 + 0.42 * 1.35 : 1.0      // 文字のまとまりが距離何行分か
+            readonly property real fontD: Math.round(Math.max(20, stacked
+                ? Math.min(72, cardH * 0.24, cardW * 0.24)
+                : Math.min(72, cardH / (lines * 1.12), (cardW - Math.min(cardH, cardW * 0.3)) * 0.22)))
+            readonly property real fontU: Math.round(fontD * 0.45)
+            readonly property real fontR: Math.round(Math.max(12, Math.min(30, fontD * 0.42)))
+            readonly property real fontN: Math.round(Math.max(11, Math.min(20, fontR * 0.85)))
+            readonly property real barH: root.near ? Math.max(4, Math.round(fontD * 0.09)) : 0
+            readonly property real blockH: fontD * 1.12 + (barH > 0 ? barH + 4 : 0) + (hasRoad ? fontR * 1.35 : 0)
+            readonly property real tile: Math.round(stacked ? Math.min(cardW * 0.5, cardH - blockH - gapV)
+                                                            : Math.min(cardH, cardW * 0.3, blockH))
 
             // ---- 案内カード ----
             Item {
                 id: card
                 anchors { left: parent.left; top: parent.top }
-                width: guide.width - (guide.nextRight ? guide.nextW + root.m : 0)
-                height: guide.height - (guide.nextBottom ? guide.nextH + root.m * 0.8 : 0)
-
-                // 縦長なら縦積み(タイル → 距離 → 道路名)、そうでなければ横並び(タイル | 距離・道路名)
-                readonly property bool stacked: width < height * 0.95
-                readonly property bool hasRoad: root.mainSub !== ""
-                readonly property real gap: Math.max(6, root.m * 0.8)
-                readonly property real tile: stacked ? Math.min(width * 0.62, height * 0.42)
-                                                     : Math.min(height, width * 0.36)
+                width: guide.cardW
+                height: guide.cardH
 
                 // 方向アイコンのタイル(接近すると警告色)
+                // 縦積みのとき、タイル + 文字のまとまり全体をカードの上下中央に置く
+                readonly property real stackTop: Math.max(0, (height - guide.tile - guide.gapV - block.height) / 2)
+
                 Rectangle {
                     id: tileBox
-                    x: card.stacked ? (card.width - width) / 2 : 0
-                    y: card.stacked ? 0 : (card.height - height) / 2
-                    width: card.tile
-                    height: card.tile
-                    radius: Math.max(Theme.radius, width * 0.18)
+                    x: guide.stacked ? (card.width - width) / 2 : 0
+                    y: guide.stacked ? card.stackTop : (card.height - height) / 2
+                    width: guide.tile
+                    height: guide.tile
+                    radius: Math.round(width * 0.2)
                     color: root.cueColor
                     Behavior on color { ColorAnimation { duration: 200 } }
                     MaterialIcon {
                         anchors.centerIn: parent
                         name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
-                        size: parent.width * 0.78
+                        size: Math.round(parent.width * 0.74)
                         color: Theme.textOnAccent
                     }
                 }
 
-                // 距離と道路名
-                Item {
-                    id: info
-                    x: card.stacked ? 0 : tileBox.width + card.gap
-                    y: card.stacked ? tileBox.height + card.gap * 0.6 : 0
+                // 距離・接近バー・道路名のまとまり(タイルと上下中央をそろえる)
+                Column {
+                    id: block
+                    x: guide.stacked ? 0 : tileBox.width + guide.gapH
+                    y: guide.stacked ? tileBox.y + tileBox.height + guide.gapV : (card.height - height) / 2
                     width: card.width - x
-                    height: card.height - y
+                    spacing: 0
 
-                    readonly property real barH: root.near ? Math.max(4, Math.round(root.s * 0.03)) : 0
-                    // 距離の行の高さ(道路名があれば 55%、なければほぼ全部)
-                    readonly property real distanceH: root.distanceString === "" ? 0
-                                                      : Math.max(16, (height - barH) * (card.hasRoad ? 0.55 : 0.92))
-
-                    // 距離: 数値を大きく、単位を小さく(下揃え)
-                    Item {
-                        id: distanceRow
-                        visible: root.distanceString !== ""
-                        anchors { left: parent.left; right: parent.right; top: parent.top }
-                        height: info.distanceH
-
+                    Row {   // 距離: 数値を大きく、単位を小さく(下揃え)
+                        visible: guide.hasDistance
+                        anchors.horizontalCenter: guide.stacked ? parent.horizontalCenter : undefined
+                        height: Math.round(guide.fontD * 1.12)
+                        spacing: Math.round(guide.fontD * 0.08)
                         Text {
                             id: distanceValue
-                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                            width: Math.min(implicitWidth, parent.width - distanceUnit.implicitWidth - 6)
-                            horizontalAlignment: card.stacked ? Text.AlignHCenter : Text.AlignLeft
-                            verticalAlignment: Text.AlignBottom
+                            anchors.bottom: parent.bottom
                             text: root.distanceParts.value
                             color: root.cueColor
                             font.family: Theme.fontFamily
                             font.bold: true
-                            font.pixelSize: Math.max(14, Math.round(parent.height * 0.95))
-                            minimumPixelSize: 12
-                            fontSizeMode: Text.HorizontalFit
+                            font.pixelSize: guide.fontD
                             Behavior on color { ColorAnimation { duration: 200 } }
                         }
                         Text {
-                            id: distanceUnit
-                            anchors { left: distanceValue.right; leftMargin: 4; baseline: distanceValue.baseline }
+                            anchors.baseline: distanceValue.baseline
                             text: root.distanceParts.unit
                             color: root.cueColor
                             font.family: Theme.fontFamily
                             font.bold: true
-                            font.pixelSize: Math.max(11, Math.round(distanceRow.height * 0.4))   // 数値の大きさに頼らない(束縛の循環を避ける)
-                        }
-                        // 縦積みのときは、数値と単位のまとまりを中央に寄せる
-                        transform: Translate {
-                            x: card.stacked ? Math.max(0, (distanceRow.width - distanceValue.width - distanceUnit.implicitWidth - 4) / 2) : 0
+                            font.pixelSize: guide.fontU
                         }
                     }
 
-                    // 接近バー(残り距離に応じて縮む)
-                    Rectangle {
+                    Item {   // 接近バー(残り距離に応じて縮む)
                         visible: root.near
-                        anchors { top: distanceRow.bottom; topMargin: 2; left: parent.left }
-                        width: parent.width
-                        height: info.barH
-                        radius: height / 2
-                        color: Theme.panelBorder
+                        width: block.width
+                        height: guide.barH + 4
                         Rectangle {
-                            width: parent.width * root.nearRatio
-                            height: parent.height
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
+                            height: guide.barH
                             radius: height / 2
-                            color: Theme.warn
-                            Behavior on width { NumberAnimation { duration: 200 } }
+                            color: Theme.panelBorder
+                            Rectangle {
+                                width: parent.width * root.nearRatio
+                                height: parent.height
+                                radius: height / 2
+                                color: Theme.warn
+                                Behavior on width { NumberAnimation { duration: 200 } }
+                            }
                         }
                     }
 
-                    // 道路名(なければ方向名)。高さに余裕があれば 2 行まで
-                    Text {
-                        visible: card.hasRoad
-                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                        height: info.height - info.distanceH - info.barH - (root.near ? 4 : 2)
-                        horizontalAlignment: card.stacked ? Text.AlignHCenter : Text.AlignLeft
-                        verticalAlignment: Text.AlignTop
+                    Text {   // 道路名(なければ方向名)。カードに余裕があれば 2 行まで
+                        visible: guide.hasRoad
+                        width: block.width
                         text: root.mainSub
                         color: Theme.textPrimary
                         font.family: Theme.fontFamily
                         font.bold: true
-                        font.pixelSize: Math.max(12, Math.min(Math.round(height * 0.6), Math.round(root.s * 0.14), 34))
+                        font.pixelSize: guide.fontR
+                        horizontalAlignment: guide.stacked ? Text.AlignHCenter : Text.AlignLeft
+                        lineHeight: 1.1
                         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                        maximumLineCount: height >= font.pixelSize * 2.3 ? 2 : 1
-                        elide: Text.ElideRight
-                    }
-                }
-            }
-
-            // ---- その次(右の列) ----
-            Item {
-                visible: guide.nextRight
-                anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
-                width: guide.nextW
-
-                Rectangle {   // 区切り線
-                    x: -root.m * 0.5
-                    width: 1
-                    height: parent.height
-                    color: Theme.panelBorder
-                }
-                Column {
-                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: root.m * 0.3 }
-                    spacing: Math.max(3, root.m * 0.4)
-
-                    Text {
-                        text: "その次"
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Math.max(10, Math.round(root.titleFontSize * 0.85))
-                    }
-                    MaterialIcon {
-                        name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
-                        size: Math.max(18, Math.min(parent.width * 0.4, guide.height * 0.34))
-                        color: Theme.textSecondary
-                    }
-                    Text {
-                        width: parent.width
-                        text: root.nextSub
-                        color: Theme.textSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Math.max(11, Math.min(Math.round(root.titleFontSize * 0.95), 18))
-                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                        maximumLineCount: 2
+                        maximumLineCount: (guide.stacked ? card.height - guide.tile - guide.gapV : card.height)
+                                          >= guide.blockH + guide.fontR * 1.4 ? 2 : 1
                         elide: Text.ElideRight
                     }
                 }
@@ -354,26 +322,26 @@ WidgetBase {
             Rectangle {
                 visible: guide.nextBottom
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                height: guide.nextH
-                radius: Math.min(height / 2, Theme.radius)
+                height: guide.stripH
+                radius: Math.round(height * 0.3)
                 color: Theme.mix(Theme.panel, Theme.panelBorder, 0.6)
 
                 Row {
-                    anchors { fill: parent; leftMargin: root.m * 0.6; rightMargin: root.m * 0.6 }
-                    spacing: root.m * 0.5
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
+                              leftMargin: Math.round(guide.stripH * 0.35); rightMargin: Math.round(guide.stripH * 0.35) }
+                    spacing: Math.round(guide.fontN * 0.5)
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "その次"
                         color: Theme.textSecondary
                         font.family: Theme.fontFamily
-                        font.pixelSize: Math.max(10, Math.round(guide.nextH * 0.34))
+                        font.pixelSize: Math.round(guide.fontN * 0.85)
                     }
                     MaterialIcon {
-                        id: nextIcon
                         anchors.verticalCenter: parent.verticalCenter
                         name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
-                        size: guide.nextH * 0.66
+                        size: Math.round(guide.fontN * 1.3)
                         color: Theme.textPrimary
                     }
                     Text {
@@ -382,8 +350,56 @@ WidgetBase {
                         text: root.nextSub
                         color: Theme.textPrimary
                         font.family: Theme.fontFamily
-                        font.pixelSize: Math.max(11, Math.round(guide.nextH * 0.4))
+                        font.pixelSize: guide.fontN
                         elide: Text.ElideRight
+                    }
+                }
+            }
+
+            // ---- その次(右の列。横長で下に余裕が無いとき) ----
+            Item {
+                visible: guide.nextRight
+                anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                width: guide.nextW
+
+                Rectangle {   // 区切り線
+                    x: -Math.round(guide.gapH / 2)
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 1
+                    height: parent.height * 0.8
+                    color: Theme.panelBorder
+                }
+                Column {
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                    spacing: Math.round(guide.fontN * 0.3)
+
+                    Text {
+                        text: "その次"
+                        color: Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Math.round(guide.fontN * 0.85)
+                    }
+                    Row {
+                        width: parent.width
+                        spacing: Math.round(guide.fontN * 0.4)
+                        MaterialIcon {
+                            id: nextIconR
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+                            size: Math.round(guide.fontN * 1.6)
+                            color: Theme.textPrimary
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.max(0, parent.width - nextIconR.width - parent.spacing)
+                            text: root.nextSub
+                            color: Theme.textPrimary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: guide.fontN
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                        }
                     }
                 }
             }
