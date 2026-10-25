@@ -336,18 +336,23 @@ WidgetBase {
             // 数値表示の枠。auto のときは弧の空き(開始と終了の間)の方向へ置き、中心円とは重ならないようにする
             readonly property var readout: {
                 // 数値を大きく見せるため広めに取る(小型表示は少し縦に広げる)
-                const w = 0.72, h = root.compact ? 0.56 : 0.5
+                // ピーク表示があるときは、枠の上端にピーク表示の 1 行(peakH)を足し、その分だけ中心から離す
+                // (数値の大きさは変えない。ピーク表示は針の反対側の出っ張りの先より外になる)
+                const ph = dial.peakH
+                const w = 0.72, h = (root.compact ? 0.56 : 0.5) + ph
                 const hubClear = root.hubSize / 2 + 0.05
-                let cx = 0, cy = 0.52
+                let cx = 0, cy = 0.52 + ph / 2
                 if (root.autoLabelPosition) {
                     const g = ((root.startAngle + root.endAngle) / 2 + 180) * Math.PI / 180
-                    const rr = (360 - root.sweepAngle) >= 60 ? 0.56 : 0.5
+                    const rr = ((360 - root.sweepAngle) >= 60 ? 0.56 : 0.5) + ph / 2
                     cx = Math.sin(g) * rr
                     cy = -Math.cos(g) * rr
                 }
                 if (cy - h / 2 < hubClear) cy = hubClear + h / 2
                 return { x: cx - w / 2, y: cy - h / 2, w: w, h: h }
             }
+            // 数値の上のピーク表示の高さ(半径比)。アナログ+デジタルでピーク表示があるときだけ
+            readonly property real peakH: root.peakShown && root.style === "both" ? 0.12 : 0
             // アナログのみのときの単位表示(中心円の下)
             readonly property real unitY: root.hubSize / 2 + 0.16
             readonly property string scaleUnitText: root.labelDiv > 1 ? "×" + root.labelDiv + " " + root.unitText : root.unitText
@@ -710,12 +715,19 @@ WidgetBase {
                 y: dial.cy + dial.readout.y * dial.rpx
                 width: dial.readout.w * dial.rpx
                 height: dial.readout.h * dial.rpx
+                // 数字の下の余白(字の下がり)の分だけ、単位を数値へ近づける
+                spacing: -Math.round(dialValue.contentHeight * 0.14)
+                PeakLabel {
+                    width: parent.width
+                    height: dial.peakH * dial.rpx
+                    px: Math.max(10, Math.round(dial.rpx * 0.085))
+                }
                 Text {
                     id: dialValue
                     width: parent.width
-                    height: parent.height * 0.7
+                    height: (parent.height - dial.peakH * dial.rpx) * 0.7
                     horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                    verticalAlignment: Text.AlignBottom   // 単位との間を詰めるため、枠の下端に寄せる
                     font.family: Theme.fontFamily
                     font.bold: true
                     font.italic: true   // 数値は全種類で太字の斜体
@@ -727,7 +739,7 @@ WidgetBase {
                 }
                 Text {
                     width: parent.width
-                    height: parent.height * 0.3
+                    height: (parent.height - dial.peakH * dial.rpx) * 0.3
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignTop
                     font.family: Theme.fontFamily
@@ -735,17 +747,6 @@ WidgetBase {
                     text: root.unitText
                     color: Theme.textSecondary
                 }
-            }
-
-            // ピーク(アナログ+デジタル): 数値のすぐ上。数値の枠は小さくしない(数字の上の余白に重ねる)
-            PeakLabel {
-                visible: root.style === "both" && root.peakShown
-                width: dial.readout.w * dial.rpx * 1.3
-                x: dial.cx + (dial.readout.x + dial.readout.w / 2) * dial.rpx - width / 2
-                // 数値の字の上端(枠の 0.7 の段の中央から、字の高さの半分ほど上)の少し上
-                y: dial.cy + dial.readout.y * dial.rpx + dial.readout.h * dial.rpx * 0.35
-                   - Math.min(dialValue.contentHeight, dial.readout.h * dial.rpx * 0.7) * 0.5 - height * 0.85
-                px: Math.max(11, Math.round(dial.rpx * (root.compact ? 0.12 : 0.1)))
             }
 
             // ---- 単位(アナログのみ) ----
