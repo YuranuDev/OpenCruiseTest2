@@ -170,9 +170,6 @@ DisplaySettings::DisplaySettings(QObject *parent) : QObject(parent) {
     mirrorAll_ = store.value(kMirrorKey, true).toBool();
     mirrorFps_ = clampMirrorFps(store.value(kMirrorFpsKey, 30).toInt());
     mirrorMethod_ = store.value(kMirrorMethodKey, defaultMirrorMethod()).toInt() == 1 ? 1 : 0;
-    if (defaultMirrorMethod() == 1) {
-        mirrorMethod_ = 1;   // eglfs では方式を選べない(常に KMS の複製)
-    }
     autoRestart_ = store.value(kAutoRestartKey, true).toBool();
     connect(&osMirror_, &OsDisplayMirror::statusChanged, this, &DisplaySettings::mirrorChanged);
     connect(&osMirror_, &OsDisplayMirror::statusChanged, this, &DisplaySettings::renderingChanged);   // 再起動が必要か
@@ -247,9 +244,8 @@ void DisplaySettings::updateOsMirror() {
 bool DisplaySettings::appMirrorActive() const {
     // eglfs はウィンドウを 1 画面に 1 つしか出せず、別のウィンドウを作ると異常終了する
     // ("OpenGL windows cannot be mixed with others")。eglfs では必ず KMS の複製を使い、アプリ内のミラーは使わない
-    if (isEglfs()) {
-        return false;
-    }
+    // eglfs: 画面ごとにウィンドウを 1 つずつ置く分には動く(操作するウィンドウは動かさないので、
+    // 写す側のウィンドウが同じ画面に重なって "OpenGL windows cannot be mixed" になることはない)
     return mirrorAll_ && (mirrorMethod_ == 0 || !osMirror_.supported());
 }
 
@@ -356,7 +352,7 @@ bool DisplaySettings::restartRequired() const {
         return false;
     }
     const bool eglfsMirrorChanged = osMirror_.backend() == OsDisplayMirror::Backend::Eglfs &&
-                                    mirrorAll_ != g_startup.mirrorAll;
+                                    (mirrorAll_ != g_startup.mirrorAll || mirrorMethod_ != g_startup.mirrorMethod);
     return graphicsApi_ != g_startup.graphicsApi || vsync_ != g_startup.vsync ||
            (vsync_ && frameDivider_ != g_startup.frameDivider) || eglfsMirrorChanged || osMirror_.displaysChanged();
 }

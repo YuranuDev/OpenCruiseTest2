@@ -121,15 +121,20 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
     }
     const QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
                           QStringLiteral("OpenCruise"));
-    // eglfs では常に OS(KMS)の複製でミラーする(アプリ内のミラーは eglfs では使えない)。
-    // 「全部の画面に表示」がオフのときだけ何もしない
+    // 「全部の画面に表示」がオフなら何もしない。方式の既定は eglfs では OS(KMS の複製)
     if (!store.value(QStringLiteral("display/mirrorAll"), true).toBool()) {
         return;
     }
+    const bool useClone = store.value(QStringLiteral("display/mirrorMethod"), 1).toInt() == 1;
 
     const QList<DrmOutput> connected = scanDrm();
     g_startupOutputs = outputsKey(connected);
-    g_eglfsAuto = true;
+    g_eglfsAuto = true;   // どちらの方式でも、eglfs は起動後に画面を足し引きできないので抜き差しを見張る
+    if (!useClone) {
+        // アプリ内の方式: 画面ごとに別々の出力として使い、Main.qml が 2 枚目以降の画面へ表示を写す
+        g_startupNote = QStringLiteral("eglfs: アプリ内の方式でミラーします(画面 %1 枚)").arg(connected.size());
+        return;
+    }
     if (connected.size() < 2) {
         g_startupNote = QStringLiteral("eglfs: つながっている画面が 1 つのため、ミラーはしません(画面をつなぐと自動で切り替えます)");
         return;

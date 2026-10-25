@@ -137,10 +137,11 @@ SettingsPage {
         }
 
         SettingsRow {
-            visible: displaySettings.mirrorAll && !displaySettings.isEglfs   // eglfs では常に OS(KMS)の複製
+            visible: displaySettings.mirrorAll
             label: "ミラーの方式"
             description: "OS は画面の複製表示(" + (displaySettings.osMirrorSupported ? displaySettings.osMirrorBackend : "この環境では使えません")
                          + ")を使い、アプリの負荷が増えません。アプリ内は表示を写して映すので、どの環境でも使えますが負荷が増えます"
+                         + (displaySettings.isEglfs ? "。eglfs では再起動すると切り替わります(OS で映らないときはアプリ内を試してください)" : "")
 
             SettingsChoice {
                 model: ["アプリ内", "OS"]
