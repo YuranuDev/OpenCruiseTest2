@@ -16,6 +16,10 @@
 #include <QSettings>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
+#include <QtGui/qtguiglobal.h>
+#if QT_CONFIG(vulkan)
+#include <QVulkanInstance>
+#endif
 
 namespace opencruise {
 
@@ -81,6 +85,20 @@ struct StartupValues {
     int mirrorMethod = 0;
 };
 StartupValues g_startup;
+QString g_graphicsNote;   ///< 選んだ描画方式を使えず、別の方式にしたときの説明
+
+/// Vulkan で描画できるか。eglfs は OpenGL(ES)専用で、Vulkan を選ぶと描画の初期化で異常終了するので使わない
+bool vulkanUsable() {
+#if QT_CONFIG(vulkan)
+    if (QGuiApplication::platformName().startsWith(QLatin1String("eglfs"))) {
+        return false;
+    }
+    QVulkanInstance instance;   // 実際に作れるか試す(ドライバや Qt のプラットフォームが対応していなければ失敗する)
+    return instance.create();
+#else
+    return false;   // Qt が Vulkan なしでビルドされている
+#endif
+}
 
 int clampApi(int api) { return (api >= 0 && api <= 3) ? api : 0; }
 int clampDivider(int divider) { return (divider >= 1 && divider <= 3) ? divider : 1; }
@@ -114,7 +132,14 @@ void DisplaySettings::applyStartupSettings() {
     g_startup.mirrorMethod = store.value(kMirrorMethodKey, defaultMirrorMethod()).toInt() == 1 ? 1 : 0;
     g_startup.applied = true;
 
-    switch (g_startup.graphicsApi) {
+    int api = g_startup.graphicsApi;
+    if (api == 2 && !vulkanUsable()) {
+        api = 1;
+        g_graphicsNote = QStringLiteral("Vulkan はこの環境(%1)で使えないため、OpenGL で描画しています")
+                             .arg(QGuiApplication::platformName());
+        log::warn("DISPLAY", g_graphicsNote);
+    }
+    switch (api) {
     case 1: QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL); break;
     case 2: QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan); break;
     case 3: QQuickWindow::setGraphicsApi(QSGRendererInterface::Software); break;
@@ -346,6 +371,8 @@ QString DisplaySettings::activeGraphicsApi() const {
     default: return QStringLiteral("不明");
     }
 }
+
+QString DisplaySettings::graphicsNote() const { return g_graphicsNote; }
 
 QString DisplaySettings::platformName() const { return QGuiApplication::platformName(); }
 

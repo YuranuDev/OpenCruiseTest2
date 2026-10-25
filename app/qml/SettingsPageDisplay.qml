@@ -237,6 +237,12 @@ SettingsPage {
         }
 
         SettingsInfoRow { label: "使用中の描画方式"; value: displaySettings.activeGraphicsApi }
+        SettingsInfoRow {
+            visible: displaySettings.graphicsNote !== ""
+            label: "描画方式の注意"
+            value: displaySettings.graphicsNote
+            valueColor: Theme.warn
+        }
 
         SettingsRow {
             visible: displaySettings.restartRequired

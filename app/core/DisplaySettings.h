@@ -76,6 +76,8 @@ class DisplaySettings : public QObject {
     Q_PROPERTY(bool restartRequired READ restartRequired NOTIFY renderingChanged)
     /// 今使っている描画方式(起動時に決まる)
     Q_PROPERTY(QString activeGraphicsApi READ activeGraphicsApi CONSTANT)
+    /// 選んだ描画方式を使えず、別の方式にしたときの説明(問題が無ければ空)
+    Q_PROPERTY(QString graphicsNote READ graphicsNote CONSTANT)
     /// Qt のプラットフォーム(xcb / wayland / eglfs など)
     Q_PROPERTY(QString platformName READ platformName CONSTANT)
 
@@ -123,6 +125,7 @@ public:
     bool restartRequired() const;
     QString activeGraphicsApi() const;
     QString platformName() const;
+    QString graphicsNote() const;
 
     /** @brief 同じ引数でアプリを起動し直す(描画の設定を反映するため)。 */
     Q_INVOKABLE void restartApp();

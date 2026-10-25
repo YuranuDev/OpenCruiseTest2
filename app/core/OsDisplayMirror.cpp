@@ -135,11 +135,17 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
         return;
     }
 
-    // 複製元: 保存した画面(eglfs の名前) → 内蔵パネル → 先頭の順
-    const QString saved = store.value(QStringLiteral("display/screen")).toString();
+    // 複製元(= 操作する画面。DisplaySettings の「表示する画面」と同じ考え方で選ぶ):
+    //   画面を指定していればその画面 / 「外部画面があれば外部画面」(既定)なら内蔵パネル以外 / それ以外は内蔵パネル → 先頭
+    const QString saved = store.value(QStringLiteral("display/screen"), QStringLiteral("@external")).toString();
     int targetIndex = -1;
     for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
         if (connected[i].kms == saved) targetIndex = i;
+    }
+    if (saved == QLatin1String("@external")) {
+        for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
+            if (!isInternalName(connected[i].kms)) targetIndex = i;
+        }
     }
     for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
         if (isInternalName(connected[i].kms)) targetIndex = i;
