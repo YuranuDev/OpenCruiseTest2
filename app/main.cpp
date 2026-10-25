@@ -31,7 +31,7 @@
 #include "core/BrightnessController.h"
 #include "core/BootManager.h"
 #include "core/DisplaySettings.h"
-#include "core/OsDisplayMirror.h"
+#include "core/DrmDisplay.h"
 #include "core/ClockModel.h"
 #include "core/SystemStats.h"
 #include "core/VehicleDataManager.h"
@@ -46,8 +46,8 @@
  * @return QGuiApplication の終了コード。QML のロードに失敗した場合は -1
  */
 int main(int argc, char *argv[]) {
-    // eglfs(KMS)で OS のミラーを使う設定なら、プラットフォームを読み込む前(QGuiApplication の前)に複製の設定を用意する
-    opencruise::OsDisplayMirror::prepareEglfs(argc, argv);
+    // eglfs(DRM/KMS)なら、プラットフォームを読み込む前(QGuiApplication の前)に、操作する画面だけを Qt に使わせる設定を作る
+    opencruise::DrmDisplay::prepare(argc, argv);
     QGuiApplication app(argc, argv);
     QGuiApplication::setOverrideCursor(Qt::ArrowCursor);
     QGuiApplication::setApplicationName(QStringLiteral("OpenCruise"));
@@ -100,7 +100,8 @@ int main(int argc, char *argv[]) {
 
     opencruise::ClockModel clock;
     opencruise::AppInfo appInfo; // アプリと Linux の情報(設定「情報」)
-    opencruise::DisplaySettings displaySettings; // 表示する画面(外部画面)・回転・描画の設定(設定「表示」)
+    opencruise::DisplaySettings displaySettings; // 表示する画面・回転・描画の設定(設定「表示」)
+    opencruise::DrmDisplay drmDisplay;           // eglfs での操作する画面と外部モニターへのミラー(設定「表示 > 外部モニター」)
     opencruise::VehicleDataManager can;
     opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
@@ -155,6 +156,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("appInfo"), &appInfo);
     engine.rootContext()->setContextProperty(QStringLiteral("displaySettings"), &displaySettings);
+    engine.rootContext()->setContextProperty(QStringLiteral("drmDisplay"), &drmDisplay);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
@@ -190,6 +192,8 @@ int main(int argc, char *argv[]) {
         opencruise::log::error("QML", QStringLiteral("QML の読み込みに失敗しました (qrc:/OpenCruise/qml/Main.qml)"));
     } else {
         opencruise::log::info("QML", QStringLiteral("メイン画面を読み込みました (%1 ms)").arg(qmlLoadTimer.elapsedMs()));
+        // 描画が終わるたびに、外部モニターへのミラーを更新する(eglfs のときだけ動く)
+        drmDisplay.attach(qobject_cast<QQuickWindow *>(engine.rootObjects().first()));
     }
 
     // 捕捉されない例外で異常終了する場合も、理由をログに残してから停止する
@@ -205,6 +209,8 @@ int main(int argc, char *argv[]) {
 
     // 終了時は、接続層のスレッドを先に止めてから QML/ウィンドウを破棄する
     QObject::connect(&app, &QCoreApplication::aboutToQuit, androidAuto, &opencruise::AndroidAutoController::stop);
+    // 外部モニターの表示を消してから終わる(Qt が DRM を閉じる前に)
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &drmDisplay, &opencruise::DrmDisplay::stop);
 
     // UI が出た後に接続処理を始める（接続できなくても UI は動作する）
     // QTimer::singleShot の第1引数がオブジェクトのポインタであるため、渡すオブジェクトが無効になることを防ぐために

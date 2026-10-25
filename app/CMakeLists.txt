@@ -51,7 +51,7 @@ qt_add_executable(opencruise
     core/BootManager.cpp
     core/ClockModel.cpp
     core/DisplaySettings.cpp
-    core/OsDisplayMirror.cpp
+    core/DrmDisplay.cpp
     core/Log.cpp
     core/NotificationManager.cpp
     core/NotificationHistoryModel.cpp
@@ -156,6 +156,15 @@ target_link_libraries(opencruise PRIVATE
     PkgConfig::FFMPEG)
 if(OPENCRUISE_ENABLE_AASDK)
     target_compile_definitions(opencruise PRIVATE OPENCRUISE_WITH_AASDK)
+endif()
+# eglfs(DRM/KMS)で外部モニターへミラーするのに使う(無ければミラー機能なしでビルドする。sudo apt install libdrm-dev)
+pkg_check_modules(LIBDRM QUIET IMPORTED_TARGET libdrm)
+if(LIBDRM_FOUND)
+    target_link_libraries(opencruise PRIVATE PkgConfig::LIBDRM)
+    target_compile_definitions(opencruise PRIVATE OPENCRUISE_WITH_DRM)
+    message(STATUS "libdrm ${LIBDRM_VERSION}: eglfs の外部モニターへのミラーを有効にします")
+else()
+    message(STATUS "libdrm が見つかりません: eglfs の外部モニターへのミラーは無効です")
 endif()
 target_compile_options(opencruise PRIVATE -Wall -Wextra)
 

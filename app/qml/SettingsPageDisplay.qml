@@ -1,5 +1,6 @@
 // 設定ジャンル「表示」: 昼夜テーマ・Android Auto との連動・アクセント色・画面の明るさ・
-//   表示する画面(外部画面)と回転・描画方式(垂直同期・フレームレート)。画面と描画は displaySettings(core/DisplaySettings)。
+//   表示する画面と回転・描画方式(垂直同期・フレームレート)は displaySettings(core/DisplaySettings)、
+//   eglfs での操作する画面と外部モニターへのミラーは drmDisplay(core/DrmDisplay)。
 import QtQuick
 
 SettingsPage {
@@ -101,10 +102,11 @@ SettingsPage {
         title: "画面"
         icon: "monitor"
 
+        // ---- eglfs 以外(デスクトップ): どの画面に出すか ----
         SettingsRow {
+            visible: !displaySettings.isEglfs
             label: "表示する画面"
-            description: "「外部画面があれば外部画面」にすると、起動時や接続したときに自動で外部画面へ切り替え、外すとメイン画面に戻ります。"
-                         + "画面を指定した場合も、その画面が外れている間はメイン画面に出し、つながると戻ります"
+            description: "「外部画面があれば外部画面」にすると、起動時や接続したときに自動で外部画面へ切り替え、外すとメイン画面に戻ります"
             stacked: true
 
             SettingsDeviceList {
@@ -115,70 +117,11 @@ SettingsPage {
         }
 
         SettingsInfoRow {
+            visible: !displaySettings.isEglfs
             label: "表示中の画面"
             value: (displaySettings.targetScreenName !== "" ? displaySettings.targetScreenName : "--")
                    + (displaySettings.usingFallback ? "(選んだ画面が未接続のためメイン画面)" : "")
             valueColor: displaySettings.usingFallback ? Theme.warn : Theme.textPrimary
-        }
-
-        SettingsInfoRow {
-            label: "外部画面"
-            value: displaySettings.externalConnected ? "接続中" : "なし"
-        }
-
-        SettingsRow {
-            label: "全部の画面に表示"
-            description: "上で選んだ画面(操作する画面)以外の、つながっているすべての画面にも同じ表示を映します。映した画面は見るだけで、操作はできません"
-
-            SettingsSwitch {
-                checked: displaySettings.mirrorAll
-                onToggled: (value) => displaySettings.mirrorAll = value
-            }
-        }
-
-        SettingsRow {
-            visible: displaySettings.mirrorAll
-            label: "ミラーの方式"
-            description: "OS は画面の複製表示(" + (displaySettings.osMirrorSupported ? displaySettings.osMirrorBackend : "この環境では使えません")
-                         + ")を使い、アプリの負荷が増えません。アプリ内は表示を写して映すので、どの環境でも使えますが負荷が増えます"
-                         + (displaySettings.isEglfs ? "。eglfs では再起動すると切り替わります(OS で映らないときはアプリ内を試してください)" : "")
-
-            SettingsChoice {
-                model: ["アプリ内", "OS"]
-                currentIndex: displaySettings.mirrorMethod
-                onPicked: (index) => displaySettings.mirrorMethod = index
-            }
-        }
-
-        SettingsInfoRow {
-            visible: displaySettings.mirrorAll && (displaySettings.mirrorMethod === 1 || displaySettings.isEglfs)
-            label: "OS のミラー"
-            value: displaySettings.osMirrorStatus + (displaySettings.osMirrorSupported ? "" : "(代わりにアプリ内の方式で映します)")
-            valueColor: displaySettings.osMirrorSupported ? Theme.textPrimary : Theme.warn
-        }
-
-        SettingsRow {
-            visible: displaySettings.isEglfs && displaySettings.mirrorAll
-            label: "画面の接続が変わったら再起動"
-            description: "eglfs では起動後に画面を足し引きできないため、画面をつなぐ・外すと自動で再起動してミラーし直します"
-                         + "(Android Auto の映像を表示している間は、終わるまで待ちます)"
-
-            SettingsSwitch {
-                checked: displaySettings.autoRestartOnDisplayChange
-                onToggled: (value) => displaySettings.autoRestartOnDisplayChange = value
-            }
-        }
-
-        SettingsRow {
-            visible: displaySettings.appMirrorActive
-            label: "映す画面の更新回数"
-            description: "多いほど滑らかですが、描画の負荷が上がります"
-
-            SettingsChoice {
-                model: ["15 回/秒", "30 回/秒", "60 回/秒"]
-                currentIndex: displaySettings.mirrorFps <= 15 ? 0 : (displaySettings.mirrorFps >= 60 ? 2 : 1)
-                onPicked: (index) => displaySettings.mirrorFps = [15, 30, 60][index]
-            }
         }
 
         SettingsRow {
@@ -193,10 +136,79 @@ SettingsPage {
         }
 
         SettingsNote {
-            text: "画面の選択と回転はすぐに反映されます。"
-                  + "eglfs(デスクトップ環境なしで直接表示)では出力先を途中で変えられないことがあり、"
-                  + "その場合は QT_QPA_EGLFS_KMS_CONFIG で出力する画面を指定してください。現在のプラットフォーム: "
+            visible: !displaySettings.isEglfs
+            text: "外部モニターへの複製表示(ミラー)は、OS のディスプレイ設定で行ってください。現在のプラットフォーム: "
                   + displaySettings.platformName
+        }
+    }
+
+    // ---- eglfs(DRM/KMS): 操作する画面と、外部モニターへのミラー(drmDisplay) ----
+    SettingsSection {
+        visible: displaySettings.isEglfs
+        title: "外部モニター"
+        icon: "connected_tv"
+
+        SettingsRow {
+            label: "外部モニターにミラー"
+            description: "つながっている外部モニターに、操作する画面と同じ表示を映します。抜き差しするとすぐ切り替わります"
+
+            SettingsSwitch {
+                checked: drmDisplay.mirrorEnabled
+                onToggled: (value) => drmDisplay.mirrorEnabled = value
+            }
+        }
+
+        SettingsRow {
+            visible: drmDisplay.mirrorEnabled
+            label: "解像度の合わせ方"
+            description: "同じ解像度があればそのまま映し、無ければ縦横比を保って拡大縮小します。「拡大縮小」は常に外部モニターの推奨解像度で映します"
+
+            SettingsChoice {
+                model: ["同じ解像度を優先", "拡大縮小"]
+                currentIndex: drmDisplay.scaleMode
+                onPicked: (index) => drmDisplay.scaleMode = index
+            }
+        }
+
+        SettingsRow {
+            label: "操作する画面"
+            description: "アプリを動かし、タッチを受ける画面です。変えたときは再起動すると反映されます"
+            stacked: true
+
+            SettingsDeviceList {
+                model: drmDisplay.mainChoices
+                currentIndex: drmDisplay.mainChoiceIndex
+                onPicked: (index) => drmDisplay.mainChoiceIndex = index
+            }
+        }
+
+        // 画面(コネクタ)ごとの状態
+        Repeater {
+            model: drmDisplay.outputs
+            SettingsInfoRow {
+                required property var modelData
+                label: modelData.name
+                value: modelData.role + (modelData.detail !== "" ? " — " + modelData.detail : "")
+                valueColor: modelData.role === "ミラーできません" ? Theme.warn
+                          : (modelData.connected ? Theme.textPrimary : Theme.textSecondary)
+            }
+        }
+
+        SettingsRow {
+            visible: drmDisplay.restartRequired
+            label: "再起動して反映"
+            description: "操作する画面の変更は、アプリを再起動したときに反映されます"
+
+            ActionButton {
+                text: "今すぐ再起動"
+                onClicked: displaySettings.restartApp()
+            }
+        }
+
+        SettingsNote {
+            text: drmDisplay.statusText
+                  + "。外部モニターには、操作する画面の画をそのまま表示します(描画の負荷は増えません)。"
+                  + "同じ GPU につながっている画面だけが対象です。"
         }
     }
 

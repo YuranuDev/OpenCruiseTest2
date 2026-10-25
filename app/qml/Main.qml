@@ -1,7 +1,6 @@
 // アプリのルート。メイン画面と設定画面を StackView で切り替える。
 import QtQuick
 import QtQuick.Controls
-import QtQml.Models
 
 ApplicationWindow {
     id: window
@@ -35,7 +34,7 @@ ApplicationWindow {
         return list.length > 0 ? list[0] : null
     }
     // eglfs では、ウィンドウを作った後に別の画面へ移すと描画先が無くなり("Cannot sync before platform init!")
-    // 何も表示されない。eglfs はメイン画面(複製元。OsDisplayMirror が設定する)に任せ、画面は動かさない
+    // 何も表示されない。eglfs では操作する画面(DrmDisplay が起動前に決める)に任せ、画面は動かさない
     Component.onCompleted: {
         if (!displaySettings.isEglfs)
             window.screen = Qt.binding(() => window.findScreen(displaySettings.targetScreenName))
@@ -367,72 +366,6 @@ ApplicationWindow {
                     }
                 }
             }
-        }
-    }
-
-    // ---- 全部の画面に表示(ミラー。設定「表示 > 画面」) ----
-    // 操作する画面(このウィンドウ)以外の、つながっているすべての画面に全画面のウィンドウを作り、
-    // 表示全体(rotor。回転前の向き)を一定間隔で写して映す。ミラー側は見るだけで、操作は受けない。
-    readonly property var mirrorScreens: {
-        if (!displaySettings.appMirrorActive || !window.screen) return []   // OS のミラーを使うときは作らない
-        const list = Qt.application.screens
-        const out = []
-        for (let i = 0; i < list.length; ++i) {
-            if (list[i].name !== window.screen.name) out.push(list[i])
-        }
-        return out
-    }
-    property var mirrorFrame: null    // 最新の写し(grabToImage の結果。url が有効な間は持っておく)
-    property bool mirrorBusy: false   // 写している途中(前の写しが終わるまで次を始めない)
-    Timer {
-        interval: Math.round(1000 / displaySettings.mirrorFps)
-        repeat: true
-        running: window.mirrorScreens.length > 0 && window.visible
-        onTriggered: {
-            if (window.mirrorBusy || rotor.width <= 0 || rotor.height <= 0) return
-            window.mirrorBusy = true
-            const started = rotor.grabToImage((result) => {
-                window.mirrorFrame = result
-                window.mirrorBusy = false
-            })
-            if (!started) window.mirrorBusy = false
-        }
-        onRunningChanged: if (!running) window.mirrorFrame = null
-    }
-    // eglfs では起動後に画面を足し引きできないので、画面の接続が変わったら再起動してミラーし直す。
-    // Android Auto の映像を表示している間は待ち、終わってから(通知を出して 3 秒後に)再起動する。
-    Timer {
-        interval: 3000
-        running: displaySettings.displaysChangedRestart && !window.streaming
-        onRunningChanged: {
-            if (running) notifications.show("画面の接続が変わりました", "画面を反映するため、まもなく再起動します", 2, "monitor")
-        }
-        onTriggered: displaySettings.restartApp()
-    }
-
-    Instantiator {
-        model: window.mirrorScreens
-        delegate: Window {
-            required property var modelData
-            screen: modelData
-            title: "OpenCruise(ミラー)"
-            color: "black"
-            flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
-            // 画面いっぱいの枠なしウィンドウとして出す(showFullScreen() はフォーカスを要求するので使わない。
-            // フォーカスを受けないウィンドウでは警告になり、操作する画面からキー入力を奪う)
-            x: modelData.virtualX
-            y: modelData.virtualY
-            width: modelData.width
-            height: modelData.height
-            Component.onCompleted: visible = true
-            Image {
-                anchors.fill: parent
-                fillMode: Image.PreserveAspectFit
-                cache: false
-                smooth: true
-                source: window.mirrorFrame ? window.mirrorFrame.url : ""
-            }
-            MouseArea { anchors.fill: parent }   // 見るだけ(操作は操作する画面で行う)
         }
     }
 

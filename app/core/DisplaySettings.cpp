@@ -34,16 +34,6 @@ const QString kRotationKey = QStringLiteral("display/rotation");
 const QString kApiKey = QStringLiteral("display/graphicsApi");
 const QString kVsyncKey = QStringLiteral("display/vsync");
 const QString kDividerKey = QStringLiteral("display/frameDivider");
-const QString kMirrorKey = QStringLiteral("display/mirrorAll");
-const QString kMirrorFpsKey = QStringLiteral("display/mirrorFps");
-const QString kMirrorMethodKey = QStringLiteral("display/mirrorMethod");
-const QString kAutoRestartKey = QStringLiteral("display/autoRestartOnDisplayChange");
-
-/// ミラーの方式の既定。eglfs では OS(KMS の複製)、それ以外はアプリ内
-int defaultMirrorMethod() {
-    return QGuiApplication::platformName().startsWith(QLatin1String("eglfs")) ? 1 : 0;
-}
-int clampMirrorFps(int fps) { return fps <= 15 ? 15 : (fps >= 60 ? 60 : 30); }
 /// 保存値の特別な値: 外部画面があれば外部画面、無ければメイン画面(起動時・抜き差し時に自動で切り替える)
 const QString kAutoExternal = QStringLiteral("@external");
 
@@ -81,8 +71,6 @@ struct StartupValues {
     int graphicsApi = 0;
     bool vsync = true;
     int frameDivider = 1;
-    bool mirrorAll = true;    ///< eglfs の OS ミラーは起動時に決まるので、再起動が必要かの判定に使う
-    int mirrorMethod = 0;
 };
 StartupValues g_startup;
 QString g_graphicsNote;   ///< 選んだ描画方式を使えず、別の方式にしたときの説明
@@ -128,8 +116,6 @@ void DisplaySettings::applyStartupSettings() {
     g_startup.graphicsApi = clampApi(store.value(kApiKey, 0).toInt());
     g_startup.vsync = store.value(kVsyncKey, true).toBool();
     g_startup.frameDivider = clampDivider(store.value(kDividerKey, 1).toInt());
-    g_startup.mirrorAll = store.value(kMirrorKey, true).toBool();
-    g_startup.mirrorMethod = store.value(kMirrorMethodKey, defaultMirrorMethod()).toInt() == 1 ? 1 : 0;
     g_startup.applied = true;
 
     int api = g_startup.graphicsApi;
@@ -166,13 +152,6 @@ DisplaySettings::DisplaySettings(QObject *parent) : QObject(parent) {
     graphicsApi_ = clampApi(store.value(kApiKey, 0).toInt());
     vsync_ = store.value(kVsyncKey, true).toBool();
     frameDivider_ = clampDivider(store.value(kDividerKey, 1).toInt());
-    // 既定はミラーあり(つながっている画面すべてに表示する)
-    mirrorAll_ = store.value(kMirrorKey, true).toBool();
-    mirrorFps_ = clampMirrorFps(store.value(kMirrorFpsKey, 30).toInt());
-    mirrorMethod_ = store.value(kMirrorMethodKey, defaultMirrorMethod()).toInt() == 1 ? 1 : 0;
-    autoRestart_ = store.value(kAutoRestartKey, true).toBool();
-    connect(&osMirror_, &OsDisplayMirror::statusChanged, this, &DisplaySettings::mirrorChanged);
-    connect(&osMirror_, &OsDisplayMirror::statusChanged, this, &DisplaySettings::renderingChanged);   // 再起動が必要か
 
     // 画面の抜き差し・メイン画面の変更で、選択肢と出す画面を作り直す
     auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
@@ -230,49 +209,9 @@ void DisplaySettings::rebuildScreens() {
                                  .arg(targetScreenName_.isEmpty() ? QStringLiteral("(不明)") : targetScreenName_, reason));
     }
     emit screensChanged();
-    updateOsMirror();
 }
 
-void DisplaySettings::updateOsMirror() {
-    QStringList names;
-    for (const QScreen *screen : QGuiApplication::screens()) {
-        names << screen->name();
-    }
-    osMirror_.update(mirrorAll_ && mirrorMethod_ == 1, targetScreenName_, names);
-}
-
-bool DisplaySettings::appMirrorActive() const {
-    // eglfs はウィンドウを 1 画面に 1 つしか出せず、別のウィンドウを作ると異常終了する
-    // ("OpenGL windows cannot be mixed with others")。eglfs では必ず KMS の複製を使い、アプリ内のミラーは使わない
-    // eglfs: 画面ごとにウィンドウを 1 つずつ置く分には動く(操作するウィンドウは動かさないので、
-    // 写す側のウィンドウが同じ画面に重なって "OpenGL windows cannot be mixed" になることはない)
-    return mirrorAll_ && (mirrorMethod_ == 0 || !osMirror_.supported());
-}
-
-bool DisplaySettings::isEglfs() const { return osMirror_.backend() == OsDisplayMirror::Backend::Eglfs; }
-
-bool DisplaySettings::displaysChangedRestart() const { return autoRestart_ && osMirror_.displaysChanged(); }
-
-void DisplaySettings::setAutoRestartOnDisplayChange(bool on) {
-    if (on == autoRestart_) {
-        return;
-    }
-    autoRestart_ = on;
-    openStore().setValue(kAutoRestartKey, autoRestart_);
-    emit mirrorChanged();
-}
-
-void DisplaySettings::setMirrorMethod(int method) {
-    method = method == 1 ? 1 : 0;
-    if (method == mirrorMethod_) {
-        return;
-    }
-    mirrorMethod_ = method;
-    openStore().setValue(kMirrorMethodKey, mirrorMethod_);
-    updateOsMirror();
-    emit mirrorChanged();
-    emit renderingChanged();   // eglfs では再起動が必要になる
-}
+bool DisplaySettings::isEglfs() const { return QGuiApplication::platformName().startsWith(QLatin1String("eglfs")); }
 
 void DisplaySettings::setScreenIndex(int index) {
     if (index < 0 || index >= screenIds_.size()) {
@@ -295,27 +234,6 @@ void DisplaySettings::setRotation(int degrees) {
     rotation_ = r;
     openStore().setValue(kRotationKey, rotation_);
     emit rotationChanged();
-}
-
-void DisplaySettings::setMirrorAll(bool on) {
-    if (on == mirrorAll_) {
-        return;
-    }
-    mirrorAll_ = on;
-    openStore().setValue(kMirrorKey, mirrorAll_);
-    updateOsMirror();
-    emit mirrorChanged();
-    emit renderingChanged();   // eglfs では再起動が必要になる
-}
-
-void DisplaySettings::setMirrorFps(int fps) {
-    fps = clampMirrorFps(fps);
-    if (fps == mirrorFps_) {
-        return;
-    }
-    mirrorFps_ = fps;
-    openStore().setValue(kMirrorFpsKey, mirrorFps_);
-    emit mirrorChanged();
 }
 
 void DisplaySettings::setGraphicsApi(int api) {
@@ -351,10 +269,8 @@ bool DisplaySettings::restartRequired() const {
     if (!g_startup.applied) {
         return false;
     }
-    const bool eglfsMirrorChanged = osMirror_.backend() == OsDisplayMirror::Backend::Eglfs &&
-                                    (mirrorAll_ != g_startup.mirrorAll || mirrorMethod_ != g_startup.mirrorMethod);
     return graphicsApi_ != g_startup.graphicsApi || vsync_ != g_startup.vsync ||
-           (vsync_ && frameDivider_ != g_startup.frameDivider) || eglfsMirrorChanged || osMirror_.displaysChanged();
+           (vsync_ && frameDivider_ != g_startup.frameDivider);
 }
 
 QString DisplaySettings::activeGraphicsApi() const {
@@ -377,7 +293,7 @@ void DisplaySettings::restartApp() {
     if (!args.isEmpty()) {
         args.removeFirst();   // 先頭は実行ファイル自身
     }
-    log::info("DISPLAY", QStringLiteral("描画の設定を反映するため再起動します"));
+    log::info("DISPLAY", QStringLiteral("設定を反映するため再起動します"));
     if (QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
         QCoreApplication::quit();
     } else {
