@@ -16,6 +16,7 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTimer>
 
 #include <cstdlib>
 #include <cstring>
@@ -67,6 +68,47 @@ bool wantsEglfs(int argc, char *argv[]) {
     }
     return qEnvironmentVariable("QT_QPA_PLATFORM").startsWith(QLatin1String("eglfs"));
 }
+
+/// DRM の接続中の出力(/sys/class/drm/card*-*)
+struct DrmOutput {
+    QString card;        ///< "card0"
+    QString kms;         ///< eglfs の出力名("HDMI1" など)
+    QStringList modes;   ///< 対応する解像度("1920x1080" など。先頭が推奨)
+};
+
+QList<DrmOutput> scanDrm() {
+    QList<DrmOutput> list;
+    const QDir drm(QStringLiteral("/sys/class/drm"));
+    for (const QString &entry : drm.entryList({QStringLiteral("card*-*")}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+        QFile status(drm.filePath(entry + QStringLiteral("/status")));
+        if (!status.open(QIODevice::ReadOnly) || status.readAll().trimmed() != "connected") {
+            continue;
+        }
+        DrmOutput out;
+        out.card = entry.section(QLatin1Char('-'), 0, 0);              // "card0-HDMI-A-1" → "card0"
+        out.kms = kmsName(entry.section(QLatin1Char('-'), 1));       //                 → "HDMI1"
+        QFile modes(drm.filePath(entry + QStringLiteral("/modes")));
+        if (modes.open(QIODevice::ReadOnly)) {
+            for (const QByteArray &line : modes.readAll().split('\n')) {
+                const QString mode = QString::fromLatin1(line.trimmed());
+                if (!mode.isEmpty() && !out.modes.contains(mode)) out.modes << mode;
+            }
+        }
+        list << out;
+    }
+    return list;
+}
+
+/// 接続中の出力の組み合わせ(抜き差しの検出に使う)
+QString outputsKey(const QList<DrmOutput> &outputs) {
+    QStringList keys;
+    for (const DrmOutput &o : outputs) keys << o.card + QLatin1Char(':') + o.kms;
+    keys.sort();
+    return keys.join(QLatin1Char(','));
+}
+
+QString g_startupOutputs;   ///< 起動時の接続中の出力(eglfs の自動ミラーのときだけ記録する)
+bool g_eglfsAuto = false;   ///< eglfs の自動ミラーを使っている(抜き差しを見張る)
 } // namespace
 
 void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
@@ -74,63 +116,79 @@ void OsDisplayMirror::prepareEglfs(int argc, char *argv[]) {
         return;
     }
     if (qEnvironmentVariableIsSet("QT_QPA_EGLFS_KMS_CONFIG")) {
-        g_startupNote = QStringLiteral("QT_QPA_EGLFS_KMS_CONFIG が設定済みのため、OS のミラー設定は作りません");
+        g_startupNote = QStringLiteral("QT_QPA_EGLFS_KMS_CONFIG が設定済みのため、自動のミラーは使いません");
         return;
     }
     const QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
                           QStringLiteral("OpenCruise"));
-    if (!store.value(QStringLiteral("display/mirrorAll"), true).toBool() ||
-        store.value(QStringLiteral("display/mirrorMethod"), 0).toInt() != 1) {
+    // eglfs では常に OS(KMS)の複製でミラーする(アプリ内のミラーは eglfs では使えない)。
+    // 「全部の画面に表示」がオフのときだけ何もしない
+    if (!store.value(QStringLiteral("display/mirrorAll"), true).toBool()) {
         return;
     }
 
-    // 接続中の画面(/sys/class/drm/card*-*/status が connected)
-    QStringList connected;
-    const QDir drm(QStringLiteral("/sys/class/drm"));
-    for (const QString &entry : drm.entryList({QStringLiteral("card*-*")}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
-        QFile status(drm.filePath(entry + QStringLiteral("/status")));
-        if (status.open(QIODevice::ReadOnly) && status.readAll().trimmed() == "connected") {
-            connected << kmsName(entry.section(QLatin1Char('-'), 1));   // "card0-HDMI-A-1" → "HDMI1"
-        }
-    }
+    const QList<DrmOutput> connected = scanDrm();
+    g_startupOutputs = outputsKey(connected);
+    g_eglfsAuto = true;
     if (connected.size() < 2) {
-        g_startupNote = QStringLiteral("eglfs: 接続中の画面が 1 つ以下のため、ミラーは不要です");
+        g_startupNote = QStringLiteral("eglfs: つながっている画面が 1 つのため、ミラーはしません(画面をつなぐと自動で切り替えます)");
         return;
     }
 
     // 複製元: 保存した画面(eglfs の名前) → 内蔵パネル → 先頭の順
-    QString target = store.value(QStringLiteral("display/screen")).toString();
-    if (!connected.contains(target)) {
-        target.clear();
-        for (const QString &name : connected) {
-            if (isInternalName(name)) {
-                target = name;
-                break;
-            }
-        }
-        if (target.isEmpty()) {
-            target = connected.first();
-        }
+    const QString saved = store.value(QStringLiteral("display/screen")).toString();
+    int targetIndex = -1;
+    for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
+        if (connected[i].kms == saved) targetIndex = i;
     }
+    for (int i = 0; i < connected.size() && targetIndex < 0; ++i) {
+        if (isInternalName(connected[i].kms)) targetIndex = i;
+    }
+    if (targetIndex < 0) targetIndex = 0;
+    const DrmOutput &target = connected[targetIndex];
+    const QString targetMode = target.modes.isEmpty() ? QString() : target.modes.first();
+
+    // 同じ GPU(カード)の出力だけ複製できる。複製先は、複製元と同じ解像度があればそれを使う
     QJsonArray outputs;
-    for (const QString &name : connected) {
-        if (name != target) {
-            outputs.append(QJsonObject{{QStringLiteral("name"), name}, {QStringLiteral("clone"), target}});
+    QJsonObject targetEntry{{QStringLiteral("name"), target.kms}};
+    if (!targetMode.isEmpty()) targetEntry.insert(QStringLiteral("mode"), targetMode);
+    outputs.append(targetEntry);
+    QStringList clones;
+    QStringList mismatched;
+    for (const DrmOutput &o : connected) {
+        if (o.kms == target.kms || o.card != target.card) continue;
+        QJsonObject entry{{QStringLiteral("name"), o.kms}, {QStringLiteral("clone"), target.kms}};
+        if (!targetMode.isEmpty() && o.modes.contains(targetMode)) {
+            entry.insert(QStringLiteral("mode"), targetMode);
+        } else {
+            mismatched << o.kms;
         }
+        outputs.append(entry);
+        clones << o.kms;
     }
+    if (clones.isEmpty()) {
+        g_startupNote = QStringLiteral("eglfs: 複製元 %1 と同じ GPU の画面が無いため、ミラーはしません").arg(target.kms);
+        return;
+    }
+
+    const QJsonObject config{{QStringLiteral("device"), QStringLiteral("/dev/dri/") + target.card},
+                             {QStringLiteral("outputs"), outputs}};
     const QString path = QDir::tempPath() + QStringLiteral("/opencruise-eglfs-kms.json");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         g_startupNote = QStringLiteral("eglfs: ミラーの設定ファイルを作れません: ") + path;
         return;
     }
-    file.write(QJsonDocument(QJsonObject{{QStringLiteral("outputs"), outputs}}).toJson());
+    file.write(QJsonDocument(config).toJson());
     file.close();
     qputenv("QT_QPA_EGLFS_KMS_CONFIG", path.toLocal8Bit());
-    QStringList others = connected;
-    others.removeAll(target);
-    g_startupNote = QStringLiteral("eglfs: %1 の表示を %2 に複製します(設定ファイル %3)")
-                        .arg(target, others.join(QStringLiteral(", ")), path);
+    g_startupNote = QStringLiteral("eglfs: %1(%2)の表示を %3 に複製します")
+                        .arg(target.kms, targetMode.isEmpty() ? QStringLiteral("解像度不明") : targetMode,
+                             clones.join(QStringLiteral(", ")));
+    if (!mismatched.isEmpty()) {
+        g_startupNote += QStringLiteral("。%1 は同じ解像度に対応していないため、表示されないことがあります")
+                             .arg(mismatched.join(QStringLiteral(", ")));
+    }
 }
 
 QString OsDisplayMirror::startupNote() { return g_startupNote; }
@@ -151,6 +209,17 @@ OsDisplayMirror::OsDisplayMirror(QObject *parent) : QObject(parent) {
     } else if (platform.startsWith(QLatin1String("eglfs"))) {
         backend_ = Backend::Eglfs;
         status_ = g_startupNote.isEmpty() ? QStringLiteral("再起動すると反映されます(KMS の複製表示)") : g_startupNote;
+        if (g_eglfsAuto) {
+            // eglfs は起動後に画面を足し引きできないので、抜き差しを見張り、変わったら再起動を促す
+            connect(&watch_, &QTimer::timeout, this, [this]() {
+                if (!displaysChanged_ && outputsKey(scanDrm()) != g_startupOutputs) {
+                    displaysChanged_ = true;
+                    log::info("DISPLAY", QStringLiteral("eglfs: 画面の接続が変わりました(再起動で反映)"));
+                    setStatus(QStringLiteral("画面の接続が変わりました。再起動すると反映されます"));
+                }
+            });
+            watch_.start(2000);
+        }
     } else {
         status_ = QStringLiteral("このプラットフォーム(%1)では使えません").arg(platform);
     }

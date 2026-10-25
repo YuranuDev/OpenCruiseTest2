@@ -7,7 +7,12 @@
  *   - X11(xcb)          : xrandr --output <画面> --same-as <操作する画面> --scale-from <解像度>
  *                          (解像度が違う画面は、操作する画面の解像度に合わせて拡大・縮小する)
  *   - KDE Plasma(Wayland): kscreen-doctor output.<画面>.mirror.<操作する画面>(Plasma 6 以降)
- *   - eglfs(KMS)         : 起動前に QT_QPA_EGLFS_KMS_CONFIG の設定ファイル("clone")を作る。再起動で反映
+ *   - eglfs(KMS)         : 起動前に QT_QPA_EGLFS_KMS_CONFIG の設定ファイル("clone")を作る。
+ *                          eglfs では常にこれを使い(アプリ内のミラーは eglfs では使えない)、つながっている
+ *                          すべての画面へ自動で複製する。
+ *                          複製先は複製元と同じ解像度にそろえ、同じ GPU の画面だけを対象にする。
+ *                          eglfs は起動後に画面を足し引きできないので、/sys/class/drm を 2 秒ごとに見張り、
+ *                          接続が変わったら displaysChanged() を立てる(DisplaySettings / Main.qml が再起動する)
  * それ以外(GNOME の Wayland など)は、外から設定を変える手段が無いので非対応(アプリ内のミラーを使う)。
  * X11 / KDE では、アプリの終了時に、このクラスがミラーにした画面を元の並び(横に拡張)へ戻す。
  */
@@ -16,6 +21,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 
 namespace opencruise {
 
@@ -47,6 +53,8 @@ public:
     /** @brief 使える方式の名前(xrandr / kscreen-doctor / eglfs(KMS))。非対応なら空。 */
     QString backendName() const;
     bool supported() const { return backend_ != Backend::None; }
+    /** @brief eglfs の自動ミラー中に、起動時から画面の接続が変わったか(再起動が必要)。 */
+    bool displaysChanged() const { return displaysChanged_; }
     /** @brief 今の状態の説明(設定画面に出す)。 */
     QString status() const { return status_; }
 
@@ -75,6 +83,8 @@ private:
     QStringList mirrored_;     ///< このクラスがミラーにした画面(元に戻す対象)
     QString appliedKey_;       ///< 前回適用した指定(同じなら再適用しない)
     QString status_;
+    QTimer watch_;                ///< eglfs で画面の抜き差しを見張る
+    bool displaysChanged_ = false;
 };
 
 } // namespace opencruise

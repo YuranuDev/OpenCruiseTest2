@@ -60,6 +60,12 @@ class DisplaySettings : public QObject {
     Q_PROPERTY(bool osMirrorSupported READ osMirrorSupported CONSTANT)
     Q_PROPERTY(QString osMirrorBackend READ osMirrorBackend CONSTANT)
     Q_PROPERTY(QString osMirrorStatus READ osMirrorStatus NOTIFY mirrorChanged)
+    /// eglfs で動いているか(画面を自動でミラーし、接続が変わると再起動する)
+    Q_PROPERTY(bool isEglfs READ isEglfs CONSTANT)
+    /// eglfs で画面の接続が変わったら、自動で再起動して反映するか
+    Q_PROPERTY(bool autoRestartOnDisplayChange READ autoRestartOnDisplayChange WRITE setAutoRestartOnDisplayChange NOTIFY mirrorChanged)
+    /// 画面の接続が変わったので再起動したい(eglfs の自動ミラー中で、自動再起動がオン)。Main.qml が見て再起動する
+    Q_PROPERTY(bool displaysChangedRestart READ displaysChangedRestart NOTIFY mirrorChanged)
     // ---- 描画(再起動で反映) ----
     /// 0: 自動 / 1: OpenGL / 2: Vulkan / 3: ソフトウェア
     Q_PROPERTY(int graphicsApi READ graphicsApi WRITE setGraphicsApi NOTIFY renderingChanged)
@@ -103,6 +109,10 @@ public:
     bool osMirrorSupported() const { return osMirror_.supported(); }
     QString osMirrorBackend() const { return osMirror_.backendName(); }
     QString osMirrorStatus() const { return osMirror_.status(); }
+    bool isEglfs() const;
+    bool autoRestartOnDisplayChange() const { return autoRestart_; }
+    void setAutoRestartOnDisplayChange(bool on);
+    bool displaysChangedRestart() const;
 
     int graphicsApi() const { return graphicsApi_; }
     void setGraphicsApi(int api);
@@ -140,6 +150,7 @@ private:
     bool mirrorAll_ = true;
     int mirrorFps_ = 30;
     int mirrorMethod_ = 0;
+    bool autoRestart_ = true;
     OsDisplayMirror osMirror_;   ///< OS の複製表示(ミラーを解除するため、DisplaySettings と同じ寿命)
     int graphicsApi_ = 0;
     bool vsync_ = true;

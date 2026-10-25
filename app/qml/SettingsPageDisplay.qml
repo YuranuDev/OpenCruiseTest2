@@ -137,7 +137,7 @@ SettingsPage {
         }
 
         SettingsRow {
-            visible: displaySettings.mirrorAll
+            visible: displaySettings.mirrorAll && !displaySettings.isEglfs   // eglfs では常に OS(KMS)の複製
             label: "ミラーの方式"
             description: "OS は画面の複製表示(" + (displaySettings.osMirrorSupported ? displaySettings.osMirrorBackend : "この環境では使えません")
                          + ")を使い、アプリの負荷が増えません。アプリ内は表示を写して映すので、どの環境でも使えますが負荷が増えます"
@@ -150,10 +150,22 @@ SettingsPage {
         }
 
         SettingsInfoRow {
-            visible: displaySettings.mirrorAll && displaySettings.mirrorMethod === 1
+            visible: displaySettings.mirrorAll && (displaySettings.mirrorMethod === 1 || displaySettings.isEglfs)
             label: "OS のミラー"
             value: displaySettings.osMirrorStatus + (displaySettings.osMirrorSupported ? "" : "(代わりにアプリ内の方式で映します)")
             valueColor: displaySettings.osMirrorSupported ? Theme.textPrimary : Theme.warn
+        }
+
+        SettingsRow {
+            visible: displaySettings.isEglfs && displaySettings.mirrorAll
+            label: "画面の接続が変わったら再起動"
+            description: "eglfs では起動後に画面を足し引きできないため、画面をつなぐ・外すと自動で再起動してミラーし直します"
+                         + "(Android Auto の映像を表示している間は、終わるまで待ちます)"
+
+            SettingsSwitch {
+                checked: displaySettings.autoRestartOnDisplayChange
+                onToggled: (value) => displaySettings.autoRestartOnDisplayChange = value
+            }
         }
 
         SettingsRow {

@@ -394,6 +394,17 @@ ApplicationWindow {
         }
         onRunningChanged: if (!running) window.mirrorFrame = null
     }
+    // eglfs では起動後に画面を足し引きできないので、画面の接続が変わったら再起動してミラーし直す。
+    // Android Auto の映像を表示している間は待ち、終わってから(通知を出して 3 秒後に)再起動する。
+    Timer {
+        interval: 3000
+        running: displaySettings.displaysChangedRestart && !window.streaming
+        onRunningChanged: {
+            if (running) notifications.show("画面の接続が変わりました", "画面を反映するため、まもなく再起動します", 2, "monitor")
+        }
+        onTriggered: displaySettings.restartApp()
+    }
+
     Instantiator {
         model: window.mirrorScreens
         delegate: Window {
@@ -401,14 +412,14 @@ ApplicationWindow {
             screen: modelData
             title: "OpenCruise(ミラー)"
             color: "black"
-            flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus
-            Component.onCompleted: {
-                x = modelData.virtualX
-                y = modelData.virtualY
-                width = modelData.width
-                height = modelData.height
-                showFullScreen()
-            }
+            flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
+            // 画面いっぱいの枠なしウィンドウとして出す(showFullScreen() はフォーカスを要求するので使わない。
+            // フォーカスを受けないウィンドウでは警告になり、操作する画面からキー入力を奪う)
+            x: modelData.virtualX
+            y: modelData.virtualY
+            width: modelData.width
+            height: modelData.height
+            Component.onCompleted: visible = true
             Image {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectFit

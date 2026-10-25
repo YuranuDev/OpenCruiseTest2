@@ -33,6 +33,12 @@ const QString kDividerKey = QStringLiteral("display/frameDivider");
 const QString kMirrorKey = QStringLiteral("display/mirrorAll");
 const QString kMirrorFpsKey = QStringLiteral("display/mirrorFps");
 const QString kMirrorMethodKey = QStringLiteral("display/mirrorMethod");
+const QString kAutoRestartKey = QStringLiteral("display/autoRestartOnDisplayChange");
+
+/// ミラーの方式の既定。eglfs では OS(KMS の複製)、それ以外はアプリ内
+int defaultMirrorMethod() {
+    return QGuiApplication::platformName().startsWith(QLatin1String("eglfs")) ? 1 : 0;
+}
 int clampMirrorFps(int fps) { return fps <= 15 ? 15 : (fps >= 60 ? 60 : 30); }
 /// 保存値の特別な値: 外部画面があれば外部画面、無ければメイン画面(起動時・抜き差し時に自動で切り替える)
 const QString kAutoExternal = QStringLiteral("@external");
@@ -105,7 +111,7 @@ void DisplaySettings::applyStartupSettings() {
     g_startup.vsync = store.value(kVsyncKey, true).toBool();
     g_startup.frameDivider = clampDivider(store.value(kDividerKey, 1).toInt());
     g_startup.mirrorAll = store.value(kMirrorKey, true).toBool();
-    g_startup.mirrorMethod = store.value(kMirrorMethodKey, 0).toInt() == 1 ? 1 : 0;
+    g_startup.mirrorMethod = store.value(kMirrorMethodKey, defaultMirrorMethod()).toInt() == 1 ? 1 : 0;
     g_startup.applied = true;
 
     switch (g_startup.graphicsApi) {
@@ -138,8 +144,13 @@ DisplaySettings::DisplaySettings(QObject *parent) : QObject(parent) {
     // 既定はミラーあり(つながっている画面すべてに表示する)
     mirrorAll_ = store.value(kMirrorKey, true).toBool();
     mirrorFps_ = clampMirrorFps(store.value(kMirrorFpsKey, 30).toInt());
-    mirrorMethod_ = store.value(kMirrorMethodKey, 0).toInt() == 1 ? 1 : 0;
+    mirrorMethod_ = store.value(kMirrorMethodKey, defaultMirrorMethod()).toInt() == 1 ? 1 : 0;
+    if (defaultMirrorMethod() == 1) {
+        mirrorMethod_ = 1;   // eglfs では方式を選べない(常に KMS の複製)
+    }
+    autoRestart_ = store.value(kAutoRestartKey, true).toBool();
     connect(&osMirror_, &OsDisplayMirror::statusChanged, this, &DisplaySettings::mirrorChanged);
+    connect(&osMirror_, &OsDisplayMirror::statusChanged, this, &DisplaySettings::renderingChanged);   // 再起動が必要か
 
     // 画面の抜き差し・メイン画面の変更で、選択肢と出す画面を作り直す
     auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
@@ -209,7 +220,25 @@ void DisplaySettings::updateOsMirror() {
 }
 
 bool DisplaySettings::appMirrorActive() const {
+    // eglfs はウィンドウを 1 画面に 1 つしか出せず、別のウィンドウを作ると異常終了する
+    // ("OpenGL windows cannot be mixed with others")。eglfs では必ず KMS の複製を使い、アプリ内のミラーは使わない
+    if (isEglfs()) {
+        return false;
+    }
     return mirrorAll_ && (mirrorMethod_ == 0 || !osMirror_.supported());
+}
+
+bool DisplaySettings::isEglfs() const { return osMirror_.backend() == OsDisplayMirror::Backend::Eglfs; }
+
+bool DisplaySettings::displaysChangedRestart() const { return autoRestart_ && osMirror_.displaysChanged(); }
+
+void DisplaySettings::setAutoRestartOnDisplayChange(bool on) {
+    if (on == autoRestart_) {
+        return;
+    }
+    autoRestart_ = on;
+    openStore().setValue(kAutoRestartKey, autoRestart_);
+    emit mirrorChanged();
 }
 
 void DisplaySettings::setMirrorMethod(int method) {
@@ -302,9 +331,9 @@ bool DisplaySettings::restartRequired() const {
         return false;
     }
     const bool eglfsMirrorChanged = osMirror_.backend() == OsDisplayMirror::Backend::Eglfs &&
-                                    (mirrorAll_ != g_startup.mirrorAll || mirrorMethod_ != g_startup.mirrorMethod);
+                                    mirrorAll_ != g_startup.mirrorAll;
     return graphicsApi_ != g_startup.graphicsApi || vsync_ != g_startup.vsync ||
-           (vsync_ && frameDivider_ != g_startup.frameDivider) || eglfsMirrorChanged;
+           (vsync_ && frameDivider_ != g_startup.frameDivider) || eglfsMirrorChanged || osMirror_.displaysChanged();
 }
 
 QString DisplaySettings::activeGraphicsApi() const {
