@@ -6,8 +6,8 @@
  *   同梱フォルダ   : <実行ファイルの場所>/sounds/<カテゴリ>/        (ビルド時に app/sounds からコピー)
  *                    <実行ファイルの場所>/../share/opencruise/sounds/<カテゴリ>/  (インストール時)
  *   ユーザーフォルダ: ~/.local/share/OpenCruise/sounds/<カテゴリ>/  (起動時に作る。ここへ WAV を置くと一覧に出る)
- *   カテゴリ: click(操作音) / start(起動音)
- * 選んだ音は QSettings(sound/<カテゴリ>)に保存する。既定は同梱の Click.wav / Start.wav で、
+ *   カテゴリ: click(操作音) / start(起動音) / alert(警告音: メーターのしきい値超えのビープ。鳴らすのは WarningAlarm だけ)
+ * 選んだ音は QSettings(sound/<カテゴリ>)に保存する。既定は同梱の Click.wav / Start.wav / Beep.wav で、
  * 同梱フォルダが見つからないときはリソースに埋め込んだ同じ音で鳴らす。「なし」を選ぶと鳴らさない。
  * 再生は QSoundEffect なので、使えるのは WAV だけ。
  *
@@ -18,6 +18,7 @@
  * QML へは context property `systemSound` として公開する。
  *   systemSound.play("click")  操作音
  *   systemSound.play("start")  起動音
+ *   systemSound.play("alert")  警告音(1 回分。繰り返しは WarningAlarm が受け持つ)
  *   systemSound.soundOptions("click") / selectedSound / setSelectedSound / preview / rescan  設定画面用
  */
 #pragma once
@@ -57,13 +58,13 @@ public:
 
     /**
      * @brief 名前の音を鳴らす。未知の名前は無視する。操作音は連打時に間引く。
-     * @param name "click"(操作音)/ "start"(起動音)
+     * @param name "click"(操作音)/ "start"(起動音)/ "alert"(警告音)
      */
     Q_INVOKABLE void play(const QString &name);
 
     /**
      * @brief カテゴリで選べる音の一覧。先頭は「なし」。
-     * @param category "click" / "start"
+     * @param category "click" / "start" / "alert"
      * @return { id, name, folder } の配列。folder は "同梱" / "ユーザー" / ""(なし)
      */
     Q_INVOKABLE QVariantList soundOptions(const QString &category) const;
@@ -99,6 +100,10 @@ private:
     void setupEffect(QSoundEffect &effect, bool &pending);
     /** @brief 再生する。読み込み中なら完了後に回し、読み込みに失敗していれば何もしない。 */
     void playEffect(QSoundEffect &effect, bool &pending);
+    /** @brief カテゴリの再生器・読み込み待ち・「なし」の状態(未知のカテゴリは操作音の分を返す) */
+    QSoundEffect &effectOf(const QString &category);
+    bool &pendingOf(const QString &category);
+    bool &mutedOf(const QString &category);
     /** @brief カテゴリの選択に従って再生器へ音を読み込む(「なし」なら空にする)。 */
     void loadCategory(const QString &category);
     /** @brief id を再生する URL にする。見つからなければ空(既定の音だけはリソースの音を返す)。 */
@@ -109,12 +114,15 @@ private:
     QPointer<AudioSettings> settings_;
     QSoundEffect click_;
     QSoundEffect start_;
+    QSoundEffect alert_;
     QSoundEffect preview_;
     bool clickPending_ = false;
     bool startPending_ = false;
+    bool alertPending_ = false;
     bool previewPending_ = false;
     bool clickMuted_ = false;  ///< 操作音に「なし」を選んでいる
     bool startMuted_ = false;  ///< 起動音に「なし」を選んでいる
+    bool alertMuted_ = false;  ///< 警告音に「なし」を選んでいる
     QElapsedTimer sinceClick_;
     int revision_ = 0;
 

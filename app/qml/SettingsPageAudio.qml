@@ -107,7 +107,7 @@ SettingsPage {
         title: "効果音"
         icon: "music_note"
 
-        // カテゴリ(click / start)の選択肢。systemSound.revision を読むことで、選択・再読み込みのたびに作り直す
+        // カテゴリ(click / start / alert)の選択肢。systemSound.revision を読むことで、選択・再読み込みのたびに作り直す
         function optionsOf(category) { systemSound.revision; return systemSound.soundOptions(category) }
         function labelsOf(options) {
             return options.map(o => o.folder === "" ? o.name : o.name + "(" + o.folder + ")")
@@ -158,6 +158,24 @@ SettingsPage {
         }
 
         SettingsRow {
+            id: alertRow
+            readonly property var options: soundSection.optionsOf("alert")
+            label: "警告音"
+            description: "メーターが警告値を超えたときに繰り返し鳴らす音(メーターの設定で「警告音を鳴らす」をオンにしたとき)。選ぶと試しに鳴らします"
+            stacked: true
+
+            SettingsDeviceList {
+                model: soundSection.labelsOf(alertRow.options)
+                currentIndex: soundSection.indexOf(alertRow.options, "alert")
+                onPicked: (index) => {
+                    const id = alertRow.options[index].id
+                    systemSound.setSelectedSound("alert", id)
+                    systemSound.preview("alert", id)
+                }
+            }
+        }
+
+        SettingsRow {
             label: "効果音フォルダを読み直す"
             description: "ユーザーフォルダへ WAV を追加・削除したあとに押すと、一覧に反映します"
 
@@ -176,7 +194,7 @@ SettingsPage {
 
         SettingsNote {
             text: "効果音は種類ごとのフォルダ(操作音 = click、起動音 = start)に入っている WAV ファイルから選べます。"
-                  + "ユーザーフォルダの click / start へ WAV を置くと一覧に追加されます(MP3 などは使えません)。"
+                  + "ユーザーフォルダの click / start / alert へ WAV を置くと一覧に追加されます(MP3 などは使えません)。"
                   + "音量と出力先は「システム」の設定に従います。"
         }
     }

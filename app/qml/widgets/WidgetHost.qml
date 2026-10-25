@@ -150,6 +150,7 @@ Item {
         Binding { target: loader.item; property: "lifting"; value: host.lifting; when: loader.item !== null }
         Binding { target: loader.item; property: "gridW"; value: host.w; when: loader.item !== null }
         Binding { target: loader.item; property: "gridH"; value: host.h; when: loader.item !== null }
+        Binding { target: loader.item; property: "widgetId"; value: host.wid; when: loader.item !== null }
 
         // 持ち上げ中の縁取り
         Rectangle {

@@ -10,6 +10,11 @@
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
+// 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
+//   鳴っている間はメーター全体を赤く点滅させ、太い赤枠と「消音」の印を出して、どのメーターが鳴っているか分かるようにする。
+//   タップすると、その警告が解除されるまで音を止める(赤い表示は残す)。設定画面のプレビューでは鳴らさない。
+// ポップアップ通知(config.warnPopup): 警告になったときに通知を出す(同じメーターは 30 秒に 1 回まで)。
+//   config.warnPopupDetail がオンなら、そのときの値と警告値も通知に入れる。
 //
 // レイアウトの考え方:
 //  1. 上部の見出し・下の警告欄は持たず、名前と警告メッセージはメーターの中(中心円の上)に出す
@@ -127,6 +132,42 @@ WidgetBase {
         onRunningChanged: if (!running) root.blink = 1
     }
 
+    // ---------------------------------------------------------------- 警告音・ポップアップ通知
+    readonly property bool beepOn: warnOn && config.warnBeep === true
+    readonly property bool popupOn: warnOn && config.warnPopup === true
+    readonly property bool popupDetail: config.warnPopupDetail !== false
+    // 警告音を出したい状態(配置されているウィジェットだけ。プレビューは widgetId が空)
+    readonly property bool alarming: beepOn && warning && widgetId !== ""
+    // 今ビープが鳴っているか / 鳴っていたがタップで止めたか
+    readonly property bool beeping: { WarningAlarm.revision; return alarming && WarningAlarm.isSounding(widgetId) }
+    readonly property bool silenced: alarming && !beeping
+    property string raisedKey: ""     // WarningAlarm に登録している key
+    function syncAlarm() {
+        const want = alarming ? widgetId : ""
+        if (raisedKey === want) return
+        if (raisedKey !== "") WarningAlarm.clear(raisedKey)
+        raisedKey = want
+        if (want !== "") WarningAlarm.raise(want, labelText)
+    }
+    onAlarmingChanged: syncAlarm()
+    onWidgetIdChanged: syncAlarm()
+    Component.onDestruction: if (raisedKey !== "") WarningAlarm.clear(raisedKey)
+    onTapped: if (beeping) WarningAlarm.acknowledge(widgetId)
+
+    property real lastPopupMs: 0
+    function showWarnPopup() {
+        const now = Date.now()
+        if (now - lastPopupMs < 30000) return
+        lastPopupMs = now
+        let message = config.warnMessage || gauge.warnMessage || "警告"
+        if (popupDetail) {
+            message += "\n現在 " + fmt(rawValue, decimals) + " " + unitText
+                     + "(警告値 " + fmt(warnV, decimals) + " " + unitText + (warnBelow ? " 以下" : " 以上") + ")"
+        }
+        notifications.show(labelText + "の警告", message, 2, gauge.icon, 8000)
+    }
+    onWarningChanged: if (warning && popupOn && widgetId !== "") showWarnPopup()
+
     // ---------------------------------------------------------------- 寸法
     readonly property real m: root.innerMargin
     // 小型表示(短辺 2 マス以下、2×2 など)。目盛りは普通のサイズと同じ。名前と数値の枠を少し大きめにし、デジタルの両端の値は省く
@@ -139,6 +180,16 @@ WidgetBase {
     readonly property string labelText: titleText(gauge.title)
     readonly property color labelColor: warning ? Theme.error : Theme.textSecondary
     readonly property real labelOpacity: 1
+
+    // 警告音が鳴っている間: メーター全体を赤く点滅させる(中身より下に敷く)
+    Rectangle {
+        z: -1
+        anchors.fill: parent
+        radius: Theme.radius + 6
+        color: Theme.error
+        visible: opacity > 0
+        opacity: root.beeping ? 0.14 + 0.36 * (1 - root.blink) / 0.65 : (root.silenced ? 0.12 : 0)
+    }
 
     // モックデータ中の表示(右上)
     Rectangle {
@@ -709,6 +760,52 @@ WidgetBase {
                     color: root.warnOn && !root.warnBelow ? Theme.error : Theme.textSecondary
                     text: root.fmt(root.maxV, root.unitDef.stepDec)
                 }
+            }
+        }
+    }
+
+    // ================================================================ 警告音が鳴っているメーターの目印
+    // 太い赤枠(鳴っている間は点滅、止めた後は細く常時表示)
+    Rectangle {
+        z: 5
+        anchors.fill: parent
+        radius: Theme.radius + 6
+        color: "transparent"
+        visible: root.alarming
+        border.width: root.beeping ? Math.max(4, Math.round(root.s * 0.03)) : 2
+        border.color: Theme.error
+        opacity: root.beeping ? 0.45 + 0.55 * root.blink : 0.8
+    }
+    // 左上の印: 鳴っている間は「タップで消音」、止めた後は「消音中」
+    Rectangle {
+        z: 6
+        visible: root.alarming
+        anchors { top: parent.top; left: parent.left; topMargin: root.m * 0.7; leftMargin: root.m * 0.7 }
+        readonly property bool wide: root.width >= 230
+        height: Math.max(22, Math.round(root.titleFontSize * 1.6))
+        width: alarmRow.implicitWidth + height * 0.7
+        radius: height / 2
+        color: root.beeping ? Theme.error : "transparent"
+        border.width: root.beeping ? 0 : 1.5
+        border.color: Theme.error
+        Row {
+            id: alarmRow
+            anchors.centerIn: parent
+            spacing: 4
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: root.beeping ? "volume_up" : "volume_off"
+                size: Math.round(parent.parent.height * 0.68)
+                color: root.beeping ? Theme.textOnAccent : Theme.error
+            }
+            Text {
+                visible: parent.parent.wide
+                anchors.verticalCenter: parent.verticalCenter
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.pixelSize: Math.round(parent.parent.height * 0.5)
+                color: root.beeping ? Theme.textOnAccent : Theme.error
+                text: root.beeping ? "タップで消音" : "消音中"
             }
         }
     }

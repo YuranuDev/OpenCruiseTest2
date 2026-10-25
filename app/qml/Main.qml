@@ -160,6 +160,12 @@ ApplicationWindow {
             }
         }
 
+        // 警告音(メーターのしきい値超え)。鳴らす場所はここだけ。どのウィジェットが警告中かは WarningAlarm が管理する
+        Connections {
+            target: WarningAlarm
+            function onBeep() { systemSound.play("alert") }
+        }
+
         // 画面上部のポップアップ通知（映像表示中も最前面）
         NotificationPopup {
             z: 100

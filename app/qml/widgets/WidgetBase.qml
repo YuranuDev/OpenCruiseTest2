@@ -26,6 +26,8 @@ Item {
     property bool lifting: false
     property int gridW: 3
     property int gridH: 3
+    /// 配置エリア上のウィジェットの ID(設定画面のプレビューなど、配置されていないときは空)
+    property string widgetId: ""
     readonly property bool titleVisible: config.showTitle !== false
 
     function titleText(fallback) {

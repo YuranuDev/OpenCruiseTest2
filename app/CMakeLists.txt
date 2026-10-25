@@ -67,7 +67,8 @@ qt_add_executable(opencruise
     androidauto/H264Decoder.cpp
     androidauto/TestVideoFeeder.cpp)
 
-set_source_files_properties(qml/Theme.qml qml/widgets/WidgetRegistry.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Theme.qml qml/widgets/WidgetRegistry.qml qml/widgets/WarningAlarm.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(opencruise
     URI OpenCruise
@@ -117,6 +118,7 @@ qt_add_qml_module(opencruise
         qml/NotificationBell.qml
         qml/NotificationHistoryPanel.qml
         qml/widgets/WidgetRegistry.qml
+        qml/widgets/WarningAlarm.qml
         qml/widgets/WidgetBase.qml
         qml/widgets/WidgetHost.qml
         qml/widgets/WidgetArea.qml
@@ -147,7 +149,8 @@ qt_add_qml_module(opencruise
         fonts/MaterialIcons-Regular.ttf
         fonts/materialdesignicons-webfont.ttf
         sounds/click/Click.wav
-        sounds/start/Start.wav)
+        sounds/start/Start.wav
+        sounds/alert/Beep.wav)
 
 target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

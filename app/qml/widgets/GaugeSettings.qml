@@ -210,6 +210,34 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
+        visible: root.config.warnEnabled === true
+        label: "警告音を鳴らす"
+        description: "警告中はビープ音を繰り返し鳴らし、メーター全体を赤く点滅させます。メーターをタップすると、"
+                     + "その警告が解除されるまで音を止めます(音は設定「サウンド」の「警告音」で選べます)"
+        SettingsSwitch {
+            checked: root.config.warnBeep === true
+            onToggled: (v) => root.edit("warnBeep", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.warnEnabled === true
+        label: "ポップアップ通知"
+        description: "警告になったとき、画面上部に通知を出します(同じメーターは 30 秒に 1 回まで)"
+        SettingsSwitch {
+            checked: root.config.warnPopup === true
+            onToggled: (v) => root.edit("warnPopup", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.warnEnabled === true && root.config.warnPopup === true
+        label: "通知に詳細を表示"
+        description: "通知に、警告になったときの値と警告値を入れます"
+        SettingsSwitch {
+            checked: root.config.warnPopupDetail !== false
+            onToggled: (v) => root.edit("warnPopupDetail", v)
+        }
+    }
+    SettingsRow {
         visible: root.config.warnEnabled === true && root.config.showWarnMessage !== false
         label: "警告メッセージ"
         description: "警告中にメーターへ重ねて表示します"
