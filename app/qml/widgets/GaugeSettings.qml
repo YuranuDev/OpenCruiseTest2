@@ -236,7 +236,8 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.warnEnabled === true
         label: "ポップアップ通知"
-        description: "「1 回だけ」: 警告になったときに通知を出します(同じメーターは 30 秒に 1 回まで)。\n"
+        description: "「1 回だけ」: 警告になったときに通知を出し(8 秒で消えます)、表示中は今の値を更新し続けます。"
+                     + "まだ出ている間にもう一度警告になると、同じ通知を書き換えます。\n"
                      + "「出し続ける」: 警告中は通知を出したままにし、今の値を更新し続けます。タップで消せます"
         stacked: true
         SettingsChoice {
@@ -248,7 +249,7 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.warnEnabled === true && root.popupMode !== "off"
         label: "通知に詳細を表示"
-        description: "通知に警告値を入れます(「1 回だけ」は、警告になったときの値も入れます)"
+        description: "通知に、今の値と並べて警告値も入れます"
         SettingsSwitch {
             checked: root.config.warnPopupDetail !== false
             onToggled: (v) => root.edit("warnPopupDetail", v)

@@ -16,10 +16,11 @@
 //   鳴っている間はメーター全体を赤く点滅させ、太い赤枠と「消音」の印を出して、どのメーターが鳴っているか分かるようにする。
 //   タップすると、その警告が解除されるまで音を止める(赤い表示は残す)。設定画面のプレビューでは鳴らさない。
 // ポップアップ通知(config.warnPopupMode。通知はどれも赤いエラー表示):
-//   "once": 警告になったときに 1 回だけ通知を出す(同じメーターは 30 秒に 1 回まで)
-//   "live": 警告中は通知を出し続け、今の値を 0.5 秒ごとに更新する。警告が解除されると消える。
+//   "once": 警告になったときに通知を出す(8 秒で消える)。表示中は今の値を 0.5 秒ごとに書き換え、もう一度警告に
+//           なったときにまだ出ていれば、新しく出さずに同じ通知を書き換えて、表示時間を数え直す
+//   "live": 警告中は通知を出し続け、今の値を 0.5 秒ごとに書き換える。警告が解除されると消える。
 //           タップで消すと、その警告が解除されるまでは出し直さない
-//   config.warnPopupDetail がオンなら、警告値も通知に入れる(once はそのときの値も入れる)。
+//   config.warnPopupDetail がオンなら、警告値も通知に入れる。
 //   以前の設定(config.warnPopup === true)は "once" として扱う。
 //
 // レイアウトの考え方:
@@ -243,12 +244,13 @@ WidgetBase {
         }
         return message
     }
-    property real lastPopupMs: 0
+    // 「1 回だけ」の通知。表示中の通知があれば書き換えて表示時間を数え直し、無ければ新しく出す
+    readonly property int onceDurationMs: 8000
+    property int onceNoticeId: -1
     function showWarnPopup() {
-        const now = Date.now()
-        if (now - lastPopupMs < 30000) return
-        lastPopupMs = now
-        notifications.show(warnTitle, warnPopupText(popupDetail), 3, gauge.icon, 8000)
+        if (onceNoticeId >= 0
+                && notifications.update(onceNoticeId, warnTitle, warnPopupText(true), 3, onceDurationMs)) return
+        onceNoticeId = notifications.show(warnTitle, warnPopupText(true), 3, gauge.icon, onceDurationMs)
     }
     onWarningChanged: if (warning && popupOn && widgetId !== "") showWarnPopup()
 
@@ -267,7 +269,16 @@ WidgetBase {
         }
     }
     onWantLiveNoticeChanged: syncLiveNotice()
-    Timer {   // 値の更新(0.5 秒ごと)。消されていたら止める
+    Timer {   // 「1 回だけ」の通知の値の更新(表示中だけ。表示時間はそのまま)
+        interval: 500
+        repeat: true
+        running: root.onceNoticeId >= 0
+        onTriggered: {
+            if (!notifications.update(root.onceNoticeId, root.warnTitle, root.warnPopupText(true), 3))
+                root.onceNoticeId = -1   // 時間が来て消えた・タップで消された
+        }
+    }
+    Timer {   // 出し続ける通知の値の更新(0.5 秒ごと)。消されていたら止める
         interval: 500
         repeat: true
         running: root.liveNoticeId >= 0

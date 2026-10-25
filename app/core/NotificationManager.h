@@ -13,9 +13,9 @@
  * 通知履歴: ユーザーが操作せずに消えた通知(表示時間の経過・同時表示数の超過)は history に残る。
  * ポップアップをタップして閉じた通知(dismiss)・clear() で消した通知は残さない。
  *
- * 出し続ける通知: durationMs を 0 にすると自動では消えない。update() で表示中の中身(タイトル・本文・レベル)を
- * 書き換えられる(メーターの「警告中は出し続ける」通知が値を更新するのに使う)。タップすれば消せ、消えたかどうかは
- * update() / contains() の戻り値で分かる。
+ * 表示中の通知の書き換え: update() で表示中の中身(タイトル・本文・レベル)を書き換えられ、durationMs を渡すと
+ * 表示時間もそこから数え直す(0 なら自動では消えなくなる)。メーターの警告通知が値を更新し続けるのに使う。
+ * タップすれば消せ、消えたかどうかは update() / contains() の戻り値で分かる。
  */
 #pragma once
 
@@ -75,9 +75,10 @@ public:
 
     /**
      * @brief 表示中の通知の中身を書き換える(UI スレッドから呼ぶ)。
+     * @param durationMs 0 以上なら、表示時間を今から数え直す(0 = 自動では消さない)。負なら表示時間はそのまま
      * @return 書き換えたら true。その通知がもう無い(タップで閉じられた・押し出された)なら false
      */
-    Q_INVOKABLE bool update(int id, const QString &title, const QString &message, int level);
+    Q_INVOKABLE bool update(int id, const QString &title, const QString &message, int level, int durationMs = -1);
 
     /** @brief その通知がまだ表示されているか。 */
     Q_INVOKABLE bool contains(int id) const;
@@ -105,7 +106,11 @@ private:
         QString message;
         QString icon;
         int level = Info;
+        qint64 expiresAt = 0; ///< 自動で消す時刻(エポック ms)。0 なら自動では消さない
     };
+
+    /** @brief 消す時刻の確認を仕掛ける(update() で延びていたら、その時刻に確認し直す)。 */
+    void scheduleExpire(int id, int delayMs);
 
     /** @brief UI スレッドで通知を一覧へ追加し、消去タイマーを仕掛ける。 */
     void add(const Item &item, int durationMs);

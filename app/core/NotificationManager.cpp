@@ -9,6 +9,8 @@
 #include <QThread>
 #include <QTimer>
 
+#include <algorithm>
+
 namespace opencruise {
 
 namespace {
@@ -52,19 +54,33 @@ void NotificationManager::add(const Item &item, int durationMs) {
         endRemoveRows();
         archive(pushedOut); // 操作されずに消えるので履歴へ残す
     }
+    Item added = item;
+    added.expiresAt = durationMs > 0 ? QDateTime::currentMSecsSinceEpoch() + durationMs : 0;
     beginInsertRows(QModelIndex(), static_cast<int>(items_.size()), static_cast<int>(items_.size()));
-    items_.append(item);
+    items_.append(added);
     endInsertRows();
 
     if (durationMs > 0) {
-        const int id = item.id;
-        QTimer::singleShot(durationMs, this, [this, id]() { expire(id); });
+        scheduleExpire(item.id, durationMs);
     }
+}
+
+void NotificationManager::scheduleExpire(int id, int delayMs) {
+    QTimer::singleShot(std::max(0, delayMs), this, [this, id]() { expire(id); });
 }
 
 void NotificationManager::expire(int id) {
     for (int row = 0; row < items_.size(); ++row) {
         if (items_.at(row).id == id) {
+            const qint64 expiresAt = items_.at(row).expiresAt;
+            if (expiresAt == 0) {
+                return; // update() で「自動では消さない」になった
+            }
+            const qint64 left = expiresAt - QDateTime::currentMSecsSinceEpoch();
+            if (left > 20) {
+                scheduleExpire(id, static_cast<int>(left)); // update() で表示時間が延びた
+                return;
+            }
             const Item item = items_.at(row);
             beginRemoveRows(QModelIndex(), row, row);
             items_.removeAt(row);
@@ -107,13 +123,20 @@ void NotificationManager::dismiss(int id) {
     }
 }
 
-bool NotificationManager::update(int id, const QString &title, const QString &message, int level) {
+bool NotificationManager::update(int id, const QString &title, const QString &message, int level, int durationMs) {
     for (int row = 0; row < items_.size(); ++row) {
         Item &item = items_[row];
         if (item.id != id) {
             continue;
         }
         const int lv = qBound(static_cast<int>(Info), level, static_cast<int>(Error));
+        if (durationMs >= 0) {
+            const qint64 before = item.expiresAt;
+            item.expiresAt = durationMs > 0 ? QDateTime::currentMSecsSinceEpoch() + durationMs : 0;
+            if (durationMs > 0 && before == 0) {
+                scheduleExpire(id, durationMs); // 消えない通知だったので、確認がまだ仕掛かっていない
+            }
+        }
         if (item.title != title || item.message != message || item.level != lv) {
             item.title = title;
             item.message = message;
