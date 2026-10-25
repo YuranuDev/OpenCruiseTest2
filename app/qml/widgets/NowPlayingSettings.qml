@@ -7,7 +7,6 @@ WidgetSettingsBase {
 
     SettingsRow {
         label: "アルバム名を表示"
-        description: "アーティスト名の横にアルバム名を並べます"
         SettingsSwitch {
             checked: root.config.showAlbum !== false
             onToggled: (v) => root.edit("showAlbum", v)

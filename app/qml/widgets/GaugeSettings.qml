@@ -65,7 +65,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: root.gauge.minLabel || "最小値"
-        description: root.gauge.minHint || "目盛りの左端"
+        description: root.gauge.minHint || ""
         WSStepper {
             value: root.toShown(root.config.min)
             from: root.toShown(root.gauge.limitMin)
@@ -78,7 +78,6 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "最大値"
-        description: "目盛りの右端"
         WSStepper {
             value: root.toShown(root.config.max)
             from: root.toShown(root.config.min + root.gauge.minSpan)
@@ -92,7 +91,6 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "開始角度"
-        description: "針が動き始める位置(-180°〜-90°)"
         WSStepper {
             value: root.config.startAngle === undefined ? -135 : root.config.startAngle
             from: -180
@@ -105,7 +103,6 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "終了角度"
-        description: "針が動き終わる位置(90°〜180°)"
         WSStepper {
             value: root.config.endAngle === undefined ? 135 : root.config.endAngle
             from: 90
@@ -127,7 +124,6 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "針の反対側の出っ張り"
-        description: "針の軸から反対側へ伸びる部分を表示します"
         SettingsSwitch {
             checked: root.config.needleTail !== false
             onToggled: (v) => root.edit("needleTail", v)
@@ -136,7 +132,7 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "中心円のサイズ"
-        description: "針の軸にある丸の大きさ(半径に対する割合)"
+        description: "メーターの半径に対する割合"
         WSStepper {
             value: root.config.hubSize || 16
             from: 8
@@ -149,7 +145,6 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "中心円の色"
-        description: "中央の丸だけに適用する色"
         stacked: true
         SettingsColorPalette {
             width: Math.min(root.width, 620 * Theme.uiScale)
@@ -172,7 +167,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "アイコンを表示"
-        description: "メーター内の名前の横に出します。警告中は警告マークに変わり、点滅します"
+        description: "警告中は警告マークに変わり、点滅します"
         SettingsSwitch {
             checked: root.config.showIcon !== false
             onToggled: (v) => root.edit("showIcon", v)
@@ -180,7 +175,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "ピーク表示"
-        description: "数値のすぐ上に、最大値(MAX)または最小値(MIN)を単位つきで小さく出します。タップするとリセットします(再起動でもリセット)"
+        description: "数値の上に小さく出します。タップでリセットします(再起動してもリセットされます)"
         stacked: true
         SettingsChoice {
             model: ["オフ", "最大(MAX)", "最小(MIN)"]
@@ -222,8 +217,7 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.warnEnabled === true
         label: "警告音を鳴らす"
-        description: "警告中はビープ音を繰り返し鳴らし、メーター全体を赤く点滅させます。メーターをタップすると、"
-                     + "その警告が解除されるまで音を止めます(音は設定「サウンド」の「警告音」で選べます)"
+        description: "鳴っている間はメーター全体が赤く点滅します。タップすると、その警告が解除されるまで止まります(音は 設定 > サウンド > 警告音)"
         SettingsSwitch {
             checked: root.config.warnBeep === true
             onToggled: (v) => root.edit("warnBeep", v)
@@ -259,7 +253,6 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.warnEnabled === true && root.config.showWarnMessage !== false
         label: "警告メッセージ"
-        description: "警告中にメーターへ重ねて表示します"
         stacked: true
         WSTextField {
             width: 520 * Theme.uiScale

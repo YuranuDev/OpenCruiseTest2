@@ -35,7 +35,6 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "「その他」の通知も表示"
-        description: "オフにすると、通話・メッセージ・案内以外は表示しません"
         SettingsSwitch {
             checked: root.config.showOther !== false
             onToggled: (v) => root.edit("showOther", v)
@@ -43,7 +42,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "通話の通知"
-        description: "{text} が通知文になります"
+        description: "{text} が通知文に置き換わります(下の 3 つも同じ)"
         stacked: true
         WSTextField { width: 520 * Theme.uiScale; text: root.config.tplCall || ""; placeholder: "{text}"; maxLength: 40
                       onChanging: (t) => root.preview("tplCall", t); onEdited: (t) => root.edit("tplCall", t) }

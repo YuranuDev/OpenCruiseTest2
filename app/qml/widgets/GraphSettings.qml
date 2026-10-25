@@ -37,7 +37,6 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "表示する時間"
-        description: "グラフの左端から右端(今)までの長さ"
         SettingsChoice {
             model: ["30 秒", "1 分", "5 分", "10 分"]
             currentIndex: Math.max(0, root.windows.indexOf(Number(root.config.windowSec || 60)))
@@ -110,7 +109,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "最大・最小・平均を表示"
-        description: "表示している時間の中の値。ウィジェットの高さが足りないときは出ません"
+        description: "表示している時間の中の値です。ウィジェットの高さが足りないときは出ません"
         SettingsSwitch {
             checked: root.config.showStats !== false
             onToggled: (v) => root.edit("showStats", v)

@@ -8,7 +8,6 @@ SettingsPage {
 
         SettingsRow {
             label: "ポップアップ通知を表示"
-            description: "オンにすると、受信したスマホ通知を画面上部に表示します"
 
             SettingsSwitch {
                 checked: appSettings.phoneNoticePopupEnabled

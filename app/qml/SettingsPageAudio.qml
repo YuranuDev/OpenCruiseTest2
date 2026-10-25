@@ -4,7 +4,7 @@
 //   システム   = アプリの操作音・起動音と Android Auto のシステム音。
 //   効果音     = 操作音・起動音・警告音に使う WAV(フォルダ分けされた一覧から選ぶ。SystemSound)。
 //                警告音は WAV のほか合成音も選べ、波形・高さ・回数・長さ・音量と、繰り返す間隔を設定できる。
-//   マスター音量 = 上の 3 つすべてに掛かる共通の倍率(3 つの設定値は変わらない)。Ctrl+Shift+V/B でも変えられる。
+//   マスター音量 = 上の 3 つすべてに掛かる共通の倍率(3 つの設定値は変わらない)。Ctrl+Shift+V(下げる)/ B(上げる)でも変えられる。
 import QtQuick
 import OpenCruise
 
@@ -15,7 +15,7 @@ SettingsPage {
 
         SettingsRow {
             label: "マスター音量"
-            description: "すべての音声にまとめて掛かる音量。下の各音量の設定はそのまま保たれます(Ctrl+Shift+V/B)"
+            description: "下の 3 つの音量にまとめて掛かります(各音量の設定は変わりません)。Ctrl+Shift+V で下げ、B で上げられます"
 
             SettingsSlider {
                 value: audioSettings.masterVolume
@@ -37,7 +37,6 @@ SettingsPage {
 
         SettingsRow {
             label: "音楽音声"
-            description: "音楽・動画などのメディア音声"
 
             SettingsSlider {
                 value: audioSettings.musicVolume
@@ -127,7 +126,7 @@ SettingsPage {
             id: clickRow
             readonly property var options: soundSection.optionsOf("click")
             label: "操作音"
-            description: "画面に触れたときの音。選ぶと試しに鳴らします"
+            description: "選ぶと試しに鳴らします"
             stacked: true
 
             SettingsDeviceList {
@@ -145,7 +144,7 @@ SettingsPage {
             id: startRow
             readonly property var options: soundSection.optionsOf("start")
             label: "起動音"
-            description: "アプリの起動時に鳴らす音。選ぶと試しに鳴らします"
+            description: "選ぶと試しに鳴らします"
             stacked: true
 
             SettingsDeviceList {
@@ -163,7 +162,7 @@ SettingsPage {
             id: alertRow
             readonly property var options: soundSection.optionsOf("alert")
             label: "警告音"
-            description: "メーターが警告値を超えたときに繰り返し鳴らす音(メーターの設定で「警告音を鳴らす」をオンにしたとき)。選ぶと試しに鳴らします"
+            description: "メーターの設定で「警告音を鳴らす」をオンにしたときに使います。選ぶと試しに鳴らします"
             stacked: true
 
             SettingsDeviceList {
@@ -186,7 +185,7 @@ SettingsPage {
         SettingsRow {
             visible: soundSection.synthSelected
             label: "合成音のプリセット"
-            description: "まとめて設定を切り替えます(鳴らし方・繰り返す間隔も変わります。「ずっと〜」は警告中ずっと鳴り続けます)。選ぶと試しに鳴らします"
+            description: "下の音の設定と、鳴らし方・繰り返す間隔をまとめて切り替えます。選ぶと試しに鳴らします"
             stacked: true
             SettingsChoice {
                 model: ["ピピッ", "ピー", "ピポピポ", "速い連打", "チャイム", "ずっとピーー", "ずっとピーポー"]
@@ -199,7 +198,7 @@ SettingsPage {
         }
         SettingsRow {
             label: "警告音の鳴らし方"
-            description: "「ずっと鳴らす」にすると、警告がある間は途切れずに鳴り続けます(メーターをタップすると止まります)"
+            description: "どちらも、警告中のメーターをタップすると止まります"
             stacked: true
             SettingsChoice {
                 model: ["間隔をあけて繰り返す", "警告中ずっと鳴らす"]
@@ -210,7 +209,6 @@ SettingsPage {
         SettingsRow {
             visible: !systemSound.alertContinuous
             label: "警告音を繰り返す間隔"
-            description: "警告中、この間隔で警告音を繰り返します(WAV・合成音のどちらにも効きます)"
             WSStepper {
                 value: systemSound.alertInterval / 1000
                 from: 0.3; to: 10; step: 0.1; decimals: 1; suffix: " 秒"
@@ -251,7 +249,7 @@ SettingsPage {
         SettingsRow {
             visible: soundSection.synthSelected
             label: "音の数"
-            description: "1 回に鳴らす音の数"
+            description: "1 回分(繰り返しの 1 回)に鳴らす音の数"
             WSStepper {
                 value: systemSound.synth.pulses
                 from: 1; to: 8; step: 1; suffix: " 回"
@@ -313,7 +311,7 @@ SettingsPage {
 
         SettingsRow {
             label: "効果音フォルダを読み直す"
-            description: "ユーザーフォルダへ WAV を追加・削除したあとに押すと、一覧に反映します"
+            description: "ユーザーフォルダの WAV を追加・削除したあとに押します"
 
             ActionButton {
                 text: "読み直す"
@@ -341,7 +339,7 @@ SettingsPage {
 
         SettingsRow {
             label: "マイクを使用する"
-            description: "オフにすると、Android Auto の音声入力(音声操作など)に音声を送りません"
+            description: "Android Auto の音声操作に使います"
 
             SettingsSwitch {
                 checked: audioSettings.micEnabled

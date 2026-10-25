@@ -89,19 +89,21 @@ ApplicationWindow {
     // 既存のキー(Esc / F10 / Menu / Meta・Super / Ctrl+Shift+D)や、OS・ブラウザが奪いやすい
     // メディアキー(Volume Up など。OS 側の音量とも二重になる)・Alt 系・Ctrl+Alt+矢印は使わない。
     // すべて Ctrl+Shift+文字。将来の物理ボタンも、同じキーイベントを送れば同じ動作になる。
-    //   Ctrl+Shift+V / B   マスター音量を上げる / 下げる(V = Volume。各系統の個別音量はそのまま)
-    //   Ctrl+Shift+L / K   画面の明るさを上げる / 下げる(L = Light)
+    // どちらも「キーボードで左のキー = 下げる、右のキー = 上げる」にそろえる(隣り合う 2 つのキー)。
+    //   Ctrl+Shift+V / B   マスター音量を下げる / 上げる(V = Volume。各系統の個別音量はそのまま。
+    //                      Ctrl+Shift を押さえた左手の人差し指で届く)
+    //   Ctrl+Shift+K / L   画面の明るさを下げる / 上げる(L = Light)
     // 押しっぱなしで連続して変わる。操作すると、対応する表示が出て、しばらくして自動で閉じる。
     readonly property int volumeStep: 5
     readonly property int brightnessStep: 10
 
     Shortcut {
         sequence: "Ctrl+Shift+V"
-        onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); volumeOsd.show() }
+        onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); volumeOsd.show() }
     }
     Shortcut {
         sequence: "Ctrl+Shift+B"
-        onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); volumeOsd.show() }
+        onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); volumeOsd.show() }
     }
     Shortcut {
         sequence: "Ctrl+Shift+L"

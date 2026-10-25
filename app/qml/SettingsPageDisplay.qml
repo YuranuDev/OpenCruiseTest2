@@ -75,7 +75,7 @@ SettingsPage {
 
         SettingsRow {
             label: "画面の明るさ"
-            description: "Ctrl+Shift+L / K で段階的に変えられます(L で明るく、K で暗く)"
+            description: "Ctrl+Shift+K で暗く、L で明るくできます"
 
             SettingsSlider {
                 from: brightnessController.minimum
@@ -126,7 +126,7 @@ SettingsPage {
 
         SettingsRow {
             label: "画面の回転"
-            description: "縦置きの画面などに合わせて、表示全体を回します(タッチの向きも合わせて回ります)"
+            description: "タッチの向きも合わせて回ります"
 
             SettingsChoice {
                 model: ["0°", "90°", "180°", "270°"]
@@ -150,7 +150,7 @@ SettingsPage {
 
         SettingsRow {
             label: "外部モニターにミラー"
-            description: "つながっている外部モニターに、操作する画面と同じ表示を映します。抜き差しするとすぐ切り替わります"
+            description: "操作する画面と同じ表示を映します。抜き差しはすぐ反映されます"
 
             SettingsSwitch {
                 checked: drmDisplay.mirrorEnabled
@@ -172,7 +172,7 @@ SettingsPage {
 
         SettingsRow {
             label: "操作する画面"
-            description: "アプリを動かし、タッチを受ける画面です。変えたときは再起動すると反映されます"
+            description: "タッチを受ける画面です。変更は再起動後に反映されます"
             stacked: true
 
             SettingsDeviceList {
@@ -197,7 +197,6 @@ SettingsPage {
         SettingsRow {
             visible: drmDisplay.restartRequired
             label: "再起動して反映"
-            description: "操作する画面の変更は、アプリを再起動したときに反映されます"
 
             ActionButton {
                 text: "今すぐ再起動"
@@ -260,7 +259,6 @@ SettingsPage {
         SettingsRow {
             visible: displaySettings.restartRequired
             label: "再起動して反映"
-            description: "描画の設定は、アプリを再起動したときに反映されます"
 
             ActionButton {
                 text: "今すぐ再起動"
