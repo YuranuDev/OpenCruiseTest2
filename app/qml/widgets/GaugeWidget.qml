@@ -1,7 +1,7 @@
-// 汎用のメーター(ターボ圧計・タコメーター・スピードメーター・水温計・燃料計で共通)。
+// 汎用のメーター(ターボ圧計・タコメーター・スピードメーター・水温計・燃料計・油温計・油圧計・電圧計で共通)。
 // 何を測るかは config.metric(WidgetRegistry の defaultConfig で種類ごとに固定)で決まり、計測値の定義
 // (データ元・単位・換算・設定できる範囲・既定の見出し)は WidgetRegistry.gaugeSpecs にまとめてある。
-// 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / %)で保存し、表示と編集のときだけ選んだ単位に換算する。
+// 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集のときだけ選んだ単位に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
 //  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) / スポーツ(セグメント式のバー)
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
@@ -71,6 +71,9 @@ WidgetBase {
         case "speed": return can.speedKmh
         case "coolant": return can.coolantTempC
         case "fuel": return can.fuelPercent
+        case "oilTemp": return can.oilTempC
+        case "oilPressure": return can.oilPressureBar
+        case "voltage": return can.batteryVolts
         default: return can.boostBar
         }
     }
@@ -445,6 +448,7 @@ WidgetBase {
             // ---- 針(先細りの形。回転だけで値に追従し、形は大きさ・色が変わったときだけ描き直す) ----
             Item {
                 id: needle
+                z: 3   // 名前・数値より手前(針はそれらの上を通る)
                 x: dial.cx
                 y: dial.cy
                 width: 0
@@ -488,9 +492,10 @@ WidgetBase {
                 }
             }
 
-            // ---- 名前(中心円の上、内側の細い円の内側。針はこの上を通る) ----
+            // ---- 名前(中心円の上、内側の細い円の内側。針はこの上を通る = z で針より奥に置く) ----
             Row {
                 id: dialLabel
+                z: 1   // 針・中心円より奥
                 visible: root.labelVisible
                 readonly property real h: dial.rpx * (root.compact ? 0.15 : 0.13)
                 readonly property real cyU: -Math.max(root.hubSize / 2 + 0.1, 0.32)   // 中心からの位置(半径比)
@@ -524,6 +529,7 @@ WidgetBase {
 
             // ---- 中心円 ----
             Rectangle {
+                z: 4   // 針の根元を隠す
                 x: dial.cx - width / 2
                 y: dial.cy - height / 2
                 width: dial.rpx * root.hubSize

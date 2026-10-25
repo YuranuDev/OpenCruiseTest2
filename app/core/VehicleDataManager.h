@@ -12,6 +12,9 @@
  *  - エンジン: 回転数ごとのトルク特性 + ターボ(回転数とアクセル開度で決まる目標ブーストへ遅れて追従)
  *  - 水温: 燃焼の発熱で暖機し、サーモスタット(約 86℃)が開くとラジエーターで 86〜90℃前後に保つ
  *  - 燃料: 出力から燃料消費を求め、タンク容量に対する残量を減らす
+ *  - 油温: 水温より遅れて暖まり、負荷が高いほど水温より高くなる
+ *  - 油圧: 回転数に比例して上がり(リリーフ弁で頭打ち)、油温が低いほど(粘度が高いほど)高い
+ *  - 電圧: 発電機(オルタネーター)が約 14V に保つ。負荷が高いときや低回転では少し下がる
  */
 #pragma once
 
@@ -46,6 +49,9 @@ class VehicleDataManager : public QObject {
     Q_PROPERTY(double coolantTempC READ coolantTempC NOTIFY changed)
     Q_PROPERTY(double fuelPercent READ fuelPercent NOTIFY changed)
     Q_PROPERTY(double boostBar READ boostBar NOTIFY changed)
+    Q_PROPERTY(double oilTempC READ oilTempC NOTIFY changed)
+    Q_PROPERTY(double oilPressureBar READ oilPressureBar NOTIFY changed)
+    Q_PROPERTY(double batteryVolts READ batteryVolts NOTIFY changed)
     Q_PROPERTY(int gear READ gear NOTIFY changed)
     Q_PROPERTY(double throttlePercent READ throttlePercent NOTIFY changed)
     Q_PROPERTY(QString sourceText READ sourceText CONSTANT)
@@ -88,6 +94,12 @@ public:
     double coolantTempC() const { return coolantTempC_; }
     /** @brief 燃料残量 [%]。 */
     double fuelPercent() const { return fuelPercent_; }
+    /** @brief 油温 [℃]。 */
+    double oilTempC() const { return oilTempC_; }
+    /** @brief 油圧(ゲージ圧) [bar]。 */
+    double oilPressureBar() const { return oilPressureBar_; }
+    /** @brief 電圧(バッテリー・電装系) [V]。 */
+    double batteryVolts() const { return batteryVolts_; }
     /** @brief ブースト圧(ゲージ圧) [bar]。負の値は負圧。 */
     double boostBar() const { return boostBar_; }
     /** @brief 現在のギア(1〜6)。停車中は 1。 */
@@ -174,6 +186,9 @@ private:
     double rpm_ = 0.0;           ///< エンジン回転数 [rpm]
     double coolantTempC_ = 0.0;  ///< 冷却水温 [℃]
     double fuelPercent_ = 0.0;   ///< 燃料残量 [%]
+    double oilTempC_ = 0.0;      ///< 油温 [℃]
+    double oilPressureBar_ = 0.0;///< 油圧 [bar]
+    double batteryVolts_ = 12.6; ///< 電圧 [V]
     double boostBar_ = 0.0;      ///< ブースト圧(ゲージ圧) [bar]
 
     // ---- シミュレーションの状態 ----

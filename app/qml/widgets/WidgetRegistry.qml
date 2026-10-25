@@ -76,7 +76,19 @@ QtObject {
                  limitMin: -40, limitMax: 150, minSpan: 20, warnMessage: "水温が高すぎます" },
         fuel:  { title: "燃料", icon: "local_gas_station",
                  units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 5, stepDec: 0 }],
-                 limitMin: 0, limitMax: 100, minSpan: 20, warnBelow: true, warnMessage: "燃料が残りわずかです" }
+                 limitMin: 0, limitMax: 100, minSpan: 20, warnBelow: true, warnMessage: "燃料が残りわずかです" },
+        oilTemp: { title: "油温", icon: "device_thermostat",
+                 units: [{ id: "c", label: "℃", scale: 1, dec: 0, step: 5, stepDec: 0 },
+                         { id: "f", label: "℉", scale: 1.8, offset: 32, dec: 0, step: 5, stepDec: 0 }],
+                 limitMin: -40, limitMax: 180, minSpan: 20, warnMessage: "油温が高すぎます" },
+        oilPressure: { title: "油圧", icon: "oil_barrel",
+                 units: [{ id: "bar", label: "bar", scale: 1, dec: 1, step: 0.5, stepDec: 1 },
+                         { id: "psi", label: "psi", scale: 14.5038, dec: 0, step: 5, stepDec: 0 },
+                         { id: "kpa", label: "kPa", scale: 100, dec: 0, step: 50, stepDec: 0 }],
+                 limitMin: 0, limitMax: 10, minSpan: 1, warnBelow: true, warnMessage: "油圧が低すぎます" },
+        voltage: { title: "電圧", icon: "bolt",
+                 units: [{ id: "v", label: "V", scale: 1, dec: 1, step: 0.5, stepDec: 1 }],
+                 limitMin: 8, limitMax: 18, minSpan: 2, warnBelow: true, warnMessage: "電圧が低下しています" }
     })
 
     // メーターの共通の既定値に、種類ごとの値を重ねる
@@ -150,6 +162,36 @@ QtObject {
             defaultConfig: gaugeConfig({ metric: "fuel", unit: "pct", min: 0, max: 100,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
                                          warnEnabled: true, warn: 15, warnMessage: "燃料が残りわずかです" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "oilTemp", genre: "vehicle", name: "油温計", icon: "device_thermostat",
+            description: "エンジンオイルの温度のメーター(高温の警告あり)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "oilTemp", unit: "c", min: 50, max: 150,
+                                         dialStyle: "minimal", startAngle: -90, endAngle: 90,
+                                         warnEnabled: true, warn: 130, warnMessage: "油温が高すぎます" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "oilPressure", genre: "vehicle", name: "油圧計", icon: "oil_barrel",
+            description: "エンジンオイルの圧力のメーター(低下の警告あり)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "oilPressure", unit: "bar", min: 0, max: 8,
+                                         dialStyle: "minimal", startAngle: -90, endAngle: 90,
+                                         warnEnabled: true, warn: 0.8, warnMessage: "油圧が低すぎます" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "voltage", genre: "vehicle", name: "電圧計", icon: "bolt",
+            description: "バッテリー・電装系の電圧のメーター(低下の警告あり)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "voltage", unit: "v", min: 10, max: 16,
+                                         dialStyle: "minimal", startAngle: -90, endAngle: 90,
+                                         warnEnabled: true, warn: 12.0, warnMessage: "電圧が低下しています" }),
             dragStart: "hold", mock: true
         },
         {

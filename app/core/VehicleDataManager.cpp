@@ -50,6 +50,8 @@ VehicleDataManager::VehicleDataManager(QObject *parent)
     std::uniform_real_distribution<double> fuel(0.4, 0.8);
     fuelLiters_ = kTankLiters * fuel(rng_);
     coolantTempC_ = kAmbientC;
+    oilTempC_ = kAmbientC;
+    batteryVolts_ = 12.6;
     rpm_ = kIdleRpm;
     boostBar_ = kVacuumBar + 0.08;
     phase_ = Phase::Stop;
@@ -285,6 +287,19 @@ void VehicleDataManager::update() {
     const double lossKw = (coolantTempC_ - kAmbientC) * 0.06;
     const double heatCapacityKjPerC = 45.0;   // 冷却水 + エンジン本体の熱容量(暖機に数分かかる程度)
     coolantTempC_ += (heatInKw - radiatorKw - lossKw) * dt / heatCapacityKjPerC;
+
+    // ---- 油温(水温より遅れて暖まる。負荷が高いと水温より高くなる) ----
+    const double oilTarget = coolantTempC_ + 3.0 + std::min(28.0, powerKw * 0.35);
+    oilTempC_ = approach(oilTempC_, oilTarget, 150.0, dt);
+
+    // ---- 油圧(回転数に比例。冷えて粘度が高いほど高く、リリーフ弁で約 5.5bar に頭打ち) ----
+    const double viscosity = std::clamp(1.0 + (90.0 - oilTempC_) / 60.0, 0.8, 2.0);
+    const double oilTarget2 = std::min(5.5, 0.25 + rpm_ / 1000.0 * 1.1 * viscosity);
+    oilPressureBar_ = approach(oilPressureBar_, oilTarget2, 0.25, dt) + noise(rng_) * 0.015;
+
+    // ---- 電圧(発電機が約 14.2V に保つ。低回転・高負荷では少し下がる) ----
+    const double voltTarget = 14.25 - (rpm_ < 1000.0 ? 0.3 : 0.0) - std::min(0.25, powerKw * 0.004);
+    batteryVolts_ = approach(batteryVolts_, voltTarget, 1.5, dt) + noise(rng_) * 0.01;
 
     // ---- 公開値(センサーらしく少し揺らす) ----
     speedKmh_ = speedMs_ * 3.6;

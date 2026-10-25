@@ -1,6 +1,6 @@
 // メーター(GaugeWidget)の設定: 表示方式・メーターの種類・単位・最小値/最大値・角度・針と中心円・アイコン・警告。
 // 計測値ごとの単位・範囲・刻みは WidgetRegistry.gaugeSpecs(config.metric)から取る。
-// 値は基本単位(bar / rpm / km/h / ℃ / %)で保存し、表示と編集は選んだ単位で行う。
+// 値は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集は選んだ単位で行う。
 import QtQuick
 import OpenCruise
 
