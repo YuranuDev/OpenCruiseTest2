@@ -225,13 +225,13 @@ WidgetBase {
             // メーターの種類ごとの寸法(半径に対する比)
             // どの種類も、数字は内側の細い円(ringR)の外側、目盛りはさらに外側に置く
             readonly property var dims: root.dialStyle === "sport"
-                ? { trackR: 0.92, trackW: 0.12, majorIn: 0.78, minorIn: 0.80, tickOut: 0.835, labelR: 0.69,
-                    majorW: 0.03, minorW: 0.012, sub: 2, labelPx: 0.12, needleTip: 0.8, ringR: 0.6 }
+                ? { trackR: 0.92, trackW: 0.12, majorIn: 0.78, minorIn: 0.80, tickOut: 0.835, labelR: 0.665,
+                    majorW: 0.03, minorW: 0.012, sub: 2, labelPx: 0.14, needleTip: 0.8, ringR: 0.5 }
                 : (root.dialStyle === "minimal"
-                   ? { trackR: 0.95, trackW: 0.03, majorIn: 0.83, minorIn: 0.86, tickOut: 0.89, labelR: 0.71,
-                       majorW: 0.02, minorW: 0.01, sub: 2, labelPx: 0.11, needleTip: 0.86, ringR: 0.6 }
-                   : { trackR: 0.96, trackW: 0.025, majorIn: 0.77, minorIn: 0.82, tickOut: 0.87, labelR: 0.685,
-                       majorW: 0.026, minorW: 0.011, sub: 5, labelPx: 0.105, needleTip: 0.88, ringR: 0.6 })
+                   ? { trackR: 0.95, trackW: 0.03, majorIn: 0.83, minorIn: 0.86, tickOut: 0.89, labelR: 0.685,
+                       majorW: 0.02, minorW: 0.01, sub: 2, labelPx: 0.13, needleTip: 0.86, ringR: 0.5 }
+                   : { trackR: 0.96, trackW: 0.025, majorIn: 0.77, minorIn: 0.82, tickOut: 0.87, labelR: 0.655,
+                       majorW: 0.026, minorW: 0.011, sub: 5, labelPx: 0.125, needleTip: 0.88, ringR: 0.5 })
 
             // スポーツのセグメント(数と 1 つあたりの角度。セグメントの間は少し空ける)
             readonly property int segCount: Math.max(16, Math.round(root.sweepAngle / 6))
