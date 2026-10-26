@@ -7,18 +7,29 @@
  */
 #pragma once
 
+#include <QHash>
+#include <QList>
+#include <functional>
 #include <QObject>
 #include <QString>
 #include <QStringList>
-#include <QString>
+
+class QProcess;
+class QThread;
 
 namespace opencruise {
 
 /**
  * @brief ユーザー名と表示フォントの設定モデル。
  *
- * 同梱フォント(`fonts/` 配下の .otf/.ttf)は生成時に QFontDatabase へ登録する。
- * 選択肢(fontFamilies)は、実際に読み込めたものだけになる。
+ * 同梱フォント(`fonts/` 配下の .otf/.ttf)は全部で 150MB ほどあり、全部を起動時に読むと、起動画面が出るまでに
+ * 何秒もかかる。そこで:
+ *  - 起動時: 選んでいるフォントの通常の太さ(Regular)だけを読んで登録する(太字は届くまで合成で表示)
+ *  - その後: 同じフォントの残りの太さを、別スレッドでファイルを読み、読めたものから登録する(画面は止めない)
+ *  - ほかのフォント: 設定で選ばれたときに、同じく別スレッドで読み、読み終わったら切り替える
+ * ファイルを読む時間がほとんどで、登録(addApplicationFontFromData)自体はすぐ終わる。
+ * 選択肢(fontFamilies)は、同梱ファイルがあるものになる。
+ * 電源モード(powerprofilesctl)の適用も、起動を止めないよう、別プロセスの完了を待たずに進める。
  */
 class AppSettings : public QObject {
     Q_OBJECT
@@ -76,8 +87,26 @@ private:
      */
     static QStringList fontSearchDirs();
 
-    /** @brief 探索先のフォントを登録し、選択肢の一覧(fontFamilies_)を作る。読み込んだファイル数を返す。 */
+    /**
+     * @brief 探索先のフォントを調べ、選択肢の一覧(fontFamilies_)を作る。カタログ外のフォント(アイコンなど)は
+     * その場で登録し、カタログのフォントはファミリごとに覚えておく(読み込みは ensureFontLoaded)。
+     * 見つかったフォントファイルの数を返す。
+     */
     int loadBundledFonts();
+    /**
+     * @brief そのファミリのフォントのうち、filter に合うファイルを今すぐ読んで登録する(起動時の分)。
+     * そのファミリが登録済み・登録できたら true。
+     */
+    bool loadFontNow(const QString &family, bool essentialOnly);
+    /**
+     * @brief そのファミリの残りのファイルを別スレッドで読み、読み終わったら登録する。
+     * then(登録できたか)は、登録し終えたときに UI スレッドで呼ぶ。
+     */
+    void loadFontInBackground(const QString &family, std::function<void(bool)> then = {});
+    /** @brief 登録できたフォントを選ぶ(保存・アプリ既定フォントへの反映・通知)。 */
+    void applyFontFamily(const QString &family);
+    /** @brief powerprofilesctl を別プロセスで動かし、終わったら次の手順へ進む(待たない)。 */
+    void runPowerStep();
 
     QString userName_;
     QString fontFamily_;
@@ -86,6 +115,19 @@ private:
     QString powerModeStatus_;
     bool phoneNoticePopupEnabled_ = false;
     QString originalPowerProfile_;
+    /// まだ登録していない同梱フォントのファイル(ファミリ名 → ファイル)
+    QHash<QString, QStringList> pendingFontFiles_;
+    /// 登録できたファミリ
+    QStringList registeredFamilies_;
+    /// 設定で選ばれ、読み込みを待っているファミリ(読み終わったら切り替える。空なら無し)
+    QString requestedFamily_;
+    /// フォントを読んでいるスレッド(終了時に待つ)と、読んでいるファミリ
+    QList<QThread *> fontThreads_;
+    QStringList loadingFamilies_;
+    /// 電源モードの適用中のプロセス(無ければ nullptr)と、適用中にもう一度頼まれたか
+    QProcess *powerProcess_ = nullptr;
+    bool powerReapply_ = false;
+    bool powerOriginalTried_ = false; ///< 今のプロファイルを読みに行ったか(終了時に戻すため。1 回だけ)
 };
 
 } // namespace opencruise

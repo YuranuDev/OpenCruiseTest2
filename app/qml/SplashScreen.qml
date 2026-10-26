@@ -42,7 +42,7 @@ Rectangle {
         y: Math.max(Theme.margin, (parent.height - warning.height - warning.anchors.bottomMargin - height) / 2)
         width: Math.min(parent.width - Theme.margin * 4, 900 * root.unit)
         spacing: 14 * root.unit
-        NumberAnimation on opacity { from: 0; to: 1; duration: 600; easing.type: Easing.OutCubic }
+        // 起動画面はすぐに出す(フェードインで遅れて見えないよう、最初から表示する)
 
         Text {
             width: parent.width
@@ -134,7 +134,6 @@ Rectangle {
         color: Theme.mix(Theme.panel, Theme.warn, 0.12)
         border.width: 2
         border.color: Theme.warn
-        NumberAnimation on opacity { from: 0; to: 1; duration: 800; easing.type: Easing.OutCubic }
 
         Row {
             id: warningRow

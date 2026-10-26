@@ -361,12 +361,45 @@ ApplicationWindow {
                 }
             }
 
+            // メイン画面は、起動画面が 1 度描かれてから作る(作るのに時間がかかるので、先に起動画面を出す)。
+            // 作るのも分けて少しずつ進め(非同期)、その間も起動画面のアニメーションが止まらないようにする
             Component.onCompleted: {
                 if (startOnSettings) {
                     stack.push(settingsComponent)
                 } else {
-                    stack.push(homeComponent)
+                    homeLoader.waiting = true
                 }
+            }
+        }
+        QtObject {
+            id: homeLoader
+            property bool waiting: false   // 起動画面の最初の 1 枚を待っている
+            property var incubator: null
+            property bool ready: false     // メイン画面ができた(できるまで起動画面を消さない)
+            function create() {
+                const startedAt = Date.now()
+                const inc = homeComponent.incubateObject(stack, {}, Qt.Asynchronous)
+                const done = () => {
+                    if (inc.status === Component.Ready) {
+                        stack.push(inc.object, {}, StackView.Immediate)
+                        homeLoader.ready = true
+                        console.info("[boot] メイン画面を作りました (" + (Date.now() - startedAt) + " ms。起動画面を出したまま、少しずつ作成)")
+                    } else if (inc.status === Component.Error) {
+                        console.error("[boot] メイン画面を作れませんでした")
+                        homeLoader.ready = true   // 起動画面のまま固まらないようにする
+                    }
+                }
+                if (inc.status !== Component.Loading) done()
+                else inc.onStatusChanged = (status) => done()
+                incubator = inc
+            }
+        }
+        Connections {
+            target: window
+            enabled: homeLoader.waiting
+            function onFrameSwapped() {
+                homeLoader.waiting = false
+                Qt.callLater(homeLoader.create)
             }
         }
 
@@ -375,7 +408,8 @@ ApplicationWindow {
             id: splash
             anchors.fill: parent
             z: 50
-            opacity: boot.done ? 0 : 1
+            // 待ちが終わっても、メイン画面ができるまでは起動画面を出したままにする(空の画面を見せない)
+            opacity: (boot.done && (homeLoader.ready || startOnSettings)) ? 0 : 1
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
         }

@@ -145,9 +145,11 @@ Item {
             }
         }
 
+        // ウィジェット本体は少しずつ作る(非同期)。たくさん並んでいても、作っている間に画面が止まらない
         Loader {
             id: loader
             anchors.fill: parent
+            asynchronous: true
             sourceComponent: host.def ? host.def.component : null
         }
         Binding { target: loader.item; property: "config"; value: host.cfg; when: loader.item !== null }
