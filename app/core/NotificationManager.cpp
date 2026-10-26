@@ -28,9 +28,10 @@ NotificationManager::~NotificationManager() {
 }
 
 int NotificationManager::show(const QString &title, const QString &message, int level, const QString &icon,
-                              int durationMs) {
+                              int durationMs, bool keepHistory) {
     Item item;
     item.id = nextId_.fetch_add(1);
+    item.keepHistory = keepHistory;
     item.title = title;
     item.message = message;
     item.level = qBound(static_cast<int>(Info), level, static_cast<int>(Error));
@@ -92,6 +93,9 @@ void NotificationManager::expire(int id) {
 }
 
 void NotificationManager::archive(const Item &item) {
+    if (!item.keepHistory) {
+        return; // 途中経過の通知は残さない(終わったときに addHistory() でまとめを残す)
+    }
     NotificationHistoryModel::Entry entry;
     entry.title = item.title;
     entry.message = item.message;
@@ -99,6 +103,15 @@ void NotificationManager::archive(const Item &item) {
     entry.level = item.level;
     entry.time = QDateTime::currentDateTime();
     history_.append(entry, historyOpen_); // 履歴パネルを開いている間に届いた分は、すでに見えているので既読扱い
+}
+
+void NotificationManager::addHistory(const QString &title, const QString &message, int level, const QString &icon) {
+    Item item;
+    item.title = title;
+    item.message = message;
+    item.level = qBound(static_cast<int>(Info), level, static_cast<int>(Error));
+    item.icon = icon.isEmpty() ? defaultIcon(item.level) : icon;
+    archive(item);
 }
 
 void NotificationManager::setHistoryOpen(bool open) {

@@ -12,6 +12,8 @@
  *
  * 通知履歴: ユーザーが操作せずに消えた通知(表示時間の経過・同時表示数の超過)は history に残る。
  * ポップアップをタップして閉じた通知(dismiss)・clear() で消した通知は残さない。
+ * show() で keepHistory = false にした通知(途中経過を書き換え続けるメーターの警告など)も残さない。
+ * その場合は、終わったときに addHistory() でまとめを 1 件だけ残す。
  *
  * 表示中の通知の書き換え: update() で表示中の中身(タイトル・本文・レベル)を書き換えられ、durationMs を渡すと
  * 表示時間もそこから数え直す(0 なら自動では消えなくなる)。メーターの警告通知が値を更新し続けるのに使う。
@@ -59,10 +61,18 @@ public:
      * @param level Level の値
      * @param icon Material Icons のアイコン名。空ならレベル別の既定
      * @param durationMs 表示時間(ms)。0 以下なら自動では消えない
+     * @param keepHistory false なら、操作されずに消えても履歴に残さない
      * @return 通知ID（dismiss() で消すときに使う）
      */
     Q_INVOKABLE int show(const QString &title, const QString &message = QString(), int level = Info,
-                         const QString &icon = QString(), int durationMs = 4000);
+                         const QString &icon = QString(), int durationMs = 4000, bool keepHistory = true);
+
+    /**
+     * @brief ポップアップは出さずに、履歴へ 1 件だけ残す(UI スレッドから呼ぶ)。
+     * @param icon Material Icons のアイコン名。空ならレベル別の既定
+     */
+    Q_INVOKABLE void addHistory(const QString &title, const QString &message = QString(), int level = Info,
+                                const QString &icon = QString());
 
     NotificationHistoryModel *history() { return &history_; }
 
@@ -107,6 +117,7 @@ private:
         QString icon;
         int level = Info;
         qint64 expiresAt = 0; ///< 自動で消す時刻(エポック ms)。0 なら自動では消さない
+        bool keepHistory = true; ///< 操作されずに消えたとき、履歴へ残すか
     };
 
     /** @brief 消す時刻の確認を仕掛ける(update() で延びていたら、その時刻に確認し直す)。 */

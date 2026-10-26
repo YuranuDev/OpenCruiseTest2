@@ -20,6 +20,8 @@
 //   noticeRemove(group)             通知をやめた(設定を変えた・ウィジェットが消えた)
 //   種類(group)ごとに別の通知を出す。同じ種類のメーターが何台あっても、その種類の通知は 1 つ。
 //   解除されたら、その間の最大値を 8 秒出してから消す
+//   通知履歴: 途中経過(「現在 …」)の通知は履歴に残さない。解除されたときに、その間の最大値(最低値)と
+//   続いた時間のまとめを 1 件だけ残す(通知をタップで消していても残す)
 pragma Singleton
 import QtQuick
 
@@ -112,7 +114,8 @@ QtObject {
     // ---- 警告・注意のポップアップ通知(メーターの種類ごとに 1 つ) ----
     // 種類(group)ごとに別の通知を出す。同じ種類のメーターがいくつあっても、その種類の通知は 1 つ
     readonly property int noticeHoldMs: 8000
-    /// group → { title, text, level, warning(警告・注意中か), icon, mode, at, endAt(解除された時刻), id(通知の id) }
+    /// group → { title, text, level, warning(警告・注意中か), icon, mode, at, endAt(解除された時刻), id(通知の id),
+    ///           startAt(警告・注意になった時刻), topLevel(その間でいちばん高い段階) }
     property var noticeItems: ({})
     /// 載っている件数(解除の表示中のものも含む)
     property int noticeCount: 0
@@ -124,13 +127,19 @@ QtObject {
         const fresh = item.warning && (!prev || !prev.warning || prev.level !== item.level)
         const recovered = !item.warning && prev !== undefined && prev.warning
         if (!item.warning && !prev) return   // 警告・注意になっていないものは出さない
+        const started = item.warning && (!prev || !prev.warning)
+        const startAt = started ? Date.now() : (prev && prev.startAt ? prev.startAt : Date.now())
+        const topLevel = item.warning ? Math.max(item.level, started || !prev ? 0 : (prev.topLevel || 0))
+                                      : (prev ? (prev.topLevel || prev.level) : item.level)
         noticeItems[group] = {
             title: item.title, text: item.text, level: item.level, warning: item.warning,
             icon: item.icon, mode: item.mode,
             at: fresh ? Date.now() : (prev ? prev.at : Date.now()),
             endAt: item.warning ? 0 : (recovered ? Date.now() : (prev ? prev.endAt : Date.now())),
-            id: prev ? prev.id : -1
+            id: prev ? prev.id : -1,
+            startAt: startAt, topLevel: topLevel
         }
+        if (recovered) archiveEpisode(noticeItems[group])
         refreshOne(group, fresh || recovered, fresh)
         noticeCount = Object.keys(noticeItems).length
     }
@@ -140,6 +149,13 @@ QtObject {
         if (it.id >= 0) notifications.dismiss(it.id)
         delete noticeItems[group]
         noticeCount = Object.keys(noticeItems).length
+    }
+    // 解除されたときに、その間のまとめ(最大値など)を通知履歴へ 1 件残す
+    function archiveEpisode(it) {
+        const sec = Math.max(1, Math.round((it.endAt - it.startAt) / 1000))
+        const span = sec < 60 ? sec + " 秒間" : Math.floor(sec / 60) + " 分" + (sec % 60 > 0 ? " " + (sec % 60) + " 秒" : "") + "間"
+        const text = (it.text !== "" ? it.text + " ・ " : "") + span
+        notifications.addHistory(it.title, text, it.topLevel || it.level, it.icon)
     }
     function noticeShowing(group) { const it = noticeItems[group]; return it !== undefined && it.id >= 0 }
 
@@ -160,7 +176,8 @@ QtObject {
             if (notifications.update(it.id, it.title, it.text, it.level, restart ? duration : -1)) return
             it.id = -1   // 時間が来て消えた・タップで消された
         }
-        if (allowNew) it.id = notifications.show(it.title, it.text, it.level, it.icon, duration)
+        // 途中経過は履歴に残さない(解除のときに archiveEpisode でまとめを残す)
+        if (allowNew) it.id = notifications.show(it.title, it.text, it.level, it.icon, duration, false)
     }
     // 中身の更新と、解除の表示の期限切れの片付け
     property Timer noticeTicker: Timer {
