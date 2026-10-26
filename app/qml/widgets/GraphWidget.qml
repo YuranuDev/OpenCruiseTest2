@@ -25,7 +25,8 @@ WidgetBase {
     }
     readonly property string unitText: unitDef.label
     readonly property int decimals: unitDef.dec
-    function toShown(base) { return Number(base) * unitDef.scale + (unitDef.offset || 0) }
+    // 作っている途中(非同期作成中)は unitDef がまだ決まっていないことがあるので、そのときは換算しない
+    function toShown(base) { return unitDef ? Number(base) * unitDef.scale + (unitDef.offset || 0) : Number(base) }
     function fmt(v, dec) {
         const half = 0.5 * Math.pow(10, -dec)
         return (Math.abs(v) < half ? 0 : v).toFixed(dec)
@@ -47,7 +48,10 @@ WidgetBase {
     property real statMin: NaN
     property real statMax: NaN
     property real statAvg: NaN
+    // 作り終わったか。少しずつ作っている途中にも履歴の更新は届くので、作り終わるまでは読み直さない
+    property bool built: false
     function collect() {
+        if (!built) return
         if (!hasData) {
             points = []
             current = NaN
@@ -79,7 +83,7 @@ WidgetBase {
     }
     Connections {
         target: VehicleHistory
-        enabled: root.onScreen && !root.lifting
+        enabled: root.built && root.onScreen && !root.lifting
         function onRevisionChanged() { root.collect() }
     }
     onMetricChanged: collect()
@@ -88,7 +92,7 @@ WidgetBase {
     onOnScreenChanged: if (onScreen) collect()
     onUnitDefChanged: collect()
     onWindowSecChanged: collect()
-    Component.onCompleted: collect()
+    Component.onCompleted: { built = true; collect() }
 
     readonly property bool inZone: warnOn && !isNaN(current) && (warnBelow ? current <= warnV : current >= warnV)
 
