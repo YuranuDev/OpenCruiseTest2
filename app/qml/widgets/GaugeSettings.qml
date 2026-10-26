@@ -117,6 +117,14 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
+            label: "オープニング表示"
+            description: "針を最小値から最大値まで振ってから、今の値へ戻します。起動画面が消えたとき(データが来ていれば)と、データが無かったところへデータが来たときに行います"
+            SettingsSwitch {
+                checked: root.config.openingSweep !== false
+                onToggled: (v) => root.edit("openingSweep", v)
+            }
+        }
+        SettingsRow {
             label: "アイコンを表示"
             description: "警告中は警告マークに変わり、点滅します"
             SettingsSwitch {

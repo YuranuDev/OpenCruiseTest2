@@ -120,7 +120,16 @@ WidgetBase {
     readonly property real rawValue: toShown(sourceValue)
     // データ源があるか(無いときは「データなし」: 針は最小値で止め、数値は「--」、警告・ピーク表示は出さない)
     readonly property bool hasData: can.dataAvailable
-    onHasDataChanged: { if (hasData) resetPeak(); else peak = NaN }
+    onHasDataChanged: {
+        if (hasData) resetPeak(); else peak = NaN
+        // データが来た: オープニング(起動画面がまだ出ていれば、消えてから)
+        if (hasData && widgetId !== "") {
+            if (typeof boot !== "undefined" && !boot.done) openingStartup = true
+            else startOpening()
+        } else if (!hasData) {
+            openingAnim.stop()
+        }
+    }
     // 針・数値は滑らかに追従させる(データは約 10Hz)
     // なめらかにするのは基本単位の値(換算前)。単位を変えたときは、換算した値がすぐに出る(途中の値を経由しない)
     // 見えていない間は針・数値を動かさない(描き直しを止める)。警告の判定・最大値は rawValue で続ける。
@@ -130,7 +139,47 @@ WidgetBase {
     onLiveBaseChanged: if (onScreen) smoothBase = liveBase
     onOnScreenChanged: if (onScreen) smoothBase = liveBase
     Behavior on smoothBase { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
-    readonly property real shown: toShown(smoothBase)
+    readonly property real shown: toShown(openingActive ? openingBase : smoothBase)
+
+    // ---------------------------------------------------------------- オープニング(針を最小 → 最大 → 今の値へ振る)
+    // 設定 config.openingSweep(既定オン)。行うのは:
+    //  - アプリの起動時: データがもう来ていれば、起動画面が消えてから
+    //  - データが無かったとき: データが来たときに(来るたび)
+    // あとから置いたウィジェットや、設定画面のプレビュー(widgetId が空)では行わない。
+    // 警告・注意・ピークの判定は rawValue で続けるので、オープニング中の針の位置には影響されない
+    readonly property bool openingOn: config.openingSweep !== false
+    property bool openingStartup: false   // 起動画面が消えるのを待っている(起動時にデータがあったとき)
+    property real openingPhase: 0         // 0 → 1: 最小 → 最大、1 → 2: 最大 → 今の値
+    readonly property bool openingActive: openingAnim.running
+    readonly property real openingMinBase: config.min !== undefined ? Number(config.min) : gauge.limitMin
+    readonly property real openingMaxBase: config.max !== undefined ? Number(config.max) : gauge.limitMax
+    readonly property real openingBase: {
+        const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+        if (openingPhase <= 1) return openingMinBase + (openingMaxBase - openingMinBase) * ease(openingPhase)
+        return openingMaxBase + (smoothBase - openingMaxBase) * ease(openingPhase - 1)
+    }
+    function startOpening() {
+        openingStartup = false
+        if (!openingOn || widgetId === "" || !hasData) return
+        openingAnim.restart()
+    }
+    SequentialAnimation {
+        id: openingAnim
+        NumberAnimation { target: root; property: "openingPhase"; from: 0; to: 1; duration: 750; easing.type: Easing.Linear }
+        PauseAnimation { duration: 120 }
+        NumberAnimation { target: root; property: "openingPhase"; from: 1; to: 2; duration: 650; easing.type: Easing.Linear }
+    }
+    // 起動画面が消えたら(少し待って、フェードアウトの後に)
+    Timer {
+        id: openingDelay
+        interval: 450
+        onTriggered: root.startOpening()
+    }
+    Connections {
+        target: typeof boot !== "undefined" ? boot : null
+        enabled: root.openingStartup
+        function onPhaseChanged() { if (boot.done) openingDelay.restart() }
+    }
 
     function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
     // 進捗の起点(0。範囲外なら近い端。ターボ圧の負圧は 0 から左へ伸びる)
@@ -240,6 +289,9 @@ WidgetBase {
         updateWarning()
         updateCaution()
         smoothBase = liveBase   // 宣言の束縛を外す。以後は onLiveBaseChanged / onOnScreenChanged で更新する(見えていない間は止める)
+        // 起動時(起動画面が出ている間に作られた)で、データがもう来ていれば、起動画面が消えてからオープニング
+        // (この時点では widgetId がまだ入っていないことがあるので、始めるときに判定する)
+        if (typeof boot !== "undefined" && !boot.done && hasData) openingStartup = true
     }
 
     // 警告音が鳴っている間は背景が赤く点滅するので、数値は白にして読みやすくする
@@ -913,7 +965,7 @@ WidgetBase {
                 visible: root.dialStyle !== "classic" && root.dialStyle !== "retro"
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: !visible ? "" :
-                    [width, height, dial.rpx,
+                    [width, height, dial.rpx, root.hasData,
                      dial.angOf(root.shown).toFixed(1),
                      root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
@@ -926,6 +978,8 @@ WidgetBase {
                     ctx.reset()
                     const R = dial.rpx, dm = dial.dims
                     if (R <= 1) return
+                    // データが無いときは、線(と印)を描かない(最小値に止めた針の位置まで線が伸びて見えないように)
+                    if (!root.hasData) return
                     const lo = Math.min(root.originV, root.shown), hi = Math.max(root.originV, root.shown)
                     ctx.lineCap = "butt"
                     ctx.lineWidth = R * dm.trackW
@@ -1283,7 +1337,8 @@ WidgetBase {
                         radius: height / 2
                         color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.4)
                     }
-                    Rectangle {   // 現在値
+                    Rectangle {   // 現在値(データが無いときは出さない)
+                        visible: root.hasData
                         x: Math.min(bar.originX, bar.valueX)
                         width: Math.max(2, Math.abs(bar.valueX - bar.originX))
                         height: parent.height
