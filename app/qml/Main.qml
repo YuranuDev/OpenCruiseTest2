@@ -59,7 +59,18 @@ ApplicationWindow {
 
     // 起動音(起動画面が出るタイミングで鳴らす。音量・出力先は設定の「システム」に従う)は上の Component.onCompleted で鳴らす
 
-    // 起動画面中の Esc はスキップ。フルスクリーン中はメニューを開閉し、ホームでは終了確認を出す。
+    // 下から出るメニュー(シート)を開閉する。設定画面などを開いているときは、メイン画面へ戻ってから開く
+    function toggleMenu() {
+        if (boot.active || exitConfirmation.opened) return
+        if (stack.depth > 1) {
+            stack.pop(null)
+            if (stack.currentItem) stack.currentItem.menuOpen = true
+            return
+        }
+        if (stack.currentItem) stack.currentItem.menuOpen = !stack.currentItem.menuOpen
+    }
+
+    // 起動画面中の Esc はスキップ。メニューが開いていれば閉じ、フルスクリーン中はメニューを開閉し、ホームでは終了確認を出す。
     Shortcut {
         sequence: "Esc"
         onActivated: {
@@ -69,6 +80,8 @@ ApplicationWindow {
                 notifications.historyOpen = false // 通知履歴を開いている間は、まずそれを閉じる
             } else if (boot.active) {
                 boot.skip()
+            } else if (stack.depth === 1 && stack.currentItem && stack.currentItem.menuOpen) {
+                stack.currentItem.menuOpen = false
             } else if (window.immersive && stack.currentItem) {
                 stack.currentItem.menuOpen = !stack.currentItem.menuOpen
             } else if (stack.depth > 1) {
@@ -81,8 +94,7 @@ ApplicationWindow {
 
     Shortcut {
         sequences: ["F10", "Menu"]
-        enabled: window.immersive
-        onActivated: if (stack.currentItem) stack.currentItem.menuOpen = !stack.currentItem.menuOpen
+        onActivated: window.toggleMenu()
     }
 
     // ---- 音量・明るさのショートカット ----
@@ -124,16 +136,16 @@ ApplicationWindow {
         height: quarter ? parent.width : parent.height
         rotation: displaySettings.rotation
 
-        // Windows キー(Meta / Super)でもメニューを開閉する（フルスクリーン中のみ）
+        // Windows キー(Meta / Super)で下から出るメニューを開閉する(どの画面でも。設定画面からはメイン画面へ戻って開く)
         Item {
             id: keyCatcher
             anchors.fill: parent
             focus: true
             Component.onCompleted: forceActiveFocus()
             Keys.onPressed: (event) => {
-                if (!event.isAutoRepeat && window.immersive && stack.currentItem
+                if (!event.isAutoRepeat
                         && (event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R)) {
-                    stack.currentItem.menuOpen = !stack.currentItem.menuOpen
+                    window.toggleMenu()
                     event.accepted = true
                 }
                 // 昼夜モード切り替え（Ctrl+Shift+D）

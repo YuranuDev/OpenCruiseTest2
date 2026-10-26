@@ -1,5 +1,7 @@
 // メイン画面。showAa が false の間は初期画面(LauncherScreen)、true の間は Android Auto 画面
-// (ヘッダー(時計・接続状態・ボタン) + Android Auto 表示領域とウィジェット)を表示する。
+// (初期画面と同じステータスバー + Android Auto 表示領域とウィジェット)を表示する。
+// 画面を切り替えるボタン類(ホーム・ウィジェット・設定など)は、下から出るメニュー(シート)にまとめる。
+// メニューはステータスバーの「メニュー」ボタン・Windows キー・Esc / F10 / Menu キーで開閉する(どの画面でも)。
 // フルスクリーンでないときの本体は、初期画面と同じ 12 × 6 マスのウィジェット配置エリアで、Android Auto の映像は
 // その角(設定「Android Auto」で角と幅・高さのマス数を選ぶ。widgetStore.aaCorner / aaCols / aaRows)に置き、
 // 残りのマスにウィジェットを置ける(配置は初期画面とは別に widgetStore.aaLayoutJson へ保存)。
@@ -22,9 +24,10 @@ Rectangle {
 
     // フルスクリーン表示(映像だけを全面表示)か。Main.qml から渡される
     property bool immersive: false
-    // フルスクリーン中の下メニュー(シート)が開いているか
+    // 下から出るメニュー(シート)が開いているか。フルスクリーンの切り替わりや画面の切り替えでは閉じる
     property bool menuOpen: false
-    onImmersiveChanged: if (!immersive) menuOpen = false
+    onImmersiveChanged: menuOpen = false
+    onShowAaChanged: menuOpen = false
 
     // Android Auto の映像を置くマス(フルスクリーンでないとき)。0 = 左上 / 1 = 右上 / 2 = 左下 / 3 = 右下
     readonly property var aaRect: {
@@ -72,42 +75,57 @@ Rectangle {
         onOpenAndroidAuto: root.openAndroidAuto()
     }
 
-    // ---- ヘッダー ----
+    // ---- ステータスバー(初期画面と同じ形: 左に接続状態、中央に時刻、右にメニュー・通知・警告の解除) ----
     Item {
         id: header
-        anchors { top: parent.top; left: parent.left; right: parent.right }
-        anchors.margins: Theme.margin
-        height: 76
+        anchors {
+            top: parent.top; left: parent.left; right: parent.right
+            topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
+        }
+        height: 52
         opacity: root.aaFade
         visible: root.aaFade > 0 && !root.immersive
 
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            Text { font.family: Theme.fontFamily; text: clock.timeText; color: Theme.textPrimary; font.pixelSize: 46; font.bold: true }
-            Text { font.family: Theme.fontFamily; text: clock.dateText; color: Theme.textSecondary; font.pixelSize: 18 }
+        Rectangle {
+            id: badgePill
+            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+            height: parent.height
+            width: badge.implicitWidth + 36
+            radius: height / 2
+            color: Theme.panel
+            border.color: Theme.panelBorder
+            ConnectionBadge { id: badge; anchors.centerIn: parent }
         }
 
-        ConnectionBadge {
+        // 時刻(初期画面のページのタブの位置)
+        Rectangle {
             anchors.centerIn: parent
+            height: parent.height - 4
+            width: timeText.implicitWidth + 40
+            radius: height / 2
+            color: Theme.panel
+            border.color: Theme.panelBorder
+            Text {
+                id: timeText
+                anchors.centerIn: parent
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.pixelSize: Math.round(parent.height * 0.5)
+                color: Theme.textPrimary
+                text: clock.timeText
+            }
         }
 
         Row {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 10
+            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            spacing: 12
+            ActionButton {
+                selected: root.menuOpen
+                text: "メニュー"
+                onClicked: root.menuOpen = !root.menuOpen
+            }
             NotificationBell { }
-            ActionButton {
-                text: "ウィジェット"
-                onClicked: aaPicker.show()
-            }
-            ActionButton {
-                text: "ホーム"
-                onClicked: root.goHome()
-            }
-            ActionButton {
-                text: "設定"
-                onClicked: root.openSettings()
-            }
+            AlarmClearButton { }   // 鳴っている警告をまとめて解除(右端。初期画面と同じ)
         }
     }
 
@@ -117,7 +135,11 @@ Rectangle {
         visible: root.aaFade > 0
         anchors {
             top: root.immersive ? parent.top : header.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
-            margins: root.immersive ? 0 : Theme.margin
+            // 余白は初期画面のウィジェット配置エリアと同じ
+            topMargin: root.immersive ? 0 : Theme.margin
+            leftMargin: root.immersive ? 0 : Theme.margin * 1.5
+            rightMargin: root.immersive ? 0 : Theme.margin * 1.5
+            bottomMargin: root.immersive ? 0 : Theme.margin * 1.5
         }
 
         // ウィジェット(映像の場所以外のマス)。フルスクリーン中は隠す(動き続けるので、警告音などはそのまま)
@@ -222,11 +244,12 @@ Rectangle {
         area: aaWidgets
     }
 
-    // ---- フルスクリーン時のメニュー(下から出るシート) ----
-    // 下端の細いつまみを上へスワイプ(またはタップ)、もしくは Esc / F10 / Menu キーで開く。
-    // 閉じるのは、シートを下へスワイプ / 外側タップ / Esc / F10 / Menu キー。
-    // つまみの高さの分だけ、映像の下端はタッチが届かない。
-    readonly property bool sheetOpen: root.immersive && root.menuOpen
+    // ---- 下から出るメニュー(シート)。初期画面・Android Auto 画面・フルスクリーンのどれでも使う ----
+    // 開く: Windows キー / Esc(フルスクリーン中) / F10 / Menu キー、Android Auto 画面のステータスバーの「メニュー」、
+    //       フルスクリーン中は下端の細いつまみを上へスワイプ(またはタップ)
+    // 閉じる: シートを下へスワイプ / 外側タップ / 同じキー
+    // フルスクリーン中は、つまみの高さの分だけ映像の下端はタッチが届かない。
+    readonly property bool sheetOpen: root.menuOpen
     readonly property real sheetUnit: Math.max(0.6, Math.min(width / 1280, height / 720))
 
     MouseArea {
@@ -339,6 +362,7 @@ Rectangle {
             LauncherTile {
                 x: 0; width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "home"; title: "ホーム"
+                selected: !root.showAa
                 onClicked: { root.menuOpen = false; root.goHome() }
             }
             LauncherTile {
@@ -349,7 +373,12 @@ Rectangle {
             LauncherTile {
                 x: 2 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "widgets"; title: "ウィジェット"
-                onClicked: { root.menuOpen = false; root.goHome(); launcher.openPicker() }
+                // フルスクリーンでない Android Auto 画面なら、その画面のウィジェットを足す。それ以外は初期画面へ
+                onClicked: {
+                    root.menuOpen = false
+                    if (root.showAa && !root.immersive) aaPicker.show()
+                    else { root.goHome(); launcher.openPicker() }
+                }
             }
             LauncherTile {
                 x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
