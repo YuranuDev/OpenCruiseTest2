@@ -165,6 +165,34 @@ WidgetSettingsBase {
                 onMoved: (v) => root.edit("endAngle", v)
             }
         }
+        // 目盛りの間隔と細かい目盛り(分けないとき。すべてのメーター)
+        SettingsRow {
+            visible: !root.splitOn && root.dialStyle !== "ring"
+            label: "目盛り間隔"
+            description: "大目盛り(数字)の間隔。0 で自動"
+            WSStepper {
+                value: root.stepShown("majorStep")
+                from: 0
+                to: Math.max(root.step, root.toShown(root.maxBase) - root.toShown(root.minBase))
+                step: root.step
+                decimals: root.dec
+                suffix: root.suffix
+                onMoved: (v) => root.saveStep("majorStep", v)
+            }
+        }
+        SettingsRow {
+            visible: !root.splitOn && root.dialStyle !== "ring"
+            label: "細かい目盛り"
+            description: "大目盛りの間を何等分するか。0 でメーターの種類ごとの既定"
+            WSStepper {
+                value: Number(root.config.minorSub) || 0
+                from: 0
+                to: 10
+                step: 1
+                suffix: " 等分"
+                onMoved: (v) => root.edit("minorSub", v)
+            }
+        }
         SettingsRow {
             visible: root.crossesZero && root.config.style !== "digital"
             label: root.negName + "と" + root.posName + "で目盛りを分ける"

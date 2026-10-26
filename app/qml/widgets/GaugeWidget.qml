@@ -156,6 +156,10 @@ WidgetBase {
     readonly property real posStepShown: Number(config.posStep) > 0 ? Number(config.posStep) * unitDef.scale : 0
     readonly property int negSub: Math.max(0, Math.min(10, Math.round(Number(config.negSub) || 0)))
     readonly property int posSub: Math.max(0, Math.min(10, Math.round(Number(config.posSub) || 0)))
+    // 分けないときの目盛り(すべてのメーター): 大目盛りの間隔(majorStep。基本単位。0 か未設定なら自動)と、
+    // 大目盛りの間を何等分するか(minorSub。0 か未設定なら種類ごとの既定)
+    readonly property real majorStepShown: Number(config.majorStep) > 0 ? Number(config.majorStep) * unitDef.scale : 0
+    readonly property int minorSub: Math.max(0, Math.min(10, Math.round(Number(config.minorSub) || 0)))
     function pct(key) { const v = Number(config[key]); return v > 0 ? Math.max(0.3, Math.min(3, v / 100)) : 1 }
     readonly property real negFont: splitScale ? pct("negFont") : 1
     readonly property real negFontEnd: splitScale ? pct("negFontEnd") : 1
@@ -690,7 +694,8 @@ WidgetBase {
                                                root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
                                                Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily, root.faceColor,
                                                root.splitScale, root.zeroAngle, root.negStepShown, root.posStepShown,
-                                               root.negSub, root.posSub, root.negFont, root.negFontEnd,
+                                               root.negSub, root.posSub, root.majorStepShown, root.minorSub,
+                                               root.negFont, root.negFontEnd,
                                                root.posFont, root.posFontEnd, root.cautionV, root.hasCautionZone,
                                                Theme.warn].join("|")
                 onKeyChanged: if (visible) requestPaint()
@@ -857,7 +862,7 @@ WidgetBase {
                         ? ticksOf(root.minV, 0, root.zeroAngle - root.startAngle, root.negStepShown, root.negSub, 2)
                               .concat(ticksOf(0, root.maxV, root.endAngle - root.zeroAngle, root.posStepShown, root.posSub, 2)
                                       .filter(t => t.v > 1e-9))
-                        : ticksOf(root.minV, root.maxV, root.sweepAngle, 0, 0, 4)
+                        : ticksOf(root.minV, root.maxV, root.sweepAngle, root.majorStepShown, root.minorSub, 4)
                     const dec = ticks.length > 0 ? Math.max(...ticks.map(t => t.dec)) : 0
                     ctx.lineCap = "butt"
                     ctx.textAlign = "center"
