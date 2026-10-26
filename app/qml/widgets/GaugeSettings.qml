@@ -211,6 +211,58 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
+        visible: root.splitOn
+        label: root.negName + "の数字の大きさ"
+        description: "0 の近くの数字の大きさ"
+        WSStepper {
+            value: Number(root.config.negFont) || 100
+            from: 50
+            to: 200
+            step: 10
+            suffix: " %"
+            onMoved: (v) => root.edit("negFont", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.negName + "の端に向けた大きさの変化"
+        description: "目盛りの端での数字の大きさ(0 の近くに対する割合)。100 % で一定、大きくすると端へ向けて大きくなります"
+        WSStepper {
+            value: Number(root.config.negFontEnd) || 100
+            from: 50
+            to: 200
+            step: 10
+            suffix: " %"
+            onMoved: (v) => root.edit("negFontEnd", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.posName + "の数字の大きさ"
+        description: "0 の近くの数字の大きさ"
+        WSStepper {
+            value: Number(root.config.posFont) || 100
+            from: 50
+            to: 200
+            step: 10
+            suffix: " %"
+            onMoved: (v) => root.edit("posFont", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.posName + "の端に向けた大きさの変化"
+        description: "目盛りの端での数字の大きさ(0 の近くに対する割合)。100 % で一定、大きくすると端へ向けて大きくなります"
+        WSStepper {
+            value: Number(root.config.posFontEnd) || 100
+            from: 50
+            to: 200
+            step: 10
+            suffix: " %"
+            onMoved: (v) => root.edit("posFontEnd", v)
+        }
+    }
+    SettingsRow {
         visible: root.config.style === "both" && !root.needleless
         label: "数値を空き位置に配置"
         description: "開始角度と終了角度の間の空きに現在値を表示します"

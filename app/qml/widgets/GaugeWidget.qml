@@ -120,6 +120,8 @@ WidgetBase {
     // config.splitScale がオンなら、開始角〜0 の位置(config.zeroAngle)をマイナス側、0 の位置〜終了角をプラス側として、
     // それぞれ別の縮尺で描く。大目盛りの間隔(negStep / posStep。基本単位。0 か未設定なら自動)と、
     // 大目盛りの間の細かい目盛りの数(negSub / posSub。0 か未設定なら種類ごとの既定)も、側ごとに決められる。
+    // 数字の大きさも側ごとに変えられる: negFont / posFont(0 付近の大きさ、%)と、negFontEnd / posFontEnd
+    // (目盛りの端での大きさ。0 付近の大きさに対する %。100 なら一定、大きくすると端へ向けてだんだん大きくなる)。
     // デジタルの横バーは分けない(直線のまま)
     readonly property bool crossesZero: minV < 0 && maxV > 0
     readonly property bool splitScale: config.splitScale === true && crossesZero
@@ -134,6 +136,18 @@ WidgetBase {
     readonly property real posStepShown: Number(config.posStep) > 0 ? Number(config.posStep) * unitDef.scale : 0
     readonly property int negSub: Math.max(0, Math.min(10, Math.round(Number(config.negSub) || 0)))
     readonly property int posSub: Math.max(0, Math.min(10, Math.round(Number(config.posSub) || 0)))
+    function pct(key) { const v = Number(config[key]); return v > 0 ? Math.max(0.3, Math.min(3, v / 100)) : 1 }
+    readonly property real negFont: splitScale ? pct("negFont") : 1
+    readonly property real negFontEnd: splitScale ? pct("negFontEnd") : 1
+    readonly property real posFont: splitScale ? pct("posFont") : 1
+    readonly property real posFontEnd: splitScale ? pct("posFontEnd") : 1
+    // 目盛りの数字の大きさの倍率(値 v の位置)。0 から端へ向けて、0 付近の大きさ → 端の大きさへ変わる
+    function labelScaleAt(v) {
+        if (!splitScale) return 1
+        if (Math.abs(v) < 1e-9) return (negFont + posFont) / 2
+        return v < 0 ? negFont * (1 + (negFontEnd - 1) * Math.min(1, v / minV))
+                     : posFont * (1 + (posFontEnd - 1) * Math.min(1, v / maxV))
+    }
     // 警告ゾーン(表示単位)。上側警告なら [警告値, 最大]、下側警告なら [最小, 警告値]
     readonly property bool hasWarnZone: warnOn && (warnBelow ? warnV > minV : warnV < maxV)
     readonly property real zoneLo: warnBelow ? minV : Math.max(warnV, minV)
@@ -532,7 +546,8 @@ WidgetBase {
                                                root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
                                                Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily, root.faceColor,
                                                root.splitScale, root.zeroAngle, root.negStepShown, root.posStepShown,
-                                               root.negSub, root.posSub].join("|")
+                                               root.negSub, root.posSub, root.negFont, root.negFontEnd,
+                                               root.posFont, root.posFontEnd].join("|")
                 onKeyChanged: requestPaint()
 
                 // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
@@ -697,6 +712,8 @@ WidgetBase {
                         if (isMajor) {
                             ctx.fillStyle = inWarn ? Theme.error
                                                    : (isZero || root.dialStyle === "retro" || root.dialStyle === "marker" ? root.dialFg : root.dialFgDim)
+                            // 数字の大きさは側ごと・位置ごとに変わる(目盛りを分けていないときは一定)
+                            ctx.font = "bold " + Math.max(8, Math.round(px * root.labelScaleAt(v))) + "px '" + Theme.fontFamily + "'"
                             ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(t.dec),
                                          cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
                         }
