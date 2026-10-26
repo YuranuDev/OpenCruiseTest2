@@ -1,6 +1,6 @@
 /**
  * @file SystemSound.h
- * @brief アプリのシステム音声(操作音・起動音)を鳴らす。鳴らす音は、フォルダ分けされた WAV から選べる。
+ * @brief アプリのシステム音声(操作音・起動音)を鳴らす。鳴らす音は、フォルダ分けされた WAV(起動音は MP3 も)から選べる。
  *
  * 効果音の種類(カテゴリ)ごとにフォルダを分け、その中の WAV を設定「サウンド」の一覧から選ぶ。
  *   同梱フォルダ   : <実行ファイルの場所>/sounds/<カテゴリ>/        (ビルド時に app/sounds からコピー)
@@ -9,7 +9,9 @@
  *   カテゴリ: click(操作音) / start(起動音) / alert(警告音: メーターのしきい値超えのビープ。鳴らすのは WarningAlarm だけ)
  * 選んだ音は QSettings(sound/<カテゴリ>)に保存する。既定は同梱の Click.wav / Start.wav / Beep.wav で、
  * 同梱フォルダが見つからないときはリソースに埋め込んだ同じ音で鳴らす。「なし」を選ぶと鳴らさない。
- * 再生は QSoundEffect なので、使えるのは WAV だけ。
+ * 再生は QSoundEffect なので、操作音・警告音に使えるのは WAV だけ(すぐ鳴らす・繰り返すため)。
+ * 起動音だけは MP3 も選べる(MP3 を選んだときは QMediaPlayer で鳴らす。鳴り始めまで少し時間がかかってもよいため)。
+ * 試聴も、MP3 なら QMediaPlayer で鳴らす。
  * 警告音(alert)は WAV のほかに「合成音」を選べる。波形・高さ(2 音目で交互にも)・回数・長さ・間隔・
  * フェード・音量を設定でき、その設定から WAV をキャッシュフォルダに作って鳴らす(設定を変えるたびに作り直す)。
  * 警告音を繰り返す間隔(alertInterval)は、WAV・合成音のどちらにも効く(繰り返すのは WarningAlarm)。
@@ -28,8 +30,10 @@
  */
 #pragma once
 
+#include <QAudioOutput>
 #include <QElapsedTimer>
 #include <QEvent>
+#include <QMediaPlayer>
 #include <QObject>
 #include <QPointer>
 #include <QSoundEffect>
@@ -160,14 +164,26 @@ private:
     void rebuildSynth();
     /** @brief 「ずっと鳴らす」のループ再生を、alertActive / alertContinuous に合わせて始める・止める。 */
     void updateAlertLoop();
-    /** @brief フォルダ内の WAV のファイル名(名前順)。 */
-    static QStringList wavFiles(const QString &directory);
+    /** @brief フォルダ内の、カテゴリで使える音のファイル名(名前順)。起動音は WAV と MP3、ほかは WAV だけ。 */
+    static QStringList soundFiles(const QString &directory, const QString &category);
+    /** @brief カテゴリで MP3 を使えるか(起動音だけ)。 */
+    static bool allowsMp3(const QString &category);
+    /** @brief QSoundEffect では鳴らせない形式(MP3)か。 */
+    static bool isMp3(const QUrl &url);
+    /** @brief QMediaPlayer の再生器を用意する(読み込み失敗をログに出す)。 */
+    void setupPlayer(QMediaPlayer &player, QAudioOutput &output);
 
     QPointer<AudioSettings> settings_;
     QSoundEffect click_;
     QSoundEffect start_;
     QSoundEffect alert_;
     QSoundEffect preview_;
+    // MP3 の起動音・試聴用(QSoundEffect は WAV しか鳴らせないため)
+    QAudioOutput startOutput_;
+    QMediaPlayer startPlayer_;
+    QAudioOutput previewOutput_;
+    QMediaPlayer previewPlayer_;
+    bool startUsesPlayer_ = false; ///< 起動音に MP3 を選んでいる(startPlayer_ で鳴らす)
     bool clickPending_ = false;
     bool startPending_ = false;
     bool alertPending_ = false;

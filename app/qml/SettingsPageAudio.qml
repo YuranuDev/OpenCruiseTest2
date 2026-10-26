@@ -2,7 +2,7 @@
 //   および Android Auto の音声入力に使うマイク(使用する/しない、入力元)。
 //   マップ音声 = Android Auto のナビ案内、音楽音声 = Android Auto のメディア、
 //   システム   = アプリの操作音・起動音と Android Auto のシステム音。
-//   効果音     = 操作音・起動音・警告音に使う WAV(フォルダ分けされた一覧から選ぶ。SystemSound)。
+//   効果音     = 操作音・起動音・警告音に使う WAV(起動音は MP3 も。フォルダ分けされた一覧から選ぶ。SystemSound)。
 //                警告音は WAV のほか合成音も選べ、波形・高さ・回数・長さ・音量と、繰り返す間隔を設定できる。
 //   マスター音量 = 上の 3 つすべてに掛かる共通の倍率(3 つの設定値は変わらない)。Ctrl+Shift+V(下げる)/ B(上げる)でも変えられる。
 import QtQuick
@@ -311,7 +311,7 @@ SettingsPage {
 
         SettingsRow {
             label: "効果音フォルダを読み直す"
-            description: "ユーザーフォルダの WAV を追加・削除したあとに押します"
+            description: "ユーザーフォルダの WAV・MP3 を追加・削除したあとに押します"
 
             ActionButton {
                 text: "読み直す"
@@ -327,8 +327,9 @@ SettingsPage {
         }
 
         SettingsNote {
-            text: "効果音は種類ごとのフォルダ(操作音 = click、起動音 = start)に入っている WAV ファイルから選べます。"
-                  + "ユーザーフォルダの click / start / alert へ WAV を置くと一覧に追加されます(MP3 などは使えません)。"
+            text: "効果音は種類ごとのフォルダ(操作音 = click、起動音 = start、警告音 = alert)に入っている WAV ファイルから選べます。"
+                  + "起動音だけは MP3 も選べます。ユーザーフォルダの click / start / alert へファイルを置くと一覧に追加されます"
+                  + "(操作音・警告音はすぐ鳴らすため WAV だけです)。"
                   + "音量と出力先は「システム」の設定に従います。"
         }
     }

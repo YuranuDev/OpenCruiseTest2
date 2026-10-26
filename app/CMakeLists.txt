@@ -199,7 +199,8 @@ endforeach()
 install(FILES fonts/README-FONTS.md DESTINATION share/opencruise/fonts)
 
 # ---------------------------------------------------------------------------
-# 効果音(カテゴリごとのフォルダ: sounds/click = 操作音、sounds/start = 起動音。WAV のみ)。
+# 効果音(カテゴリごとのフォルダ: sounds/click = 操作音、sounds/start = 起動音、sounds/alert = 警告音。
+# WAV のみ。起動音だけは MP3 も使える)。
 # 実行ファイルの隣の sounds/ へコピーし、設定「サウンド」の一覧に出す(SystemSound が読む)。
 # 既定の Click.wav / Start.wav は、フォルダが無い環境でも鳴らせるようリソースにも埋め込む(上の RESOURCES)。
 # ---------------------------------------------------------------------------

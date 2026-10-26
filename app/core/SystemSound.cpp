@@ -105,7 +105,10 @@ bool isCategory(const QString &category) {
 } // namespace
 
 SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
-    : QObject(parent), settings_(settings), click_(this), start_(this), alert_(this), preview_(this) {
+    : QObject(parent), settings_(settings), click_(this), start_(this), alert_(this), preview_(this),
+      startOutput_(this), startPlayer_(this), previewOutput_(this), previewPlayer_(this) {
+    setupPlayer(startPlayer_, startOutput_);
+    setupPlayer(previewPlayer_, previewOutput_);
     setupEffect(click_, clickPending_);
     setupEffect(start_, startPending_);
     setupEffect(alert_, alertPending_);
@@ -156,12 +159,30 @@ QString SystemSound::builtinSoundDirectory() const {
     return {};
 }
 
-QStringList SystemSound::wavFiles(const QString &directory) {
+bool SystemSound::allowsMp3(const QString &category) {
+    return category == QStringLiteral("start");
+}
+
+bool SystemSound::isMp3(const QUrl &url) {
+    return url.path().endsWith(QStringLiteral(".mp3"), Qt::CaseInsensitive);
+}
+
+QStringList SystemSound::soundFiles(const QString &directory, const QString &category) {
     if (directory.isEmpty()) {
         return {};
     }
-    return QDir(directory).entryList({QStringLiteral("*.wav"), QStringLiteral("*.WAV")}, QDir::Files | QDir::Readable,
-                                     QDir::Name | QDir::IgnoreCase);
+    QStringList filters = {QStringLiteral("*.wav"), QStringLiteral("*.WAV")};
+    if (allowsMp3(category)) {
+        filters << QStringLiteral("*.mp3") << QStringLiteral("*.MP3");
+    }
+    return QDir(directory).entryList(filters, QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
+}
+
+void SystemSound::setupPlayer(QMediaPlayer &player, QAudioOutput &output) {
+    player.setAudioOutput(&output);
+    connect(&player, &QMediaPlayer::errorOccurred, this, [&player](QMediaPlayer::Error, const QString &text) {
+        log::warn("AUDIO", QStringLiteral("システム音を読み込めません: %1 (%2)").arg(player.source().toString(), text));
+    });
 }
 
 QVariantList SystemSound::soundOptions(const QString &category) const {
@@ -176,7 +197,7 @@ QVariantList SystemSound::soundOptions(const QString &category) const {
                                 {QStringLiteral("folder"), QStringLiteral("内蔵")}});
     }
     const QString builtin = builtinSoundDirectory();
-    QStringList builtinFiles = wavFiles(builtin.isEmpty() ? QString() : builtin + QLatin1Char('/') + category);
+    QStringList builtinFiles = soundFiles(builtin.isEmpty() ? QString() : builtin + QLatin1Char('/') + category, category);
     if (builtinFiles.isEmpty()) {
         builtinFiles << defaultFile(category); // 同梱フォルダが無くても、既定の音(リソース)は選べるようにする
     }
@@ -185,7 +206,7 @@ QVariantList SystemSound::soundOptions(const QString &category) const {
                                 {QStringLiteral("name"), QFileInfo(file).completeBaseName()},
                                 {QStringLiteral("folder"), QStringLiteral("同梱")}});
     }
-    for (const QString &file : wavFiles(userSoundDirectory() + QLatin1Char('/') + category)) {
+    for (const QString &file : soundFiles(userSoundDirectory() + QLatin1Char('/') + category, category)) {
         list.append(QVariantMap{{QStringLiteral("id"), kUserPrefix + file},
                                 {QStringLiteral("name"), QFileInfo(file).completeBaseName()},
                                 {QStringLiteral("folder"), QStringLiteral("ユーザー")}});
@@ -243,6 +264,18 @@ void SystemSound::loadCategory(const QString &category) {
         log::warn("AUDIO", QStringLiteral("効果音が見つかりません(%1: %2)。既定の音を使います").arg(category, id));
         url = urlFor(category, kBuiltinPrefix + defaultFile(category));
     }
+    // 起動音に MP3 を選んだときは QMediaPlayer で鳴らす(QSoundEffect は WAV しか読めない)
+    if (category == QStringLiteral("start")) {
+        startUsesPlayer_ = !muted && isMp3(url);
+        const QUrl playerUrl = startUsesPlayer_ ? url : QUrl();
+        if (startPlayer_.source() != playerUrl) {
+            startPlayer_.stop();
+            startPlayer_.setSource(playerUrl);
+        }
+        if (startUsesPlayer_) {
+            url = QUrl();   // WAV 用の再生器は空にしておく
+        }
+    }
     QSoundEffect &effect = effectOf(category);
     mutedOf(category) = muted;
     pendingOf(category) = false;
@@ -282,6 +315,7 @@ bool &SystemSound::mutedOf(const QString &category) {
 void SystemSound::preview(const QString &category, const QString &id) {
     if (id == kNone || !isCategory(category)) {
         preview_.stop();
+        previewPlayer_.stop();
         return;
     }
     const QUrl url = urlFor(category, id);
@@ -289,6 +323,16 @@ void SystemSound::preview(const QString &category, const QString &id) {
         return;
     }
     preview_.stop();
+    previewPlayer_.stop();
+    if (isMp3(url)) {
+        // MP3 は QMediaPlayer で試聴する
+        if (previewPlayer_.source() != url) {
+            previewPlayer_.setSource(url);
+        }
+        previewPlayer_.setPosition(0);
+        previewPlayer_.play();
+        return;
+    }
     if (preview_.source() != url) {
         preview_.setSource(url);
     }
@@ -536,6 +580,12 @@ void SystemSound::applySettings() {
             effect->setAudioDevice(device);
         }
     }
+    for (QAudioOutput *output : {&startOutput_, &previewOutput_}) {
+        output->setVolume(gain);
+        if (!device.isNull() && output->device().id() != device.id()) {
+            output->setDevice(device);
+        }
+    }
 }
 
 void SystemSound::playEffect(QSoundEffect &effect, bool &pending) {
@@ -559,7 +609,14 @@ void SystemSound::play(const QString &name) {
         sinceClick_.restart();
         playEffect(click_, clickPending_);
     } else if (name == QStringLiteral("start")) {
-        if (!startMuted_) {
+        if (startMuted_) {
+            return;
+        }
+        if (startUsesPlayer_) {
+            startPlayer_.stop();
+            startPlayer_.setPosition(0);
+            startPlayer_.play();   // 読み込み中なら、読み込みが終わってから鳴る
+        } else {
             playEffect(start_, startPending_);
         }
     } else if (name == QStringLiteral("alert")) {
