@@ -139,7 +139,8 @@ Rectangle {
             topMargin: root.immersive ? 0 : Theme.margin
             leftMargin: root.immersive ? 0 : Theme.margin * 1.5
             rightMargin: root.immersive ? 0 : Theme.margin * 1.5
-            bottomMargin: root.immersive ? 0 : Theme.margin * 1.5
+            // 下端はメニューのつまみ(edgeHandle)の分だけ空ける
+            bottomMargin: root.immersive ? 0 : edgeHandle.height + 4
         }
 
         // ウィジェット(映像の場所以外のマス)。フルスクリーン中は隠す(動き続けるので、警告音などはそのまま)
@@ -246,18 +247,20 @@ Rectangle {
 
     // ---- 下から出るメニュー(シート)。初期画面・Android Auto 画面・フルスクリーンのどれでも使う ----
     // 開く: Windows キー / Esc(フルスクリーン中) / F10 / Menu キー、Android Auto 画面のステータスバーの「メニュー」、
-    //       フルスクリーン中は下端の細いつまみを上へスワイプ(またはタップ)
+    //       Android Auto 画面(フルスクリーンも)では下端の細いつまみを上へスワイプ(またはタップ)
     // 閉じる: シートを下へスワイプ / 外側タップ / 同じキー
     // フルスクリーン中は、つまみの高さの分だけ映像の下端はタッチが届かない。
     readonly property bool sheetOpen: root.menuOpen
     readonly property real sheetUnit: Math.max(0.6, Math.min(width / 1280, height / 720))
 
+    // 下端のつまみ(上へスワイプ・タップでメニューを開く)。Android Auto 画面では、フルスクリーンでなくても出す
     MouseArea {
         id: edgeHandle
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         height: 28
         z: 10
-        visible: root.immersive && !root.menuOpen
+        visible: (root.immersive || root.showAa) && !root.menuOpen
+        opacity: root.immersive ? 1 : root.aaFade
         onPositionChanged: (mouse) => { if (pressed && mouse.y < -30) root.menuOpen = true }
         onClicked: root.menuOpen = true
 
