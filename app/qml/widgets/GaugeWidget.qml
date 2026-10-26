@@ -197,6 +197,17 @@ WidgetBase {
         else if (peakMode === "min" ? rawValue < peak : rawValue > peak) peak = rawValue
     }
     function resetPeak() { peak = rawValue }
+    // タップでのリセット。同じ種類のメーター(全ページ・Android Auto 画面)もまとめてリセットする
+    function resetPeakLinked() {
+        resetPeak()
+        if (widgetId !== "") WarningAlarm.resetPeak(groupName(), widgetId)
+    }
+    Connections {
+        target: WarningAlarm
+        function onPeakResetRequested(group, sourceKey) {
+            if (root.widgetId !== "" && group === root.groupName() && sourceKey !== root.widgetId) root.resetPeak()
+        }
+    }
     readonly property bool peakShown: peakMode !== "off" && !isNaN(peak)
 
     // ピークの小さな表示(数値の上に置く)。タップでリセット
@@ -288,7 +299,7 @@ WidgetBase {
             // 小さくても押しやすいよう、文字より広めに受ける
             x: pl.area.x - pl.px; y: -pl.px * 0.5
             width: pl.area.width + pl.px * 2; height: pl.height + pl.px
-            onClicked: root.resetPeak()
+            onClicked: root.resetPeakLinked()
         }
     }
     onPeakModeChanged: resetPeak()
@@ -311,6 +322,25 @@ WidgetBase {
                                         ? config.warnPopupMode : (config.warnPopup === true ? "once" : "off")
     readonly property bool popupOn: warnOn && popupMode === "once"
     readonly property bool popupDetail: config.warnPopupDetail !== false
+    // 操作(消音・ポップアップ通知・最大値のリセット)をリンクする範囲: 同じ計測値のメーター
+    // (作られた直後の警告の登録でも使うので、束縛の評価順に左右されないよう関数でも求められるようにする)
+    function groupName() { return "gauge:" + ((config && config.metric) || "") }
+    readonly property string linkGroup: groupName()
+    // 警告のポップアップ通知は、同じ範囲のメーターのうち 1 つだけが出す(同じ通知が重ならないように)
+    readonly property bool wantsNotice: widgetId !== "" && warnOn && popupMode !== "off"
+    property string noticeKey: ""     // WarningAlarm.joinNotice している key(group は linkGroup)
+    property string noticeGroup: ""
+    function syncNoticeMember() {
+        const key = wantsNotice ? widgetId : ""
+        if (noticeKey === key && noticeGroup === groupName()) return
+        if (noticeKey !== "") WarningAlarm.leaveNotice(noticeGroup, noticeKey)
+        noticeKey = key
+        noticeGroup = groupName()
+        if (key !== "") WarningAlarm.joinNotice(noticeGroup, key)
+    }
+    onWantsNoticeChanged: syncNoticeMember()
+    onLinkGroupChanged: syncNoticeMember()
+    readonly property bool noticeOwner: { WarningAlarm.noticeRevision; return WarningAlarm.isNoticeOwner(linkGroup, widgetId) }
     // 警告音を出したい状態(配置されているウィジェットだけ。プレビューは widgetId が空)
     readonly property bool alarming: beepOn && warning && widgetId !== ""
     // 今ビープが鳴っているか / 鳴っていたがタップで止めたか
@@ -322,12 +352,13 @@ WidgetBase {
         if (raisedKey === want) return
         if (raisedKey !== "") WarningAlarm.clear(raisedKey)
         raisedKey = want
-        if (want !== "") WarningAlarm.raise(want, labelText)
+        if (want !== "") WarningAlarm.raise(want, labelText, groupName())
     }
     onAlarmingChanged: syncAlarm()
-    onWidgetIdChanged: syncAlarm()
+    onWidgetIdChanged: { syncAlarm(); syncNoticeMember() }
     Component.onDestruction: {
         if (raisedKey !== "") WarningAlarm.clear(raisedKey)
+        if (noticeKey !== "") WarningAlarm.leaveNotice(noticeGroup, noticeKey)
         if (liveNoticeId >= 0) notifications.dismiss(liveNoticeId)
     }
     onTapped: if (beeping) WarningAlarm.acknowledge(widgetId)
@@ -366,7 +397,8 @@ WidgetBase {
     onWarningChanged: {
         if (warning) {
             episodePeak = rawValue
-            if (popupOn && widgetId !== "") showWarnPopup()
+            syncNoticeMember()
+            if (popupOn && widgetId !== "" && WarningAlarm.isNoticeOwner(groupName(), widgetId)) showWarnPopup()
         } else if (onceNoticeId >= 0) {
             if (!warningsArmed) {
                 // 警告が無効になった(今は起こらない。将来キー OFF などで無効にしたとき用): 「正常に戻りました」とは言えないので閉じる
@@ -380,7 +412,7 @@ WidgetBase {
     }
 
     // 出し続ける通知("live")
-    readonly property bool wantLiveNotice: warnOn && popupMode === "live" && warning && widgetId !== ""
+    readonly property bool wantLiveNotice: warnOn && popupMode === "live" && warning && widgetId !== "" && noticeOwner
     property int liveNoticeId: -1
     property bool liveDismissed: false   // タップで消された(警告が解除されるまで出し直さない)
     function syncLiveNotice() {
@@ -510,6 +542,8 @@ WidgetBase {
             readonly property real peakH: root.peakShown && root.showReadout ? 0.12 : 0
             // アナログのみのときの単位表示(中心円の下)
             readonly property real unitY: root.hubSize / 2 + 0.16
+            // アナログのみのときのピーク表示の中心(数値の枠の真ん中。単位の下に食い込まないようにする)
+            readonly property real peakCy: Math.max(readout.y + readout.h / 2, unitY + 0.18)
             readonly property string scaleUnitText: root.labelDiv > 1 ? "×" + root.labelDiv + " " + root.unitText : root.unitText
 
             // 弧・中心円・数値表示が占める範囲
@@ -531,8 +565,12 @@ WidgetBase {
                     xs.push(readout.x, readout.x + readout.w)
                     ys.push(readout.y, readout.y + readout.h)
                 } else {
-                    // 単位と、その下のピーク表示(ある場合)まで
-                    ys.push(root.peakShown ? unitY + 0.13 + 0.215 : unitY + 0.07)
+                    // 単位と、ピーク表示(ある場合。数値を出すときと同じ場所)まで
+                    ys.push(unitY + 0.07)
+                    if (root.peakShown) {
+                        xs.push(readout.x, readout.x + readout.w)
+                        ys.push(peakCy - 0.11, peakCy + 0.11)
+                    }
                 }
                 const pad = 0.02
                 return { minX: Math.min(...xs) - pad, maxX: Math.max(...xs) + pad,
@@ -1039,13 +1077,14 @@ WidgetBase {
                 text: dial.scaleUnitText
                 color: root.dialFgDim
             }
-            PeakLabel {   // アナログのみ: 単位の下。両端の目盛りの数字とぶつからないよう、縦 2 段にして横幅を取らない
+            PeakLabel {   // アナログのみ: 数値を出すときと同じ場所(弧の空き)の真ん中。縦 2 段にして横幅を取らない
                 visible: root.style === "analog" && !root.needleless && root.peakShown
                 stacked: true
                 textColor: root.dialFgDim
-                width: dial.rpx * 0.6
-                x: dial.cx - width / 2
-                y: dial.cy + (dial.unitY + 0.13) * dial.rpx
+                width: dial.readout.w * dial.rpx
+                x: dial.cx + dial.readout.x * dial.rpx
+                // 単位(中心円の下)とは重ならないようにする
+                y: dial.cy + dial.peakCy * dial.rpx - height / 2
                 px: Math.max(11, Math.round(dial.rpx * 0.1))
             }
         }
