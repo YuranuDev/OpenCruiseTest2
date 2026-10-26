@@ -191,3 +191,28 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 - `driver_position` は右ハンドル、音声フォーカス要求には「喪失」、ナビフォーカスには PROJECTED を返す暫定実装。
 - ログは `[aa] [session] ...` `[aa] [video] ...` として標準エラーに出る。どこまで進んだかの切り分けに使える。
 - `--test-video` で映像が出ても aasdk の受信が動いた証拠にはならない（状態表示に「aasdk 経由ではありません」と出る）。
+
+## 使用素材・ライセンス
+
+### 効果音: OtoLogic
+
+アプリの効果音(`app/sounds/`)には、[OtoLogic](https://otologic.jp) が配布している素材音源を使用しています。
+
+- 素材: OtoLogic (https://otologic.jp)
+- ライセンス: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)
+- 利用規約: https://otologic.jp/free/license.html
+
+素材を再配布するとき(このリポジトリを配布する場合も含む)は、このクレジット表記を引き継いでください。
+
+### 音声: AivisSpeech
+
+起動時のあいさつなどの音声(`app/sounds/start/` の読み上げ音声)は、[AivisSpeech](https://aivis-project.com) で作成しました。
+
+- AivisSpeech 本体: 生成した音声にクレジット表記の義務はありません(任意のクレジットとして記載しています)
+- 音声合成モデル: 使ったモデルごとのライセンスに従います。AivisHub などで公開されている ACML / ACML-NC / CC0 のモデルは
+  クレジット表記の義務がありません。ACML-NC のモデルは非商用に限られるため、商用で配布する場合はモデルのライセンスを確認してください
+- 使用した音声合成モデル: (モデル名とライセンスを記入)
+
+### クレジットの表示場所
+
+アプリの画面内にも、同じクレジットを表示しています(設定 > 情報 > 使用素材・ライセンス)。

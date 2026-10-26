@@ -1,4 +1,4 @@
-// 設定ジャンル「情報」: アプリ(バージョン・Qt・ビルド・ログ)と、動作している Linux の情報。
+// 設定ジャンル「情報」: アプリ(バージョン・Qt・ビルド・ログ)と、動作している Linux の情報、使用素材のライセンス。
 // 値は appInfo(core/AppInfo)から読む。起動ログに出る環境情報と同じ情報源。
 import QtQuick
 
@@ -32,6 +32,20 @@ SettingsPage {
         }
         SettingsInfoRow { label: "ログファイル"; value: appInfo.logFile }
         SettingsInfoRow { label: "保存先"; value: appInfo.logDirectory }
+    }
+
+    // 使用素材のクレジット(CC BY 4.0 の表記の義務。画面内に出すのがいちばん望ましいとされているため、ここに出す)
+    SettingsSection {
+        title: "使用素材・ライセンス"
+        icon: "copyright"
+
+        SettingsInfoRow { label: "効果音"; value: "OtoLogic (https://otologic.jp) ・ CC BY 4.0" }
+        SettingsInfoRow { label: "音声"; value: "AivisSpeech (https://aivis-project.com)" }
+        SettingsNote {
+            text: "このアプリの効果音には、OtoLogic が配布している素材音源を使用しています。"
+                  + "素材のライセンスは CC BY 4.0(https://creativecommons.org/licenses/by/4.0/deed.ja)です。\n"
+                  + "起動時のあいさつなどの音声は、AivisSpeech で作成しました。"
+        }
     }
 
     SettingsSection {

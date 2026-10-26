@@ -1,0 +1,20 @@
+# 音素材のクレジット
+
+## 効果音: OtoLogic
+
+このフォルダの効果音には、OtoLogic が配布している素材音源を使用しています。
+
+- 素材: OtoLogic (https://otologic.jp)
+- ライセンス: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/deed.ja)
+- 利用規約: https://otologic.jp/free/license.html
+
+素材を再配布するとき(このフォルダごと配布する場合も含む)は、このクレジット表記を引き継いでください。
+
+## 音声: AivisSpeech
+
+読み上げ音声(start/ のあいさつなど)は、AivisSpeech (https://aivis-project.com) で作成しました。
+
+- AivisSpeech 本体は、生成した音声にクレジット表記の義務はありません(任意のクレジットとして記載しています)
+- 音声合成モデルは、そのモデルのライセンスに従います(ACML / ACML-NC / CC0 のモデルはクレジット表記の義務なし。
+  ACML-NC は非商用のみ)
+- 使用した音声合成モデル: (モデル名とライセンスを記入)
