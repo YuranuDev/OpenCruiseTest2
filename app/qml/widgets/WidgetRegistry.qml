@@ -307,9 +307,18 @@ QtObject {
         return []
     }
     function isLinked(type, key) { return linkedKeys(type).indexOf(key) >= 0 }
+    // 種類をまたいで、すべてのメーターで共通にする設定(今は無し。通知の設定も種類ごと)。
+    // ここに足した項目は、計測値に関係なくすべてのメーターでリンクする
+    readonly property var gaugeSharedKeys: []
     // リンクする範囲の名前(種類。グラフは計測値まで)
     function linkGroup(type, config) {
         return type === "graph" ? type + ":" + ((config && config.metric) || "") : type
+    }
+    // 設定項目ごとのリンクの範囲(メーターの通知の出し方は、メーターすべて)
+    function linkGroupFor(type, config, key) {
+        const def = find(type)
+        if (def && def.settings === gaugeSettings && gaugeSharedKeys.indexOf(key) >= 0) return "gauges"
+        return linkGroup(type, config)
     }
     // リンクしている設定の今の値(範囲の名前 → { key: value })。新しく足したウィジェットはこれを引き継ぐ
     property var linkedValues: ({})
@@ -323,17 +332,18 @@ QtObject {
     }
     function publishLinked(type, config, key, value, sourceWid, save) {
         if (!isLinked(type, key)) return
-        const group = linkGroup(type, config)
+        const group = linkGroupFor(type, config, key)
         if (save) rememberLinked(group, key, value, true)
         linkedChanged(group, key, value, sourceWid, save)
     }
     // 新しいウィジェットの設定に、リンクしている今の値を重ねる
     function withLinked(type, config) {
         const keys = linkedKeys(type)
-        const vals = linkedValues[linkGroup(type, config)]
-        if (keys.length === 0 || !vals) return config
         const out = Object.assign({}, config)
-        for (const k of keys) if (vals[k] !== undefined) out[k] = vals[k]
+        for (const k of keys) {
+            const vals = linkedValues[linkGroupFor(type, config, k)]
+            if (vals && vals[k] !== undefined) out[k] = vals[k]
+        }
         return out
     }
 

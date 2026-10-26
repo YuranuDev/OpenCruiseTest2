@@ -15,6 +15,11 @@
 //   joinNotice(group, key) / leaveNotice(group, key) / isNoticeOwner(group, key)
 //       警告のポップアップ通知を出すのは、同じ範囲の中で 1 つだけ(最初に登録したもの)。同じ通知が重ならない
 //   resetPeak(group, sourceKey)     最大・最小値のリセット(peakResetRequested で同じ範囲のメーターへ伝える)
+// 警告のポップアップ通知(まとめて 1 つ):
+//   noticeReport(group, item)       メーターが今の状態(タイトル・本文・警告中か・出し方)を知らせる
+//   noticeRemove(group)             通知をやめた(設定を変えた・ウィジェットが消えた)
+//   いくつかのメーターが同時に警告しても、通知は 1 つにまとめ、警告中のものを上に並べる(3 件まで。残りは「ほか N 件」)。
+//   解除されたものは、その警告の間の最大値を 8 秒出してから外す
 pragma Singleton
 import QtQuick
 
@@ -98,6 +103,83 @@ QtObject {
     function isNoticeOwner(group, key) {
         const list = noticeMembers[group]
         return !list || list.length === 0 || list[0] === key
+    }
+
+    // ---- 警告のポップアップ通知(すべてのメーターで 1 つにまとめる) ----
+    readonly property int noticeHoldMs: 8000
+    /// group → { title, text, level, warning, icon, mode, at(警告になった時刻), endAt(解除された時刻) }
+    property var noticeItems: ({})
+    property int noticeId: -1
+    /// 通知に載っている件数(解除の表示中のものも含む)
+    property int noticeCount: 0
+
+    function noticeReport(group, item) {
+        if (group === "") return
+        const prev = noticeItems[group]
+        const fresh = item.warning && (!prev || !prev.warning)
+        const recovered = !item.warning && prev !== undefined && prev.warning
+        if (!item.warning && !prev) return   // 警告になっていないものは載せない
+        noticeItems[group] = {
+            title: item.title, text: item.text, level: item.level, warning: item.warning,
+            icon: item.icon, mode: item.mode,
+            at: fresh ? Date.now() : (prev ? prev.at : Date.now()),
+            endAt: item.warning ? 0 : (recovered ? Date.now() : (prev ? prev.endAt : Date.now()))
+        }
+        refreshNotice(fresh || recovered, fresh)
+    }
+    function noticeRemove(group) {
+        if (noticeItems[group] === undefined) return
+        delete noticeItems[group]
+        refreshNotice(false, false)
+    }
+    function noticeShowing(group) { return noticeItems[group] !== undefined && noticeId >= 0 }
+
+    // 通知を作り直す。restart: 表示時間を数え直す(新しい警告・解除のとき)。
+    // allowNew: 通知が出ていなければ新しく出す(新しい警告のときだけ。消えた・消された通知は、次の警告まで出さない)
+    function refreshNotice(restart, allowNew) {
+        const now = Date.now()
+        const list = []
+        for (const g in noticeItems) {
+            const it = noticeItems[g]
+            if (!it.warning && now - it.endAt >= noticeHoldMs) { delete noticeItems[g]; continue }
+            list.push(it)
+        }
+        noticeCount = list.length
+        if (list.length === 0) {
+            if (noticeId >= 0) notifications.dismiss(noticeId)
+            noticeId = -1
+            return
+        }
+        // 警告中のものを先に、その中では新しい順
+        list.sort((a, b) => (a.warning !== b.warning) ? (a.warning ? -1 : 1) : (b.at - a.at))
+        const warnCount = list.filter(i => i.warning).length
+        const live = list.some(i => i.warning && i.mode === "live")
+        let title, text
+        if (list.length === 1) {
+            title = list[0].title
+            text = list[0].text
+        } else {
+            title = warnCount > 0 ? "警告が " + warnCount + " 件あります" : "警告が解除されました"
+            const lines = list.slice(0, 3).map(i => i.title + ": " + i.text)
+            if (list.length > 3) lines[2] = "ほか " + (list.length - 2) + " 件"
+            text = lines.join("\n")
+        }
+        const level = Math.max(...list.map(i => i.level))
+        const icon = list[0].icon
+        // 出し続ける警告がある間は消えない。それ以外は 8 秒
+        const duration = live ? 0 : noticeHoldMs
+        if (noticeId >= 0) {
+            if (notifications.update(noticeId, title, text, level, restart ? duration : -1)) return
+            noticeId = -1   // 時間が来て消えた・タップで消された
+        }
+        if (allowNew) noticeId = notifications.show(title, text, level, icon, duration)
+    }
+    // 中身の更新と、解除の表示の期限切れの片付け
+    property Timer noticeTicker: Timer {
+        interval: 500
+        repeat: true
+        running: alarm.noticeCount > 0 || alarm.noticeId >= 0
+        onTriggered: alarm.refreshNotice(false, false)
     }
 
     // ---- 最大・最小値のリセット ----

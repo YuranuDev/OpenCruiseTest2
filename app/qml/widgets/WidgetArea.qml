@@ -385,7 +385,7 @@ Item {
             let changed = false
             for (let i = 0; i < layout.count; ++i) {
                 const it = layout.get(i)
-                if (it.wid === sourceWid || WidgetRegistry.linkGroup(it.wtype, widgetArea.configOf(it.wid)) !== group) continue
+                if (it.wid === sourceWid || WidgetRegistry.linkGroupFor(it.wtype, widgetArea.configOf(it.wid), key) !== group) continue
                 const cur = Object.assign({}, it.config)
                 if (cur[key] === value) continue
                 cur[key] = value
@@ -397,7 +397,7 @@ Item {
                 const list = widgetArea.parked.map(p => {
                     const def = WidgetRegistry.find(p.type)
                     const cfg = Object.assign({}, def ? def.defaultConfig : {}, p.config)
-                    if (p.id === sourceWid || WidgetRegistry.linkGroup(p.type, cfg) !== group
+                    if (p.id === sourceWid || WidgetRegistry.linkGroupFor(p.type, cfg, key) !== group
                             || (p.config && p.config[key] === value)) return p
                     parkedChanged = true
                     return Object.assign({}, p, { config: Object.assign({}, p.config, { [key]: value }) })
@@ -446,9 +446,10 @@ Item {
             used[wid] = true
             // リンクしている設定(通知・警告)の今の値を覚えておく(あとで足すウィジェットが引き継ぐ)
             if (e.config) {
-                const group = WidgetRegistry.linkGroup(e.type, Object.assign({}, def.defaultConfig, e.config))
+                const full = Object.assign({}, def.defaultConfig, e.config)
                 for (const k of WidgetRegistry.linkedKeys(e.type)) {
-                    if (e.config[k] !== undefined) WidgetRegistry.rememberLinked(group, k, e.config[k], false)
+                    if (e.config[k] !== undefined)
+                        WidgetRegistry.rememberLinked(WidgetRegistry.linkGroupFor(e.type, full, k), k, e.config[k], false)
                 }
             }
             if (overlaps(c, r, w, h, "")) {
