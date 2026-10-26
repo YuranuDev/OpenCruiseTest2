@@ -14,9 +14,13 @@ Column {
     property string icon: "tune"
     property bool active: false
     property bool available: true
-    // 選ばれているジャンルか(WidgetSettingsBase の effectiveKey と比べる)
-    readonly property bool current: parent !== null && parent.effectiveKey !== undefined && parent.effectiveKey === title
+    // 選ばれているジャンルか。WidgetSettingsBase が書き換える(束縛にはしない: 画面を閉じて部品を壊している途中に
+    // 表示・非表示が切り替わると、壊れかけの行の寸法が計算し直されて警告が大量に出るため)
+    property bool current: false
 
     width: parent ? parent.width : implicitWidth
     visible: current && available
+
+    // 土台(WidgetSettingsBase)に自分を登録する(タブの一覧はこの登録から作る)
+    Component.onCompleted: if (parent && parent.registerGroup) parent.registerGroup(this)
 }

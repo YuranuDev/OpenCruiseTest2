@@ -33,11 +33,20 @@ Item {
     }
     property string tabKey: ""                 // 選んだタブ
     property var lastTabs: ({})                // 種類ごとに最後に選んだタブ(アプリを閉じるまで)
-    // 実際に表示するタブ(選んだタブが今は出せないときは先頭)
-    readonly property string currentTab: {
-        for (let i = 0; i < tabs.length; ++i) if (tabs[i].key === tabKey) return tabKey
-        return tabs.length > 0 ? tabs[0].key : commonKey
+    // 実際に表示するタブ(選んだタブが今は出せないときは先頭)。束縛にはせず、ここで書き換える
+    // (画面を壊している途中にタブが切り替わると、壊れかけの行の寸法が計算し直されて警告が大量に出るため)
+    property string currentTab: ""
+    property bool tearingDown: false
+    Component.onDestruction: tearingDown = true
+    function updateCurrentTab() {
+        if (tearingDown) return
+        let key = tabs.length > 0 ? tabs[0].key : commonKey
+        for (let i = 0; i < tabs.length; ++i) if (tabs[i].key === tabKey) { key = tabKey; break }
+        if (currentTab !== key) currentTab = key
     }
+    onTabsChanged: updateCurrentTab()
+    onTabKeyChanged: updateCurrentTab()
+    Component.onCompleted: updateCurrentTab()
     function selectTab(key) {
         panel.forceActiveFocus()        // 入力中の文字を確定させてから切り替える
         tabKey = key

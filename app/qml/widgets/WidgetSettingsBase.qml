@@ -33,13 +33,26 @@ Column {
     // 選ばれているジャンル(WidgetSettingsDialog が設定する。WidgetSettingsGroup の title)
     property string currentKey: ""
 
+    // ジャンル(WidgetSettingsGroup が作られたときに registerGroup で登録する。外すことはしない)。書いた順
+    property var groups: []
+    function registerGroup(g) {
+        if (groups.indexOf(g) >= 0) return
+        // 作られた順は書いた順と限らないので、書いた順(children の並び)に並べる
+        const order = []
+        for (let i = 0; i < children.length; ++i) order.push(children[i])
+        groups = groups.concat([g]).sort((a, b) => order.indexOf(a) - order.indexOf(b))
+        applyCurrent()
+    }
+    // 壊している途中か(このときは表示するジャンルを切り替えない)
+    property bool tearingDown: false
+    Component.onDestruction: tearingDown = true
+
     // タブの一覧: [{ key, title, icon, active }]
     readonly property var tabs: {
         const list = []
-        for (let i = 0; i < children.length; ++i) {
-            const c = children[i]
-            if (c && c.isSettingsGroup === true && c.available)
-                list.push({ key: c.title, title: c.title, icon: c.icon, active: c.active })
+        for (let i = 0; i < groups.length; ++i) {
+            const g = groups[i]
+            if (g && g.available) list.push({ key: g.title, title: g.title, icon: g.icon, active: g.active })
         }
         if (list.length === 0) list.push({ key: "", title: mainTitle, icon: mainIcon, active: false })
         return list
@@ -49,4 +62,13 @@ Column {
         for (let i = 0; i < tabs.length; ++i) if (tabs[i].key === currentKey) return currentKey
         return tabs.length > 0 ? tabs[0].key : ""
     }
+    // 表示するジャンルだけ current にする(束縛ではなく、ここで書き換える)
+    function applyCurrent() {
+        if (tearingDown) return
+        for (let i = 0; i < groups.length; ++i) {
+            const g = groups[i]
+            if (g) g.current = g.title === effectiveKey
+        }
+    }
+    onEffectiveKeyChanged: applyCurrent()
 }
