@@ -32,6 +32,12 @@ QtObject {
         ++revision
     }
 
+    // 履歴を捨てる(データ源が無くなったとき。古い値をグラフに残さない)
+    function clear() {
+        buffers = ({})
+        ++revision
+    }
+
     function series(metric) {
         const b = buffers[metric]
         return b === undefined ? { t: [], v: [] } : b

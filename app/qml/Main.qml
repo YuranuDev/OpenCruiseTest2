@@ -250,12 +250,17 @@ ApplicationWindow {
         // グラフ用に、車両データ(メーターと同じ計測値。基本単位)を一定間隔で履歴へ入れる
         Timer {
             interval: VehicleHistory.sampleMs
-            running: true
+            running: can.dataAvailable   // データ源が無い間は記録しない
             repeat: true
             onTriggered: VehicleHistory.push({
                 boost: can.boostBar, rpm: can.rpm, speed: can.speedKmh, coolant: can.coolantTempC,
                 fuel: can.fuelPercent, oilTemp: can.oilTempC, oilPressure: can.oilPressureBar, voltage: can.batteryVolts
             })
+        }
+
+        Connections {
+            target: can
+            function onDataAvailableChanged() { if (!can.dataAvailable) VehicleHistory.clear() }
         }
 
         // 画面上部のポップアップ通知（映像表示中も最前面）

@@ -5,6 +5,7 @@
 #include "VehicleDataManager.h"
 
 #include <QDebug>
+#include <QSettings>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -31,6 +32,28 @@ constexpr double kAmbientC = 22.0;              ///< 外気温
 constexpr double kThermostatC = 86.0;           ///< サーモスタットの開弁温度(全開は +10℃)
 constexpr double kShiftTimeS = 0.35;            ///< 変速にかかる時間(駆動力が抜ける)
 
+// ---- CVT(ベルト式。トルクコンバーター付き) ----
+constexpr double kCvtMaxRatio = 2.631;          ///< いちばん低い変速比(発進側)
+constexpr double kCvtMinRatio = 0.378;          ///< いちばん高い変速比(巡航側)
+constexpr double kCvtFinalDrive = 4.4;          ///< CVT の最終減速比
+constexpr double kCvtEff = 0.86;                ///< CVT の駆動系の効率(ベルト・油圧の分、AT より少し低い)
+/// 大きく踏んだときの疑似変速(ステップ変速)の 7 段の変速比
+constexpr std::array<double, 7> kCvtSteps = {2.40, 1.72, 1.30, 1.02, 0.82, 0.66, 0.53};
+constexpr double kCvtStepUpRpm = 6100.0;        ///< 疑似変速で次の段へ上げる回転数
+constexpr double kCvtStepEnter = 0.8;           ///< 疑似変速に入るアクセル開度
+constexpr double kCvtStepLeave = 0.55;          ///< 疑似変速をやめるアクセル開度
+
+QSettings openStore() {
+    return QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                     QStringLiteral("OpenCruise"));
+}
+
+/// アクセル開度(0〜1)に対するトルクの割合。実際の車のように、踏み始めで大きく効き、奥ではゆるやかになる
+/// (開度 20% で約 4 割、50% で約 2/3)。巡航に要るアクセルが浅くなり、CVT の目標回転数も上がりすぎない
+double pedalTorqueFrac(double throttle) { return std::pow(std::clamp(throttle, 0.0, 1.0), 0.6); }
+/// pedalTorqueFrac の逆(トルクの割合から開度)
+double throttleForFrac(double frac) { return std::pow(std::clamp(frac, 0.0, 1.0), 1.0 / 0.6); }
+
 /// a から b へ t(0〜1)で補間
 double lerp(double a, double b, double t) { return a + (b - a) * t; }
 
@@ -47,6 +70,13 @@ VehicleDataManager::VehicleDataManager(QObject *parent)
     : QObject(parent)
     , headlightState_(HeadlightState::UNKNOWN)
     , rng_(std::random_device{}()) {
+    {
+        QSettings store = openStore();
+        transmission_ = store.value(QStringLiteral("mock/transmission"), 0).toInt() == 1 ? Transmission::Cvt
+                                                                                          : Transmission::At;
+        style_ = static_cast<DriveStyle>(std::clamp(store.value(QStringLiteral("mock/driveStyle"), 1).toInt(), 0, 2));
+        mockGauges_ = store.value(QStringLiteral("mock/gaugeData"), true).toBool();
+    }
     std::uniform_real_distribution<double> fuel(0.4, 0.8);
     fuelLiters_ = kTankLiters * fuel(rng_);
     coolantTempC_ = kAmbientC;
@@ -68,6 +98,79 @@ VehicleDataManager::VehicleDataManager(QObject *parent)
  * @brief デストラクタ
  */
 VehicleDataManager::~VehicleDataManager() = default;
+
+/**
+ * @brief 変速機を切り替える。走行中でも回転数が飛ばないよう、今の総減速比に近い所から始める。
+ */
+void VehicleDataManager::setMockTransmission(int value) {
+    const Transmission next = value == 1 ? Transmission::Cvt : Transmission::At;
+    if (next == transmission_) return;
+    const double overall = overallRatio();
+    transmission_ = next;
+    if (next == Transmission::Cvt) {
+        cvtRatio_ = std::clamp(overall / kCvtFinalDrive, kCvtMinRatio, kCvtMaxRatio);
+        cvtStepMode_ = false;
+    } else {
+        // いちばん近い総減速比のギア
+        int best = 1;
+        for (int g = 1; g <= static_cast<int>(kGearRatios.size()); ++g) {
+            if (std::abs(kGearRatios[g - 1] * kFinalDrive - overall)
+                < std::abs(kGearRatios[best - 1] * kFinalDrive - overall)) best = g;
+        }
+        gear_ = best;
+        shiftLeftS_ = 0.0;
+    }
+    openStore().setValue(QStringLiteral("mock/transmission"), static_cast<int>(next));
+    emit mockSettingsChanged();
+}
+
+void VehicleDataManager::setMockGauges(bool enabled) {
+    if (enabled == mockGauges_) return;
+    mockGauges_ = enabled;
+    openStore().setValue(QStringLiteral("mock/gaugeData"), enabled);
+    qInfo() << "[vehicle] メーター・グラフのダミーデータ:" << (enabled ? "使う" : "使わない(データなし)");
+    emit dataAvailableChanged();
+    emit engineStateChanged();   // warningsArmed も変わる
+}
+
+void VehicleDataManager::setMockDriveStyle(int value) {
+    const DriveStyle next = static_cast<DriveStyle>(std::clamp(value, 0, 2));
+    if (next == style_) return;
+    style_ = next;
+    openStore().setValue(QStringLiteral("mock/driveStyle"), static_cast<int>(next));
+    emit mockSettingsChanged();
+}
+
+/**
+ * @brief 運転のしかたごとの値。
+ *  穏やか: じわっと踏み、全開加速はほとんどしない。早めに変速(CVT は低い回転のまま)し、ブレーキも弱い
+ *  普通  : これまでのモックと同じ
+ *  アグレッシブ: 深く・速く踏み、全開加速が多い。高回転まで引っ張り、ブレーキも強い
+ */
+const VehicleDataManager::StyleParams &VehicleDataManager::paramsFor(DriveStyle style) {
+    static const StyleParams kGentle = {0.15, 0.40, 0.04, 0.65, 25.0, 0.6, 1.5, 0.06, 0.7, 0.18, 1900.0, -150.0};
+    static const StyleParams kNormal = {0.30, 0.75, 0.18, 1.00, 50.0, 1.5, 3.0, 0.12, 1.0, 0.22, 2200.0, 0.0};
+    static const StyleParams kAggressive = {0.55, 1.00, 0.38, 1.00, 70.0, 3.5, 5.0, 0.25, 1.5, 0.26, 2700.0, 450.0};
+    switch (style) {
+    case DriveStyle::Gentle: return kGentle;
+    case DriveStyle::Aggressive: return kAggressive;
+    default: return kNormal;
+    }
+}
+
+double VehicleDataManager::rpmPerMs() {
+    return 1.0 / kTireRadiusM * 60.0 / (2.0 * kPi);
+}
+
+double VehicleDataManager::transmissionRatio() const {
+    if (transmission_ == Transmission::Cvt) return cvtRatio_;
+    return kGearRatios[static_cast<std::size_t>(gear_ - 1)];
+}
+
+double VehicleDataManager::overallRatio() const {
+    if (transmission_ == Transmission::Cvt) return cvtRatio_ * kCvtFinalDrive;
+    return kGearRatios[static_cast<std::size_t>(gear_ - 1)] * kFinalDrive;
+}
 
 /**
  * @brief ヘッドライト状態を取得する
@@ -122,22 +225,23 @@ double VehicleDataManager::rpmFromSpeed(double speedMs, int gear) const {
  */
 void VehicleDataManager::nextPhase() {
     std::uniform_real_distribution<double> u(0.0, 1.0);
+    const StyleParams &p = params();
     const double r = u(rng_);
     const double kmh = speedMs_ * 3.6;
 
-    if (phase_ != Phase::Stop && kmh < 70.0 && r < 0.22) {
+    if (phase_ != Phase::Stop && kmh < 70.0 && r < p.stopChance) {
         // 信号待ち
         phase_ = Phase::Stop;
         targetMs_ = 0.0;
         phaseLeftS_ = lerp(5.0, 20.0, u(rng_));
         return;
     }
-    if (r > 0.82) {
-        // 全開加速(合流・追い越しなど)
+    if (r > 1.0 - p.pullChance) {
+        // 全開加速(合流・追い越しなど)。穏やかな運転では踏み切らない
         phase_ = Phase::Pull;
-        targetMs_ = (std::max(kmh, 40.0) + lerp(35.0, 70.0, u(rng_))) / 3.6;
+        targetMs_ = (std::max(kmh, 40.0) + lerp(p.pullGainKmh * 0.5, p.pullGainKmh, u(rng_))) / 3.6;
         targetMs_ = std::min(targetMs_, 150.0 / 3.6);
-        maxThrottle_ = 1.0;
+        maxThrottle_ = p.pullThrottle;
         phaseLeftS_ = 20.0;
         return;
     }
@@ -146,7 +250,7 @@ void VehicleDataManager::nextPhase() {
     std::uniform_int_distribution<std::size_t> pick(0, kTargets.size() - 1);
     phase_ = Phase::Cruise;
     targetMs_ = (kTargets[pick(rng_)] + lerp(-5.0, 5.0, u(rng_))) / 3.6;
-    maxThrottle_ = lerp(0.3, 0.75, u(rng_));
+    maxThrottle_ = lerp(p.cruiseThrottleMin, p.cruiseThrottleMax, u(rng_));
     phaseLeftS_ = lerp(12.0, 35.0, u(rng_));
 }
 
@@ -157,25 +261,26 @@ void VehicleDataManager::driveControl(double dt, double &brakeDecel) {
     brakeDecel = 0.0;
     double wantThrottle = 0.0;
     const double err = targetMs_ - speedMs_;
+    const StyleParams &p = params();
 
     if (phase_ == Phase::Stop) {
-        brakeDecel = speedMs_ > 0.0 ? std::clamp(0.8 + speedMs_ * 0.12, 0.8, 3.2) : 0.0;
+        brakeDecel = speedMs_ > 0.0 ? std::clamp((0.8 + speedMs_ * 0.12) * p.brakeScale, 0.6, 4.5) : 0.0;
     } else if (phase_ == Phase::Pull && err > 0.5) {
-        wantThrottle = 1.0;
+        wantThrottle = maxThrottle_;
     } else if (err < -1.5) {
         // 目標より速い: アクセルを離し、差が大きければブレーキ
-        brakeDecel = std::clamp((-err - 1.5) * 0.35, 0.0, 2.5);
+        brakeDecel = std::clamp((-err - 1.5) * 0.35 * p.brakeScale, 0.0, 2.5 * p.brakeScale);
     } else {
         // 走行抵抗に釣り合う分 + 速度差に比例した分
         const double cruiseForce = kAeroCoef * speedMs_ * speedMs_ + kRollingN;
-        const double ratio = kGearRatios[static_cast<std::size_t>(gear_ - 1)] * kFinalDrive;
-        const double needNm = cruiseForce * kTireRadiusM / (ratio * kDrivetrainEff);
-        const double feedForward = needNm / (baseTorqueNm(std::max(rpm_, kIdleRpm)) * 1.15);
-        wantThrottle = std::clamp(feedForward + err * 0.12, 0.0, maxThrottle_);
+        const double eff = transmission_ == Transmission::Cvt ? kCvtEff : kDrivetrainEff;
+        const double needNm = cruiseForce * kTireRadiusM / (overallRatio() * eff);
+        const double feedForward = throttleForFrac(needNm / (baseTorqueNm(std::max(rpm_, kIdleRpm)) * 1.15));
+        wantThrottle = std::clamp(feedForward + err * p.speedGain, 0.0, maxThrottle_);
     }
 
-    // ペダルの動く速さ(踏むのは 1.5/s、離すのは 3/s)
-    const double rate = wantThrottle > throttle_ ? 1.5 : 3.0;
+    // ペダルの動く速さ(運転のしかたで変わる。普通は踏むのが 1.5/s、離すのが 3/s)
+    const double rate = wantThrottle > throttle_ ? p.pedalUpRate : p.pedalDownRate;
     throttle_ += std::clamp(wantThrottle - throttle_, -rate * dt, rate * dt);
 }
 
@@ -186,6 +291,83 @@ void VehicleDataManager::update() {
     const qint64 nowMs = elapsed_.elapsed();
     const double dt = std::clamp(static_cast<double>(nowMs - lastMs_) / 1000.0, 0.02, 0.5);
     lastMs_ = nowMs;
+    step(dt);
+}
+
+/**
+ * @brief AT の変速。アクセルを踏むほど高回転まで引っ張る(運転のしかたで変速点が変わる)。踏み込むとキックダウン。
+ */
+void VehicleDataManager::updateAt(double /*dt*/) {
+    if (shiftLeftS_ > 0.0) return;
+    if (speedMs_ <= 0.5) {
+        gear_ = 1;
+        return;
+    }
+    const StyleParams &p = params();
+    const double upAt = lerp(p.atUpshiftLow, 6300.0, std::pow(throttle_, 1.3));
+    const double downAt = lerp(1150.0, 2600.0, throttle_) + (p.atUpshiftLow - 2200.0) * 0.3;
+    const double rpmNow = rpmFromSpeed(speedMs_, gear_);
+    if (gear_ < static_cast<int>(kGearRatios.size()) && rpmNow > upAt) {
+        ++gear_;
+        shiftLeftS_ = kShiftTimeS;
+    } else if (gear_ > 1 && rpmNow < downAt) {
+        --gear_;
+        shiftLeftS_ = kShiftTimeS * 0.7;
+    } else if (gear_ > 1 && throttle_ > 0.85 && rpmFromSpeed(speedMs_, gear_ - 1) < 5600.0) {
+        --gear_;   // キックダウン
+        shiftLeftS_ = kShiftTimeS * 0.7;
+    }
+}
+
+/**
+ * @brief CVT の変速比。アクセル開度と車速から目標回転数を決め、変速比をその回転数になるよう連続的に動かす。
+ *  - 軽く踏む: 目標回転数が低い(1200〜2000rpm 前後)ので、変速比が高い側へ動いて回転は低いまま速度だけ伸びる
+ *  - 踏み増す: 目標回転数が上がる。低い側への変速は速く、高い側への変速はゆっくりなので、
+ *              回転が先に上がって張り付き、そのまま速度が伸びる(ラバーバンド感)
+ *  - 大きく踏む(kCvtStepEnter 以上): 7 段の疑似変速。段を固定して回転を上げ、kCvtStepUpRpm で次の段へ
+ *  - アクセルを離す: 目標回転数が下がって高い側へ。止まるにつれて、いちばん低い側へ戻る
+ */
+void VehicleDataManager::updateCvt(double dt) {
+    const StyleParams &p = params();
+    const double kmh = speedMs_ * 3.6;
+    const double perRatio = rpmPerMs() * std::max(speedMs_, 0.01) * kCvtFinalDrive;   // 変速比 1 あたりの回転数
+
+    // 疑似変速に入る・やめる
+    if (!cvtStepMode_ && throttle_ >= kCvtStepEnter && kmh > 8.0) {
+        cvtStepMode_ = true;
+        // 回転が上がりすぎない、いちばん低い段から
+        cvtStep_ = static_cast<int>(kCvtSteps.size()) - 1;
+        for (int s = 0; s < static_cast<int>(kCvtSteps.size()); ++s) {
+            if (perRatio * kCvtSteps[s] < kCvtStepUpRpm - 700.0) { cvtStep_ = s; break; }
+        }
+    } else if (cvtStepMode_ && (throttle_ < kCvtStepLeave || kmh < 5.0)) {
+        cvtStepMode_ = false;
+    }
+
+    double target = kCvtMaxRatio;
+    double rate = 1.0;
+    if (cvtStepMode_) {
+        if (perRatio * kCvtSteps[cvtStep_] >= kCvtStepUpRpm && cvtStep_ < static_cast<int>(kCvtSteps.size()) - 1) {
+            ++cvtStep_;   // 次の段へ(回転がすっと落ちる)
+        }
+        target = kCvtSteps[cvtStep_];
+        rate = 6.0;   // 段の切り替えは素早く
+    } else if (speedMs_ < 0.5) {
+        target = kCvtMaxRatio;   // 停車中・発進はいちばん低い側
+        rate = 3.0;
+    } else {
+        // 目標回転数: 車速が上がるほど少し高く、アクセル開度で大きく上がる
+        const double base = lerp(1150.0, 1750.0, std::clamp(kmh / 110.0, 0.0, 1.0)) + p.cvtRpmOffset * 0.5;
+        const double wantRpm = base + std::pow(throttle_, 1.6) * (5900.0 + p.cvtRpmOffset * 0.3 - base);
+        target = wantRpm / perRatio;
+        // 低い側へ(回転を上げる)は速く、高い側へ(回転を下げる)はゆっくり。踏んでいるほどゆっくり上げる
+        rate = target > cvtRatio_ ? 1.2 + 2.0 * throttle_ : 0.35 + 0.6 * (1.0 - throttle_);
+    }
+    target = std::clamp(target, kCvtMinRatio, kCvtMaxRatio);
+    cvtRatio_ += std::clamp(target - cvtRatio_, -rate * dt, rate * dt);
+}
+
+void VehicleDataManager::step(double dt) {
     std::normal_distribution<double> noise(0.0, 1.0);
 
     // ---- 運転者 ----
@@ -204,29 +386,17 @@ void VehicleDataManager::update() {
     double brakeDecel = 0.0;
     driveControl(dt, brakeDecel);
 
-    // ---- 変速(AT 相当。アクセルを踏むほど高回転まで引っ張る。踏み込むとキックダウン) ----
-    if (shiftLeftS_ > 0.0) {
-        shiftLeftS_ -= dt;
-    } else if (speedMs_ > 0.5) {
-        const double upAt = lerp(2200.0, 6300.0, std::pow(throttle_, 1.3));
-        const double downAt = lerp(1150.0, 2600.0, throttle_);
-        const double rpmNow = rpmFromSpeed(speedMs_, gear_);
-        if (gear_ < static_cast<int>(kGearRatios.size()) && rpmNow > upAt) {
-            ++gear_;
-            shiftLeftS_ = kShiftTimeS;
-        } else if (gear_ > 1 && rpmNow < downAt) {
-            --gear_;
-            shiftLeftS_ = kShiftTimeS * 0.7;
-        } else if (gear_ > 1 && throttle_ > 0.85 && rpmFromSpeed(speedMs_, gear_ - 1) < 5600.0) {
-            --gear_;   // キックダウン
-            shiftLeftS_ = kShiftTimeS * 0.7;
-        }
+    // ---- 変速(AT / CVT) ----
+    if (shiftLeftS_ > 0.0) shiftLeftS_ -= dt;
+    if (transmission_ == Transmission::Cvt) {
+        shiftLeftS_ = 0.0;   // CVT は駆動力が抜けない
+        updateCvt(dt);
     } else {
-        gear_ = 1;
+        updateAt(dt);
     }
 
     // ---- エンジン回転数(低速ではトルコンが滑る) ----
-    const double coupled = rpmFromSpeed(speedMs_, gear_);
+    const double coupled = rpmPerMs() * speedMs_ * overallRatio();
     const double slipRpm = kIdleRpm + throttle_ * 2200.0;   // 発進時はアクセル開度なりに回転が上がる
     double targetRpm = std::max(coupled, speedMs_ < 0.3 ? kIdleRpm + throttle_ * 1800.0 : std::min(slipRpm, coupled + 900.0));
     targetRpm = std::max(targetRpm, kIdleRpm);
@@ -257,13 +427,13 @@ void VehicleDataManager::update() {
     double torqueNm = 0.0;
     if (shiftLeftS_ <= 0.0 && !limiter) {
         const double boostGain = 1.0 + 0.8 * std::max(0.0, boostBar_) / kMaxBoostBar;
-        torqueNm = throttle_ * baseTorqueNm(rpm_) * boostGain;
+        torqueNm = pedalTorqueFrac(throttle_) * baseTorqueNm(rpm_) * boostGain;
     }
     if (throttle_ < 0.05) {
         torqueNm = -(8.0 + rpm_ * 0.006);   // エンジンブレーキ
     }
-    const double ratio = kGearRatios[static_cast<std::size_t>(gear_ - 1)] * kFinalDrive;
-    double driveN = torqueNm * ratio * kDrivetrainEff / kTireRadiusM;
+    const double eff = transmission_ == Transmission::Cvt ? kCvtEff : kDrivetrainEff;
+    double driveN = torqueNm * overallRatio() * eff / kTireRadiusM;
     if (speedMs_ < 0.3 && torqueNm < 0.0) {
         driveN = 0.0;
     }

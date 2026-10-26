@@ -108,9 +108,12 @@ WidgetBase {
         }
     }
     readonly property real rawValue: toShown(sourceValue)
+    // データ源があるか(無いときは「データなし」: 針は最小値で止め、数値は「--」、警告・ピーク表示は出さない)
+    readonly property bool hasData: can.dataAvailable
+    onHasDataChanged: { if (hasData) resetPeak(); else peak = NaN }
     // 針・数値は滑らかに追従させる(データは約 10Hz)
     // なめらかにするのは基本単位の値(換算前)。単位を変えたときは、換算した値がすぐに出る(途中の値を経由しない)
-    property real smoothBase: sourceValue
+    property real smoothBase: hasData ? sourceValue : (config.min !== undefined ? Number(config.min) : 0)
     Behavior on smoothBase { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
     readonly property real shown: toShown(smoothBase)
 
@@ -193,6 +196,7 @@ WidgetBase {
     readonly property string peakMode: config.peakMode === "min" || config.peakMode === "off" ? config.peakMode : "max"
     property real peak: NaN
     function updatePeak() {
+        if (!hasData) return
         if (isNaN(peak)) peak = rawValue
         else if (peakMode === "min" ? rawValue < peak : rawValue > peak) peak = rawValue
     }
@@ -208,7 +212,7 @@ WidgetBase {
             if (root.widgetId !== "" && group === root.groupName() && sourceKey !== root.widgetId) root.resetPeak()
         }
     }
-    readonly property bool peakShown: peakMode !== "off" && !isNaN(peak)
+    readonly property bool peakShown: hasData && peakMode !== "off" && !isNaN(peak)
 
     // ピークの小さな表示(数値の上に置く)。タップでリセット
     component PeakLabel: Item {
@@ -440,7 +444,7 @@ WidgetBase {
         opacity: root.beeping ? 0.12 + 0.26 * (1 - root.blink) / 0.65 : (root.silenced ? 0.1 : 0)
     }
 
-    // モックデータ中の表示(右上)
+    // データの状態の表示(右上): ダミーデータ中は「モック」、データ源が無いときは「データなし」
     Rectangle {
         id: mockTag
         z: 2
@@ -449,14 +453,14 @@ WidgetBase {
         height: mockText.implicitHeight + 4
         radius: height / 2
         color: "transparent"
-        border.color: Theme.warn
+        border.color: root.hasData ? Theme.warn : Theme.textSecondary
         Text {
             id: mockText
             anchors.centerIn: parent
             font.family: Theme.fontFamily
             font.pixelSize: Math.round(root.titleFontSize * (root.compact ? 0.65 : 0.75))
-            text: "モック"
-            color: Theme.warn
+            text: root.hasData ? "モック" : "データなし"
+            color: root.hasData ? Theme.warn : Theme.textSecondary
         }
     }
 
@@ -1011,7 +1015,7 @@ WidgetBase {
                     font.pixelSize: 300
                     minimumPixelSize: 12
                     fontSizeMode: Text.Fit
-                    text: root.fmt(root.shown, root.decimals)
+                    text: root.hasData ? root.fmt(root.shown, root.decimals) : "--"
                     color: root.dialValueColor
                 }
                 Text {
@@ -1110,7 +1114,7 @@ WidgetBase {
                     font.pixelSize: 300
                     minimumPixelSize: 14
                     fontSizeMode: Text.Fit
-                    text: root.fmt(root.shown, root.decimals)
+                    text: root.hasData ? root.fmt(root.shown, root.decimals) : "--"
                     color: root.valueColor
                 }
                 Text {

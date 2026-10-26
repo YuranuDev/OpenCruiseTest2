@@ -13,6 +13,8 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 計測値と単位
     readonly property string metric: WidgetRegistry.gaugeSpecs[config.metric] ? config.metric : "boost"
+    // データ源があるか(無いときは「データなし」。履歴は Main.qml が捨てるので、線は描かれない)
+    readonly property bool hasData: can.dataAvailable
     readonly property var gauge: WidgetRegistry.gaugeSpecs[metric]
     readonly property var unitDef: {
         const list = gauge.units
@@ -46,6 +48,15 @@ WidgetBase {
     property real statMax: NaN
     property real statAvg: NaN
     function collect() {
+        if (!hasData) {
+            points = []
+            current = NaN
+            statMin = NaN
+            statMax = NaN
+            statAvg = NaN
+            chart.requestPaint()
+            return
+        }
         const s = VehicleHistory.series(metric)
         const from = Date.now() - windowSec * 1000
         const list = []
@@ -72,6 +83,7 @@ WidgetBase {
         function onRevisionChanged() { root.collect() }
     }
     onMetricChanged: collect()
+    onHasDataChanged: collect()
     onUnitDefChanged: collect()
     onWindowSecChanged: collect()
     Component.onCompleted: collect()
@@ -124,20 +136,20 @@ WidgetBase {
                 color: root.inZone ? Theme.error : Theme.textSecondary
                 text: root.titleText(root.gauge.title)
             }
-            Rectangle {   // モックデータ中の表示
+            Rectangle {   // データの状態の表示(ダミーデータ中は「モック」、データ源が無いときは「データなし」)
                 anchors.verticalCenter: parent.verticalCenter
                 width: mockText.implicitWidth + 12
                 height: mockText.implicitHeight + 4
                 radius: height / 2
                 color: "transparent"
-                border.color: Theme.warn
+                border.color: root.hasData ? Theme.warn : Theme.textSecondary
                 Text {
                     id: mockText
                     anchors.centerIn: parent
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.7)
-                    text: "モック"
-                    color: Theme.warn
+                    text: root.hasData ? "モック" : "データなし"
+                    color: root.hasData ? Theme.warn : Theme.textSecondary
                 }
             }
         }
@@ -151,7 +163,7 @@ WidgetBase {
                 font.italic: true
                 font.pixelSize: Math.round(Math.max(18, Math.min(root.height * 0.16, 44)))
                 color: root.inZone ? Theme.error : Theme.textPrimary
-                text: isNaN(root.current) ? "--" : root.fmt(root.current, root.decimals)
+                text: isNaN(root.current) || !root.hasData ? "--" : root.fmt(root.current, root.decimals)
             }
             Text {
                 anchors.baseline: valueText.baseline
@@ -205,6 +217,16 @@ WidgetBase {
     }
 
     // ---------------------------------------------------------------- 中段: グラフ
+    // データ源が無いときの案内(グラフの真ん中)
+    Text {
+        z: 1
+        visible: !root.hasData
+        anchors.centerIn: chart
+        font.family: Theme.fontFamily
+        font.pixelSize: Math.round(Math.max(12, Math.min(root.titleFontSize * 1.1, 20)))
+        color: Theme.textSecondary
+        text: "データがありません"
+    }
     Canvas {
         id: chart
         anchors { top: head.bottom; bottom: stats.visible ? stats.top : parent.bottom; left: parent.left; right: parent.right
