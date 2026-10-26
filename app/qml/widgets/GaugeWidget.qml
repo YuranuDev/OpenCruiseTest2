@@ -673,27 +673,12 @@ WidgetBase {
                         const dec = stepShown >= 1 ? 0 : (Math.abs(stepShown * 10 - Math.round(stepShown * 10)) < 1e-6 ? 1 : 2)
                         const minor = step / (subOverride > 0 ? subOverride : dm.sub)
                         const list = []
-                        for (let n = Math.ceil(lo / minor - 1e-9); n * minor <= hi + 1e-9; ++n) {
-                            const v = n * minor
+                        // 数字は刻みの倍数(キリの良い値)にだけ出す。最小値・最大値が刻みに乗っていれば、端にも出る
+                        // (小数の誤差で端の刻みが落ちないよう、許容は刻みに対する比で取る)
+                        const eps = minor * 1e-6
+                        for (let n = Math.ceil((lo - eps) / minor); n * minor <= hi + eps; ++n) {
+                            const v = Math.abs(n * minor) < eps ? 0 : n * minor
                             list.push({ v: v, major: Math.abs(v / step - Math.round(v / step)) < 1e-6, dec: dec })
-                        }
-                        // 目盛りの両端(最小値・最大値)には、刻みに乗っていなくても必ず数字を出す。
-                        // 端のすぐ近く(刻みの 45% 以内)にある数字は、重ならないよう細かい目盛りにする
-                        const decOf = (x) => {
-                            const a = Math.abs(x / root.labelDiv)
-                            for (let d = 0; d <= 2; ++d) if (Math.abs(a * Math.pow(10, d) - Math.round(a * Math.pow(10, d))) < 1e-6) return d
-                            return 2
-                        }
-                        for (const edge of [lo, hi]) {
-                            if (edge !== root.minV && edge !== root.maxV) continue   // 0 の位置(分けたときの境)は対象外
-                            let e = list.find(t => Math.abs(t.v - edge) < minor * 1e-3)
-                            if (!e) { e = { v: edge, major: true, dec: dec }; list.push(e) }
-                            e.major = true
-                            // 小数の桁は、端の値に必要な桁(数値表示の桁まで)。psi のように換算で半端になっても桁を増やしすぎない
-                            e.dec = Math.max(dec, Math.min(decOf(edge), root.decimals))
-                            for (const t of list) {
-                                if (t !== e && t.major && Math.abs(t.v) > 1e-9 && Math.abs(t.v - edge) < step * 0.45) t.major = false
-                            }
                         }
                         list.sort((x, y) => x.v - y.v)
                         return list
