@@ -9,8 +9,11 @@ ApplicationWindow {
     height: 720
     visible: true
     // アプリのテーマ(昼夜・アクセント色)を Theme へ反映する。Theme 側で補間アニメーションされる
-    Binding { target: Theme; property: "night"; value: androidAuto.nightActive }
-    Binding { target: Theme; property: "accentIndex"; value: androidAuto.accentIndex }
+    // (切り替えは themeSnap が受け持つ: 切り替え前の画面を画像にして重ね、テーマを一度で変えてから画像を薄くする)
+    readonly property bool wantNight: androidAuto.nightActive
+    readonly property int wantAccent: androidAuto.accentIndex
+    onWantNightChanged: themeSnap.request()
+    onWantAccentChanged: themeSnap.request()
     // 画面サイズに応じた拡大率(1280x720 基準)。設定画面など、寸法を拡大率で決める部品が Theme.uiScale を参照する
     Binding { target: Theme; property: "uiScale"; value: Math.max(0.6, Math.min(rotor.width / 1280, rotor.height / 720)) }
     // 選択中のフォント。同梱フォントを読み込めず空のときは OS 既定のまま
@@ -37,6 +40,7 @@ ApplicationWindow {
     // eglfs では、ウィンドウを作った後に別の画面へ移すと描画先が無くなり("Cannot sync before platform init!")
     // 何も表示されない。eglfs では操作する画面(DrmDisplay が起動前に決める)に任せ、画面は動かさない
     Component.onCompleted: {
+        themeSnap.apply()   // 起動時はそのまま反映する
         if (!displaySettings.isEglfs)
             window.screen = Qt.binding(() => window.findScreen(displaySettings.targetScreenName))
         systemSound.play("start")
@@ -124,6 +128,64 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+Shift+K"
         onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); brightnessOsd.show() }
+    }
+
+    // ---- テーマ(昼夜・アクセント色)の切り替え ----
+    // 色をアニメーションさせると、色を使うすべての部品(メーターの描画など)が毎フレーム計算し直しになり重い。
+    // そこで、切り替え前の画面(rotor)を 1 枚の画像に写して上に重ね、その下でテーマを一度で切り替え、
+    // 画像だけを薄くしていく(動かすのは画像 1 枚の不透明度だけ)。
+    ShaderEffectSource {
+        id: themeSnap
+        z: 1000
+        anchors.centerIn: parent
+        width: rotor.width
+        height: rotor.height
+        rotation: rotor.rotation
+        sourceItem: rotor
+        live: false
+        hideSource: false
+        visible: false
+        enabled: false   // タッチは下へ通す
+        property bool pending: false
+        // 写したフレームを確実に過ぎてから切り替えるため、2 フレーム待つ(描画が別スレッドのときの行き違い対策)
+        property int waitFrames: 0
+
+        function apply() {
+            Theme.night = window.wantNight
+            Theme.accentIndex = window.wantAccent
+        }
+        function request() {
+            if (Theme.night === window.wantNight && Theme.accentIndex === window.wantAccent) return
+            if (pending) return   // 写している最中。写し終えたときに今の値で切り替える
+            if (!window.visible || rotor.width <= 0) { apply(); return }
+            themeFade.stop()
+            opacity = 1
+            visible = true
+            pending = true
+            waitFrames = 2
+            scheduleUpdate()   // 次のフレームで今の画面を写す
+        }
+        // 写し終えたフレームの後で切り替え、画像を薄くする
+        Connections {
+            target: window
+            enabled: themeSnap.pending
+            function onFrameSwapped() {
+                if (--themeSnap.waitFrames > 0) { window.requestUpdate(); return }
+                themeSnap.pending = false
+                themeSnap.apply()
+                themeFade.restart()
+            }
+        }
+        NumberAnimation {
+            id: themeFade
+            target: themeSnap
+            property: "opacity"
+            from: 1
+            to: 0
+            duration: 500
+            easing.type: Easing.InOutQuad
+            onFinished: themeSnap.visible = false
+        }
     }
 
     // ---- 画面の回転(設定「表示 > 画面」)。表示する部品はすべてこの中に置き、回転と縦横の入れ替えを受ける ----

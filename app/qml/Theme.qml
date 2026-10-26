@@ -1,5 +1,6 @@
-// 画面全体で共有する色・サイズ（シングルトン）。昼夜 2 つの配色を nightLevel(0..1) で補間し、
-// 切り替え時は nightLevel をアニメーションさせて滑らかに変化させる。
+// 画面全体で共有する色・サイズ（シングルトン）。昼夜 2 つの配色を nightLevel(0..1) で補間する。
+// 切り替えは一度で行う(色をアニメーションさせると、色を使うすべての部品が毎フレーム計算し直し・描き直しになって重い)。
+// 見た目の滑らかさは、Main.qml が切り替え前の画面を 1 枚の画像にして重ね、それを薄くしていくことで出す。
 pragma Singleton
 import QtQuick
 
@@ -15,13 +16,11 @@ QtObject {
     // アクセント色のプリセット（設定画面の選択肢）
     readonly property var accentPresets: ["#4da3ff", "#3ddc84", "#ffa040", "#ff6fa5", "#a78bfa", "#2dd4d4"]
 
-    // 昼夜の補間係数。切り替わりを 0.7 秒かけて滑らかにする
-    property real nightLevel: night ? 1 : 0
-    Behavior on nightLevel { NumberAnimation { duration: 700; easing.type: Easing.InOutQuad } }
+    // 昼夜の補間係数(0 = 昼 / 1 = 夜)
+    readonly property real nightLevel: night ? 1 : 0
 
-    // アクセント色の元色。プリセットを変えたときも 0.4 秒でなじませる
-    property color accentBase: accentPresets[Math.min(accentIndex, accentPresets.length - 1)]
-    Behavior on accentBase { ColorAnimation { duration: 400 } }
+    // アクセント色の元色
+    readonly property color accentBase: accentPresets[Math.min(accentIndex, accentPresets.length - 1)]
 
     function mix(a, b, t) {
         var ca = Qt.color(a)
