@@ -18,7 +18,7 @@ WidgetBase {
 
     property real blink: 1
     SequentialAnimation on blink {
-        running: root.low && !root.lifting
+        running: root.low && !root.lifting && root.onScreen
         loops: Animation.Infinite
         NumberAnimation { to: 0.35; duration: 450; easing.type: Easing.InOutSine }
         NumberAnimation { to: 1.0; duration: 450; easing.type: Easing.InOutSine }

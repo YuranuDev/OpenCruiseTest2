@@ -20,15 +20,16 @@ WidgetBase {
     property int tick: 0
     Timer {
         interval: 1000
-        running: root.active && !root.lifting
+        running: root.active && !root.lifting && root.onScreen   // 通話時間の表示だけ。見えたら読み直す
         repeat: true
         onTriggered: root.tick++
     }
+    onOnScreenChanged: if (onScreen) tick++
 
     // 着信中は点滅して目立たせる
     property real blink: 1
     SequentialAnimation on blink {
-        running: root.incoming && root.config.blink !== false && !root.lifting
+        running: root.incoming && root.config.blink !== false && !root.lifting && root.onScreen
         loops: Animation.Infinite
         NumberAnimation { to: 0.35; duration: 450; easing.type: Easing.InOutSine }
         NumberAnimation { to: 1.0; duration: 450; easing.type: Easing.InOutSine }

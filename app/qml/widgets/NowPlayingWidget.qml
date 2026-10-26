@@ -28,10 +28,11 @@ WidgetBase {
     property real nowMs: Date.now()
     Timer {
         interval: 1000
-        running: root.playing && !root.lifting
+        running: root.playing && !root.lifting && root.onScreen   // 表示用の時刻だけ。見えたら読み直す
         repeat: true
         onTriggered: root.nowMs = Date.now()
     }
+    onOnScreenChanged: if (onScreen) nowMs = Date.now()
 
     // 表示する再生位置[秒]。再生中は、スマホが通知した位置に経過時間を足し、曲の長さを超えないようにする
     readonly property int position: {
@@ -260,7 +261,7 @@ WidgetBase {
                                 radius: width / 2
                                 color: Theme.textOnAccent
                                 SequentialAnimation on height {
-                                    running: root.playing && !root.lifting && root.visible
+                                    running: root.playing && !root.lifting && root.onScreen
                                     loops: Animation.Infinite
                                     NumberAnimation { to: badge.height * 0.44 * (0.35 + 0.1 * eqBar.index); duration: 260 + 90 * eqBar.index; easing.type: Easing.InOutSine }
                                     NumberAnimation { to: badge.height * 0.44; duration: 300 + 70 * eqBar.index; easing.type: Easing.InOutSine }

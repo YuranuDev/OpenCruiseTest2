@@ -79,11 +79,13 @@ WidgetBase {
     }
     Connections {
         target: VehicleHistory
-        enabled: root.visible && !root.lifting
+        enabled: root.onScreen && !root.lifting
         function onRevisionChanged() { root.collect() }
     }
     onMetricChanged: collect()
     onHasDataChanged: collect()
+    // 見えていない間は履歴を読み直さない(履歴そのものは VehicleHistory が記録し続ける)。見えたら今の分で描き直す
+    onOnScreenChanged: if (onScreen) collect()
     onUnitDefChanged: collect()
     onWindowSecChanged: collect()
     Component.onCompleted: collect()
@@ -232,12 +234,12 @@ WidgetBase {
         anchors { top: head.bottom; bottom: stats.visible ? stats.top : parent.bottom; left: parent.left; right: parent.right
                   topMargin: root.m * 0.6; bottomMargin: root.m * 0.6; leftMargin: root.m; rightMargin: root.m }
         renderTarget: Canvas.Image
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
+        onWidthChanged: if (visible) requestPaint()
+        onHeightChanged: if (visible) requestPaint()
         readonly property color lineColor: root.inZone ? Theme.error : Theme.accent
         readonly property string key: [Theme.accent, Theme.error, Theme.panelBorder, Theme.textSecondary, root.fillOn,
                                        root.warnOn, root.warnV, root.range.lo, root.range.hi].join("|")
-        onKeyChanged: requestPaint()
+        onKeyChanged: if (visible) requestPaint()
 
         onPaint: {
             const ctx = getContext("2d")

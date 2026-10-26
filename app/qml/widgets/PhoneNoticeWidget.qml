@@ -23,10 +23,11 @@ WidgetBase {
 
     Timer {   // 「n 分前」の表示を更新する
         interval: 30000
-        running: true
+        running: root.onScreen   // 表示だけ。見えたら読み直す
         repeat: true
         onTriggered: root.nowMs = Date.now()
     }
+    onOnScreenChanged: if (onScreen) nowMs = Date.now()
 
     // 「その他」を隠す設定を反映した一覧
     readonly property var visibleNotices: {

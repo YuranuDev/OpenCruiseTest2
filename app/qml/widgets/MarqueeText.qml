@@ -62,7 +62,7 @@ Item {
 
     SequentialAnimation {
         id: scrollAnimation
-        running: root.overflowing && !root.paused
+        running: root.overflowing && !root.paused && root.visible   // 見えていない間は流さない
         loops: Animation.Infinite
 
         PauseAnimation { duration: 800 }

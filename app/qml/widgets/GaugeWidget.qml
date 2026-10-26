@@ -115,7 +115,12 @@ WidgetBase {
     onHasDataChanged: { if (hasData) resetPeak(); else peak = NaN }
     // 針・数値は滑らかに追従させる(データは約 10Hz)
     // なめらかにするのは基本単位の値(換算前)。単位を変えたときは、換算した値がすぐに出る(途中の値を経由しない)
-    property real smoothBase: hasData ? sourceValue : (config.min !== undefined ? Number(config.min) : 0)
+    // 見えていない間は針・数値を動かさない(描き直しを止める)。警告の判定・最大値は rawValue で続ける。
+    // 見えるようになったら、今の値へ寄せる
+    readonly property real liveBase: hasData ? sourceValue : (config.min !== undefined ? Number(config.min) : 0)
+    property real smoothBase: liveBase
+    onLiveBaseChanged: if (onScreen) smoothBase = liveBase
+    onOnScreenChanged: if (onScreen) smoothBase = liveBase
     Behavior on smoothBase { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
     readonly property real shown: toShown(smoothBase)
 
@@ -185,7 +190,10 @@ WidgetBase {
     onWarnOnChanged: updateWarning()
     onWarnVChanged: updateWarning()
     onWarnBelowChanged: updateWarning()
-    Component.onCompleted: updateWarning()
+    Component.onCompleted: {
+        updateWarning()
+        smoothBase = liveBase   // 宣言の束縛を外す。以後は onLiveBaseChanged / onOnScreenChanged で更新する(見えていない間は止める)
+    }
 
     // 警告音が鳴っている間は背景が赤く点滅するので、数値は白にして読みやすくする
     // (ライトテーマは背景が明るいので白にせず、ふだんの文字色(黒)のまま)
@@ -314,7 +322,7 @@ WidgetBase {
     // 点滅(警告中だけ動かす)
     property real blink: 1
     SequentialAnimation on blink {
-        running: root.warning && !root.lifting
+        running: root.warning && !root.lifting && root.onScreen   // 点滅は表示だけ(警告そのものは続く)
         loops: Animation.Infinite
         NumberAnimation { to: 0.35; duration: 380; easing.type: Easing.InOutSine }
         NumberAnimation { to: 1.0; duration: 380; easing.type: Easing.InOutSine }
@@ -597,7 +605,8 @@ WidgetBase {
                                                root.splitScale, root.zeroAngle, root.negStepShown, root.posStepShown,
                                                root.negSub, root.posSub, root.negFont, root.negFontEnd,
                                                root.posFont, root.posFontEnd].join("|")
-                onKeyChanged: requestPaint()
+                onKeyChanged: if (visible) requestPaint()
+                onVisibleChanged: if (visible) requestPaint()
 
                 // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
                 function niceStep(range, maxMajors) {
@@ -787,6 +796,7 @@ WidgetBase {
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
                      Theme.error, root.splitScale, root.zeroAngle].join("|")
                 onKeyChanged: if (visible) requestPaint()
+                onVisibleChanged: if (visible) requestPaint()
 
                 onPaint: {
                     const ctx = getContext("2d")
@@ -910,7 +920,8 @@ WidgetBase {
                     height: Math.ceil(tip + tail + 2)
                     renderStrategy: Canvas.Cooperative
                     readonly property string key: [width, height, tip, tail, base, needleFill].join("|")
-                    onKeyChanged: requestPaint()
+                    onKeyChanged: if (visible) requestPaint()
+                    onVisibleChanged: if (visible) requestPaint()
 
                     onPaint: {
                         const ctx = getContext("2d")

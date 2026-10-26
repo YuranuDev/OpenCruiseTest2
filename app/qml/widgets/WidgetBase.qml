@@ -11,6 +11,10 @@
 // 見出し(上部タイトル)は titleFontSize / titleBarHeight を使う。大きさはマス数で 3 段階に固定され、
 // ウィジェットを大きくしても見出しだけが巨大化しない(短辺 1 マス=小 / 2 マス=中 / 3 マス以上=大)。
 // 操作:
+// 見えていないとき(ほかのページ・フルスクリーン中の Android Auto 画面・設定画面の裏など):
+//   onScreen が false になる。表示だけのための処理(針の追従・点滅・描き直し・表示用の時刻の更新など)は止め、
+//   警告の判定・警告音・通知・最大値の記録など、見えていなくても要る処理は続けること。
+//   見えるようになったら(onScreen が true に戻ったら)、表示を今の値に合わせ直す。
 //   tapped()        … 1 回タップ(ウィジェット自身の操作を作りたいときに受ける)
 //   doubleTapped()  … doubleTapAction が "custom" のときだけ呼ばれる
 // ウィジェット内に独自の MouseArea を置くとドラッグ(長押し)より優先される。その範囲では移動を始められないので、
@@ -29,6 +33,8 @@ Item {
     /// 配置エリア上のウィジェットの ID(設定画面のプレビューなど、配置されていないときは空)
     property string widgetId: ""
     readonly property bool titleVisible: config.showTitle !== false
+    /// 画面に見えているか(親のどれかが隠れていれば false)。表示の更新だけを止めるのに使う
+    readonly property bool onScreen: visible
 
     function titleText(fallback) {
         const custom = String(config.titleText || "").trim()
