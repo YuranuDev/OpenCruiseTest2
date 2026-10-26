@@ -1,5 +1,7 @@
-// 設定ジャンル「Android Auto」: 映像(解像度・fps・フルスクリーン)と、現在の接続診断情報。
+// 設定ジャンル「Android Auto」: 映像(解像度・fps・フルスクリーン)、フルスクリーンでないときの映像の置き方
+// (角と幅・高さのマス数。残りのマスにウィジェットを置ける)と、現在の接続診断情報。
 import QtQuick
+import OpenCruise
 
 SettingsPage {
     // フレームレートの選択肢(表示順)。増やすときはここに足す
@@ -41,6 +43,47 @@ SettingsPage {
         SettingsNote {
             text: "解像度・fps を変更すると、接続中の場合は一度正規に切断してから再接続待機になります。"
                   + "フルスクリーン中は、画面下端を上へスワイプ、または Esc / F10 / Menu / Windows キーでメニューを開けます。"
+        }
+    }
+
+    SettingsSection {
+        title: "画面の配置"
+        icon: "dashboard"
+
+        SettingsRow {
+            label: "映像の位置"
+            description: "フルスクリーンでないとき、映像を置く角"
+            SettingsChoice {
+                model: ["左上", "右上", "左下", "右下"]
+                currentIndex: widgetStore.aaCorner
+                onPicked: (index) => widgetStore.aaCorner = index
+            }
+        }
+        SettingsRow {
+            label: "映像の幅"
+            WSStepper {
+                value: widgetStore.aaCols
+                from: 4
+                to: 12
+                step: 1
+                suffix: " / 12 マス"
+                onMoved: (v) => widgetStore.aaCols = v
+            }
+        }
+        SettingsRow {
+            label: "映像の高さ"
+            WSStepper {
+                value: widgetStore.aaRows
+                from: 2
+                to: 6
+                step: 1
+                suffix: " / 6 マス"
+                onMoved: (v) => widgetStore.aaRows = v
+            }
+        }
+        SettingsNote {
+            text: "映像の周りの空いたマスに、ウィジェットを置けます(Android Auto 画面の「ウィジェット」から追加)。"
+                  + "映像を大きくして入りきらなくなったウィジェットは、一時的に隠れ、空きができると元の近くに戻ります。"
         }
     }
 

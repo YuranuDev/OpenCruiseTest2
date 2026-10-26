@@ -26,6 +26,17 @@ Item {
     property var preview: ({ col: 0, row: 0, w: 1, h: 1, ok: true })
     // ドラッグ中に押しのけたウィジェットの仮の位置(wid → { col, row })。WidgetHost がこちらを優先して表示する
     property var tempPos: ({})
+    // ---- 使えないマス(Android Auto 画面の映像の場所) ----
+    // { col, row, w, h }(null なら無し)。ここにはウィジェットを置けない(移動・追加・サイズ変更とも)。
+    // 変わったときは、重なったウィジェットを近くの空きへ動かし、空きが無ければ「よけておく」(parked)。
+    // よけたウィジェットは保存内容に残し、空きができたら自動で戻す(消えない)
+    property var blocked: null
+    property var parked: []
+    property bool loaded: false
+    // ウィジェットが 1 つも無いときの案内(「ウィジェットを追加」)を出すか
+    property bool showEmptyState: true
+    onBlockedChanged: if (loaded) applyBlocked()
+
     // ---- ページ ----
     property Item pages: null          // WidgetPages(保存先)
     property int pageIndex: 0
@@ -63,7 +74,12 @@ Item {
     }
 
     // (c, r, w, h) が ignore 以外のウィジェットと重なるか
+    function overlapsBlocked(c, r, w, h) {
+        const b = blocked
+        return !!b && c < b.col + b.w && c + w > b.col && r < b.row + b.h && r + h > b.row
+    }
     function overlaps(c, r, w, h, ignore) {
+        if (overlapsBlocked(c, r, w, h)) return true
         for (let i = 0; i < layout.count; ++i) {
             const it = layout.get(i)
             if (it.wid === ignore) continue
@@ -107,7 +123,9 @@ Item {
         c = Math.max(0, Math.min(cols - w, c))
         r = Math.max(0, Math.min(rows - h, r))
         const target = { col: c, row: r, w: w, h: h }
+        if (overlapsBlocked(c, r, w, h)) return { col: c, row: r, ok: false, moves: {} }   // 使えないマスには置けない
         const hit = [], fixed = [target]
+        if (blocked) fixed.push(blocked)
         for (let i = 0; i < layout.count; ++i) {
             const it = layout.get(i)
             if (it.wid === wid) continue
@@ -250,8 +268,46 @@ Item {
         const i = indexOfId(wid)
         if (i >= 0) {
             layout.remove(i)
+            unpark()          // 空きができたので、よけておいたウィジェットを戻せるか試す
             saveLayout()
         }
+    }
+
+    // 使えないマスが変わったとき: 重なったウィジェットを近くの空きへ動かす(空きが無ければよけておく)
+    function applyBlocked() {
+        let changed = false
+        for (let i = layout.count - 1; i >= 0; --i) {
+            const it = layout.get(i)
+            if (!overlapsBlocked(it.col, it.row, it.w, it.h)) continue
+            const s = resolveSpot(it.wid, it.col, it.row, it.w, it.h)
+            if (s.ok) {
+                layout.setProperty(i, "col", s.col)
+                layout.setProperty(i, "row", s.row)
+            } else {
+                parked = parked.concat([{ id: it.wid, type: it.wtype, col: it.col, row: it.row, w: it.w, h: it.h, config: it.config }])
+                layout.remove(i)
+            }
+            changed = true
+        }
+        if (unpark()) changed = true
+        if (changed) saveLayout()
+    }
+    // よけておいたウィジェットを、元の位置の近くの空きへ戻す。戻せたら true
+    function unpark() {
+        if (parked.length === 0) return false
+        const rest = []
+        let any = false
+        for (const e of parked) {
+            const s = resolveSpot("", e.col, e.row, e.w, e.h)
+            if (s.ok) {
+                layout.append({ wid: e.id || newId(), wtype: e.type, col: s.col, row: s.row, w: e.w, h: e.h, config: e.config || {} })
+                any = true
+            } else {
+                rest.push(e)
+            }
+        }
+        parked = rest
+        return any
     }
 
     // サイズ(マス数)を変える。隣のウィジェットと重なる・範囲外になる場合は、できる範囲(重ならない最大)に収める。変えられたら true
@@ -326,12 +382,14 @@ Item {
             const it = layout.get(i)
             list.push({ id: it.wid, type: it.wtype, col: it.col, row: it.row, w: it.w, h: it.h, config: it.config })
         }
-        if (pages) pages.savePage(pageIndex, list)
+        // よけておいたウィジェットも保存に残す(空きができたら戻す)
+        if (pages) pages.savePage(pageIndex, list.concat(parked))
         revision++
     }
 
     function loadLayout() {
         layout.clear()
+        parked = []
         // このページの保存内容(null なら初期配置)
         let list = pages ? pages.pageWidgets(pageIndex) : null
         if (!Array.isArray(list)) list = WidgetRegistry.defaultLayout
@@ -344,15 +402,22 @@ Item {
             const h = Math.max(def.minSize.h, Math.min(def.maxSize.h, Math.min(rows, e.h || def.defaultSize.h)))
             const c = Math.max(0, Math.min(cols - w, e.col || 0))
             const r = Math.max(0, Math.min(rows - h, e.row || 0))
-            if (overlaps(c, r, w, h, "")) continue   // 保存内容が重なっていたら後のものを捨てる
             const wid = (e.id && !used[e.id]) ? e.id : newId()
             used[wid] = true
+            if (overlaps(c, r, w, h, "")) {
+                // 重なっていたら(使えないマスが広がった・保存内容が壊れているなど)、近くの空きへ。無ければよけておく
+                const s = resolveSpot("", c, r, w, h)
+                if (s.ok) layout.append({ wid: wid, wtype: e.type, col: s.col, row: s.row, w: w, h: h, config: e.config || {} })
+                else parked = parked.concat([{ id: wid, type: e.type, col: c, row: r, w: w, h: h, config: e.config || {} }])
+                continue
+            }
             layout.append({ wid: wid, wtype: e.type, col: c, row: r, w: w, h: h, config: e.config || {} })
         }
     }
 
     Component.onCompleted: {
         loadLayout()
+        loaded = true
         readyTimer.start()
     }
 
@@ -388,6 +453,18 @@ Item {
             }
         }
 
+        // 使えないマス(Android Auto の映像の場所)
+        Rectangle {
+            visible: !!widgetArea.blocked
+            x: widgetArea.blocked ? widgetArea.blocked.col * widgetArea.cellW + widgetArea.pad : 0
+            y: widgetArea.blocked ? widgetArea.blocked.row * widgetArea.cellH + widgetArea.pad : 0
+            width: widgetArea.blocked ? widgetArea.blocked.w * widgetArea.cellW - 2 * widgetArea.pad : 0
+            height: widgetArea.blocked ? widgetArea.blocked.h * widgetArea.cellH - 2 * widgetArea.pad : 0
+            radius: Theme.radius + 6
+            color: Theme.mix(Theme.background, Theme.panelBorder, 0.5)
+            border.color: Theme.panelBorder
+        }
+
         // 離したときに入るマス(スナップ先)
         Rectangle {
             x: widgetArea.preview.col * widgetArea.cellW + widgetArea.pad
@@ -416,7 +493,7 @@ Item {
     Column {
         anchors.centerIn: parent
         spacing: 14 * Theme.uiScale
-        opacity: layout.count === 0 ? 1 : 0
+        opacity: layout.count === 0 && widgetArea.showEmptyState ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 240 } }
 

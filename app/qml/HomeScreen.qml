@@ -1,5 +1,8 @@
 // メイン画面。showAa が false の間は初期画面(LauncherScreen)、true の間は Android Auto 画面
-// (ヘッダー(時計・接続状態・設定ボタン) + Android Auto 表示領域 + CAN パネル)を表示する。
+// (ヘッダー(時計・接続状態・ボタン) + Android Auto 表示領域とウィジェット)を表示する。
+// フルスクリーンでないときの本体は、初期画面と同じ 12 × 6 マスのウィジェット配置エリアで、Android Auto の映像は
+// その角(設定「Android Auto」で角と幅・高さのマス数を選ぶ。widgetStore.aaCorner / aaCols / aaRows)に置き、
+// 残りのマスにウィジェットを置ける(配置は初期画面とは別に widgetStore.aaLayoutJson へ保存)。
 // 映像の描画アイテム(VideoSurfaceItem)は表示切替で破棄しないよう、常に生成しておく。
 import QtQuick
 import OpenCruise
@@ -22,6 +25,35 @@ Rectangle {
     // フルスクリーン中の下メニュー(シート)が開いているか
     property bool menuOpen: false
     onImmersiveChanged: if (!immersive) menuOpen = false
+
+    // Android Auto の映像を置くマス(フルスクリーンでないとき)。0 = 左上 / 1 = 右上 / 2 = 左下 / 3 = 右下
+    readonly property var aaRect: {
+        const cols = widgetStore.aaCols, rows = widgetStore.aaRows, c = widgetStore.aaCorner
+        return { col: (c === 1 || c === 3) ? aaWidgets.cols - cols : 0, row: c >= 2 ? aaWidgets.rows - rows : 0, w: cols, h: rows }
+    }
+
+    // Android Auto 画面のウィジェットの保存先(WidgetArea の pages の代わり。1 ページだけ)
+    Item {
+        id: aaStore
+        // 初期配置: 映像(左上・幅 9 マス)の右側にメーターを 2 つ
+        readonly property var defaultWidgets: [
+            { type: "speedGauge", col: 9, row: 0, w: 3, h: 3 },
+            { type: "turbo", col: 9, row: 3, w: 3, h: 3 }
+        ]
+        function pageWidgets(index) {
+            try {
+                const o = JSON.parse(widgetStore.aaLayoutJson)
+                if (o && o.version === 1 && Array.isArray(o.widgets)) return o.widgets
+            } catch (e) { /* 未保存・壊れている場合は初期配置 */ }
+            return defaultWidgets
+        }
+        function savePage(index, list) { widgetStore.aaLayoutJson = JSON.stringify({ version: 1, widgets: list }) }
+        function resetAll() {
+            widgetStore.aaLayoutJson = ""
+            aaWidgets.loadLayout()
+            aaWidgets.revision++
+        }
+    }
 
     // 未実装機能の押下時: 既存のポップアップ通知でモックであることを伝える(初期画面と同じ)
     function showMock(name) {
@@ -65,6 +97,10 @@ Rectangle {
             spacing: 10
             NotificationBell { }
             ActionButton {
+                text: "ウィジェット"
+                onClicked: aaPicker.show()
+            }
+            ActionButton {
                 text: "ホーム"
                 onClicked: root.goHome()
             }
@@ -84,10 +120,27 @@ Rectangle {
             margins: root.immersive ? 0 : Theme.margin
         }
 
-        // Android Auto 表示領域
+        // ウィジェット(映像の場所以外のマス)。フルスクリーン中は隠す(動き続けるので、警告音などはそのまま)
+        WidgetArea {
+            id: aaWidgets
+            anchors.fill: parent
+            visible: !root.immersive
+            enabled: !root.immersive
+            pages: aaStore
+            blocked: root.aaRect
+            showEmptyState: false
+            onSettingsRequested: (wid) => aaSettings.show(wid)
+            onPickerRequested: aaPicker.show()
+        }
+
+        // Android Auto 表示領域(フルスクリーンでないときは、選んだ角のマスに置く)
         Rectangle {
             id: aaFrame
-            anchors { top: parent.top; bottom: parent.bottom; left: parent.left; right: root.immersive ? parent.right : canPanel.left; rightMargin: root.immersive ? 0 : Theme.margin }
+            z: 5
+            x: root.immersive ? 0 : aaWidgets.cellW * root.aaRect.col + aaWidgets.pad
+            y: root.immersive ? 0 : aaWidgets.cellH * root.aaRect.row + aaWidgets.pad
+            width: root.immersive ? parent.width : aaWidgets.cellW * root.aaRect.w - 2 * aaWidgets.pad
+            height: root.immersive ? parent.height : aaWidgets.cellH * root.aaRect.h - 2 * aaWidgets.pad
             color: "black"
             radius: root.immersive ? 0 : Theme.radius
             border.color: root.immersive ? "transparent" : Theme.panelBorder
@@ -153,12 +206,20 @@ Rectangle {
             }
         }
 
-        CanPanel {
-            id: canPanel
-            anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
-            width: 320
-            visible: !root.immersive
-        }
+    }
+
+    // ---- Android Auto 画面のウィジェットの設定ダイアログ・追加パネル ----
+    WidgetSettingsDialog {
+        id: aaSettings
+        anchors.fill: parent
+        z: 20
+        area: aaWidgets
+    }
+    WidgetPicker {
+        id: aaPicker
+        anchors.fill: parent
+        z: 21
+        area: aaWidgets
     }
 
     // ---- フルスクリーン時のメニュー(下から出るシート) ----

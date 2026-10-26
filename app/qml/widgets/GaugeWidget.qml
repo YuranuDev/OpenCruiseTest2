@@ -109,8 +109,10 @@ WidgetBase {
     }
     readonly property real rawValue: toShown(sourceValue)
     // 針・数値は滑らかに追従させる(データは約 10Hz)
-    property real shown: rawValue
-    Behavior on shown { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+    // なめらかにするのは基本単位の値(換算前)。単位を変えたときは、換算した値がすぐに出る(途中の値を経由しない)
+    property real smoothBase: sourceValue
+    Behavior on smoothBase { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+    readonly property real shown: toShown(smoothBase)
 
     function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
     // 進捗の起点(0。範囲外なら近い端。ブーストの負圧は 0 から左へ伸びる)
@@ -447,7 +449,9 @@ WidgetBase {
                 if (root.needleless) {
                     // 半円など弧が短いときは、上の名前と重ならないよう少し小さくする
                     const rw = 1.05, rh = (root.compact ? 0.78 : 0.7) * (root.sweepAngle <= 200 ? 0.8 : 1) + ph
-                    return { x: -rw / 2, y: 0.08 - rh / 2, w: rw, h: rh }
+                    // マーカーは名前とのあいだを空けるため少し下げる(弧の短い半円などは、下がりすぎないよう控えめ)
+                    const ry = root.dialStyle === "marker" ? (root.sweepAngle <= 200 ? 0.12 : 0.18) : 0.08
+                    return { x: -rw / 2, y: ry - rh / 2, w: rw, h: rh }
                 }
                 const w = 0.72, h = (root.compact ? 0.56 : 0.5) + ph
                 const hubClear = root.hubSize / 2 + 0.05
@@ -477,7 +481,8 @@ WidgetBase {
                 add(root.startAngle, 1)
                 add(root.endAngle, 1)
                 for (let d = -180; d <= 180; d += 90) {
-                    if (d >= root.startAngle && d <= root.endAngle) add(d, 1)
+                    // レトロは丸い文字盤を描くので、弧の範囲に関係なく円がまるごと収まるようにする
+                    if (root.dialStyle === "retro" || (d >= root.startAngle && d <= root.endAngle)) add(d, 1)
                 }
                 const hr = root.hubSize / 2
                 xs.push(-hr, hr); ys.push(-hr, hr)
@@ -672,6 +677,25 @@ WidgetBase {
                             const v = n * minor
                             list.push({ v: v, major: Math.abs(v / step - Math.round(v / step)) < 1e-6, dec: dec })
                         }
+                        // 目盛りの両端(最小値・最大値)には、刻みに乗っていなくても必ず数字を出す。
+                        // 端のすぐ近く(刻みの 45% 以内)にある数字は、重ならないよう細かい目盛りにする
+                        const decOf = (x) => {
+                            const a = Math.abs(x / root.labelDiv)
+                            for (let d = 0; d <= 2; ++d) if (Math.abs(a * Math.pow(10, d) - Math.round(a * Math.pow(10, d))) < 1e-6) return d
+                            return 2
+                        }
+                        for (const edge of [lo, hi]) {
+                            if (edge !== root.minV && edge !== root.maxV) continue   // 0 の位置(分けたときの境)は対象外
+                            let e = list.find(t => Math.abs(t.v - edge) < minor * 1e-3)
+                            if (!e) { e = { v: edge, major: true, dec: dec }; list.push(e) }
+                            e.major = true
+                            // 小数の桁は、端の値に必要な桁(数値表示の桁まで)。psi のように換算で半端になっても桁を増やしすぎない
+                            e.dec = Math.max(dec, Math.min(decOf(edge), root.decimals))
+                            for (const t of list) {
+                                if (t !== e && t.major && Math.abs(t.v) > 1e-9 && Math.abs(t.v - edge) < step * 0.45) t.major = false
+                            }
+                        }
+                        list.sort((x, y) => x.v - y.v)
                         return list
                     }
                     const ticks = root.splitScale
