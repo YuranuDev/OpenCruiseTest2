@@ -133,7 +133,7 @@ WidgetBase {
     readonly property real shown: toShown(smoothBase)
 
     function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
-    // 進捗の起点(0。範囲外なら近い端。ブーストの負圧は 0 から左へ伸びる)
+    // 進捗の起点(0。範囲外なら近い端。ターボ圧の負圧は 0 から左へ伸びる)
     readonly property real originV: Math.max(minV, Math.min(maxV, 0))
 
     // ---------------------------------------------------------------- 目盛りの分割(0 をまたぐ計測値。ターボ圧の負圧・正圧など)

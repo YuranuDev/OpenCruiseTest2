@@ -66,13 +66,13 @@ QtObject {
     //   warnMessage      警告メッセージの入力欄の例
     //   negLabel / posLabel  0 をまたぐ範囲で、マイナス側・プラス側の目盛りを分けるときの呼び名(ターボ圧の負圧・正圧など)
     readonly property var gaugeSpecs: ({
-        boost: { title: "ブースト", icon: "mdi:car-turbocharger",
+        boost: { title: "ターボ圧", icon: "mdi:car-turbocharger",
                  units: [{ id: "bar", label: "bar", scale: 1, dec: 2, step: 0.1, stepDec: 1 },
                          { id: "psi", label: "psi", scale: 14.5038, dec: 1, step: 1, stepDec: 0 }],
                  limitMin: -1.0, limitMax: 5.0, minSpan: 0.5,
                  minLabel: "最小値(負圧側)", minHint: "目盛りの左端。負圧を測れるよう、通常は 0 より小さくします",
                  negLabel: "負圧", posLabel: "正圧",
-                 warnMessage: "ブースト圧が高すぎます" },
+                 warnMessage: "ターボ圧が高すぎます" },
         rpm:   { title: "回転数", icon: "mdi:gauge",
                  units: [{ id: "rpm", label: "rpm", scale: 1, dec: 0, step: 500, stepDec: 0, labelDiv: 1000 }],
                  limitMin: 0, limitMax: 12000, minSpan: 1000, warnMessage: "回転数が高すぎます" },
@@ -135,12 +135,12 @@ QtObject {
         },
         {
             type: "turbo", genre: "vehicle", name: "ターボ圧計", icon: "mdi:car-turbocharger",
-            description: "ブースト圧のアナログ+デジタルメーター(警告値あり)",
+            description: "ターボ圧のアナログ+デジタルメーター(警告値あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             // 値は bar 基準で保存する(単位を切り替えても警告値などがずれない)
             defaultConfig: gaugeConfig({ metric: "boost", unit: "bar", min: -1.0, max: 2.0,
-                                         warnEnabled: true, warn: 1.6, caution: 1.3, warnMessage: "ブースト圧が高すぎます" }),
+                                         warnEnabled: true, warn: 1.6, caution: 1.3, warnMessage: "ターボ圧が高すぎます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -322,7 +322,7 @@ QtObject {
 
     // ---- 同じ種類のウィジェットでリンクする(共通にする)設定: 通知・警告まわり ----
     // どれか 1 つで変えると、全ページ・Android Auto 画面の同じ種類のウィジェットにも同じ値が入る(WidgetArea)。
-    // グラフは計測値ごとに別の種類として扱う(ブーストのグラフ同士だけがリンクする)
+    // グラフは計測値ごとに別の種類として扱う(ターボ圧のグラフ同士だけがリンクする)
     readonly property var gaugeLinkedKeys: ["warnEnabled", "warn", "showWarnMessage", "warnBeep",
                                             "warnPopupMode", "warnPopup", "warnPopupDetail", "warnMessage",
                                             "cautionEnabled", "caution", "cautionBeep", "cautionPopup", "cautionMessage",

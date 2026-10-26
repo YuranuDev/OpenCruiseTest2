@@ -435,7 +435,7 @@ Item {
         if (!Array.isArray(list)) list = WidgetRegistry.defaultLayout
         const used = {}
         for (let i = 0; i < list.length; ++i) {
-            const e = list[i]
+            let e = list[i]
             const def = WidgetRegistry.find(e.type)
             if (!def) continue   // 今のバージョンに無い種類は読み飛ばす(配置は壊さない)
             const w = Math.max(def.minSize.w, Math.min(def.maxSize.w, Math.min(cols, e.w || def.defaultSize.w)))
@@ -444,6 +444,9 @@ Item {
             const r = Math.max(0, Math.min(rows - h, e.row || 0))
             const wid = (e.id && !used[e.id]) ? e.id : newId()
             used[wid] = true
+            // 以前の既定の警告メッセージ(「ブースト圧〜」)は、今の呼び方(ターボ圧)に直す。自分で書いたものはそのまま
+            if (e.config && e.config.warnMessage === "ブースト圧が高すぎます")
+                e = Object.assign({}, e, { config: Object.assign({}, e.config, { warnMessage: "ターボ圧が高すぎます" }) })
             // リンクしている設定(通知・警告)の今の値を覚えておく(あとで足すウィジェットが引き継ぐ)
             if (e.config) {
                 const full = Object.assign({}, def.defaultConfig, e.config)
