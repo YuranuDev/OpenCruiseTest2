@@ -43,6 +43,10 @@ QtObject {
 
     /// ビープを 1 回鳴らす合図(Main.qml が受けて鳴らす)
     signal beep()
+    /// 注意音を 1 回鳴らす合図(Main.qml が受けて鳴らす。続けて来ても SystemSound が間引く)
+    signal cautionBeep()
+    /// メーターが注意値を超えたときに呼ぶ(注意音を 1 回)
+    function caution() { cautionBeep() }
 
     function raise(key, title, group) {
         if (key === "" || entries[key] !== undefined) return
@@ -116,7 +120,8 @@ QtObject {
     function noticeReport(group, item) {
         if (group === "") return
         const prev = noticeItems[group]
-        const fresh = item.warning && (!prev || !prev.warning)
+        // 新しく警告(注意)になった・注意 ⇄ 警告と段階が変わったときは、通知を出し直す(今の状態を知らせる)
+        const fresh = item.warning && (!prev || !prev.warning || prev.level !== item.level)
         const recovered = !item.warning && prev !== undefined && prev.warning
         if (!item.warning && !prev) return   // 警告になっていないものは載せない
         noticeItems[group] = {
@@ -159,7 +164,11 @@ QtObject {
             title = list[0].title
             text = list[0].text
         } else {
-            title = warnCount > 0 ? "警告が " + warnCount + " 件あります" : "警告が解除されました"
+            // 警告(level 3)と注意(level 2)のどちらがあるかで呼び方を変える
+            const hasWarn = list.some(i => i.warning && i.level >= 3)
+            const hasCaution = list.some(i => i.warning && i.level < 3)
+            const kind = hasWarn && hasCaution ? "警告・注意" : (hasWarn ? "警告" : "注意")
+            title = warnCount > 0 ? kind + "が " + warnCount + " 件あります" : "警告・注意が解除されました"
             const lines = list.slice(0, 3).map(i => i.title + ": " + i.text)
             if (list.length > 3) lines[2] = "ほか " + (list.length - 2) + " 件"
             text = lines.join("\n")

@@ -27,11 +27,13 @@ namespace opencruise {
 
 namespace {
 constexpr qint64 kClickMinIntervalMs = 70; ///< 操作音を連打したときの最短間隔
+constexpr qint64 kCautionMinIntervalMs = 1500; ///< 注意音を続けて鳴らさない間隔(同時に注意になったメーターの分をまとめる)
 
 const QString kNone = QStringLiteral("none");
 const QString kBuiltinPrefix = QStringLiteral("builtin:");
 const QString kUserPrefix = QStringLiteral("user:");
-const QStringList kCategories = {QStringLiteral("click"), QStringLiteral("start"), QStringLiteral("alert")};
+const QStringList kCategories = {QStringLiteral("click"), QStringLiteral("start"), QStringLiteral("alert"),
+                                 QStringLiteral("caution")};
 const QString kSynthId = QStringLiteral("synth"); ///< 警告音の「合成音」
 
 /// 合成音の設定項目(範囲と既定値)
@@ -94,6 +96,9 @@ QString defaultFile(const QString &category) {
     if (category == QStringLiteral("alert")) {
         return QStringLiteral("Beep.wav");
     }
+    if (category == QStringLiteral("caution")) {
+        return QStringLiteral("Caution.wav");
+    }
     return QStringLiteral("Click.wav");
 }
 QString fallbackResource(const QString &category) {
@@ -105,13 +110,14 @@ bool isCategory(const QString &category) {
 } // namespace
 
 SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
-    : QObject(parent), settings_(settings), click_(this), start_(this), alert_(this), preview_(this),
+    : QObject(parent), settings_(settings), click_(this), start_(this), alert_(this), caution_(this), preview_(this),
       startOutput_(this), startPlayer_(this), previewOutput_(this), previewPlayer_(this) {
     setupPlayer(startPlayer_, startOutput_);
     setupPlayer(previewPlayer_, previewOutput_);
     setupEffect(click_, clickPending_);
     setupEffect(start_, startPending_);
     setupEffect(alert_, alertPending_);
+    setupEffect(caution_, cautionPending_);
     setupEffect(preview_, previewPending_);
 
     // ユーザーフォルダ(カテゴリごと)を作っておく。ここへ WAV を置くと一覧に出る
@@ -128,6 +134,7 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
     }
 
     sinceClick_.start();
+    sinceCaution_.invalidate();
     if (auto *app = QGuiApplication::instance()) {
         app->installEventFilter(this); // パネルへの触れ/離れを監視する
     }
@@ -295,6 +302,9 @@ QSoundEffect &SystemSound::effectOf(const QString &category) {
     if (category == QStringLiteral("start")) {
         return start_;
     }
+    if (category == QStringLiteral("caution")) {
+        return caution_;
+    }
     return category == QStringLiteral("alert") ? alert_ : click_;
 }
 
@@ -302,12 +312,18 @@ bool &SystemSound::pendingOf(const QString &category) {
     if (category == QStringLiteral("start")) {
         return startPending_;
     }
+    if (category == QStringLiteral("caution")) {
+        return cautionPending_;
+    }
     return category == QStringLiteral("alert") ? alertPending_ : clickPending_;
 }
 
 bool &SystemSound::mutedOf(const QString &category) {
     if (category == QStringLiteral("start")) {
         return startMuted_;
+    }
+    if (category == QStringLiteral("caution")) {
+        return cautionMuted_;
     }
     return category == QStringLiteral("alert") ? alertMuted_ : clickMuted_;
 }
@@ -574,7 +590,7 @@ void SystemSound::applySettings() {
     }
     const float gain = static_cast<float>(settings_->gain(AudioSettings::System));
     const QAudioDevice device = settings_->device(AudioSettings::System);
-    for (QSoundEffect *effect : {&click_, &start_, &alert_, &preview_}) {
+    for (QSoundEffect *effect : {&click_, &start_, &alert_, &caution_, &preview_}) {
         effect->setVolume(gain);
         if (!device.isNull() && effect->audioDevice().id() != device.id()) {
             effect->setAudioDevice(device);
@@ -624,6 +640,14 @@ void SystemSound::play(const QString &name) {
             alert_.stop(); // 前の 1 回が残っていても頭から鳴らし直す
             playEffect(alert_, alertPending_);
         }
+    } else if (name == QStringLiteral("caution")) {
+        // いくつかのメーターが同時に注意になっても、まとめて 1 回だけ鳴らす
+        if (cautionMuted_ || (sinceCaution_.isValid() && sinceCaution_.elapsed() < kCautionMinIntervalMs)) {
+            return;
+        }
+        sinceCaution_.restart();
+        caution_.stop();
+        playEffect(caution_, cautionPending_);
     }
 }
 

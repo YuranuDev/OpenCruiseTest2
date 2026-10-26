@@ -6,8 +6,9 @@
  *   同梱フォルダ   : <実行ファイルの場所>/sounds/<カテゴリ>/        (ビルド時に app/sounds からコピー)
  *                    <実行ファイルの場所>/../share/opencruise/sounds/<カテゴリ>/  (インストール時)
  *   ユーザーフォルダ: ~/.local/share/OpenCruise/sounds/<カテゴリ>/  (起動時に作る。ここへ WAV を置くと一覧に出る)
- *   カテゴリ: click(操作音) / start(起動音) / alert(警告音: メーターのしきい値超えのビープ。鳴らすのは WarningAlarm だけ)
- * 選んだ音は QSettings(sound/<カテゴリ>)に保存する。既定は同梱の Click.wav / Start.wav / Beep.wav で、
+ *   カテゴリ: click(操作音) / start(起動音) / alert(警告音: メーターのしきい値超えのビープ。鳴らすのは WarningAlarm だけ) /
+ *             caution(注意音: メーターが注意値を超えたときに 1 回だけ鳴らす。鳴らすのは WarningAlarm だけ)
+ * 選んだ音は QSettings(sound/<カテゴリ>)に保存する。既定は同梱の Click.wav / Start.wav / Beep.wav / Caution.wav で、
  * 同梱フォルダが見つからないときはリソースに埋め込んだ同じ音で鳴らす。「なし」を選ぶと鳴らさない。
  * 再生は QSoundEffect なので、操作音・警告音に使えるのは WAV だけ(すぐ鳴らす・繰り返すため)。
  * 起動音だけは MP3 も選べる(MP3 を選んだときは QMediaPlayer で鳴らす。鳴り始めまで少し時間がかかってもよいため)。
@@ -26,6 +27,7 @@
  *   systemSound.play("click")  操作音
  *   systemSound.play("start")  起動音
  *   systemSound.play("alert")  警告音(1 回分。繰り返しは WarningAlarm が受け持つ)
+ *   systemSound.play("caution") 注意音(1 回。続けて呼ばれても kCautionMinIntervalMs の間は鳴らし直さない)
  *   systemSound.soundOptions("click") / selectedSound / setSelectedSound / preview / rescan  設定画面用
  */
 #pragma once
@@ -177,6 +179,7 @@ private:
     QSoundEffect click_;
     QSoundEffect start_;
     QSoundEffect alert_;
+    QSoundEffect caution_;
     QSoundEffect preview_;
     // MP3 の起動音・試聴用(QSoundEffect は WAV しか鳴らせないため)
     QAudioOutput startOutput_;
@@ -187,10 +190,13 @@ private:
     bool clickPending_ = false;
     bool startPending_ = false;
     bool alertPending_ = false;
+    bool cautionPending_ = false;
     bool previewPending_ = false;
     bool clickMuted_ = false;  ///< 操作音に「なし」を選んでいる
     bool startMuted_ = false;  ///< 起動音に「なし」を選んでいる
     bool alertMuted_ = false;  ///< 警告音に「なし」を選んでいる
+    bool cautionMuted_ = false; ///< 注意音に「なし」を選んでいる
+    QElapsedTimer sinceCaution_; ///< 前に注意音を鳴らしてから(いくつものメーターが同時に注意になっても 1 回だけ鳴らす)
     QElapsedTimer sinceClick_;
     int revision_ = 0;
 

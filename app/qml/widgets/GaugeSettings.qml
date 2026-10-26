@@ -415,4 +415,83 @@ WidgetSettingsBase {
             onEdited: (t) => root.edit("warnMessage", t)
         }
     }
+
+    // ---- 注意(警告の手前の段階) ----
+    // 注意値の既定: 警告値の手前(範囲の 10%)。警告を使っていなければ、範囲の 8 割(燃料などは 2 割)
+    function defaultCautionBase() {
+        const span = maxBase - minBase
+        if (config.warnEnabled === true && config.warn !== undefined) {
+            const w = Number(config.warn)
+            return warnBelow ? Math.min(maxBase, w + span * 0.1) : Math.max(minBase, w - span * 0.1)
+        }
+        return warnBelow ? minBase + span * 0.2 : minBase + span * 0.8
+    }
+    SettingsRow {
+        label: "注意"
+        description: (root.warnBelow ? "注意値以下になると" : "注意値以上になると")
+                     + "、注意音を 1 回鳴らし、メーターを黄色くして知らせます(警告値まで行くと警告が優先します)。"
+                     + "注意の設定も、同じ種類のメーターすべてで共通です"
+        SettingsSwitch {
+            checked: root.config.cautionEnabled === true
+            onToggled: (v) => {
+                if (v && root.config.caution === undefined)
+                    root.edit("caution", Number(root.defaultCautionBase().toFixed(3)))
+                root.edit("cautionEnabled", v)
+            }
+        }
+    }
+    SettingsRow {
+        visible: root.config.cautionEnabled === true
+        label: "注意値"
+        description: root.config.warnEnabled === true
+                     && (root.warnBelow ? Number(root.config.caution) <= Number(root.config.warn)
+                                        : Number(root.config.caution) >= Number(root.config.warn))
+                     ? "注意値が警告値より奥にあるため、注意は出ません(警告値より手前にしてください)" : ""
+        WSStepper {
+            value: root.toShown(root.config.caution !== undefined ? root.config.caution : root.defaultCautionBase())
+            from: root.toShown(root.config.min)
+            to: root.toShown(root.config.max)
+            step: root.step
+            decimals: root.dec
+            suffix: root.suffix
+            onMoved: (v) => root.save("caution", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.cautionEnabled === true
+        label: "注意音を鳴らす"
+        description: "注意値を超えたときに 1 回だけ鳴らします(音は 設定 > サウンド > 注意音)"
+        SettingsSwitch {
+            checked: root.config.cautionBeep !== false
+            onToggled: (v) => root.edit("cautionBeep", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.cautionEnabled === true
+        label: "注意の通知"
+        description: "注意値を超えたときに通知を出し(8 秒で消えます)、表示中は今の値を更新し続けます。"
+                     + "警告になれば警告の通知に、解除されれば「正常に戻りました」に変わります"
+        SettingsSwitch {
+            checked: root.config.cautionPopup !== false
+            onToggled: (v) => root.edit("cautionPopup", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.cautionEnabled === true
+        label: "注意メッセージ"
+        description: "通知の見出しと、メーターの下に出すメッセージ(「警告メッセージを表示」がオンのとき)"
+        stacked: true
+        WSTextField {
+            width: 520 * Theme.uiScale
+            text: root.config.cautionMessage || ""
+            placeholder: root.titleTextOf() + "に注意"
+            maxLength: 24
+            onChanging: (t) => root.preview("cautionMessage", t)
+            onEdited: (t) => root.edit("cautionMessage", t)
+        }
+    }
+    function titleTextOf() {
+        const custom = String(config.titleText || "").trim()
+        return custom !== "" ? custom : gauge.title
+    }
 }

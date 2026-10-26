@@ -136,7 +136,7 @@ QtObject {
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             // 値は bar 基準で保存する(単位を切り替えても警告値などがずれない)
             defaultConfig: gaugeConfig({ metric: "boost", unit: "bar", min: -1.0, max: 2.0,
-                                         warnEnabled: true, warn: 1.6, warnMessage: "ブースト圧が高すぎます" }),
+                                         warnEnabled: true, warn: 1.6, caution: 1.3, warnMessage: "ブースト圧が高すぎます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -145,7 +145,7 @@ QtObject {
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "rpm", unit: "rpm", min: 0, max: 8000, dialStyle: "marker",
-                                         warnEnabled: true, warn: 6500, warnMessage: "回転数が高すぎます" }),
+                                         warnEnabled: true, warn: 6500, caution: 5500, warnMessage: "回転数が高すぎます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -154,7 +154,7 @@ QtObject {
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "speed", unit: "kmh", min: 0, max: 180,
-                                         warnEnabled: false, warn: 120, warnMessage: "速度に注意してください" }),
+                                         warnEnabled: false, warn: 120, caution: 100, warnMessage: "速度に注意してください" }),
             dragStart: "hold", mock: true
         },
         {
@@ -164,7 +164,7 @@ QtObject {
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "coolant", unit: "c", min: 40, max: 130,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
-                                         warnEnabled: true, warn: 105, warnMessage: "水温が高すぎます" }),
+                                         warnEnabled: true, warn: 105, caution: 100, warnMessage: "水温が高すぎます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -174,7 +174,7 @@ QtObject {
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "fuel", unit: "pct", min: 0, max: 100,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
-                                         warnEnabled: true, warn: 15, warnMessage: "燃料が残りわずかです" }),
+                                         warnEnabled: true, warn: 15, caution: 25, warnMessage: "燃料が残りわずかです" }),
             dragStart: "hold", mock: true
         },
         {
@@ -184,7 +184,7 @@ QtObject {
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "oilTemp", unit: "c", min: 50, max: 150,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
-                                         warnEnabled: true, warn: 130, warnMessage: "油温が高すぎます" }),
+                                         warnEnabled: true, warn: 130, caution: 120, warnMessage: "油温が高すぎます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -194,7 +194,7 @@ QtObject {
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "oilPressure", unit: "bar", min: 0, max: 8,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
-                                         warnEnabled: true, warn: 0.8, warnMessage: "油圧が低すぎます" }),
+                                         warnEnabled: true, warn: 0.8, caution: 1.5, warnMessage: "油圧が低すぎます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -204,7 +204,7 @@ QtObject {
             defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "voltage", unit: "v", min: 10, max: 16,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
-                                         warnEnabled: true, warn: 12.0, warnMessage: "電圧が低下しています" }),
+                                         warnEnabled: true, warn: 12.0, caution: 12.5, warnMessage: "電圧が低下しています" }),
             dragStart: "hold", mock: true
         },
         {
@@ -214,7 +214,7 @@ QtObject {
             defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "throttle", unit: "pct", min: 0, max: 100,
                                          dialStyle: "ring", peakMode: "off",
-                                         warnEnabled: false, warn: 90, warnMessage: "アクセルを強く踏んでいます" }),
+                                         warnEnabled: false, warn: 90, caution: 75, warnMessage: "アクセルを強く踏んでいます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -224,7 +224,7 @@ QtObject {
             defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
             defaultConfig: gaugeConfig({ metric: "brake", unit: "pct", min: 0, max: 100,
                                          dialStyle: "ring", peakMode: "off",
-                                         warnEnabled: false, warn: 60, warnMessage: "強くブレーキを踏んでいます" }),
+                                         warnEnabled: false, warn: 60, caution: 40, warnMessage: "強くブレーキを踏んでいます" }),
             dragStart: "hold", mock: true
         },
         {
@@ -320,7 +320,8 @@ QtObject {
     // どれか 1 つで変えると、全ページ・Android Auto 画面の同じ種類のウィジェットにも同じ値が入る(WidgetArea)。
     // グラフは計測値ごとに別の種類として扱う(ブーストのグラフ同士だけがリンクする)
     readonly property var gaugeLinkedKeys: ["warnEnabled", "warn", "showWarnMessage", "warnBeep",
-                                            "warnPopupMode", "warnPopup", "warnPopupDetail", "warnMessage"]
+                                            "warnPopupMode", "warnPopup", "warnPopupDetail", "warnMessage",
+                                            "cautionEnabled", "caution", "cautionBeep", "cautionPopup", "cautionMessage"]
     readonly property var graphLinkedKeys: ["warnEnabled", "warn"]
     readonly property var phoneLinkedKeys: ["lowThreshold", "showLowMessage", "lowMessage"]
     readonly property var noticeLinkedKeys: ["tplCall", "tplMessage", "tplNavigation", "tplOther"]

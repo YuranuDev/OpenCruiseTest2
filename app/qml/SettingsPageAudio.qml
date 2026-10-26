@@ -2,7 +2,7 @@
 //   および Android Auto の音声入力に使うマイク(使用する/しない、入力元)。
 //   マップ音声 = Android Auto のナビ案内、音楽音声 = Android Auto のメディア、
 //   システム   = アプリの操作音・起動音と Android Auto のシステム音。
-//   効果音     = 操作音・起動音・警告音に使う WAV(起動音は MP3 も。フォルダ分けされた一覧から選ぶ。SystemSound)。
+//   効果音     = 操作音・起動音・警告音・注意音に使う WAV(起動音は MP3 も。フォルダ分けされた一覧から選ぶ。SystemSound)。
 //                警告音は WAV のほか合成音も選べ、波形・高さ・回数・長さ・音量と、繰り返す間隔を設定できる。
 //   マスター音量 = 上の 3 つすべてに掛かる共通の倍率(3 つの設定値は変わらない)。Ctrl+Shift+V(下げる)/ B(上げる)でも変えられる。
 import QtQuick
@@ -176,6 +176,24 @@ SettingsPage {
             }
         }
 
+        SettingsRow {
+            id: cautionRow
+            readonly property var options: soundSection.optionsOf("caution")
+            label: "注意音"
+            description: "メーターが注意値を超えたときに 1 回だけ鳴らします(メーターの設定「注意音を鳴らす」)。選ぶと試しに鳴らします"
+            stacked: true
+
+            SettingsDeviceList {
+                model: soundSection.labelsOf(cautionRow.options)
+                currentIndex: soundSection.indexOf(cautionRow.options, "caution")
+                onPicked: (index) => {
+                    const id = cautionRow.options[index].id
+                    systemSound.setSelectedSound("caution", id)
+                    systemSound.preview("caution", id)
+                }
+            }
+        }
+
         // ---- 警告音の繰り返しと合成音 ----
         readonly property bool synthSelected: { systemSound.revision; return systemSound.selectedSound("alert") === "synth" }
         function setSynth(key, v) { systemSound.setSynthValue(key, v); synthPreview.restart() }
@@ -327,9 +345,9 @@ SettingsPage {
         }
 
         SettingsNote {
-            text: "効果音は種類ごとのフォルダ(操作音 = click、起動音 = start、警告音 = alert)に入っている WAV ファイルから選べます。"
-                  + "起動音だけは MP3 も選べます。ユーザーフォルダの click / start / alert へファイルを置くと一覧に追加されます"
-                  + "(操作音・警告音はすぐ鳴らすため WAV だけです)。"
+            text: "効果音は種類ごとのフォルダ(操作音 = click、起動音 = start、警告音 = alert、注意音 = caution)に入っている WAV ファイルから選べます。"
+                  + "起動音だけは MP3 も選べます。ユーザーフォルダの click / start / alert / caution へファイルを置くと一覧に追加されます"
+                  + "(操作音・警告音・注意音はすぐ鳴らすため WAV だけです)。"
                   + "音量と出力先は「システム」の設定に従います。"
         }
     }

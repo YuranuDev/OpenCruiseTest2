@@ -241,6 +241,7 @@ ApplicationWindow {
         Connections {
             target: WarningAlarm
             function onBeep() { systemSound.play("alert") }
+            function onCautionBeep() { systemSound.play("caution") }   // 注意音(注意値を超えたときに 1 回)
         }
         Binding { target: WarningAlarm; property: "interval"; value: systemSound.alertInterval }
         Binding { target: WarningAlarm; property: "continuous"; value: systemSound.alertContinuous }
