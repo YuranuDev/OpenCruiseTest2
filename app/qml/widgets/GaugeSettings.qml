@@ -47,11 +47,13 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "メーターの種類"
-        description: "クラシックは目盛りと警告帯、シンプルは細いリング、スポーツは点灯するセグメントです"
+        description: "クラシックは目盛りと警告帯、シンプルは細いリング、バンドは 0 から今の値まで伸びる太い帯です"
         SettingsChoice {
-            model: ["クラシック", "シンプル", "スポーツ"]
-            currentIndex: root.config.dialStyle === "minimal" ? 1 : (root.config.dialStyle === "sport" ? 2 : 0)
-            onPicked: (i) => root.edit("dialStyle", i === 1 ? "minimal" : (i === 2 ? "sport" : "classic"))
+            model: ["クラシック", "シンプル", "バンド"]
+            // 以前の「スポーツ」はバンドとして扱う
+            currentIndex: root.config.dialStyle === "minimal" ? 1
+                          : (root.config.dialStyle === "band" || root.config.dialStyle === "sport" ? 2 : 0)
+            onPicked: (i) => root.edit("dialStyle", i === 1 ? "minimal" : (i === 2 ? "band" : "classic"))
         }
     }
     SettingsRow {

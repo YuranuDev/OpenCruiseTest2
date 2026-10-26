@@ -3,7 +3,8 @@
 // (データ元・単位・換算・設定できる範囲・既定の見出し)は WidgetRegistry.gaugeSpecs にまとめてある。
 // 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集のときだけ選んだ単位に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
-//  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) / スポーツ(セグメント式のバー)
+//  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) / バンド(太い帯が 0 から現在値まで伸びる。
+//    警告値の手前は注意色、警告ゾーンは警告色)。以前の「スポーツ」の設定はバンドとして扱う
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
 //  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
@@ -56,7 +57,9 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 設定(表示単位に換算済み)
     readonly property string style: config.style === "analog" || config.style === "digital" ? config.style : "both"
-    readonly property string dialStyle: config.dialStyle === "minimal" || config.dialStyle === "sport" ? config.dialStyle : "classic"
+    // 以前の「スポーツ」(sport)は廃止し、バンドとして扱う
+    readonly property string dialStyle: config.dialStyle === "minimal" ? "minimal"
+                                        : (config.dialStyle === "band" || config.dialStyle === "sport" ? "band" : "classic")
     readonly property real minV: toShown(config.min)
     readonly property real maxV: Math.max(toShown(config.max), minV + 0.1)
     readonly property real warnV: toShown(config.warn)
@@ -449,44 +452,19 @@ WidgetBase {
 
             // メーターの種類ごとの寸法(半径に対する比)
             // どの種類も、数字は内側の細い円(ringR)の外側、目盛りはさらに外側に置く
-            readonly property var dims: root.dialStyle === "sport"
-                ? { trackR: 0.92, trackW: 0.12, majorIn: 0.78, minorIn: 0.80, tickOut: 0.835, labelR: 0.665,
-                    majorW: 0.03, minorW: 0.012, sub: 2, labelPx: 0.14, needleTip: 0.8, ringR: 0.5 }
+            // バンド: 太い帯(0.785〜0.935)の外側に短い目盛り、内側に数字
+            readonly property var dims: root.dialStyle === "band"
+                ? { trackR: 0.86, trackW: 0.15, majorIn: 0.95, minorIn: 0.965, tickOut: 0.995, labelR: 0.645,
+                    majorW: 0.024, minorW: 0.01, sub: 2, labelPx: 0.13, needleTip: 0.74, ringR: 0.5 }
                 : (root.dialStyle === "minimal"
                    ? { trackR: 0.95, trackW: 0.03, majorIn: 0.83, minorIn: 0.86, tickOut: 0.89, labelR: 0.685,
                        majorW: 0.02, minorW: 0.01, sub: 2, labelPx: 0.13, needleTip: 0.86, ringR: 0.5 }
                    : { trackR: 0.96, trackW: 0.025, majorIn: 0.77, minorIn: 0.82, tickOut: 0.87, labelR: 0.655,
                        majorW: 0.026, minorW: 0.011, sub: 5, labelPx: 0.125, needleTip: 0.88, ringR: 0.5 })
 
-            // スポーツのセグメント(数と 1 つあたりの角度。セグメントの間は少し空ける)
-            readonly property int segCount: Math.max(16, Math.round(root.sweepAngle / 6))
-            readonly property real segDeg: root.sweepAngle / segCount
-            readonly property real segGap: Math.min(1.8, segDeg * 0.3)
-
-            // 点灯するセグメントの範囲(中央の値が 0〜現在値の間にあるもの)。変わったときだけ描き直す
-            readonly property int litFrom: {
-                const lo = Math.min(root.originV, root.shown)
-                return Math.max(0, Math.ceil((lo - root.minV) / (root.maxV - root.minV) * segCount - 0.5 - 1e-9))
-            }
-            readonly property int litTo: {
-                const hi = Math.max(root.originV, root.shown)
-                return Math.min(segCount - 1, Math.floor((hi - root.minV) / (root.maxV - root.minV) * segCount - 0.5 + 1e-9))
-            }
-
             // 角度(度、0° が真上)→ Canvas の角度(ラジアン、0 が右)
             function rad(deg) { return (deg - 90) * Math.PI / 180 }
             function angOf(v) { return root.startAngle + root.frac(v) * root.sweepAngle }
-            // セグメント i の中央の値
-            function segValue(i) { return root.minV + (root.maxV - root.minV) * (i + 0.5) / segCount }
-            // セグメント i を描く(角度は弧の上の位置)
-            function drawSeg(ctx, i, R, color) {
-                const d0 = root.startAngle + i * segDeg + segGap / 2
-                const d1 = root.startAngle + (i + 1) * segDeg - segGap / 2
-                ctx.strokeStyle = color
-                ctx.beginPath()
-                ctx.arc(cx, cy, R * dims.trackR, rad(d0), rad(d1))
-                ctx.stroke()
-            }
 
             // ---- 目盛り・警告帯(設定・大きさ・配色が変わったときだけ描き直す) ----
             Canvas {
@@ -555,12 +533,19 @@ WidgetBase {
                             ctx.stroke()
                         }
                     } else {
-                        // スポーツ: 消灯したセグメント(警告ゾーンは赤みを帯びる)
-                        ctx.lineCap = "butt"
+                        // バンド: 太い帯の溝(警告ゾーンは赤みを帯びる)。両端は丸める
+                        ctx.lineCap = "round"
                         ctx.lineWidth = R * dm.trackW
-                        for (let i = 0; i < dial.segCount; ++i) {
-                            dial.drawSeg(ctx, i, R, root.inZone(dial.segValue(i)) ? zoneColor
-                                                                                  : Theme.mix(Theme.panel, Theme.panelBorder, 0.9))
+                        ctx.strokeStyle = Theme.mix(Theme.panel, Theme.panelBorder, 0.9)
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * dm.trackR, a0, a1)
+                        ctx.stroke()
+                        if (root.hasWarnZone) {
+                            ctx.lineCap = "butt"
+                            ctx.strokeStyle = zoneColor
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * dm.trackR, angV(root.zoneLo), angV(root.zoneHi))
+                            ctx.stroke()
                         }
                     }
 
@@ -599,7 +584,7 @@ WidgetBase {
                         ctx.lineTo(cx + Math.cos(a) * R * dm.tickOut, cy + Math.sin(a) * R * dm.tickOut)
                         ctx.stroke()
                         if (isMajor) {
-                            ctx.fillStyle = inWarn ? Theme.error : (isZero || root.dialStyle === "sport" ? Theme.textPrimary : Theme.textSecondary)
+                            ctx.fillStyle = inWarn ? Theme.error : (isZero || root.dialStyle === "band" ? Theme.textPrimary : Theme.textSecondary)
                             ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(dec),
                                          cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
                         }
@@ -607,7 +592,7 @@ WidgetBase {
                 }
             }
 
-            // ---- 進捗(シンプル: 細いリング / スポーツ: 点灯するセグメント)。0 から現在値まで ----
+            // ---- 進捗(シンプル: 細いリング / バンド: 太い帯)。0 から現在値まで ----
             Canvas {
                 id: progress
                 anchors.fill: parent
@@ -615,7 +600,7 @@ WidgetBase {
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: !visible ? "" :
                     [width, height, dial.rpx,
-                     root.dialStyle === "sport" ? dial.litFrom + ":" + dial.litTo : dial.angOf(root.shown).toFixed(1),
+                     dial.angOf(root.shown).toFixed(1),
                      root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
                      Theme.error].join("|")
@@ -630,21 +615,6 @@ WidgetBase {
                     ctx.lineCap = "butt"
                     ctx.lineWidth = R * dm.trackW
 
-                    if (root.dialStyle === "sport") {
-                        // 警告値の手前(範囲の 10%)は注意色、警告ゾーンは警告色
-                        const near = (root.maxV - root.minV) * 0.1
-                        const colorOf = (v) => {
-                            if (root.inZone(v)) return Theme.error
-                            if (root.hasWarnZone && (root.warnBelow ? v <= root.warnV + near : v >= root.warnV - near)) return Theme.warn
-                            return Theme.accent
-                        }
-                        // 光彩(shadowBlur)は描画が重いので使わない。点灯している範囲だけ描く
-                        for (let i = dial.litFrom; i <= dial.litTo; ++i) {
-                            dial.drawSeg(ctx, i, R, colorOf(dial.segValue(i)))
-                        }
-                        return
-                    }
-
                     if (dial.angOf(hi) - dial.angOf(lo) < 0.2) return
                     const seg = (from, to, color) => {
                         if (to <= from) return
@@ -652,6 +622,36 @@ WidgetBase {
                         ctx.beginPath()
                         ctx.arc(dial.cx, dial.cy, R * dm.trackR, dial.rad(dial.angOf(from)), dial.rad(dial.angOf(to)))
                         ctx.stroke()
+                    }
+
+                    if (root.dialStyle === "band") {
+                        // バンド: 警告値の手前(範囲の 10%)は注意色、警告ゾーンは警告色。
+                        // 色の切れ目で分けて描く(境目は直角。帯の先端だけ丸める)
+                        const near = (root.maxV - root.minV) * 0.1
+                        const cuts = [lo, hi]
+                        if (root.hasWarnZone) {
+                            const nearEdge = root.warnBelow ? root.warnV + near : root.warnV - near
+                            for (const c of [root.warnV, nearEdge]) if (c > lo && c < hi) cuts.push(c)
+                        }
+                        cuts.sort((a, b) => a - b)
+                        const colorOf = (v) => {
+                            if (root.inZone(v)) return Theme.error
+                            if (root.hasWarnZone && (root.warnBelow ? v <= root.warnV + near : v >= root.warnV - near)) return Theme.warn
+                            return Theme.accent
+                        }
+                        for (let k = 0; k + 1 < cuts.length; ++k) seg(cuts[k], cuts[k + 1], colorOf((cuts[k] + cuts[k + 1]) / 2))
+                        // 帯の先端を丸める: 今の値の側と、目盛りの端から始まっている側(溝の丸い端と重ねる)
+                        const cap = (v) => {
+                            const ta = dial.rad(dial.angOf(v))
+                            ctx.fillStyle = colorOf(v)
+                            ctx.beginPath()
+                            ctx.arc(dial.cx + Math.cos(ta) * R * dm.trackR, dial.cy + Math.sin(ta) * R * dm.trackR, R * dm.trackW / 2, 0, Math.PI * 2)
+                            ctx.fill()
+                        }
+                        cap(root.shown >= root.originV ? hi : lo)
+                        if (Math.abs(lo - root.minV) < 1e-9 && root.shown >= root.originV) cap(lo)
+                        if (Math.abs(hi - root.maxV) < 1e-9 && root.shown < root.originV) cap(hi)
+                        return
                     }
                     if (root.hasWarnZone) {
                         // 警告ゾーンと重なる部分だけ警告色
@@ -681,7 +681,7 @@ WidgetBase {
                     id: needleShape
                     readonly property real tip: dial.rpx * dial.dims.needleTip
                     readonly property real tail: root.needleTail ? dial.rpx * 0.22 : 0
-                    readonly property real base: Math.max(4, dial.rpx * (root.dialStyle === "sport" ? 0.055 : 0.07))
+                    readonly property real base: Math.max(4, dial.rpx * (root.dialStyle === "band" ? 0.055 : 0.07))
                     readonly property color needleFill: root.warning ? Theme.error : root.needleColor
                     x: -width / 2
                     y: -tip
@@ -759,7 +759,7 @@ WidgetBase {
                 radius: width / 2
                 color: root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
-                border.color: root.warning ? Theme.error : (root.dialStyle === "sport" ? Theme.accent : Theme.panelBorder)
+                border.color: root.warning ? Theme.error : (root.dialStyle === "band" ? Theme.accent : Theme.panelBorder)
             }
 
             // ---- デジタル表示(アナログ+デジタル) ----

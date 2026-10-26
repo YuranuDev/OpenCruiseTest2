@@ -135,7 +135,7 @@ QtObject {
             description: "エンジン回転数のメーター(レッドゾーンの警告あり)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 4, h: 5 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
-            defaultConfig: gaugeConfig({ metric: "rpm", unit: "rpm", min: 0, max: 8000, dialStyle: "sport",
+            defaultConfig: gaugeConfig({ metric: "rpm", unit: "rpm", min: 0, max: 8000, dialStyle: "band",
                                          warnEnabled: true, warn: 6500, warnMessage: "回転数が高すぎます" }),
             dragStart: "hold", mock: true
         },
