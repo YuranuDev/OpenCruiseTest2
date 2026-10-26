@@ -913,7 +913,10 @@ WidgetBase {
                 visible: root.labelVisible
                 readonly property real h: dial.rpx * (root.compact ? 0.15 : 0.13)
                 // 中心からの位置(半径比)。針の無い種類は、中央の数値の上
-                readonly property real cyU: root.needleless ? Math.min(-0.42, dial.readout.y - 0.1) : -Math.max(root.hubSize / 2 + 0.1, 0.32)
+                // マーカーは数値を下げた分だけ名前も下げ、数値(ピーク表示)のすぐ上に置く
+                readonly property real cyU: !root.needleless ? -Math.max(root.hubSize / 2 + 0.1, 0.32)
+                                          : root.dialStyle === "marker" ? dial.readout.y - 0.12
+                                          : Math.min(-0.42, dial.readout.y - 0.1)
                 // 内側の細い円(半径 0.6。針の無い種類は 0.75)に収まる幅
                 readonly property real fitR: root.needleless ? 0.75 : 0.58
                 readonly property real maxW: 2 * Math.sqrt(Math.max(0.01, fitR * fitR - cyU * cyU)) * dial.rpx

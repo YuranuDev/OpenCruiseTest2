@@ -21,7 +21,11 @@ Row {
     function release() { hold.stop(); repeat.stop() }
 
     function nudge(dir) {
-        const next = Number((root.value + dir * root.step).toFixed(root.decimals + 1))
+        // 刻み(step)の倍数にそろえて動かす。単位の換算などで刻みからずれた値(1.47 など)は、
+        // 押した向きの次の刻み(1.5 / 1.4)へ。表示は丸めるので、ずれたまま見た目だけ同じになるのを防ぐ
+        const k = root.value / root.step
+        const n = dir > 0 ? Math.floor(k + 1e-6) + 1 : Math.ceil(k - 1e-6) - 1
+        const next = Number((n * root.step).toFixed(Math.max(root.decimals, 0) + 1))
         const clamped = Math.max(root.from, Math.min(root.to, next))
         if (clamped !== root.value) root.moved(clamped)
     }
