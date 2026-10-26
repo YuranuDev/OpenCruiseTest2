@@ -25,6 +25,16 @@ Rectangle {
     // 下へタッチを通さない
     MouseArea { anchors.fill: parent; enabled: root.visible }
 
+    // ロゴ(タイトル)と警告はフェードインで出す。画面が実際に 1 枚描かれてから始めるので、
+    // 起動の重い処理の間にフェードが進んでしまい、途中から急に出たように見えることがない
+    property bool revealed: false
+    Connections {
+        target: root.Window.window
+        enabled: !root.revealed
+        function onFrameSwapped() { root.revealed = true }
+    }
+    Timer { interval: 400; running: !root.revealed; onTriggered: root.revealed = true }   // 念のため(描画の合図が来ないとき)
+
     // 背景: 上からアクセント色がうっすら差すグラデーション
     Rectangle {
         anchors.fill: parent
@@ -39,10 +49,15 @@ Rectangle {
         id: titleBlock
         anchors.horizontalCenter: parent.horizontalCenter
         // 下の警告カードの分だけ上に寄せて、残りの高さの中央に置く
-        y: Math.max(Theme.margin, (parent.height - warning.height - warning.anchors.bottomMargin - height) / 2)
+        // 入りきらない画面では、全体を少し縮める(上を基準に)
+        readonly property real room: parent.height - warning.height - warning.anchors.bottomMargin - Theme.margin * 2
+        scale: Math.min(1, room / Math.max(1, height))
+        transformOrigin: Item.Top
+        y: Math.max(Theme.margin, (parent.height - warning.height - warning.anchors.bottomMargin - height * scale) / 2)
         width: Math.min(parent.width - Theme.margin * 4, 900 * root.unit)
-        spacing: 14 * root.unit
-        // 起動画面はすぐに出す(フェードインで遅れて見えないよう、最初から表示する)
+        spacing: 10 * root.unit
+        opacity: root.revealed ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
 
         Text {
             width: parent.width
@@ -59,14 +74,14 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             Text {
                 font.family: Theme.fontFamily
-                font.pixelSize: 124 * root.unit
+                font.pixelSize: 108 * root.unit
                 font.weight: Font.Light
                 color: Theme.textPrimary
                 text: "Open"
             }
             Text {
                 font.family: Theme.fontFamily
-                font.pixelSize: 124 * root.unit
+                font.pixelSize: 108 * root.unit
                 font.weight: Font.Bold
                 color: Theme.accent
                 text: "Cruise"
@@ -97,7 +112,7 @@ Rectangle {
             }
         }
 
-        Item { width: 1; height: 26 * root.unit }
+        Item { width: 1; height: 12 * root.unit }
 
         // 起動状況と進行バー
         Text {
@@ -122,6 +137,74 @@ Rectangle {
                 color: Theme.accent
             }
         }
+
+        Item { width: 1; height: 4 * root.unit }
+
+        // 起動の段階の一覧(どこまで読み込んだか)。状態のアイコン + 名前 + 補足(かかった時間など)
+        Grid {
+            id: stepGrid
+            anchors.horizontalCenter: parent.horizontalCenter
+            columns: 3
+            columnSpacing: 18 * root.unit
+            rowSpacing: 6 * root.unit
+            readonly property real cellW: (parent.width - columnSpacing * (columns - 1)) / columns
+            Repeater {
+                model: boot
+                Row {
+                    id: stepRow
+                    required property string title
+                    required property string detail
+                    required property string stateKey
+                    width: stepGrid.cellW
+                    height: 36 * root.unit
+                    spacing: 8 * root.unit
+                    readonly property color stateColor: stateKey === "ready" ? Theme.ok
+                                                      : stateKey === "running" ? Theme.accent
+                                                      : stateKey === "warning" ? Theme.warn
+                                                      : stateKey === "failed" ? Theme.error : Theme.textSecondary
+                    MaterialIcon {
+                        id: stepIcon
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: 24 * root.unit
+                        color: stepRow.stateColor
+                        name: stepRow.stateKey === "ready" ? "check_circle"
+                            : stepRow.stateKey === "running" ? "autorenew"
+                            : stepRow.stateKey === "warning" ? "warning"
+                            : stepRow.stateKey === "failed" ? "error"
+                            : stepRow.stateKey === "skipped" ? "remove_circle_outline" : "radio_button_unchecked"
+                        // 読み込み中は回す
+                        RotationAnimation on rotation {
+                            running: stepRow.stateKey === "running" && root.visible
+                            from: 0; to: 360; duration: 1200; loops: Animation.Infinite
+                        }
+                        Binding on rotation { when: stepRow.stateKey !== "running"; value: 0 }
+                    }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - stepIcon.width - parent.spacing
+                        Text {
+                            width: parent.width
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 17 * root.unit
+                            font.bold: stepRow.stateKey === "running"
+                            color: stepRow.stateKey === "pending" ? Theme.textSecondary : Theme.textPrimary
+                            elide: Text.ElideRight
+                            text: stepRow.title
+                        }
+                        Text {
+                            visible: text !== ""
+                            width: parent.width
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 13 * root.unit
+                            color: stepRow.stateKey === "warning" || stepRow.stateKey === "failed" ? stepRow.stateColor
+                                                                                                 : Theme.textSecondary
+                            elide: Text.ElideRight
+                            text: stepRow.detail
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ---- 下部: 警告(角丸のカード) ----
@@ -134,6 +217,8 @@ Rectangle {
         color: Theme.mix(Theme.panel, Theme.warn, 0.12)
         border.width: 2
         border.color: Theme.warn
+        opacity: root.revealed ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 800; easing.type: Easing.OutCubic } }
 
         Row {
             id: warningRow

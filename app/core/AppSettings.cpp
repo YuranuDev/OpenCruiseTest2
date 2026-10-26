@@ -184,6 +184,7 @@ void AppSettings::loadFontInBackground(const QString &family, std::function<void
         if (registered && !registeredFamilies_.contains(family)) registeredFamilies_ << family;
         log::info("FONT", QStringLiteral("%1 の残りを登録しました(%2 ファイル、%3 ms。画面は止めずに読み込み)")
                               .arg(family).arg(files.size()).arg(timer->elapsedMs()));
+        emit fontLoadFinished(family, static_cast<int>(files.size()), timer->elapsedMs());
         if (then) then(registered);
     });
     thread->start(QThread::LowPriority);

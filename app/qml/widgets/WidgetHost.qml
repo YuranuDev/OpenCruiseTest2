@@ -151,6 +151,20 @@ Item {
             anchors.fill: parent
             asynchronous: true
             sourceComponent: host.def ? host.def.component : null
+            // 作っている途中の数を WidgetRegistry に知らせる(起動画面に「ウィジェット n / m」と出す)
+            property bool counted: false
+            function count() {
+                const loading = status === Loader.Loading
+                if (loading && !counted) { counted = true; ++WidgetRegistry.widgetsLoading }
+                else if (!loading && counted) {
+                    counted = false
+                    --WidgetRegistry.widgetsLoading
+                    if (status === Loader.Ready) ++WidgetRegistry.widgetsLoaded
+                }
+            }
+            onStatusChanged: count()
+            Component.onCompleted: count()
+            Component.onDestruction: if (counted) { counted = false; --WidgetRegistry.widgetsLoading }
         }
         Binding { target: loader.item; property: "config"; value: host.cfg; when: loader.item !== null }
         Binding { target: loader.item; property: "lifting"; value: host.lifting; when: loader.item !== null }

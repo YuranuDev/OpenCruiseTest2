@@ -60,6 +60,8 @@ public:
     int powerMode() const { return powerMode_; }
     QString powerModeStatus() const { return powerModeStatus_; }
     bool phoneNoticePopupEnabled() const { return phoneNoticePopupEnabled_; }
+    /** @brief そのフォントを別スレッドで読み込み中か(起動画面の「フォント」の段階の表示に使う)。 */
+    bool isFontLoading(const QString &family) const { return loadingFamilies_.contains(family); }
 
     /** @brief ユーザー名を変更して保存する(前後の空白は除く)。 */
     void setUserName(const QString &name);
@@ -78,6 +80,8 @@ signals:
     void fontFamilyChanged();
     void powerModeChanged();
     void phoneNoticePopupEnabledChanged();
+    /** 別スレッドでのフォントの読み込みが終わった(files: 読んだファイル数、ms: かかった時間) */
+    void fontLoadFinished(const QString &family, int files, qint64 ms);
 
 private:
     /**

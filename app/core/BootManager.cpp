@@ -207,7 +207,9 @@ QString BootManager::summaryText() const {
     }
     for (const Step &s : steps_) {
         if (s.state == Running) {
-            return QStringLiteral("%1 を待っています…").arg(s.title);
+            // どの段階を読み込んでいるか(補足があれば添える)
+            return s.detail.isEmpty() ? QStringLiteral("%1を準備しています…").arg(s.title)
+                                      : QStringLiteral("%1を準備しています… %2").arg(s.title, s.detail);
         }
     }
     return QStringLiteral("起動しています…");

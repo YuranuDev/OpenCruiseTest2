@@ -34,6 +34,10 @@ QtObject {
     ]
 
     // ---- 本体と設定画面 ----
+    // 作っている途中のウィジェットの数と、作り終えた数(WidgetHost が数える。起動画面の「ウィジェット」の段階に使う)
+    property int widgetsLoading: 0
+    property int widgetsLoaded: 0
+
     property Component clockComp: Component { ClockWidget {} }
     property Component clockSettings: Component { ClockSettings {} }
     property Component greetingComp: Component { GreetingWidget {} }

@@ -23,6 +23,7 @@
 
 #include <cstdlib>
 #include <exception>
+#include <memory>
 
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppInfo.h"
@@ -97,6 +98,16 @@ int main(int argc, char *argv[]) {
     opencruise::log::info("APP", QStringLiteral("ログ出力先: ") + opencruise::log::currentFilePath());
     opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
     // 描画方式・垂直同期は、ウィンドウ(QML)を作る前にしか変えられないので、ここで適用する
+    const opencruise::log::Stopwatch stageTimer; // 起動の段階ごとの時間(起動画面とログに出す)
+    qint64 stageStartMs = 0;
+    // 前の段階の終わりからの時間を返し、次の段階の計測を始める
+    const auto lapMs = [&stageTimer, &stageStartMs]() {
+        const qint64 now = stageTimer.elapsedMs();
+        const qint64 lap = now - stageStartMs;
+        stageStartMs = now;
+        return lap;
+    };
+    const auto msText = [](qint64 ms) { return QStringLiteral("%1 ms").arg(ms); };
     opencruise::DisplaySettings::applyStartupSettings();
 
     opencruise::ClockModel clock;
@@ -109,12 +120,54 @@ int main(int argc, char *argv[]) {
     opencruise::PhoneStatus phoneStatus;   // スマホのバッテリー・電波・通知(ウィジェット「スマホ状態」「スマホ通知」が読む)
     opencruise::WidgetStore widgetStore;   // ウィジェットの配置・設定の保存先
     opencruise::BootManager boot; // 起動(オープニング)画面の待ち管理。外部機器の接続待ちなどもここへ登録する
+
+    // ---- 起動の段階(起動画面に一覧で出し、どこまで進んだか分かるようにする) ----
+    // 外部機器やサービスを増やすときは addStep() で足し、準備ができたら boot.report(id, Ready, ...) を呼ぶだけでよい。
+    // 応答が無くても timeoutMs で打ち切って先へ進む(必須でも起動は止まらず、画面に失敗として表示する)。
+    // 画面が出る前に終わる段階(設定〜画面の読み込み)も、かかった時間を残すために並べる。
+    // 警告(実際の交通規制に従う旨)を読めるよう、起動画面の最低表示時間を長めにする
+    boot.setTiming(5000, 2200, 15000);
+    boot.addStep(QStringLiteral("system"), QStringLiteral("設定・表示"), true, 0);
+    boot.addStep(QStringLiteral("fonts"), QStringLiteral("フォント"), false, 10000);
+    boot.addStep(QStringLiteral("audio"), QStringLiteral("音声・明るさ"), true, 0);
+    boot.addStep(QStringLiteral("aa"), QStringLiteral("Android Auto 接続層"), true, 8000);
+    boot.addStep(QStringLiteral("ui"), QStringLiteral("画面の読み込み"), true, 0);
+    boot.addStep(QStringLiteral("home"), QStringLiteral("メイン画面"), true, 0);         // Main.qml が知らせる
+    boot.addStep(QStringLiteral("widgets"), QStringLiteral("ウィジェット"), false, 10000); // Main.qml が知らせる
+    boot.addStep(QStringLiteral("vehicle"), QStringLiteral("車両データ"), false, 3000);
+    boot.addStep(QStringLiteral("esp32"), QStringLiteral("外部機器 (ESP32)"), false, 6000);
+    boot.report(QStringLiteral("system"), opencruise::BootManager::Ready, msText(lapMs()));
+
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
+    {
+        const QString family = appSettings.fontFamily();
+        const qint64 ms = lapMs();
+        if (family.isEmpty()) {
+            boot.report(QStringLiteral("fonts"), opencruise::BootManager::Warning, QStringLiteral("同梱フォントなし(OS 既定)"));
+        } else if (appSettings.isFontLoading(family)) {
+            // 通常の太さだけ読み終わっている。残りの太さは別スレッドで読み込み中(終わったら完了にする)
+            boot.report(QStringLiteral("fonts"), opencruise::BootManager::Running,
+                        QStringLiteral("残りの太さを読み込み中(基本 %1)").arg(msText(ms)));
+            auto once = std::make_shared<QMetaObject::Connection>();
+            *once = QObject::connect(&appSettings, &opencruise::AppSettings::fontLoadFinished, &boot,
+                                     [&boot, family, ms, msText, once](const QString &f, int files, qint64 bgMs) {
+                                         if (f != family) return;
+                                         QObject::disconnect(*once);
+                                         boot.report(QStringLiteral("fonts"), opencruise::BootManager::Ready,
+                                                     QStringLiteral("%1(基本 %2 + 残り %3 ファイル %4)")
+                                                         .arg(family, msText(ms), QString::number(files), msText(bgMs)));
+                                     });
+        } else {
+            boot.report(QStringLiteral("fonts"), opencruise::BootManager::Ready,
+                        QStringLiteral("%1(%2)").arg(family, msText(ms)));
+        }
+    }
     // 音量(マップ音声・音楽音声・システム)と出力先の設定。AndroidAutoController より先に作る(寿命を app に合わせる)
     auto* audioSettings = new opencruise::AudioSettings(&app);
     opencruise::SystemSound systemSound(audioSettings); // 操作音・起動音(音量・出力先は「システム」の設定に従う)
     opencruise::BrightnessController brightnessController; // 画面の明るさ(バックライト or 暗幕。未対応環境でも動く)
+    boot.report(QStringLiteral("audio"), opencruise::BootManager::Ready, msText(lapMs()));
     auto* androidAuto = new opencruise::AndroidAutoController(&app);
     androidAuto->setAudioSettings(audioSettings);
     androidAuto->setVehicleSource(&can); // モックの車両データ送信の取得元(ダミーの CAN データ)
@@ -131,15 +184,8 @@ int main(int argc, char *argv[]) {
         opencruise::log::warn("APP", QStringLiteral("初期化時の問題: ") + androidAuto->lastIssue());
     }
 
-    // ---- 起動時に待つステップの登録 ----
-    // 外部機器やサービスを増やすときは addStep() で足し、準備ができたら boot.report(id, Ready, ...) を呼ぶだけでよい。
-    // 応答が無くても timeoutMs で打ち切って先へ進む(必須でも起動は止まらず、画面に失敗として表示する)。
-    // 警告(実際の交通規制に従う旨)を読めるよう、起動画面の最低表示時間を長めにする
-    boot.setTiming(5000, 2200, 15000);
-    boot.addStep(QStringLiteral("system"), QStringLiteral("システム初期化"), true, 0);
-    boot.addStep(QStringLiteral("vehicle"), QStringLiteral("車両データ"), false, 3000);
-    boot.addStep(QStringLiteral("aa"), QStringLiteral("Android Auto 接続層"), true, 8000);
-    boot.addStep(QStringLiteral("esp32"), QStringLiteral("外部機器 (ESP32)"), false, 6000);
+    // Android Auto 接続層: 作るところまで(接続待ちに入ったら完了にする)
+    const qint64 aaInitMs = lapMs();
     if (parser.isSet(testVideo)) {
         boot.report(QStringLiteral("aa"), opencruise::BootManager::Skipped, QStringLiteral("テスト映像モード"));
     } else if (!androidAuto->aasdkEnabled()) {
@@ -151,6 +197,8 @@ int main(int argc, char *argv[]) {
                 boot.report(QStringLiteral("aa"), opencruise::BootManager::Ready, androidAuto->stateText());
             }
         });
+        boot.report(QStringLiteral("aa"), opencruise::BootManager::Running,
+                    QStringLiteral("初期化 %1。接続待ちの開始を待っています").arg(msText(aaInitMs)));
     }
 
     QQmlApplicationEngine engine;
@@ -195,6 +243,7 @@ int main(int argc, char *argv[]) {
         opencruise::log::error("QML", QStringLiteral("QML の読み込みに失敗しました (qrc:/OpenCruise/qml/Main.qml)"));
     } else {
         opencruise::log::info("QML", QStringLiteral("メイン画面を読み込みました (%1 ms)").arg(qmlLoadTimer.elapsedMs()));
+        boot.report(QStringLiteral("ui"), opencruise::BootManager::Ready, msText(qmlLoadTimer.elapsedMs()));
         // 描画が終わるたびに、外部モニターへのミラーを更新する(eglfs のときだけ動く)
         drmDisplay.attach(qobject_cast<QQuickWindow *>(engine.rootObjects().first()));
     }
@@ -224,7 +273,6 @@ int main(int argc, char *argv[]) {
         } else {
             boot.start();
         }
-        boot.report(QStringLiteral("system"), opencruise::BootManager::Ready, QStringLiteral("起動処理が完了"));
         boot.report(QStringLiteral("vehicle"), opencruise::BootManager::Ready, can.sourceText());
         // TODO(ESP32): 接続機能を作ったら、ここをその通知に置き換える。例:
         //   connect(esp32Link, &Esp32Link::handshake, &boot, [&](const QString &s) { boot.report("esp32", BootManager::Running, s); });

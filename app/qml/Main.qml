@@ -366,6 +366,8 @@ ApplicationWindow {
             Component.onCompleted: {
                 if (startOnSettings) {
                     stack.push(settingsComponent)
+                    boot.report("home", 5, "設定画面から起動")       // 5 = Skipped
+                    boot.report("widgets", 5, "設定画面から起動")
                 } else {
                     homeLoader.waiting = true
                 }
@@ -376,16 +378,25 @@ ApplicationWindow {
             property bool waiting: false   // 起動画面の最初の 1 枚を待っている
             property var incubator: null
             property bool ready: false     // メイン画面ができた(できるまで起動画面を消さない)
+            property real startedAt: 0
             function create() {
-                const startedAt = Date.now()
+                startedAt = Date.now()
+                boot.report("home", 1, "作成中")                         // 1 = Running
+                boot.report("widgets", 1, "メイン画面の作成を待っています")
                 const inc = homeComponent.incubateObject(stack, {}, Qt.Asynchronous)
                 const done = () => {
                     if (inc.status === Component.Ready) {
                         stack.push(inc.object, {}, StackView.Immediate)
                         homeLoader.ready = true
-                        console.info("[boot] メイン画面を作りました (" + (Date.now() - startedAt) + " ms。起動画面を出したまま、少しずつ作成)")
+                        const ms = Date.now() - startedAt
+                        boot.report("home", 2, ms + " ms")                // 2 = Ready
+                        console.info("[boot] メイン画面を作りました (" + ms + " ms。起動画面を出したまま、少しずつ作成)")
+                        widgetWatch.update()
                     } else if (inc.status === Component.Error) {
                         console.error("[boot] メイン画面を作れませんでした")
+                        boot.report("home", 4, "作成に失敗しました")      // 4 = Failed
+                        widgetWatch.finished = true
+                        boot.report("widgets", 5, "メイン画面を作れなかったため中止")
                         homeLoader.ready = true   // 起動画面のまま固まらないようにする
                     }
                 }
@@ -393,6 +404,31 @@ ApplicationWindow {
                 else inc.onStatusChanged = (status) => done()
                 incubator = inc
             }
+        }
+        // 起動画面の「ウィジェット」の段階: 作っている途中の数を見て、すべて作り終えたら完了にする(起動時の 1 回だけ)
+        QtObject {
+            id: widgetWatch
+            property bool finished: false
+            property string lastText: ""
+            function update() {
+                if (finished || homeLoader.startedAt === 0) return
+                const loading = WidgetRegistry.widgetsLoading, loaded = WidgetRegistry.widgetsLoaded
+                // メイン画面を作っている間は、全部で何個になるかまだ分からないので、できた数だけ出す
+                if (!homeLoader.ready || loading > 0) {
+                    const text = homeLoader.ready ? "作成中 " + loaded + " / " + (loaded + loading) + " 個"
+                                                  : "作成中 " + loaded + " 個できました"
+                    if (text !== lastText) { lastText = text; boot.report("widgets", 1, text) }
+                    return
+                }
+                finished = true
+                boot.report("widgets", 2, loaded + " 個 (" + (Date.now() - homeLoader.startedAt) + " ms)")
+            }
+        }
+        Connections {
+            target: WidgetRegistry
+            enabled: homeLoader.startedAt > 0 && !widgetWatch.finished
+            function onWidgetsLoadingChanged() { Qt.callLater(widgetWatch.update) }
+            function onWidgetsLoadedChanged() { Qt.callLater(widgetWatch.update) }
         }
         Connections {
             target: window
