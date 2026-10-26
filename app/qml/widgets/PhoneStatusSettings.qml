@@ -23,7 +23,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "低残量の警告しきい値"
-        description: "この残量以下(またはスマホが危険と通知)で、赤・アイコン・メッセージで警告します"
+        description: "この残量以下(またはスマホが危険と通知)で、赤・アイコン・メッセージで警告します。警告の設定は、スマホの状態のウィジェットすべてで共通です"
         WSStepper {
             value: root.config.lowThreshold
             from: 5

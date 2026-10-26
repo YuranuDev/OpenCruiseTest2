@@ -289,6 +289,54 @@ QtObject {
         { type: "phoneNotice", col: 8, row: 3, w: 4, h: 3 }
     ]
 
+    // ---- 同じ種類のウィジェットでリンクする(共通にする)設定: 通知・警告まわり ----
+    // どれか 1 つで変えると、全ページ・Android Auto 画面の同じ種類のウィジェットにも同じ値が入る(WidgetArea)。
+    // グラフは計測値ごとに別の種類として扱う(ブーストのグラフ同士だけがリンクする)
+    readonly property var gaugeLinkedKeys: ["warnEnabled", "warn", "showWarnMessage", "warnBeep",
+                                            "warnPopupMode", "warnPopup", "warnPopupDetail", "warnMessage"]
+    readonly property var graphLinkedKeys: ["warnEnabled", "warn"]
+    readonly property var phoneLinkedKeys: ["lowThreshold", "showLowMessage", "lowMessage"]
+    readonly property var noticeLinkedKeys: ["tplCall", "tplMessage", "tplNavigation", "tplOther"]
+    function linkedKeys(type) {
+        const def = find(type)
+        if (!def) return []
+        if (def.settings === gaugeSettings) return gaugeLinkedKeys
+        if (def.settings === graphSettings) return graphLinkedKeys
+        if (def.settings === phoneSettings) return phoneLinkedKeys
+        if (def.settings === noticeSettings) return noticeLinkedKeys
+        return []
+    }
+    function isLinked(type, key) { return linkedKeys(type).indexOf(key) >= 0 }
+    // リンクする範囲の名前(種類。グラフは計測値まで)
+    function linkGroup(type, config) {
+        return type === "graph" ? type + ":" + ((config && config.metric) || "") : type
+    }
+    // リンクしている設定の今の値(範囲の名前 → { key: value })。新しく足したウィジェットはこれを引き継ぐ
+    property var linkedValues: ({})
+    // 設定が変わった(WidgetArea が受けて、同じ範囲のほかのウィジェットに入れる)。save: false は入力中の仮の表示
+    signal linkedChanged(string group, string key, var value, string sourceWid, bool save)
+    function rememberLinked(group, key, value, overwrite) {
+        const cur = linkedValues[group] || {}
+        if (!overwrite && cur[key] !== undefined) return
+        cur[key] = value
+        linkedValues[group] = cur
+    }
+    function publishLinked(type, config, key, value, sourceWid, save) {
+        if (!isLinked(type, key)) return
+        const group = linkGroup(type, config)
+        if (save) rememberLinked(group, key, value, true)
+        linkedChanged(group, key, value, sourceWid, save)
+    }
+    // 新しいウィジェットの設定に、リンクしている今の値を重ねる
+    function withLinked(type, config) {
+        const keys = linkedKeys(type)
+        const vals = linkedValues[linkGroup(type, config)]
+        if (keys.length === 0 || !vals) return config
+        const out = Object.assign({}, config)
+        for (const k of keys) if (vals[k] !== undefined) out[k] = vals[k]
+        return out
+    }
+
     function find(type) {
         for (let i = 0; i < types.length; ++i) {
             if (types[i].type === type) return types[i]

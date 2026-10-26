@@ -335,8 +335,9 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "警告"
-        description: root.warnBelow ? "警告値以下で、色・アイコン・メッセージで知らせます"
-                                    : "警告値以上で、色・アイコン・メッセージで知らせます"
+        description: (root.warnBelow ? "警告値以下で、色・アイコン・メッセージで知らせます"
+                                     : "警告値以上で、色・アイコン・メッセージで知らせます")
+                     + "。警告と通知の設定は、同じ種類のメーターすべてで共通です"
         SettingsSwitch {
             checked: root.config.warnEnabled === true
             onToggled: (v) => root.edit("warnEnabled", v)

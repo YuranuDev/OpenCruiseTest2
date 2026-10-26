@@ -80,8 +80,9 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "警告線"
-        description: root.gauge.warnBelow ? "警告値に赤い線を引き、それより下を薄い赤にします。今の値が警告値以下なら赤で表示します"
-                                          : "警告値に赤い線を引き、それより上を薄い赤にします。今の値が警告値以上なら赤で表示します"
+        description: (root.gauge.warnBelow ? "警告値に赤い線を引き、それより下を薄い赤にします。今の値が警告値以下なら赤で表示します"
+                                           : "警告値に赤い線を引き、それより上を薄い赤にします。今の値が警告値以上なら赤で表示します")
+                     + "。警告線の設定は、同じ計測値のグラフすべてで共通です"
         SettingsSwitch {
             checked: root.config.warnEnabled === true
             onToggled: (v) => root.edit("warnEnabled", v)

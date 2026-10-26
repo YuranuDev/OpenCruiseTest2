@@ -254,8 +254,12 @@ Item {
             notifications.show("空きがありません", "ウィジェットを削除するか、サイズを小さくしてください", 2, "widgets")
             return false
         }
+        // 通知・警告の設定は、同じ種類のほかのウィジェットと共通(リンク)なので、今の値を引き継ぐ
+        const linked = WidgetRegistry.withLinked(type, Object.assign({}, def.defaultConfig, initialConfig || {}))
+        const cfg = Object.assign({}, initialConfig || {})
+        for (const k of WidgetRegistry.linkedKeys(type)) if (linked[k] !== undefined) cfg[k] = linked[k]
         layout.append({ wid: newId(), wtype: type, col: best.col, row: best.row, w: best.w, h: best.h,
-                        config: initialConfig ? Object.assign({}, initialConfig) : {} })
+                        config: cfg })
         saveLayout()
         return true
     }
@@ -357,6 +361,7 @@ Item {
         cur[key] = value
         layout.setProperty(i, "config", cur)
         saveLayout()
+        WidgetRegistry.publishLinked(layout.get(i).wtype, configOf(wid), key, value, wid, true)
     }
 
     // 設定値を画面にだけ反映する(保存しない)。文字入力中のリアルタイム表示用。確定時は setConfigValue で保存する
@@ -368,6 +373,41 @@ Item {
         cur[key] = value
         layout.setProperty(i, "config", cur)
         revision++
+        WidgetRegistry.publishLinked(layout.get(i).wtype, configOf(wid), key, value, wid, false)
+    }
+
+    // ---------------------------------------------------------------- 設定のリンク
+    // 通知・警告の設定は同じ種類のウィジェットで共通。どこか(ほかのページ・Android Auto 画面も)で変わったら、
+    // このエリアの同じ種類のウィジェット(よけておいたものも)に同じ値を入れる
+    Connections {
+        target: WidgetRegistry
+        function onLinkedChanged(group, key, value, sourceWid, save) {
+            let changed = false
+            for (let i = 0; i < layout.count; ++i) {
+                const it = layout.get(i)
+                if (it.wid === sourceWid || WidgetRegistry.linkGroup(it.wtype, widgetArea.configOf(it.wid)) !== group) continue
+                const cur = Object.assign({}, it.config)
+                if (cur[key] === value) continue
+                cur[key] = value
+                layout.setProperty(i, "config", cur)
+                changed = true
+            }
+            if (save) {
+                let parkedChanged = false
+                const list = widgetArea.parked.map(p => {
+                    const def = WidgetRegistry.find(p.type)
+                    const cfg = Object.assign({}, def ? def.defaultConfig : {}, p.config)
+                    if (p.id === sourceWid || WidgetRegistry.linkGroup(p.type, cfg) !== group
+                            || (p.config && p.config[key] === value)) return p
+                    parkedChanged = true
+                    return Object.assign({}, p, { config: Object.assign({}, p.config, { [key]: value }) })
+                })
+                if (parkedChanged) widgetArea.parked = list
+                if (changed || parkedChanged) widgetArea.saveLayout()
+            } else if (changed) {
+                widgetArea.revision++
+            }
+        }
     }
 
     // 全ページを初期配置に戻す(WidgetPages がページを作り直す)
@@ -404,6 +444,13 @@ Item {
             const r = Math.max(0, Math.min(rows - h, e.row || 0))
             const wid = (e.id && !used[e.id]) ? e.id : newId()
             used[wid] = true
+            // リンクしている設定(通知・警告)の今の値を覚えておく(あとで足すウィジェットが引き継ぐ)
+            if (e.config) {
+                const group = WidgetRegistry.linkGroup(e.type, Object.assign({}, def.defaultConfig, e.config))
+                for (const k of WidgetRegistry.linkedKeys(e.type)) {
+                    if (e.config[k] !== undefined) WidgetRegistry.rememberLinked(group, k, e.config[k], false)
+                }
+            }
             if (overlaps(c, r, w, h, "")) {
                 // 重なっていたら(使えないマスが広がった・保存内容が壊れているなど)、近くの空きへ。無ければよけておく
                 const s = resolveSpot("", c, r, w, h)

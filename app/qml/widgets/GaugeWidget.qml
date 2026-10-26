@@ -183,7 +183,9 @@ WidgetBase {
     Component.onCompleted: updateWarning()
 
     // 警告音が鳴っている間は背景が赤く点滅するので、数値は白にして読みやすくする
-    readonly property color valueColor: beeping ? "#ffffff" : (warning ? Theme.error : Theme.textPrimary)
+    // (ライトテーマは背景が明るいので白にせず、ふだんの文字色(黒)のまま)
+    readonly property color valueColor: beeping ? (Theme.nightLevel > 0.5 ? "#ffffff" : Theme.textPrimary)
+                                                : (warning ? Theme.error : Theme.textPrimary)
     // 文字盤の上の数値の色(レトロは明るい文字盤なので、点滅中も警告色)
     readonly property color dialValueColor: lightFace ? (warning ? Theme.error : dialFg) : valueColor
 
@@ -203,10 +205,49 @@ WidgetBase {
         property real px: 12
         property int align: Text.AlignHCenter
         property color textColor: Theme.textSecondary
+        // true: 「MAX ↻」の下に値を置く縦 2 段(横に広がらない。単位はすぐ上にあるので省く)
+        property bool stacked: false
         visible: root.peakShown
-        height: Math.ceil(px * 1.35)
+        height: stacked ? Math.ceil(px * 0.75 * 1.25 + px * 1.2) : Math.ceil(px * 1.35)
+        readonly property Item area: stacked ? plCol : plRow
+        Column {
+            id: plCol
+            visible: pl.stacked
+            x: (pl.width - width) / 2
+            opacity: plMouse.pressed ? 0.5 : 0.9
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: Math.round(pl.px * 0.2)
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.bold: true
+                    font.pixelSize: Math.round(pl.px * 0.75)
+                    color: pl.textColor
+                    text: root.peakMode === "min" ? "MIN" : "MAX"
+                }
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "restart_alt"
+                    size: Math.round(pl.px * 0.85)
+                    color: pl.textColor
+                }
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                height: Math.round(pl.px * 1.2)
+                verticalAlignment: Text.AlignVCenter
+                font.family: Theme.fontFamily
+                font.bold: true
+                font.italic: true
+                font.pixelSize: Math.round(pl.px)
+                color: root.inZone(root.peak) ? Theme.error : pl.textColor
+                text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
+            }
+        }
         Row {
             id: plRow
+            visible: !pl.stacked
             anchors.verticalCenter: parent.verticalCenter
             x: pl.align === Text.AlignRight ? pl.width - width : (pl.align === Text.AlignLeft ? 0 : (pl.width - width) / 2)
             spacing: Math.round(pl.px * 0.3)
@@ -245,8 +286,8 @@ WidgetBase {
         MouseArea {
             id: plMouse
             // 小さくても押しやすいよう、文字より広めに受ける
-            x: plRow.x - pl.px; y: -pl.px * 0.5
-            width: plRow.width + pl.px * 2; height: pl.height + pl.px
+            x: pl.area.x - pl.px; y: -pl.px * 0.5
+            width: pl.area.width + pl.px * 2; height: pl.height + pl.px
             onClicked: root.resetPeak()
         }
     }
@@ -491,7 +532,7 @@ WidgetBase {
                     ys.push(readout.y, readout.y + readout.h)
                 } else {
                     // 単位と、その下のピーク表示(ある場合)まで
-                    ys.push(root.peakShown ? unitY + 0.29 : unitY + 0.07)
+                    ys.push(root.peakShown ? unitY + 0.13 + 0.215 : unitY + 0.07)
                 }
                 const pad = 0.02
                 return { minX: Math.min(...xs) - pad, maxX: Math.max(...xs) + pad,
@@ -998,10 +1039,11 @@ WidgetBase {
                 text: dial.scaleUnitText
                 color: root.dialFgDim
             }
-            PeakLabel {   // アナログのみ: 単位の下
+            PeakLabel {   // アナログのみ: 単位の下。両端の目盛りの数字とぶつからないよう、縦 2 段にして横幅を取らない
                 visible: root.style === "analog" && !root.needleless && root.peakShown
+                stacked: true
                 textColor: root.dialFgDim
-                width: dial.rpx * 1.2
+                width: dial.rpx * 0.6
                 x: dial.cx - width / 2
                 y: dial.cy + (dial.unitY + 0.13) * dial.rpx
                 px: Math.max(11, Math.round(dial.rpx * 0.1))

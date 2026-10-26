@@ -42,7 +42,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "通話の通知"
-        description: "{text} が通知文に置き換わります(下の 3 つも同じ)"
+        description: "{text} が通知文に置き換わります(下の 3 つも同じ)。通知のメッセージは、スマホ通知のウィジェットすべてで共通です"
         stacked: true
         WSTextField { width: 520 * Theme.uiScale; text: root.config.tplCall || ""; placeholder: "{text}"; maxLength: 40
                       onChanging: (t) => root.preview("tplCall", t); onEdited: (t) => root.edit("tplCall", t) }
