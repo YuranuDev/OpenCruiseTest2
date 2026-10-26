@@ -2,7 +2,7 @@
 // 音量バー(VolumeOsd)と同じく、バーはタッチ/ドラッグで直接変更できる(つまみ付き)。
 // show() を呼ぶたびに表示時間(holdMs)が延び、操作が止まってから holdMs 後に自動で閉じる。
 // バーを押している間は閉じず、指を離してから holdMs 後に閉じる。パネル上のタッチは背面へ通さない。
-// 位置は呼び出し側(Main.qml)で決める。
+// 位置は呼び出し側(Main.qml)で決める(画面の下・中央)。音量(VolumeOsd)と同じ幅・余白の、小さめの表示。
 import QtQuick
 
 Item {
@@ -33,7 +33,7 @@ Item {
         hideTimer.stop()
     }
 
-    width: 720 * unit
+    width: 460 * unit
     height: panel.height
     visible: opacity > 0
     opacity: shown ? 1 : 0
@@ -48,7 +48,7 @@ Item {
     Rectangle {
         id: panel
         width: parent.width
-        height: bar.height + 40 * root.unit
+        height: bar.height + 24 * root.unit
         radius: Theme.radius * root.unit
         color: Theme.panel
         border.width: 2
@@ -61,9 +61,10 @@ Item {
 
         OsdBar {
             id: bar
-            x: 28 * root.unit
-            y: 20 * root.unit
-            width: parent.width - 56 * root.unit
+            x: 18 * root.unit
+            y: 12 * root.unit
+            width: parent.width - 36 * root.unit
+            compact: true
             emphasis: true
             interactive: true
             label: "明るさ"

@@ -115,19 +115,19 @@ ApplicationWindow {
 
     Shortcut {
         sequence: "Ctrl+Shift+V"
-        onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); volumeOsd.show() }
+        onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); brightnessOsd.hide(); volumeOsd.show() }
     }
     Shortcut {
         sequence: "Ctrl+Shift+B"
-        onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); volumeOsd.show() }
+        onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); brightnessOsd.hide(); volumeOsd.show() }
     }
     Shortcut {
         sequence: "Ctrl+Shift+L"
-        onActivated: { brightnessController.adjustBrightness(window.brightnessStep); brightnessOsd.show() }
+        onActivated: { brightnessController.adjustBrightness(window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
     }
     Shortcut {
         sequence: "Ctrl+Shift+K"
-        onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); brightnessOsd.show() }
+        onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
     }
 
     // ---- テーマ(昼夜・アクセント色)の切り替え ----
@@ -390,17 +390,20 @@ ApplicationWindow {
         }
 
         // 音量・明るさの操作表示(幕より手前に置き、明るさを下げても読めるようにする)
+        // 音量・明るさの表示は、どちらも画面の下の中央に小さく出す(同じ幅・同じ位置。片方を出すともう片方は閉じる)
         VolumeOsd {
             id: volumeOsd
             z: 1100
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 40 * Theme.uiScale
         }
         BrightnessOsd {
             id: brightnessOsd
             z: 1100
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 96 * Theme.uiScale
+            anchors.bottomMargin: 40 * Theme.uiScale
         }
 
         // ---- 終了確認(画面の回転に合わせて回るよう、Popup ではなく通常の部品で作る) ----

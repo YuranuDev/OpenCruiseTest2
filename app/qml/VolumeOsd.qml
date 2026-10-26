@@ -3,7 +3,7 @@
 // すべてのバー(マスター・マップ音声・音楽音声・システム)は、タッチ/ドラッグで直接変更できる。
 // show() を呼ぶたびに表示時間(holdMs)が延び、操作が止まってから holdMs 後に自動で閉じる。
 // バーを押している間は閉じず、指を離してから holdMs 後に閉じる。パネル上のタッチは背面へ通さない。
-// 位置は呼び出し側(Main.qml)で決める。
+// 位置は呼び出し側(Main.qml)で決める(画面の下・中央)。明るさ(BrightnessOsd)と同じ幅・余白の、小さめの表示。
 import QtQuick
 
 Item {
@@ -34,7 +34,7 @@ Item {
         hideTimer.stop()
     }
 
-    width: 640 * unit
+    width: 460 * unit
     height: panel.height
     visible: opacity > 0
     opacity: shown ? 1 : 0
@@ -49,7 +49,7 @@ Item {
     Rectangle {
         id: panel
         width: parent.width
-        height: column.implicitHeight + 48 * root.unit
+        height: column.implicitHeight + 24 * root.unit
         radius: Theme.radius * root.unit
         color: Theme.panel
         border.width: 2
@@ -62,15 +62,16 @@ Item {
 
         Column {
             id: column
-            x: 28 * root.unit
-            y: 24 * root.unit
-            width: parent.width - 56 * root.unit
-            spacing: 10 * root.unit
+            x: 18 * root.unit
+            y: 12 * root.unit
+            width: parent.width - 36 * root.unit
+            spacing: 2 * root.unit
 
             // マスター音量(主役)
             OsdBar {
                 id: masterBar
                 width: parent.width
+                compact: true
                 emphasis: true
                 interactive: true
                 label: "マスター"
@@ -85,14 +86,16 @@ Item {
                 width: parent.width
                 height: 1
                 color: Theme.panelBorder
+                opacity: 0.8
             }
 
             // 各系統の個別音量(マスターを掛ける前の設定値)
             OsdBar {
                 id: mapBar
                 width: parent.width
+                compact: true
                 interactive: true
-                label: "マップ音声"
+                label: "マップ"
                 iconName: "navigation"
                 value: audioSettings.mapVolume
                 fillOpacity: 0.7
@@ -101,8 +104,9 @@ Item {
             OsdBar {
                 id: musicBar
                 width: parent.width
+                compact: true
                 interactive: true
-                label: "音楽音声"
+                label: "音楽"
                 iconName: "music_note"
                 value: audioSettings.musicVolume
                 fillOpacity: 0.7
@@ -111,6 +115,7 @@ Item {
             OsdBar {
                 id: systemBar
                 width: parent.width
+                compact: true
                 interactive: true
                 label: "システム"
                 iconName: "settings"
