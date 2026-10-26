@@ -9,7 +9,11 @@ Rectangle {
     property real unit: 1.0
     // 現在表示中の画面を示す(ホームなど)。枠をアクセント色にする
     property bool selected: false
+    // 今は使えない(押すと理由を知らせるなど)。薄く表示する
+    property bool dimmed: false
     signal clicked()
+
+    opacity: dimmed ? 0.45 : 1
 
     radius: Theme.radius + 6
     // 押している間はアクセント色をパネル色に混ぜて、押下を一目で分かるようにする(文字色はそのまま読める濃さに留める)

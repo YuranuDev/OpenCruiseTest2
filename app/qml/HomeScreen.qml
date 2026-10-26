@@ -348,7 +348,7 @@ Rectangle {
             visible: systemStats.showInMenu
         }
 
-        // 下段: 大型ボタン 5 つ(初期画面のナビバーと同じ内容・並び。終了ボタンは置かない)
+        // 下段: 大型ボタン 6 つ(初期画面のナビバーと同じ内容・並び。終了ボタンは置かない)
         Item {
             id: sheetButtons
             anchors {
@@ -357,7 +357,7 @@ Rectangle {
                 leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
                 bottom: parent.bottom; bottomMargin: Theme.margin * 1.5 + sheet.cornerRadius
             }
-            readonly property real cellW: (width - 4 * Theme.margin) / 5
+            readonly property real cellW: (width - 5 * Theme.margin) / 6
 
             LauncherTile {
                 x: 0; width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
@@ -367,11 +367,25 @@ Rectangle {
             }
             LauncherTile {
                 x: 1 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "mdi:android"; title: "Android Auto"
+                selected: root.showAa
+                dimmed: androidAuto.stateKey !== "streaming"
+                onClicked: {
+                    if (androidAuto.stateKey !== "streaming") {
+                        notifications.show("Android Auto", "スマートフォンが接続されていません", 0, "mdi:android")
+                        return
+                    }
+                    root.menuOpen = false
+                    root.openAndroidAuto()
+                }
+            }
+            LauncherTile {
+                x: 2 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "graphic_eq"; title: "オーディオ"
                 onClicked: root.showMock("オーディオ操作")
             }
             LauncherTile {
-                x: 2 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "widgets"; title: "ウィジェット"
                 // フルスクリーンでない Android Auto 画面なら、その画面のウィジェットを足す。それ以外は初期画面へ
                 onClicked: {
@@ -381,12 +395,12 @@ Rectangle {
                 }
             }
             LauncherTile {
-                x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                x: 4 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "directions_car"; title: "車両連携"
                 onClicked: root.showMock("車両連携")
             }
             LauncherTile {
-                x: 4 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                x: 5 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "settings"; title: "設定"
                 onClicked: { root.menuOpen = false; root.openSettings() }
             }

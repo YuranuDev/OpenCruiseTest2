@@ -1,5 +1,5 @@
 // 初期画面(ランチャー): 最上部にステータスバー(中央にウィジェットのページのタブ)、中央はウィジェット配置エリア
-// (ページごと。時計・あいさつもウィジェット)、下部にナビバー(大型ボタン 5 つ)。
+// (ページごと。時計・あいさつもウィジェット)、下部にナビバー(大型ボタン 6 つ。Android Auto 画面へ移るボタンもここ)。
 // 運転中でも迷わないよう、操作は下部バーに集約する。未実装の機能は押すとモック通知を出す。
 import QtQuick
 import OpenCruise
@@ -24,7 +24,7 @@ Item {
     // ウィジェットの追加パネルを開く(ナビバーのボタン、フルスクリーン中の下メニューから)
     function openPicker() { picker.show() }
 
-    // ---- 下部: ナビバー(大型ボタン 5 つ。左端はホーム=この画面) ----
+    // ---- 下部: ナビバー(大型ボタン 6 つ。左端はホーム=この画面) ----
     Item {
         id: bar
         anchors {
@@ -32,30 +32,38 @@ Item {
             leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5; bottomMargin: Theme.margin * 1.5
         }
         height: Math.max(76, parent.height * 0.15)
-        readonly property real cellW: (width - 4 * root.gap) / 5
+        readonly property real cellW: (width - 5 * root.gap) / 6
 
         LauncherTile {
             x: 0; width: bar.cellW; height: bar.height; unit: root.unit ; selected: true
             icon: "home"; title: "ホーム"
             onClicked: {}
         }
+        // Android Auto 画面へ(映像が出ている間だけ。出ていないときは薄く表示し、押すと理由を知らせる)
         LauncherTile {
             x: 1 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
+            icon: "mdi:android"; title: "Android Auto"
+            dimmed: !root.aaAvailable
+            onClicked: root.aaAvailable ? root.openAndroidAuto()
+                                        : notifications.show("Android Auto", "スマートフォンが接続されていません", 0, "mdi:android")
+        }
+        LauncherTile {
+            x: 2 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             icon: "graphic_eq"; title: "オーディオ"
             onClicked: root.showMock("オーディオ操作")
         }
         LauncherTile {
-            x: 2 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
+            x: 3 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             icon: "widgets"; title: "ウィジェット"
             onClicked: root.openPicker()
         }
         LauncherTile {
-            x: 3 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
+            x: 4 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             icon: "directions_car"; title: "車両連携"
             onClicked: root.showMock("車両連携")
         }
         LauncherTile {
-            x: 4 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
+            x: 5 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             icon: "settings"; title: "設定"
             onClicked: root.openSettings()
         }
@@ -90,17 +98,11 @@ Item {
             onMenuRequested: (index) => pageMenu.show(index)
         }
 
-        // 補助操作(Android Auto へ戻る・通知)は控えめに右上へ
+        // 補助操作(通知・警告の解除)は控えめに右上へ(Android Auto 画面へは下のナビバーから)
         Row {
             id: rightButtons
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 12
-            ActionButton {
-                visible: root.aaAvailable
-                selected: true
-                text: "Android Auto を表示"
-                onClicked: root.openAndroidAuto()
-            }
             NotificationBell { }
             AlarmClearButton { }   // 鳴っている警告をまとめて解除(右端)
         }
