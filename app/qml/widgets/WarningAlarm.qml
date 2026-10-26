@@ -33,7 +33,7 @@ QtObject {
     property bool continuous: false
     /// 登録が変わるたびに増える(QML の束縛が isSounding などを読み直すため)
     property int revision: 0
-    /// 鳴らしている(確認されていない)警告の数
+    /// 鳴らしている(確認されていない)警告の数。同じ種類のメーター(group が同じ)はいくつあっても 1 件と数える
     property int soundingCount: 0
     /// 鳴らしている警告の名前(新しい順)
     property var soundingTitles: []
@@ -192,8 +192,16 @@ QtObject {
             if (!entries[k].acked) list.push(entries[k])
         }
         list.sort((a, b) => b.at - a.at)
-        soundingTitles = list.map(e => e.title)
-        soundingCount = list.length
+        // 同じ種類のメーターは 1 件にまとめる(新しいものを残す)
+        const seen = {}
+        const unique = list.filter(e => {
+            if (e.group === "") return true
+            if (seen[e.group]) return false
+            seen[e.group] = true
+            return true
+        })
+        soundingTitles = unique.map(e => e.title)
+        soundingCount = unique.length
         ++revision
     }
 
