@@ -16,11 +16,12 @@
  *  - 油圧: 回転数に比例して上がり(リリーフ弁で頭打ち)、油温が低いほど(粘度が高いほど)高い
  *  - 電圧: 発電機(オルタネーター)が約 14V に保つ。負荷が高いときや低回転では少し下がる
  *
- * エンジンの始動・停止の判定(メーターの警告を有効にするタイミング。回転数だけで決める。実 CAN でも同じ):
+ * エンジン始動の判定(メーターの警告を有効にするタイミング。回転数だけで決める。実 CAN でも同じ):
  *  - 始動: 回転数が kEngineStartRpm 以上の状態が kEngineConfirmSec 続いたら、始動したとみなす
  *          (スターターで回しているだけ・一瞬の吹け上がりは数えない)
  *  - 警告を有効にする: 始動とみなしてから kWarnSettleSec 経ったとき(油圧・電圧が落ち着くまで待つ)
- *  - 停止: 回転数が kEngineStopRpm 未満の状態が kEngineConfirmSec 続いたら、停止したとみなし、警告を無効にする
+ * 停止(エンジン OFF)はここでは判定しない。一度始動とみなしたら、アプリが終わるまでそのまま。
+ * (エンジン OFF はキー位置で判断し、そのときに自動でシャットダウンする機能を後から足す予定のため)
  * QML では can.engineRunning / can.warningsArmed として読む。
  */
 #pragma once
@@ -64,7 +65,7 @@ class VehicleDataManager : public QObject {
     Q_PROPERTY(QString sourceText READ sourceText CONSTANT)
     /// エンジンが始動しているとみなすか
     Q_PROPERTY(bool engineRunning READ engineRunning NOTIFY engineStateChanged)
-    /// メーターの警告を有効にするか(始動とみなして少し経ってから true。停止とみなすと false)
+    /// メーターの警告を有効にするか(始動とみなして少し経ってから true。一度 true になったらそのまま)
     Q_PROPERTY(bool warningsArmed READ warningsArmed NOTIFY engineStateChanged)
 
 public:
@@ -123,8 +124,7 @@ public:
     bool warningsArmed() const { return warningsArmed_; }
 
     static constexpr double kEngineStartRpm = 400.0;  ///< これ以上で回っていれば始動(を数え始める)
-    static constexpr double kEngineStopRpm = 200.0;   ///< これ未満で止まっている(を数え始める)
-    static constexpr double kEngineConfirmSec = 2.0;  ///< 始動・停止とみなすまで続く時間 [s]
+    static constexpr double kEngineConfirmSec = 2.0;  ///< 始動とみなすまで続く時間 [s]
     static constexpr double kWarnSettleSec = 3.0;     ///< 始動とみなしてから警告を有効にするまで [s]
 
 signals:
@@ -145,7 +145,7 @@ signals:
      */
     void changed();
 
-    /** @brief エンジンの始動・停止の判定(engineRunning / warningsArmed)が変わったとき。 */
+    /** @brief エンジン始動の判定(engineRunning / warningsArmed)が変わったとき。 */
     void engineStateChanged();
 
 private:
@@ -212,13 +212,12 @@ private:
     double batteryVolts_ = 12.6; ///< 電圧 [V]
     double boostBar_ = 0.0;      ///< ブースト圧(ゲージ圧) [bar]
 
-    // ---- エンジンの始動・停止の判定 ----
-    /** @brief 回転数から始動・停止の判定を進める(回転数を更新するたびに呼ぶ)。 */
+    // ---- エンジン始動の判定 ----
+    /** @brief 回転数から始動の判定を進める(回転数を更新するたびに呼ぶ)。 */
     void updateEngineState(double dt);
     bool engineRunning_ = false;
     bool warningsArmed_ = false;
     double aboveStartS_ = 0.0;   ///< 始動の回転数以上が続いている時間 [s]
-    double belowStopS_ = 0.0;    ///< 停止の回転数未満が続いている時間 [s]
     double runningS_ = 0.0;      ///< 始動とみなしてからの時間 [s]
 
     // ---- シミュレーションの状態 ----

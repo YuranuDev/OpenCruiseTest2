@@ -316,23 +316,17 @@ void VehicleDataManager::updateEngineState(double dt) {
         if (aboveStartS_ >= kEngineConfirmSec) {
             engineRunning_ = true;
             runningS_ = 0.0;
-            belowStopS_ = 0.0;
             qInfo() << "[vehicle] エンジン始動とみなしました(" << rpm_ << "rpm)";
             emit engineStateChanged();
         }
         return;
     }
-    runningS_ += dt;
-    belowStopS_ = rpm_ < kEngineStopRpm ? belowStopS_ + dt : 0.0;
-    if (belowStopS_ >= kEngineConfirmSec) {
-        engineRunning_ = false;
-        warningsArmed_ = false;
-        aboveStartS_ = 0.0;
-        qInfo() << "[vehicle] エンジン停止とみなしました。メーターの警告を無効にします";
-        emit engineStateChanged();
+    // 停止(エンジン OFF)は判定しない(キー位置で判断する予定)。始動後は警告を有効にするまで数えるだけ
+    if (warningsArmed_) {
         return;
     }
-    if (!warningsArmed_ && runningS_ >= kWarnSettleSec) {
+    runningS_ += dt;
+    if (runningS_ >= kWarnSettleSec) {
         warningsArmed_ = true;
         qInfo() << "[vehicle] メーターの警告を有効にしました";
         emit engineStateChanged();

@@ -11,7 +11,7 @@
 // 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
 // (解除は警告値から少し戻ったとき)。
 // 警告(と、警告音・通知)は、エンジンが始動したとみなされてから有効になる(can.warningsArmed。判定は VehicleDataManager)。
-// エンジン停止とみなされると、警告中でも解除する(エンジンを止めたときの油圧・電圧の低下で鳴らないように)。
+// 始動前は警告値を超えていても警告しない。
 // ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。数値のすぐ上に小さく「MAX 値 単位 ↺」を出し
 //   (アナログのみのときは単位の下)、タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
 // 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
@@ -276,7 +276,7 @@ WidgetBase {
             if (popupOn && widgetId !== "") showWarnPopup()
         } else if (onceNoticeId >= 0) {
             if (!warningsArmed) {
-                // エンジン停止で警告を無効にした: 「正常に戻りました」とは言えないので、通知は閉じる
+                // 警告が無効になった(今は起こらない。将来キー OFF などで無効にしたとき用): 「正常に戻りました」とは言えないので閉じる
                 notifications.dismiss(onceNoticeId)
                 onceNoticeId = -1
             } else if (!notifications.update(onceNoticeId, noticeTitle(), warnPopupText(), noticeLevel(), onceDurationMs)) {
@@ -304,7 +304,7 @@ WidgetBase {
                     if (!notifications.update(liveNoticeId, noticeTitle(), warnPopupText(), noticeLevel(), onceDurationMs))
                         liveNoticeId = -1
                 } else {
-                    notifications.dismiss(liveNoticeId)   // 設定を変えた・ウィジェットが消えた・エンジン停止
+                    notifications.dismiss(liveNoticeId)   // 設定を変えた・ウィジェットが消えた・警告が無効になった
                     liveNoticeId = -1
                 }
             }
