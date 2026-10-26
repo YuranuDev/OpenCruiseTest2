@@ -3,8 +3,10 @@
 // (データ元・単位・換算・設定できる範囲・既定の見出し)は WidgetRegistry.gaugeSpecs にまとめてある。
 // 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集のときだけ選んだ単位に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
-//  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) / バンド(太い帯が 0 から現在値まで伸びる。
-//    警告値の手前は注意色、警告ゾーンは警告色)。以前の「スポーツ」の設定はバンドとして扱う
+//  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) /
+//    マーカー(針の代わりに外周を三角の印が動く。中央に大きな数値) / レトロ(クリーム色の文字盤に黒い目盛りと赤い針) /
+//    ネオン(暗い文字盤に光る細い線) / リング(針なし。太めのリングと中央の大きな数値)。
+//    以前の「スポーツ」「バンド」はマーカーとして扱う
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
 //  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
@@ -57,9 +59,18 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 設定(表示単位に換算済み)
     readonly property string style: config.style === "analog" || config.style === "digital" ? config.style : "both"
-    // 以前の「スポーツ」(sport)は廃止し、バンドとして扱う
-    readonly property string dialStyle: config.dialStyle === "minimal" ? "minimal"
-                                        : (config.dialStyle === "band" || config.dialStyle === "sport" ? "band" : "classic")
+    // 以前の「スポーツ」(sport)・「バンド」(band)は廃止し、マーカーとして扱う
+    readonly property string dialStyle: ["minimal", "marker", "retro", "neon", "ring"].indexOf(config.dialStyle) >= 0 ? config.dialStyle
+                                        : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
+    // マーカー・リングは針を出さず、数値を中央に大きく出す(表示方式が「アナログ」でも数値は出す)
+    readonly property bool needleless: dialStyle === "ring" || dialStyle === "marker"
+    readonly property bool showReadout: style === "both" || (style === "analog" && needleless)
+    // レトロは明るい文字盤なので、文字盤の上の文字・目盛りは濃い色にする
+    readonly property bool lightFace: dialStyle === "retro"
+    readonly property color faceColor: Theme.night ? "#e6dcc4" : "#f3ead6"
+    readonly property color dialFg: lightFace ? "#1f1c17" : Theme.textPrimary
+    readonly property color dialFgDim: lightFace ? "#6d6352" : Theme.textSecondary
+    readonly property color dialLine: lightFace ? "#b7aa90" : Theme.panelBorder
     readonly property real minV: toShown(config.min)
     readonly property real maxV: Math.max(toShown(config.max), minV + 0.1)
     readonly property real warnV: toShown(config.warn)
@@ -138,6 +149,8 @@ WidgetBase {
 
     // 警告音が鳴っている間は背景が赤く点滅するので、数値は白にして読みやすくする
     readonly property color valueColor: beeping ? "#ffffff" : (warning ? Theme.error : Theme.textPrimary)
+    // 文字盤の上の数値の色(レトロは明るい文字盤なので、点滅中も警告色)
+    readonly property color dialValueColor: lightFace ? (warning ? Theme.error : dialFg) : valueColor
 
     // ---------------------------------------------------------------- ピーク(最大・最小)
     readonly property string peakMode: config.peakMode === "min" || config.peakMode === "off" ? config.peakMode : "max"
@@ -154,6 +167,7 @@ WidgetBase {
         id: pl
         property real px: 12
         property int align: Text.AlignHCenter
+        property color textColor: Theme.textSecondary
         visible: root.peakShown
         height: Math.ceil(px * 1.35)
         Row {
@@ -167,7 +181,7 @@ WidgetBase {
                 font.family: Theme.fontFamily
                 font.bold: true
                 font.pixelSize: Math.round(pl.px * 0.75)
-                color: Theme.textSecondary
+                color: pl.textColor
                 text: root.peakMode === "min" ? "MIN" : "MAX"
             }
             Text {
@@ -176,21 +190,21 @@ WidgetBase {
                 font.bold: true
                 font.italic: true
                 font.pixelSize: Math.round(pl.px)
-                color: root.inZone(root.peak) ? Theme.error : Theme.textSecondary
+                color: root.inZone(root.peak) ? Theme.error : pl.textColor
                 text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
             }
             Text {
                 anchors.baseline: plValue.baseline
                 font.family: Theme.fontFamily
                 font.pixelSize: Math.round(pl.px * 0.75)
-                color: Theme.textSecondary
+                color: pl.textColor
                 text: root.unitText
             }
             MaterialIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 name: "restart_alt"
                 size: Math.round(pl.px * 1.05)
-                color: Theme.textSecondary
+                color: pl.textColor
             }
         }
         MouseArea {
@@ -396,6 +410,12 @@ WidgetBase {
                 // ピーク表示があるときは、枠の上端にピーク表示の 1 行(peakH)を足し、その分だけ中心から離す
                 // (数値の大きさは変えない。ピーク表示は針の反対側の出っ張りの先より外になる)
                 const ph = dial.peakH
+                // リング: 針が無いので、中央に大きく置く
+                if (root.needleless) {
+                    // 半円など弧が短いときは、上の名前と重ならないよう少し小さくする
+                    const rw = 1.05, rh = (root.compact ? 0.78 : 0.7) * (root.sweepAngle <= 200 ? 0.8 : 1) + ph
+                    return { x: -rw / 2, y: 0.08 - rh / 2, w: rw, h: rh }
+                }
                 const w = 0.72, h = (root.compact ? 0.56 : 0.5) + ph
                 const hubClear = root.hubSize / 2 + 0.05
                 let cx = 0, cy = 0.52 + ph / 2
@@ -409,7 +429,7 @@ WidgetBase {
                 return { x: cx - w / 2, y: cy - h / 2, w: w, h: h }
             }
             // 数値の上のピーク表示の高さ(半径比)。アナログ+デジタルでピーク表示があるときだけ
-            readonly property real peakH: root.peakShown && root.style === "both" ? 0.12 : 0
+            readonly property real peakH: root.peakShown && root.showReadout ? 0.12 : 0
             // アナログのみのときの単位表示(中心円の下)
             readonly property real unitY: root.hubSize / 2 + 0.16
             readonly property string scaleUnitText: root.labelDiv > 1 ? "×" + root.labelDiv + " " + root.unitText : root.unitText
@@ -428,7 +448,7 @@ WidgetBase {
                 }
                 const hr = root.hubSize / 2
                 xs.push(-hr, hr); ys.push(-hr, hr)
-                if (root.style === "both") {
+                if (root.showReadout) {
                     xs.push(readout.x, readout.x + readout.w)
                     ys.push(readout.y, readout.y + readout.h)
                 } else {
@@ -452,10 +472,21 @@ WidgetBase {
 
             // メーターの種類ごとの寸法(半径に対する比)
             // どの種類も、数字は内側の細い円(ringR)の外側、目盛りはさらに外側に置く
-            // バンド: 太い帯(0.785〜0.935)の外側に短い目盛り、内側に数字
-            readonly property var dims: root.dialStyle === "band"
-                ? { trackR: 0.86, trackW: 0.15, majorIn: 0.95, minorIn: 0.965, tickOut: 0.995, labelR: 0.645,
-                    majorW: 0.024, minorW: 0.01, sub: 2, labelPx: 0.13, needleTip: 0.74, ringR: 0.5 }
+            // マーカー: クラシックの並びを少し内側へ(外周 0.93 の線の上を三角の印が動く)
+            // レトロ: クラシックと同じ並び(文字盤の円の内側) / ネオン: 細い光の線と、短い大目盛りだけ /
+            // リング: 太めのリング(0.84〜0.96)。目盛りは描かず、両端の値だけ内側に出す
+            readonly property var dims: root.dialStyle === "retro"
+                ? { trackR: 0.93, trackW: 0.02, majorIn: 0.76, minorIn: 0.82, tickOut: 0.88, labelR: 0.645,
+                    majorW: 0.028, minorW: 0.012, sub: 5, labelPx: 0.13, needleTip: 0.86, ringR: 0.5 }
+                : root.dialStyle === "neon"
+                ? { trackR: 0.93, trackW: 0.022, majorIn: 0.83, minorIn: 0.85, tickOut: 0.87, labelR: 0.7,
+                    majorW: 0.018, minorW: 0.008, sub: 2, labelPx: 0.12, needleTip: 0.86, ringR: 0.5 }
+                : root.dialStyle === "ring"
+                ? { trackR: 0.9, trackW: 0.12, majorIn: 0.9, minorIn: 0.9, tickOut: 0.9, labelR: 0.72,
+                    majorW: 0, minorW: 0, sub: 1, labelPx: 0.12, needleTip: 0.86, ringR: 0.5 }
+                : root.dialStyle === "marker"
+                ? { trackR: 0.93, trackW: 0.02, majorIn: 0.74, minorIn: 0.79, tickOut: 0.84, labelR: 0.625,
+                    majorW: 0.026, minorW: 0.011, sub: 5, labelPx: 0.12, needleTip: 0.86, ringR: 0.5 }
                 : (root.dialStyle === "minimal"
                    ? { trackR: 0.95, trackW: 0.03, majorIn: 0.83, minorIn: 0.86, tickOut: 0.89, labelR: 0.685,
                        majorW: 0.02, minorW: 0.01, sub: 2, labelPx: 0.13, needleTip: 0.86, ringR: 0.5 }
@@ -474,7 +505,7 @@ WidgetBase {
                 readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
                                                root.warnOn, root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
                                                root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
-                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily].join("|")
+                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily, root.faceColor].join("|")
                 onKeyChanged: requestPaint()
 
                 // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
@@ -502,11 +533,23 @@ WidgetBase {
                     const angV = (v) => dial.rad(dial.angOf(v))
                     const zoneColor = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
 
-                    if (root.dialStyle === "classic") {
+                    if (root.dialStyle === "classic" || root.dialStyle === "retro" || root.dialStyle === "marker") {
+                        if (root.dialStyle === "retro") {
+                            // レトロ: クリーム色の文字盤(描ける範囲で切れる)と、外側の縁
+                            ctx.fillStyle = root.faceColor
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * 0.99, 0, Math.PI * 2)
+                            ctx.fill()
+                            ctx.lineWidth = R * 0.025
+                            ctx.strokeStyle = "#8c826f"
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * 0.99, 0, Math.PI * 2)
+                            ctx.stroke()
+                        }
                         // 外周の細い線
                         ctx.lineCap = "butt"
                         ctx.lineWidth = R * dm.trackW
-                        ctx.strokeStyle = Theme.panelBorder
+                        ctx.strokeStyle = root.dialLine
                         ctx.beginPath()
                         ctx.arc(cx, cy, R * dm.trackR, a0, a1)
                         ctx.stroke()
@@ -516,6 +559,21 @@ WidgetBase {
                             ctx.strokeStyle = Theme.error
                             ctx.beginPath()
                             ctx.arc(cx, cy, R * 0.905, angV(root.zoneLo), angV(root.zoneHi))
+                            ctx.stroke()
+                        }
+                    } else if (root.dialStyle === "neon") {
+                        // ネオン: ごく薄い光の溝(警告ゾーンは薄い赤)
+                        ctx.lineCap = "round"
+                        ctx.lineWidth = R * dm.trackW
+                        ctx.strokeStyle = Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * dm.trackR, a0, a1)
+                        ctx.stroke()
+                        if (root.hasWarnZone) {
+                            ctx.lineCap = "butt"
+                            ctx.strokeStyle = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.3)
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, R * dm.trackR, angV(root.zoneLo), angV(root.zoneHi))
                             ctx.stroke()
                         }
                     } else if (root.dialStyle === "minimal") {
@@ -533,7 +591,7 @@ WidgetBase {
                             ctx.stroke()
                         }
                     } else {
-                        // バンド: 太い帯の溝(警告ゾーンは赤みを帯びる)。両端は丸める
+                        // リング: 太めの溝(警告ゾーンは赤みを帯びる)。両端は丸める
                         ctx.lineCap = "round"
                         ctx.lineWidth = R * dm.trackW
                         ctx.strokeStyle = Theme.mix(Theme.panel, Theme.panelBorder, 0.9)
@@ -549,13 +607,15 @@ WidgetBase {
                         }
                     }
 
-                    // 内側の細い円(全種類共通。数字の内側の区切り)
-                    ctx.lineCap = "butt"
-                    ctx.lineWidth = Math.max(1, R * 0.008)
-                    ctx.strokeStyle = Theme.panelBorder
-                    ctx.beginPath()
-                    ctx.arc(cx, cy, R * dm.ringR, a0, a1)
-                    ctx.stroke()
+                    // 内側の細い円(数字の内側の区切り。リングは中央に数値を大きく出すので描かない)
+                    if (root.dialStyle !== "ring") {
+                        ctx.lineCap = "butt"
+                        ctx.lineWidth = Math.max(1, R * 0.008)
+                        ctx.strokeStyle = root.dialLine
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, R * dm.ringR, a0, a1)
+                        ctx.stroke()
+                    }
 
                     // 目盛り(大目盛りに数字。0 は強調)
                     const range = root.maxV - root.minV
@@ -570,21 +630,33 @@ WidgetBase {
                     ctx.textBaseline = "middle"
                     const px = Math.max(9, Math.round(R * dm.labelPx))
                     ctx.font = "bold " + px + "px '" + Theme.fontFamily + "'"
+                    const labelOf = (v) => (Math.abs(v) < 1e-9 ? 0 : v / root.labelDiv).toFixed(dec)
+                    if (root.dialStyle === "ring") {
+                        // リング: 目盛りは描かず、両端の値だけ(リングの内側)
+                        ctx.fillStyle = root.dialFgDim
+                        for (const v of [root.minV, root.maxV]) {
+                            const a = angV(v)
+                            ctx.fillText(labelOf(v), cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
+                        }
+                        return
+                    }
                     for (let n = first; n * minor <= root.maxV + 1e-9; ++n) {
                         const v = n * minor
                         const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6
                         const isZero = Math.abs(v) < 1e-9
                         const inWarn = root.inZone(v)
                         const a = angV(v)
+                        if (!isMajor && root.dialStyle === "neon") continue   // ネオンは大目盛りだけ
                         ctx.lineWidth = R * (isMajor ? dm.majorW : dm.minorW)
                         ctx.strokeStyle = inWarn ? Theme.error
-                                                 : (isZero ? Theme.accent : (isMajor ? Theme.textPrimary : Theme.textSecondary))
+                                                 : (isZero ? Theme.accent : (isMajor && root.dialStyle !== "neon" ? root.dialFg : root.dialFgDim))
                         ctx.beginPath()
                         ctx.moveTo(cx + Math.cos(a) * R * (isMajor ? dm.majorIn : dm.minorIn), cy + Math.sin(a) * R * (isMajor ? dm.majorIn : dm.minorIn))
                         ctx.lineTo(cx + Math.cos(a) * R * dm.tickOut, cy + Math.sin(a) * R * dm.tickOut)
                         ctx.stroke()
                         if (isMajor) {
-                            ctx.fillStyle = inWarn ? Theme.error : (isZero || root.dialStyle === "band" ? Theme.textPrimary : Theme.textSecondary)
+                            ctx.fillStyle = inWarn ? Theme.error
+                                                   : (isZero || root.dialStyle === "retro" || root.dialStyle === "marker" ? root.dialFg : root.dialFgDim)
                             ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(dec),
                                          cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
                         }
@@ -592,11 +664,11 @@ WidgetBase {
                 }
             }
 
-            // ---- 進捗(シンプル: 細いリング / バンド: 太い帯)。0 から現在値まで ----
+            // ---- 進捗(シンプル: 細いリング / マーカー: 細い線と三角の印 / ネオン: 光る線 / リング: 太めの帯)。0 から現在値まで ----
             Canvas {
                 id: progress
                 anchors.fill: parent
-                visible: root.dialStyle !== "classic"
+                visible: root.dialStyle !== "classic" && root.dialStyle !== "retro"
                 renderStrategy: Canvas.Cooperative
                 readonly property string key: !visible ? "" :
                     [width, height, dial.rpx,
@@ -615,6 +687,21 @@ WidgetBase {
                     ctx.lineCap = "butt"
                     ctx.lineWidth = R * dm.trackW
 
+                    if (root.dialStyle === "marker") {
+                        // 外周の線の上の三角の印(先が内側を向く)。値が 0 でも出す
+                        const ma = dial.rad(dial.angOf(root.shown))
+                        const nx = Math.cos(ma), ny = Math.sin(ma), tx = -ny, ty = nx
+                        const tipR = R * (dm.trackR - 0.07), baseR = R * (dm.trackR + 0.055), half = R * 0.05
+                        ctx.fillStyle = root.inZone(root.shown) ? Theme.error : Theme.accent
+                        ctx.beginPath()
+                        ctx.moveTo(dial.cx + nx * tipR, dial.cy + ny * tipR)
+                        ctx.lineTo(dial.cx + nx * baseR + tx * half, dial.cy + ny * baseR + ty * half)
+                        ctx.lineTo(dial.cx + nx * baseR - tx * half, dial.cy + ny * baseR - ty * half)
+                        ctx.closePath()
+                        ctx.fill()
+                        ctx.lineWidth = R * 0.03   // 0 から印までの線は、外周の線より少し太く
+                    }
+
                     if (dial.angOf(hi) - dial.angOf(lo) < 0.2) return
                     const seg = (from, to, color) => {
                         if (to <= from) return
@@ -624,8 +711,28 @@ WidgetBase {
                         ctx.stroke()
                     }
 
-                    if (root.dialStyle === "band") {
-                        // バンド: 警告値の手前(範囲の 10%)は注意色、警告ゾーンは警告色。
+                    if (root.dialStyle === "neon") {
+                        // ネオン: 太く薄い線を重ねてぼかし、光って見せる(shadowBlur は重いので使わない)
+                        const zLo = root.hasWarnZone ? Math.max(lo, root.zoneLo) : hi
+                        const zHi = root.hasWarnZone ? Math.min(hi, root.zoneHi) : hi
+                        const layers = [[0.11, 0.07], [0.07, 0.13], [0.04, 0.3], [0.018, 1.0]]
+                        ctx.lineCap = "round"
+                        for (const [w, alpha] of layers) {
+                            ctx.lineWidth = R * w
+                            const col = (c) => Qt.rgba(c.r, c.g, c.b, alpha)
+                            if (zHi > zLo) {
+                                seg(lo, zLo, col(Theme.accent))
+                                seg(zLo, zHi, col(Theme.error))
+                                seg(zHi, hi, col(Theme.accent))
+                            } else {
+                                seg(lo, hi, col(Theme.accent))
+                            }
+                        }
+                        return
+                    }
+
+                    if (root.dialStyle === "ring") {
+                        // リング: 警告値の手前(範囲の 10%)は注意色、警告ゾーンは警告色。
                         // 色の切れ目で分けて描く(境目は直角。帯の先端だけ丸める)
                         const near = (root.maxV - root.minV) * 0.1
                         const cuts = [lo, hi]
@@ -671,6 +778,7 @@ WidgetBase {
             Item {
                 id: needle
                 z: 3   // 名前・数値より手前(針はそれらの上を通る)
+                visible: !root.needleless
                 x: dial.cx
                 y: dial.cy
                 width: 0
@@ -681,8 +789,11 @@ WidgetBase {
                     id: needleShape
                     readonly property real tip: dial.rpx * dial.dims.needleTip
                     readonly property real tail: root.needleTail ? dial.rpx * 0.22 : 0
-                    readonly property real base: Math.max(4, dial.rpx * (root.dialStyle === "band" ? 0.055 : 0.07))
-                    readonly property color needleFill: root.warning ? Theme.error : root.needleColor
+                    readonly property real base: Math.max(4, dial.rpx * 0.07)
+                    // レトロは、針の色が「テーマ」のままなら赤い針にする
+                    readonly property color needleFill: root.warning ? Theme.error
+                        : (root.lightFace && (root.config.needleColor === undefined || root.config.needleColor === "theme")
+                           ? "#c62828" : root.needleColor)
                     x: -width / 2
                     y: -tip
                     width: Math.ceil(base + 2)
@@ -720,9 +831,11 @@ WidgetBase {
                 z: 1   // 針・中心円より奥
                 visible: root.labelVisible
                 readonly property real h: dial.rpx * (root.compact ? 0.15 : 0.13)
-                readonly property real cyU: -Math.max(root.hubSize / 2 + 0.1, 0.32)   // 中心からの位置(半径比)
-                // 内側の細い円(半径 0.6)に収まる幅
-                readonly property real maxW: 2 * Math.sqrt(Math.max(0.01, 0.58 * 0.58 - cyU * cyU)) * dial.rpx
+                // 中心からの位置(半径比)。針の無い種類は、中央の数値の上
+                readonly property real cyU: root.needleless ? Math.min(-0.42, dial.readout.y - 0.1) : -Math.max(root.hubSize / 2 + 0.1, 0.32)
+                // 内側の細い円(半径 0.6。針の無い種類は 0.75)に収まる幅
+                readonly property real fitR: root.needleless ? 0.75 : 0.58
+                readonly property real maxW: 2 * Math.sqrt(Math.max(0.01, fitR * fitR - cyU * cyU)) * dial.rpx
                 x: dial.cx - width / 2
                 y: dial.cy + cyU * dial.rpx - h / 2
                 height: h
@@ -744,7 +857,7 @@ WidgetBase {
                     font.bold: true
                     font.pixelSize: Math.max(10, dialLabel.h * 0.78)
                     elide: Text.ElideRight
-                    color: root.labelColor
+                    color: root.warning ? Theme.error : root.dialFgDim
                     text: root.labelText
                 }
             }
@@ -752,19 +865,21 @@ WidgetBase {
             // ---- 中心円 ----
             Rectangle {
                 z: 4   // 針の根元を隠す
+                visible: !root.needleless
                 x: dial.cx - width / 2
                 y: dial.cy - height / 2
                 width: dial.rpx * root.hubSize
                 height: width
                 radius: width / 2
-                color: root.hubColor
+                // レトロは、中心円の色が「パネル」のままなら濃い色にする
+                color: root.lightFace && (root.config.hubColor === undefined || root.config.hubColor === "panel") ? "#2a2622" : root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
-                border.color: root.warning ? Theme.error : (root.dialStyle === "band" ? Theme.accent : Theme.panelBorder)
+                border.color: root.warning ? Theme.error : root.dialLine
             }
 
             // ---- デジタル表示(アナログ+デジタル) ----
             Column {
-                visible: root.style === "both"
+                visible: root.showReadout
                 x: dial.cx + dial.readout.x * dial.rpx
                 y: dial.cy + dial.readout.y * dial.rpx
                 width: dial.readout.w * dial.rpx
@@ -775,6 +890,7 @@ WidgetBase {
                     width: parent.width
                     height: dial.peakH * dial.rpx
                     px: Math.max(10, Math.round(dial.rpx * 0.085))
+                    textColor: root.dialFgDim
                 }
                 Text {
                     id: dialValue
@@ -789,7 +905,7 @@ WidgetBase {
                     minimumPixelSize: 12
                     fontSizeMode: Text.Fit
                     text: root.fmt(root.shown, root.decimals)
-                    color: root.valueColor
+                    color: root.dialValueColor
                 }
                 Text {
                     width: parent.width
@@ -799,22 +915,23 @@ WidgetBase {
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.max(11, dial.rpx * 0.13)
                     text: root.unitText
-                    color: Theme.textSecondary
+                    color: root.dialFgDim
                 }
             }
 
             // ---- 単位(アナログのみ) ----
             Text {
-                visible: root.style === "analog"
+                visible: root.style === "analog" && !root.needleless
                 x: dial.cx - width / 2
                 y: dial.cy + dial.unitY * dial.rpx - height / 2
                 font.family: Theme.fontFamily
                 font.pixelSize: Math.max(11, dial.rpx * 0.13)
                 text: dial.scaleUnitText
-                color: Theme.textSecondary
+                color: root.dialFgDim
             }
             PeakLabel {   // アナログのみ: 単位の下
-                visible: root.style === "analog" && root.peakShown
+                visible: root.style === "analog" && !root.needleless && root.peakShown
+                textColor: root.dialFgDim
                 width: dial.rpx * 1.2
                 x: dial.cx - width / 2
                 y: dial.cy + (dial.unitY + 0.13) * dial.rpx

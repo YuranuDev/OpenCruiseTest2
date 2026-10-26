@@ -20,6 +20,12 @@ WidgetSettingsBase {
     readonly property real step: unitDef.step
     readonly property int dec: unitDef.stepDec
     readonly property bool warnBelow: gauge.warnBelow === true
+    // メーターの種類(以前の「スポーツ」「バンド」はマーカーとして扱う)
+    readonly property var dialStyles: ["classic", "minimal", "marker", "retro", "neon", "ring"]
+    readonly property string dialStyle: dialStyles.indexOf(config.dialStyle) >= 0 ? config.dialStyle
+                                        : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
+    // 針と中心円が無い種類(マーカー・リング)
+    readonly property bool needleless: dialStyle === "marker" || dialStyle === "ring"
     readonly property var colorOptions: [
         { label: "テーマ", value: "theme" }, { label: "パネル", value: "panel" },
         { label: "白", value: "#ffffff" }, { label: "赤", value: "#f44336" },
@@ -47,13 +53,11 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.style !== "digital"
         label: "メーターの種類"
-        description: "クラシックは目盛りと警告帯、シンプルは細いリング、バンドは 0 から今の値まで伸びる太い帯です"
+        description: "マーカーとリングは針を出さず、数値を中央に大きく表示します"
         SettingsChoice {
-            model: ["クラシック", "シンプル", "バンド"]
-            // 以前の「スポーツ」はバンドとして扱う
-            currentIndex: root.config.dialStyle === "minimal" ? 1
-                          : (root.config.dialStyle === "band" || root.config.dialStyle === "sport" ? 2 : 0)
-            onPicked: (i) => root.edit("dialStyle", i === 1 ? "minimal" : (i === 2 ? "band" : "classic"))
+            model: ["クラシック", "シンプル", "マーカー", "レトロ", "ネオン", "リング"]
+            currentIndex: root.dialStyles.indexOf(root.dialStyle)
+            onPicked: (i) => root.edit("dialStyle", root.dialStyles[i])
         }
     }
     SettingsRow {
@@ -115,7 +119,7 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
-        visible: root.config.style === "both"
+        visible: root.config.style === "both" && !root.needleless
         label: "数値を空き位置に配置"
         description: "開始角度と終了角度の間の空きに現在値を表示します"
         SettingsSwitch {
@@ -124,7 +128,7 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
-        visible: root.config.style !== "digital"
+        visible: root.config.style !== "digital" && !root.needleless
         label: "針の反対側の出っ張り"
         SettingsSwitch {
             checked: root.config.needleTail !== false
@@ -132,7 +136,7 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
-        visible: root.config.style !== "digital"
+        visible: root.config.style !== "digital" && !root.needleless
         label: "中心円のサイズ"
         description: "メーターの半径に対する割合"
         WSStepper {
@@ -145,7 +149,7 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
-        visible: root.config.style !== "digital"
+        visible: root.config.style !== "digital" && !root.needleless
         label: "中心円の色"
         stacked: true
         SettingsColorPalette {
@@ -156,7 +160,7 @@ WidgetSettingsBase {
         }
     }
     SettingsRow {
-        visible: root.config.style !== "digital"
+        visible: root.config.style !== "digital" && !root.needleless
         label: "針の色"
         description: "警告中は警告色で表示します"
         stacked: true
