@@ -148,9 +148,9 @@ void VehicleDataManager::setMockDriveStyle(int value) {
  *  アグレッシブ: 深く・速く踏み、全開加速が多い。高回転まで引っ張り、ブレーキも強い
  */
 const VehicleDataManager::StyleParams &VehicleDataManager::paramsFor(DriveStyle style) {
-    static const StyleParams kGentle = {0.15, 0.40, 0.04, 0.65, 25.0, 0.6, 1.5, 0.06, 0.7, 0.18, 1900.0, -150.0};
-    static const StyleParams kNormal = {0.30, 0.75, 0.18, 1.00, 50.0, 1.5, 3.0, 0.12, 1.0, 0.22, 2200.0, 0.0};
-    static const StyleParams kAggressive = {0.55, 1.00, 0.38, 1.00, 70.0, 3.5, 5.0, 0.25, 1.5, 0.26, 2700.0, 450.0};
+    static const StyleParams kGentle = {0.15, 0.40, 0.04, 0.65, 25.0, 0.6, 1.5, 0.06, 0.7, 0.18, 1900.0, -150.0, 1.4};
+    static const StyleParams kNormal = {0.30, 0.75, 0.18, 1.00, 50.0, 1.5, 3.0, 0.12, 1.0, 0.22, 2200.0, 0.0, 0.9};
+    static const StyleParams kAggressive = {0.55, 1.00, 0.38, 1.00, 70.0, 3.5, 5.0, 0.25, 1.5, 0.26, 2700.0, 450.0, 0.45};
     switch (style) {
     case DriveStyle::Gentle: return kGentle;
     case DriveStyle::Aggressive: return kAggressive;
@@ -263,8 +263,12 @@ void VehicleDataManager::driveControl(double dt, double &brakeDecel) {
     const double err = targetMs_ - speedMs_;
     const StyleParams &p = params();
 
-    if (phase_ == Phase::Stop) {
-        brakeDecel = speedMs_ > 0.0 ? std::clamp((0.8 + speedMs_ * 0.12) * p.brakeScale, 0.6, 4.5) : 0.0;
+    if (launchHoldS_ > 0.0) {
+        // 発進: ブレーキを離し、クリープで動き出してから(運転のしかたで変わる間をおいて)アクセルを踏む
+        launchHoldS_ -= dt;
+    } else if (phase_ == Phase::Stop) {
+        // 止まるまではブレーキで減速し、止まったら(クリープで動かないよう)踏んだままにする
+        brakeDecel = speedMs_ > 0.0 ? std::clamp((0.8 + speedMs_ * 0.12) * p.brakeScale, 0.6, 4.5) : 1.2;
     } else if (phase_ == Phase::Pull && err > 0.5) {
         wantThrottle = maxThrottle_;
     } else if (err < -1.5) {
@@ -371,6 +375,7 @@ void VehicleDataManager::step(double dt) {
     std::normal_distribution<double> noise(0.0, 1.0);
 
     // ---- 運転者 ----
+    const Phase phaseBefore = phase_;
     phaseLeftS_ -= dt;
     const bool reached = phase_ == Phase::Pull && speedMs_ >= targetMs_ - 0.5;
     if (phaseLeftS_ <= 0.0 || reached) {
@@ -383,13 +388,18 @@ void VehicleDataManager::step(double dt) {
             nextPhase();
         }
     }
+    if (phaseBefore == Phase::Stop && phase_ != Phase::Stop && speedMs_ < 0.5) {
+        launchHoldS_ = params().launchHoldS;   // 停車からの発進
+    }
     double brakeDecel = 0.0;
     driveControl(dt, brakeDecel);
     // ブレーキの踏み込み量: 減速度 7 m/s²(約 0.7G)で 100%。停車中は止まっておくために軽く踏んだまま
     {
         double want = std::clamp(brakeDecel / 7.0, 0.0, 1.0);
         if (phase_ == Phase::Stop && speedMs_ < 0.15) want = std::max(want, 0.22);
-        brakePedal_ = approach(brakePedal_, want, want > brakePedal_ ? 0.12 : 0.08, dt);
+        // 発進では、ブレーキをじわっと離す(離しきってからアクセル)
+        const double releaseTau = launchHoldS_ > 0.0 ? params().launchHoldS * 0.25 : 0.08;
+        brakePedal_ = approach(brakePedal_, want, want > brakePedal_ ? 0.12 : releaseTau, dt);
         if (brakePedal_ < 0.005) brakePedal_ = 0.0;
     }
 
@@ -402,11 +412,22 @@ void VehicleDataManager::step(double dt) {
         updateAt(dt);
     }
 
-    // ---- エンジン回転数(低速ではトルコンが滑る) ----
+    // ---- エンジン回転数(トルクコンバーター) ----
+    // 直結(ロックアップ)していない間は滑り、踏むとストール回転数(止まった状態で踏み込んだときの回転)近くまで回る。
+    // 滑りの幅は、速度が上がるにつれて小さくなる。ロックアップは CVT が約 20km/h、AT が 2 速以上の約 30km/h から
+    // (大きく踏み込んだときは外れる)
+    const double kmh = speedMs_ * 3.6;
     const double coupled = rpmPerMs() * speedMs_ * overallRatio();
-    const double slipRpm = kIdleRpm + throttle_ * 2200.0;   // 発進時はアクセル開度なりに回転が上がる
-    double targetRpm = std::max(coupled, speedMs_ < 0.3 ? kIdleRpm + throttle_ * 1800.0 : std::min(slipRpm, coupled + 900.0));
-    targetRpm = std::max(targetRpm, kIdleRpm);
+    const bool lockup = (transmission_ == Transmission::Cvt ? kmh > 20.0 : (gear_ >= 2 && kmh > 30.0)) && throttle_ < 0.85;
+    const double stallRpm = kIdleRpm + std::pow(throttle_, 0.7) * (2600.0 - kIdleRpm);
+    // D レンジで止まっている(クリープを抑えている)間は、負荷でアイドリングが少し下がる
+    const double idleRpm = speedMs_ < 0.3 && throttle_ < 0.05 ? kIdleRpm - 40.0 : kIdleRpm;
+    double targetRpm = coupled;
+    if (!lockup) {
+        const double band = lerp(2200.0, 300.0, std::clamp(kmh / 35.0, 0.0, 1.0));
+        targetRpm = std::max(coupled, std::min(stallRpm, coupled + band));
+    }
+    targetRpm = std::max(targetRpm, idleRpm);
     rpm_ = approach(rpm_, std::min(targetRpm, kRedlineRpm + 100.0), shiftLeftS_ > 0.0 ? 0.12 : 0.08, dt);
     const bool limiter = rpm_ >= kRedlineRpm;
 
@@ -435,14 +456,20 @@ void VehicleDataManager::step(double dt) {
     if (shiftLeftS_ <= 0.0 && !limiter) {
         const double boostGain = 1.0 + 0.8 * std::max(0.0, boostBar_) / kMaxBoostBar;
         torqueNm = pedalTorqueFrac(throttle_) * baseTorqueNm(rpm_) * boostGain;
+        // トルクコンバーターのトルクの増幅(滑っているほど大きく、止まった状態で約 2 倍)
+        if (!lockup) {
+            const double speedRatio = std::clamp(coupled / std::max(rpm_, 1.0), 0.0, 1.0);
+            torqueNm *= lerp(2.0, 1.0, std::clamp(speedRatio / 0.85, 0.0, 1.0));
+        }
     }
     if (throttle_ < 0.05) {
         torqueNm = -(8.0 + rpm_ * 0.006);   // エンジンブレーキ
     }
     const double eff = transmission_ == Transmission::Cvt ? kCvtEff : kDrivetrainEff;
     double driveN = torqueNm * overallRatio() * eff / kTireRadiusM;
-    if (speedMs_ < 0.3 && torqueNm < 0.0) {
-        driveN = 0.0;
+    if (throttle_ < 0.05 && speedMs_ < 2.4) {
+        // クリープ: アクセルを離していても、アイドリングの力でゆっくり進む(時速 6km ほどで釣り合う)
+        driveN = 520.0 * (1.0 - speedMs_ / 2.4);
     }
     const double resistN = speedMs_ > 0.05 ? kAeroCoef * speedMs_ * speedMs_ + kRollingN : 0.0;
     const double accel = (driveN - resistN) / kMassKg - brakeDecel;
