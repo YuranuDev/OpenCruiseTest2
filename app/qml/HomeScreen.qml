@@ -75,7 +75,7 @@ Rectangle {
         onOpenAndroidAuto: root.openAndroidAuto()
     }
 
-    // ---- ステータスバー(初期画面と同じ形: 左に接続状態、中央に時刻、右にメニュー・通知・警告の解除) ----
+    // ---- ステータスバー(初期画面と同じ形: 左に接続状態のアイコン、中央に時刻、右にメニュー・通知・警告の解除) ----
     Item {
         id: header
         anchors {
@@ -86,15 +86,9 @@ Rectangle {
         opacity: root.aaFade
         visible: root.aaFade > 0 && !root.immersive
 
-        Rectangle {
-            id: badgePill
+        ConnectionBadge {
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-            height: parent.height
-            width: badge.implicitWidth + 36
-            radius: height / 2
-            color: Theme.panel
-            border.color: Theme.panelBorder
-            ConnectionBadge { id: badge; anchors.centerIn: parent }
+            size: parent.height
         }
 
         // 時刻(初期画面のページのタブの位置)
@@ -316,7 +310,7 @@ Rectangle {
             opacity: 0.6
         }
 
-        // 上段: 時計と接続状態(ステータスバー)
+        // 上段: 時計と接続状態(アイコン)・警告の解除
         Item {
             id: sheetInfo
             anchors { top: parent.top; topMargin: 28; left: parent.left; right: parent.right
@@ -333,6 +327,7 @@ Rectangle {
             }
             ConnectionBadge {
                 anchors { right: alarmClear.left; rightMargin: Theme.margin; verticalCenter: parent.verticalCenter }
+                size: Math.round(52 * root.sheetUnit)
             }
             // 鳴っている警告をまとめて解除(右端)
             AlarmClearButton {

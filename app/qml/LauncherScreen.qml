@@ -69,7 +69,7 @@ Item {
         }
     }
 
-    // ---- 最上部: ステータスバー(左に接続状態、右に補助ボタン) ----
+    // ---- 最上部: ステータスバー(左に接続状態のアイコン、中央にページのタブ、右に補助ボタン) ----
     Item {
         id: topBar
         anchors {
@@ -78,21 +78,16 @@ Item {
         }
         height: 52
 
-        Rectangle {
-            id: badgePill
+        // Android Auto の接続状態(アイコン)
+        ConnectionBadge {
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-            height: parent.height
-            width: badge.implicitWidth + 36
-            radius: height / 2
-            color: Theme.panel
-            border.color: Theme.panelBorder
-            ConnectionBadge { id: badge; anchors.centerIn: parent }
+            size: parent.height
         }
 
-        // ウィジェットのページのタブ(左右の間の空き)
+        // ウィジェットのページのタブ(画面の中央。右のボタンと同じ幅を左にも空けて、中央にそろえる)
         PageBar {
-            anchors { left: badgePill.right; right: rightButtons.left; verticalCenter: parent.verticalCenter
-                      leftMargin: Theme.margin; rightMargin: Theme.margin }
+            anchors { left: parent.left; right: rightButtons.left; verticalCenter: parent.verticalCenter
+                      leftMargin: rightButtons.width + Theme.margin; rightMargin: Theme.margin }
             height: parent.height - 4
             pages: widgetPages
             onMenuRequested: (index) => pageMenu.show(index)
