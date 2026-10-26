@@ -60,12 +60,14 @@ QtObject {
     //   limitMin / limitMax / minSpan   設定できる最小値・最大値の範囲と、最小〜最大の最低の幅(基本単位)
     //   warnBelow        true なら「警告値以下」で警告(燃料など)
     //   warnMessage      警告メッセージの入力欄の例
+    //   negLabel / posLabel  0 をまたぐ範囲で、マイナス側・プラス側の目盛りを分けるときの呼び名(ターボ圧の負圧・正圧など)
     readonly property var gaugeSpecs: ({
         boost: { title: "ブースト", icon: "mdi:car-turbocharger",
                  units: [{ id: "bar", label: "bar", scale: 1, dec: 2, step: 0.1, stepDec: 1 },
                          { id: "psi", label: "psi", scale: 14.5038, dec: 1, step: 1, stepDec: 0 }],
                  limitMin: -1.0, limitMax: 5.0, minSpan: 0.5,
                  minLabel: "最小値(負圧側)", minHint: "目盛りの左端。負圧を測れるよう、通常は 0 より小さくします",
+                 negLabel: "負圧", posLabel: "正圧",
                  warnMessage: "ブースト圧が高すぎます" },
         rpm:   { title: "回転数", icon: "mdi:gauge",
                  units: [{ id: "rpm", label: "rpm", scale: 1, dec: 0, step: 500, stepDec: 0, labelDiv: 1000 }],

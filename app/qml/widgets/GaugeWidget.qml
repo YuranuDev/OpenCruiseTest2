@@ -115,6 +115,25 @@ WidgetBase {
     function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
     // 進捗の起点(0。範囲外なら近い端。ブーストの負圧は 0 から左へ伸びる)
     readonly property real originV: Math.max(minV, Math.min(maxV, 0))
+
+    // ---------------------------------------------------------------- 目盛りの分割(0 をまたぐ計測値。ターボ圧の負圧・正圧など)
+    // config.splitScale がオンなら、開始角〜0 の位置(config.zeroAngle)をマイナス側、0 の位置〜終了角をプラス側として、
+    // それぞれ別の縮尺で描く。大目盛りの間隔(negStep / posStep。基本単位。0 か未設定なら自動)と、
+    // 大目盛りの間の細かい目盛りの数(negSub / posSub。0 か未設定なら種類ごとの既定)も、側ごとに決められる。
+    // デジタルの横バーは分けない(直線のまま)
+    readonly property bool crossesZero: minV < 0 && maxV > 0
+    readonly property bool splitScale: config.splitScale === true && crossesZero
+    readonly property real linearZeroAngle: startAngle + frac(0) * sweepAngle
+    readonly property real zeroAngle: {
+        if (!splitScale) return linearZeroAngle
+        const z = Number(config.zeroAngle)
+        const v = config.zeroAngle === undefined || !isFinite(z) ? linearZeroAngle : z
+        return Math.max(startAngle + 10, Math.min(endAngle - 10, v))
+    }
+    readonly property real negStepShown: Number(config.negStep) > 0 ? Number(config.negStep) * unitDef.scale : 0
+    readonly property real posStepShown: Number(config.posStep) > 0 ? Number(config.posStep) * unitDef.scale : 0
+    readonly property int negSub: Math.max(0, Math.min(10, Math.round(Number(config.negSub) || 0)))
+    readonly property int posSub: Math.max(0, Math.min(10, Math.round(Number(config.posSub) || 0)))
     // 警告ゾーン(表示単位)。上側警告なら [警告値, 最大]、下側警告なら [最小, 警告値]
     readonly property bool hasWarnZone: warnOn && (warnBelow ? warnV > minV : warnV < maxV)
     readonly property real zoneLo: warnBelow ? minV : Math.max(warnV, minV)
@@ -495,7 +514,13 @@ WidgetBase {
 
             // 角度(度、0° が真上)→ Canvas の角度(ラジアン、0 が右)
             function rad(deg) { return (deg - 90) * Math.PI / 180 }
-            function angOf(v) { return root.startAngle + root.frac(v) * root.sweepAngle }
+            // 値 → 角度。目盛りを分けているときは、0 の位置を境に別の縮尺
+            function angOf(v) {
+                if (!root.splitScale) return root.startAngle + root.frac(v) * root.sweepAngle
+                v = Math.max(root.minV, Math.min(root.maxV, v))
+                return v < 0 ? root.startAngle + (v - root.minV) / (0 - root.minV) * (root.zeroAngle - root.startAngle)
+                             : root.zeroAngle + v / root.maxV * (root.endAngle - root.zeroAngle)
+            }
 
             // ---- 目盛り・警告帯(設定・大きさ・配色が変わったときだけ描き直す) ----
             Canvas {
@@ -505,7 +530,9 @@ WidgetBase {
                 readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
                                                root.warnOn, root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
                                                root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
-                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily, root.faceColor].join("|")
+                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily, root.faceColor,
+                                               root.splitScale, root.zeroAngle, root.negStepShown, root.posStepShown,
+                                               root.negSub, root.posSub].join("|")
                 onKeyChanged: requestPaint()
 
                 // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
@@ -618,13 +645,26 @@ WidgetBase {
                     }
 
                     // 目盛り(大目盛りに数字。0 は強調)
-                    const range = root.maxV - root.minV
-                    const maxMajors = Math.max(4, Math.round(root.sweepAngle / 30))
-                    const step = niceStep(range / root.labelDiv, maxMajors) * root.labelDiv
-                    const stepShown = step / root.labelDiv
-                    const dec = stepShown >= 1 ? 0 : (Math.abs(stepShown * 10 - Math.round(stepShown * 10)) < 1e-6 ? 1 : 2)
-                    const minor = step / dm.sub
-                    const first = Math.ceil(root.minV / minor - 1e-9)
+                    // lo〜hi(角度の幅 sweep)の目盛りを、0 を基準にした刻みで並べる。step / sub が 0 なら自動・既定
+                    const ticksOf = (lo, hi, sweep, stepOverride, subOverride, minMajors) => {
+                        const maxMajors = Math.max(minMajors, Math.round(Math.abs(sweep) / 30))
+                        const step = stepOverride > 0 ? stepOverride : niceStep((hi - lo) / root.labelDiv, maxMajors) * root.labelDiv
+                        const stepShown = step / root.labelDiv
+                        const dec = stepShown >= 1 ? 0 : (Math.abs(stepShown * 10 - Math.round(stepShown * 10)) < 1e-6 ? 1 : 2)
+                        const minor = step / (subOverride > 0 ? subOverride : dm.sub)
+                        const list = []
+                        for (let n = Math.ceil(lo / minor - 1e-9); n * minor <= hi + 1e-9; ++n) {
+                            const v = n * minor
+                            list.push({ v: v, major: Math.abs(v / step - Math.round(v / step)) < 1e-6, dec: dec })
+                        }
+                        return list
+                    }
+                    const ticks = root.splitScale
+                        ? ticksOf(root.minV, 0, root.zeroAngle - root.startAngle, root.negStepShown, root.negSub, 2)
+                              .concat(ticksOf(0, root.maxV, root.endAngle - root.zeroAngle, root.posStepShown, root.posSub, 2)
+                                      .filter(t => t.v > 1e-9))
+                        : ticksOf(root.minV, root.maxV, root.sweepAngle, 0, 0, 4)
+                    const dec = ticks.length > 0 ? Math.max(...ticks.map(t => t.dec)) : 0
                     ctx.lineCap = "butt"
                     ctx.textAlign = "center"
                     ctx.textBaseline = "middle"
@@ -640,9 +680,9 @@ WidgetBase {
                         }
                         return
                     }
-                    for (let n = first; n * minor <= root.maxV + 1e-9; ++n) {
-                        const v = n * minor
-                        const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6
+                    for (const t of ticks) {
+                        const v = t.v
+                        const isMajor = t.major
                         const isZero = Math.abs(v) < 1e-9
                         const inWarn = root.inZone(v)
                         const a = angV(v)
@@ -657,7 +697,7 @@ WidgetBase {
                         if (isMajor) {
                             ctx.fillStyle = inWarn ? Theme.error
                                                    : (isZero || root.dialStyle === "retro" || root.dialStyle === "marker" ? root.dialFg : root.dialFgDim)
-                            ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(dec),
+                            ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(t.dec),
                                          cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
                         }
                     }
@@ -675,7 +715,7 @@ WidgetBase {
                      dial.angOf(root.shown).toFixed(1),
                      root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
-                     Theme.error].join("|")
+                     Theme.error, root.splitScale, root.zeroAngle].join("|")
                 onKeyChanged: if (visible) requestPaint()
 
                 onPaint: {

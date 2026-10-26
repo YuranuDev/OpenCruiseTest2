@@ -24,6 +24,23 @@ WidgetSettingsBase {
     readonly property var dialStyles: ["classic", "minimal", "marker", "retro", "neon", "ring"]
     readonly property string dialStyle: dialStyles.indexOf(config.dialStyle) >= 0 ? config.dialStyle
                                         : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
+    // 0 をまたぐ範囲のときは、マイナス側・プラス側で目盛りを分けられる(ターボ圧なら負圧・正圧)
+    readonly property bool crossesZero: toShown(minBase) < 0 && toShown(maxBase) > 0
+    readonly property real minBase: config.min !== undefined ? Number(config.min) : gauge.limitMin
+    readonly property real maxBase: config.max !== undefined ? Number(config.max) : gauge.limitMax
+    readonly property string negName: gauge.negLabel || "マイナス側"
+    readonly property string posName: gauge.posLabel || "プラス側"
+    readonly property bool splitOn: config.splitScale === true && crossesZero && config.style !== "digital"
+    readonly property real startA: config.startAngle === undefined ? -135 : Number(config.startAngle)
+    readonly property real endA: config.endAngle === undefined ? 135 : Number(config.endAngle)
+    // 分けていないときの 0 の位置(分けたときの初期値)
+    readonly property real linearZero: {
+        const lo = toShown(minBase), hi = toShown(maxBase)
+        return Math.round((startA + (0 - lo) / Math.max(1e-9, hi - lo) * (endA - startA)) / 5) * 5
+    }
+    // 目盛りの間隔は差の値なので、単位の倍率だけで換算する(基本単位で保存)
+    function stepShown(key) { return Number(config[key]) > 0 ? Number(config[key]) * unitDef.scale : 0 }
+    function saveStep(key, shownValue) { root.edit(key, Number((shownValue / unitDef.scale).toFixed(4))) }
     // 針と中心円が無い種類(マーカー・リング)
     readonly property bool needleless: dialStyle === "marker" || dialStyle === "ring"
     readonly property var colorOptions: [
@@ -116,6 +133,81 @@ WidgetSettingsBase {
             step: 5
             suffix: "°"
             onMoved: (v) => root.edit("endAngle", v)
+        }
+    }
+    SettingsRow {
+        visible: root.crossesZero && root.config.style !== "digital"
+        label: root.negName + "と" + root.posName + "で目盛りを分ける"
+        description: "0 の位置を境に、それぞれ別の縮尺と目盛りで描きます"
+        SettingsSwitch {
+            checked: root.config.splitScale === true
+            onToggled: (v) => root.edit("splitScale", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: "0 の位置"
+        WSStepper {
+            value: root.config.zeroAngle !== undefined ? Number(root.config.zeroAngle) : root.linearZero
+            from: root.startA + 10
+            to: root.endA - 10
+            step: 5
+            suffix: "°"
+            onMoved: (v) => root.edit("zeroAngle", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.negName + "の目盛り間隔"
+        description: "大目盛り(数字)の間隔。0 で自動"
+        WSStepper {
+            value: root.stepShown("negStep")
+            from: 0
+            to: Math.max(root.step, -root.toShown(root.minBase))
+            step: root.step
+            decimals: root.dec
+            suffix: root.suffix
+            onMoved: (v) => root.saveStep("negStep", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.negName + "の細かい目盛り"
+        description: "大目盛りの間を何等分するか。0 で自動"
+        WSStepper {
+            value: Number(root.config.negSub) || 0
+            from: 0
+            to: 10
+            step: 1
+            suffix: " 等分"
+            onMoved: (v) => root.edit("negSub", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.posName + "の目盛り間隔"
+        description: "大目盛り(数字)の間隔。0 で自動"
+        WSStepper {
+            value: root.stepShown("posStep")
+            from: 0
+            to: Math.max(root.step, root.toShown(root.maxBase))
+            step: root.step
+            decimals: root.dec
+            suffix: root.suffix
+            onMoved: (v) => root.saveStep("posStep", v)
+        }
+    }
+    SettingsRow {
+        visible: root.splitOn
+        label: root.posName + "の細かい目盛り"
+        description: "大目盛りの間を何等分するか。0 で自動"
+        WSStepper {
+            value: Number(root.config.posSub) || 0
+            from: 0
+            to: 10
+            step: 1
+            suffix: " 等分"
+            onMoved: (v) => root.edit("posSub", v)
         }
     }
     SettingsRow {
