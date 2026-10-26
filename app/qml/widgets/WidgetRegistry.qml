@@ -95,10 +95,11 @@ QtObject {
         voltage: { title: "電圧", icon: "mdi:car-battery",
                  units: [{ id: "v", label: "V", scale: 1, dec: 1, step: 0.5, stepDec: 1 }],
                  limitMin: 8, limitMax: 18, minSpan: 2, warnBelow: true, warnMessage: "電圧が低下しています" },
-        throttle: { title: "アクセル", icon: "mdi:speedometer-medium",
+        // アイコン: アクセルはペダルの形(car-clutch)、ブレーキはブレーキのマーク(ディスクとパッド)
+        throttle: { title: "アクセル", icon: "mdi:car-clutch",
                  units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 10, stepDec: 0 }],
                  limitMin: 0, limitMax: 100, minSpan: 20, warnMessage: "アクセルを強く踏んでいます" },
-        brake: { title: "ブレーキ", icon: "mdi:car-brake-hold",
+        brake: { title: "ブレーキ", icon: "mdi:car-brake-worn-linings",
                  units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 10, stepDec: 0 }],
                  limitMin: 0, limitMax: 100, minSpan: 20, warnMessage: "強くブレーキを踏んでいます" }
     })
@@ -207,7 +208,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "throttle", genre: "vehicle", name: "アクセル開度計", icon: "mdi:speedometer-medium",
+            type: "throttle", genre: "vehicle", name: "アクセル開度計", icon: "mdi:car-clutch",
             description: "アクセルペダルの踏み込み量(0〜100%)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
@@ -217,7 +218,7 @@ QtObject {
             dragStart: "hold", mock: true
         },
         {
-            type: "brake", genre: "vehicle", name: "ブレーキ開度計", icon: "mdi:car-brake-hold",
+            type: "brake", genre: "vehicle", name: "ブレーキ開度計", icon: "mdi:car-brake-worn-linings",
             description: "ブレーキペダルの踏み込み量(0〜100%)",
             component: gaugeComp, settings: gaugeSettings,
             defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
