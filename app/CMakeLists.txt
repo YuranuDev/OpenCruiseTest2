@@ -131,6 +131,7 @@ qt_add_qml_module(opencruise
         qml/widgets/WidgetHost.qml
         qml/widgets/WidgetArea.qml
         qml/widgets/WidgetSettingsBase.qml
+        qml/widgets/WidgetSettingsGroup.qml
         qml/widgets/WidgetSettingsDialog.qml
         qml/widgets/WidgetPicker.qml
         qml/widgets/WSStepper.qml
