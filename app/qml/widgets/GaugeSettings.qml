@@ -385,7 +385,7 @@ WidgetSettingsBase {
                      + "まだ出ている間にもう一度警告になると、同じ通知を書き換えます。\n"
                      + "「出し続ける」: 警告中は通知を出したままにし、今の値を更新し続けます。タップで消せます。\n"
                      + "どちらも、警告が解除されると、その警告の間の最大値(燃料などは最低値)を出してから消えます。\n"
-                     + "いくつかのメーターが同時に警告したときは、1 つの通知にまとめます(「出し続ける」のメーターが警告中なら、まとめた通知も出したまま)"
+                     + "通知はメーターの種類ごとに出します(同じ種類のメーターがいくつあっても、その種類の通知は 1 つ)"
         stacked: true
         SettingsChoice {
             model: ["オフ", "1 回だけ", "警告中は出し続ける"]
@@ -478,8 +478,17 @@ WidgetSettingsBase {
     }
     SettingsRow {
         visible: root.config.cautionEnabled === true
+        label: "注意メッセージを表示"
+        description: "メーターの下に注意メッセージを出します。オフにすると、メッセージは出さずに色とアイコンだけで知らせます"
+        SettingsSwitch {
+            checked: root.config.showCautionMessage !== false
+            onToggled: (v) => root.edit("showCautionMessage", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.cautionEnabled === true
         label: "注意メッセージ"
-        description: "通知の見出しと、メーターの下に出すメッセージ(「警告メッセージを表示」がオンのとき)"
+        description: "メーターの下に出すメッセージと、注意の通知の見出し"
         stacked: true
         WSTextField {
             width: 520 * Theme.uiScale

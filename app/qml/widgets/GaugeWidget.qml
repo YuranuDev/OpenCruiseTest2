@@ -81,6 +81,9 @@ WidgetBase {
     readonly property bool cautionOn: config.cautionEnabled === true && config.caution !== undefined
     readonly property real cautionV: toShown(config.caution)
     readonly property bool showWarnMessage: config.showWarnMessage !== false   // false なら色・アイコンだけで知らせる
+    readonly property bool showCautionMessage: config.showCautionMessage !== false   // 注意中のメッセージ(false なら色・アイコンだけ)
+    // 今、下の帯にメッセージを出すか(警告中は警告メッセージの設定、注意中は注意メッセージの設定に従う)
+    readonly property bool bannerShown: warning ? showWarnMessage : (caution && showCautionMessage)
     readonly property bool showIcon: config.showIcon !== false
     readonly property real startAngle: Math.max(-180, Math.min(-90, config.startAngle === undefined ? -135 : Number(config.startAngle)))
     readonly property real endAngle: Math.max(90, Math.min(180, config.endAngle === undefined ? 135 : Number(config.endAngle)))
@@ -463,8 +466,8 @@ WidgetBase {
             line += " ・ " + peakText
         return line + limit
     }
-    // ポップアップ通知: 内容を WarningAlarm に知らせるだけ。通知はすべてのメーターで 1 つにまとめて出す
-    // (同時にいくつ警告しても通知は 1 つ。同じ計測値のメーターがいくつあっても、知らせるのは 1 つだけ = noticeOwner)
+    // ポップアップ通知: 内容を WarningAlarm に知らせるだけ。通知はメーターの種類ごとに 1 つ出す
+    // (同じ計測値のメーターがいくつあっても、知らせるのは 1 つだけ = noticeOwner)
     readonly property bool noticeReporting: wantsNotice && noticeOwner && warningsArmed
     property bool noticeReported: false   // WarningAlarm に載せている
     function reportNotice() {
@@ -1364,8 +1367,8 @@ WidgetBase {
         id: warnBanner
         z: 3
         visible: opacity > 0
-        opacity: root.alerting && root.showWarnMessage ? (0.55 + 0.45 * root.blink) : 0
-        Behavior on opacity { enabled: !(root.alerting && root.showWarnMessage); NumberAnimation { duration: 180 } }
+        opacity: root.bannerShown ? (0.55 + 0.45 * root.blink) : 0
+        Behavior on opacity { enabled: !root.bannerShown; NumberAnimation { duration: 180 } }
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: root.m }
         width: Math.min(parent.width - 2 * root.m,
                         warnText.implicitWidth + (root.showIcon ? height * 0.62 + 6 : 0) + height)

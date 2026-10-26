@@ -15,11 +15,11 @@
 //   joinNotice(group, key) / leaveNotice(group, key) / isNoticeOwner(group, key)
 //       警告のポップアップ通知を出すのは、同じ範囲の中で 1 つだけ(最初に登録したもの)。同じ通知が重ならない
 //   resetPeak(group, sourceKey)     最大・最小値のリセット(peakResetRequested で同じ範囲のメーターへ伝える)
-// 警告のポップアップ通知(まとめて 1 つ):
+// 警告・注意のポップアップ通知(メーターの種類ごとに 1 つ):
 //   noticeReport(group, item)       メーターが今の状態(タイトル・本文・警告中か・出し方)を知らせる
 //   noticeRemove(group)             通知をやめた(設定を変えた・ウィジェットが消えた)
-//   いくつかのメーターが同時に警告しても、通知は 1 つにまとめ、警告中のものを上に並べる(3 件まで。残りは「ほか N 件」)。
-//   解除されたものは、その警告の間の最大値を 8 秒出してから外す
+//   種類(group)ごとに別の通知を出す。同じ種類のメーターが何台あっても、その種類の通知は 1 つ。
+//   解除されたら、その間の最大値を 8 秒出してから消す
 pragma Singleton
 import QtQuick
 
@@ -109,12 +109,12 @@ QtObject {
         return !list || list.length === 0 || list[0] === key
     }
 
-    // ---- 警告のポップアップ通知(すべてのメーターで 1 つにまとめる) ----
+    // ---- 警告・注意のポップアップ通知(メーターの種類ごとに 1 つ) ----
+    // 種類(group)ごとに別の通知を出す。同じ種類のメーターがいくつあっても、その種類の通知は 1 つ
     readonly property int noticeHoldMs: 8000
-    /// group → { title, text, level, warning, icon, mode, at(警告になった時刻), endAt(解除された時刻) }
+    /// group → { title, text, level, warning(警告・注意中か), icon, mode, at, endAt(解除された時刻), id(通知の id) }
     property var noticeItems: ({})
-    property int noticeId: -1
-    /// 通知に載っている件数(解除の表示中のものも含む)
+    /// 載っている件数(解除の表示中のものも含む)
     property int noticeCount: 0
 
     function noticeReport(group, item) {
@@ -123,72 +123,54 @@ QtObject {
         // 新しく警告(注意)になった・注意 ⇄ 警告と段階が変わったときは、通知を出し直す(今の状態を知らせる)
         const fresh = item.warning && (!prev || !prev.warning || prev.level !== item.level)
         const recovered = !item.warning && prev !== undefined && prev.warning
-        if (!item.warning && !prev) return   // 警告になっていないものは載せない
+        if (!item.warning && !prev) return   // 警告・注意になっていないものは出さない
         noticeItems[group] = {
             title: item.title, text: item.text, level: item.level, warning: item.warning,
             icon: item.icon, mode: item.mode,
             at: fresh ? Date.now() : (prev ? prev.at : Date.now()),
-            endAt: item.warning ? 0 : (recovered ? Date.now() : (prev ? prev.endAt : Date.now()))
+            endAt: item.warning ? 0 : (recovered ? Date.now() : (prev ? prev.endAt : Date.now())),
+            id: prev ? prev.id : -1
         }
-        refreshNotice(fresh || recovered, fresh)
+        refreshOne(group, fresh || recovered, fresh)
+        noticeCount = Object.keys(noticeItems).length
     }
     function noticeRemove(group) {
-        if (noticeItems[group] === undefined) return
+        const it = noticeItems[group]
+        if (it === undefined) return
+        if (it.id >= 0) notifications.dismiss(it.id)
         delete noticeItems[group]
-        refreshNotice(false, false)
+        noticeCount = Object.keys(noticeItems).length
     }
-    function noticeShowing(group) { return noticeItems[group] !== undefined && noticeId >= 0 }
+    function noticeShowing(group) { const it = noticeItems[group]; return it !== undefined && it.id >= 0 }
 
-    // 通知を作り直す。restart: 表示時間を数え直す(新しい警告・解除のとき)。
-    // allowNew: 通知が出ていなければ新しく出す(新しい警告のときだけ。消えた・消された通知は、次の警告まで出さない)
-    function refreshNotice(restart, allowNew) {
-        const now = Date.now()
-        const list = []
-        for (const g in noticeItems) {
-            const it = noticeItems[g]
-            if (!it.warning && now - it.endAt >= noticeHoldMs) { delete noticeItems[g]; continue }
-            list.push(it)
-        }
-        noticeCount = list.length
-        if (list.length === 0) {
-            if (noticeId >= 0) notifications.dismiss(noticeId)
-            noticeId = -1
+    // その種類の通知を出し直す・書き換える。restart: 表示時間を数え直す(新しい警告・注意・解除のとき)。
+    // allowNew: 通知が出ていなければ新しく出す(新しい警告・注意のときだけ。消えた・消された通知は、次まで出さない)
+    function refreshOne(group, restart, allowNew) {
+        const it = noticeItems[group]
+        if (it === undefined) return
+        if (!it.warning && Date.now() - it.endAt >= noticeHoldMs) {
+            // 解除の表示が終わった
+            if (it.id >= 0) notifications.dismiss(it.id)
+            delete noticeItems[group]
             return
         }
-        // 警告中のものを先に、その中では新しい順
-        list.sort((a, b) => (a.warning !== b.warning) ? (a.warning ? -1 : 1) : (b.at - a.at))
-        const warnCount = list.filter(i => i.warning).length
-        const live = list.some(i => i.warning && i.mode === "live")
-        let title, text
-        if (list.length === 1) {
-            title = list[0].title
-            text = list[0].text
-        } else {
-            // 警告(level 3)と注意(level 2)のどちらがあるかで呼び方を変える
-            const hasWarn = list.some(i => i.warning && i.level >= 3)
-            const hasCaution = list.some(i => i.warning && i.level < 3)
-            const kind = hasWarn && hasCaution ? "警告・注意" : (hasWarn ? "警告" : "注意")
-            title = warnCount > 0 ? kind + "が " + warnCount + " 件あります" : "警告・注意が解除されました"
-            const lines = list.slice(0, 3).map(i => i.title + ": " + i.text)
-            if (list.length > 3) lines[2] = "ほか " + (list.length - 2) + " 件"
-            text = lines.join("\n")
+        // 「出し続ける」の警告中は消えない。それ以外は 8 秒
+        const duration = it.warning && it.mode === "live" ? 0 : noticeHoldMs
+        if (it.id >= 0) {
+            if (notifications.update(it.id, it.title, it.text, it.level, restart ? duration : -1)) return
+            it.id = -1   // 時間が来て消えた・タップで消された
         }
-        const level = Math.max(...list.map(i => i.level))
-        const icon = list[0].icon
-        // 出し続ける警告がある間は消えない。それ以外は 8 秒
-        const duration = live ? 0 : noticeHoldMs
-        if (noticeId >= 0) {
-            if (notifications.update(noticeId, title, text, level, restart ? duration : -1)) return
-            noticeId = -1   // 時間が来て消えた・タップで消された
-        }
-        if (allowNew) noticeId = notifications.show(title, text, level, icon, duration)
+        if (allowNew) it.id = notifications.show(it.title, it.text, it.level, it.icon, duration)
     }
     // 中身の更新と、解除の表示の期限切れの片付け
     property Timer noticeTicker: Timer {
         interval: 500
         repeat: true
-        running: alarm.noticeCount > 0 || alarm.noticeId >= 0
-        onTriggered: alarm.refreshNotice(false, false)
+        running: alarm.noticeCount > 0
+        onTriggered: {
+            for (const g of Object.keys(alarm.noticeItems)) alarm.refreshOne(g, false, false)
+            alarm.noticeCount = Object.keys(alarm.noticeItems).length
+        }
     }
 
     // ---- 最大・最小値のリセット ----

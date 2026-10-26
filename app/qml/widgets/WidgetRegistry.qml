@@ -321,7 +321,8 @@ QtObject {
     // グラフは計測値ごとに別の種類として扱う(ブーストのグラフ同士だけがリンクする)
     readonly property var gaugeLinkedKeys: ["warnEnabled", "warn", "showWarnMessage", "warnBeep",
                                             "warnPopupMode", "warnPopup", "warnPopupDetail", "warnMessage",
-                                            "cautionEnabled", "caution", "cautionBeep", "cautionPopup", "cautionMessage"]
+                                            "cautionEnabled", "caution", "cautionBeep", "cautionPopup", "cautionMessage",
+                                            "showCautionMessage"]
     readonly property var graphLinkedKeys: ["warnEnabled", "warn"]
     readonly property var phoneLinkedKeys: ["lowThreshold", "showLowMessage", "lowMessage"]
     readonly property var noticeLinkedKeys: ["tplCall", "tplMessage", "tplNavigation", "tplOther"]
