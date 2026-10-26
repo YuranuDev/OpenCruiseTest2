@@ -104,6 +104,8 @@ WidgetBase {
         case "oilTemp": return can.oilTempC
         case "oilPressure": return can.oilPressureBar
         case "voltage": return can.batteryVolts
+        case "throttle": return can.throttlePercent
+        case "brake": return can.brakePercent
         default: return can.boostBar
         }
     }

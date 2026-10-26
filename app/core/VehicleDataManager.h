@@ -83,6 +83,8 @@ class VehicleDataManager : public QObject {
     /// モックの運転のしかた(0 = 穏やか / 1 = 普通 / 2 = アグレッシブ)。保存される
     Q_PROPERTY(int mockDriveStyle READ mockDriveStyle WRITE setMockDriveStyle NOTIFY mockSettingsChanged)
     Q_PROPERTY(double throttlePercent READ throttlePercent NOTIFY changed)
+    /// ブレーキの踏み込み量 [%](モックは減速度から求める。停車中は踏んだまま)
+    Q_PROPERTY(double brakePercent READ brakePercent NOTIFY changed)
     Q_PROPERTY(QString sourceText READ sourceText NOTIFY dataAvailableChanged)
     /// メーター・グラフに出すデータがあるか(今はダミーデータを使う設定のときだけ true)
     Q_PROPERTY(bool dataAvailable READ dataAvailable NOTIFY dataAvailableChanged)
@@ -151,6 +153,8 @@ public:
     void setMockDriveStyle(int value);
     /** @brief アクセル開度 [%]。 */
     double throttlePercent() const { return throttle_ * 100.0; }
+    /** @brief ブレーキの踏み込み量 [%]。 */
+    double brakePercent() const { return brakePedal_ * 100.0; }
     /** @brief データの出所を示す表示用文字列(「ダミーデータ」/「なし」)。 */
     QString sourceText() const { return dataAvailable() ? QStringLiteral("ダミーデータ") : QStringLiteral("なし"); }
     bool dataAvailable() const { return mockGauges_; }
@@ -303,6 +307,7 @@ private:
     double maxThrottle_ = 0.6;   ///< この区間で踏み込む上限(運転のおとなしさ)
     double speedMs_ = 0.0;       ///< 車速 [m/s]
     double throttle_ = 0.0;      ///< アクセル開度 0〜1
+    double brakePedal_ = 0.0;    ///< ブレーキの踏み込み量 0〜1
     int gear_ = 1;               ///< ギア(1〜6)
     double shiftLeftS_ = 0.0;    ///< 変速中の残り時間 [s](この間は駆動力が抜ける)
     double fuelLiters_ = 0.0;    ///< 燃料 [L]

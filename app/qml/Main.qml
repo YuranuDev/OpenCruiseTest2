@@ -254,7 +254,8 @@ ApplicationWindow {
             repeat: true
             onTriggered: VehicleHistory.push({
                 boost: can.boostBar, rpm: can.rpm, speed: can.speedKmh, coolant: can.coolantTempC,
-                fuel: can.fuelPercent, oilTemp: can.oilTempC, oilPressure: can.oilPressureBar, voltage: can.batteryVolts
+                fuel: can.fuelPercent, oilTemp: can.oilTempC, oilPressure: can.oilPressureBar, voltage: can.batteryVolts,
+                throttle: can.throttlePercent, brake: can.brakePercent
             })
         }
 

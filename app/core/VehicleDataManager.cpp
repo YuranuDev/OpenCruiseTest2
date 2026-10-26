@@ -385,6 +385,13 @@ void VehicleDataManager::step(double dt) {
     }
     double brakeDecel = 0.0;
     driveControl(dt, brakeDecel);
+    // ブレーキの踏み込み量: 減速度 7 m/s²(約 0.7G)で 100%。停車中は止まっておくために軽く踏んだまま
+    {
+        double want = std::clamp(brakeDecel / 7.0, 0.0, 1.0);
+        if (phase_ == Phase::Stop && speedMs_ < 0.15) want = std::max(want, 0.22);
+        brakePedal_ = approach(brakePedal_, want, want > brakePedal_ ? 0.12 : 0.08, dt);
+        if (brakePedal_ < 0.005) brakePedal_ = 0.0;
+    }
 
     // ---- 変速(AT / CVT) ----
     if (shiftLeftS_ > 0.0) shiftLeftS_ -= dt;

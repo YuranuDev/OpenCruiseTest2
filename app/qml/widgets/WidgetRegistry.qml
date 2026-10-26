@@ -94,7 +94,13 @@ QtObject {
                  limitMin: 0, limitMax: 10, minSpan: 1, warnBelow: true, warnMessage: "油圧が低すぎます" },
         voltage: { title: "電圧", icon: "mdi:car-battery",
                  units: [{ id: "v", label: "V", scale: 1, dec: 1, step: 0.5, stepDec: 1 }],
-                 limitMin: 8, limitMax: 18, minSpan: 2, warnBelow: true, warnMessage: "電圧が低下しています" }
+                 limitMin: 8, limitMax: 18, minSpan: 2, warnBelow: true, warnMessage: "電圧が低下しています" },
+        throttle: { title: "アクセル", icon: "mdi:speedometer-medium",
+                 units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 10, stepDec: 0 }],
+                 limitMin: 0, limitMax: 100, minSpan: 20, warnMessage: "アクセルを強く踏んでいます" },
+        brake: { title: "ブレーキ", icon: "mdi:car-brake-hold",
+                 units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 10, stepDec: 0 }],
+                 limitMin: 0, limitMax: 100, minSpan: 20, warnMessage: "強くブレーキを踏んでいます" }
     })
 
     // メーターの共通の既定値に、種類ごとの値を重ねる
@@ -198,6 +204,26 @@ QtObject {
             defaultConfig: gaugeConfig({ metric: "voltage", unit: "v", min: 10, max: 16,
                                          dialStyle: "minimal", startAngle: -90, endAngle: 90,
                                          warnEnabled: true, warn: 12.0, warnMessage: "電圧が低下しています" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "throttle", genre: "vehicle", name: "アクセル開度計", icon: "mdi:speedometer-medium",
+            description: "アクセルペダルの踏み込み量(0〜100%)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "throttle", unit: "pct", min: 0, max: 100,
+                                         dialStyle: "ring", peakMode: "off",
+                                         warnEnabled: false, warn: 90, warnMessage: "アクセルを強く踏んでいます" }),
+            dragStart: "hold", mock: true
+        },
+        {
+            type: "brake", genre: "vehicle", name: "ブレーキ開度計", icon: "mdi:car-brake-hold",
+            description: "ブレーキペダルの踏み込み量(0〜100%)",
+            component: gaugeComp, settings: gaugeSettings,
+            defaultSize: { w: 2, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+            defaultConfig: gaugeConfig({ metric: "brake", unit: "pct", min: 0, max: 100,
+                                         dialStyle: "ring", peakMode: "off",
+                                         warnEnabled: false, warn: 60, warnMessage: "強くブレーキを踏んでいます" }),
             dragStart: "hold", mock: true
         },
         {
