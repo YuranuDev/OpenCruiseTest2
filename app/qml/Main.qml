@@ -130,6 +130,20 @@ ApplicationWindow {
         onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
     }
 
+    // ---- コンソールへ(eglfs のときだけ) ----
+    // eglfs ではアプリが画面とキーボードを使っているので、Ctrl+Alt+F2 などで画面(VT)を切り替えられない。
+    // 代わりに、これらのキーでアプリを終了する。自動起動のサービス(scripts/bootsplash)は、終了すると tty1 に
+    // ログイン画面を出す(アプリに戻るときは sudo systemctl start opencruise)
+    Shortcut {
+        enabled: displaySettings.isEglfs
+        context: Qt.ApplicationShortcut
+        sequences: ["Ctrl+Alt+Backspace", "Ctrl+Alt+F1", "Ctrl+Alt+F2", "Ctrl+Alt+F3", "Ctrl+Alt+F4", "Ctrl+Alt+F5", "Ctrl+Alt+F6"]
+        onActivated: {
+            console.info("[app] コンソールへ切り替えるため終了します(Ctrl+Alt+F1〜F6 / Ctrl+Alt+Backspace)")
+            Qt.quit()
+        }
+    }
+
     // ---- テーマ(昼夜・アクセント色)の切り替え ----
     // 色をアニメーションさせると、色を使うすべての部品(メーターの描画など)が毎フレーム計算し直しになり重い。
     // そこで、切り替え前の画面(rotor)を 1 枚の画像に写して上に重ね、その下でテーマを一度で切り替え、

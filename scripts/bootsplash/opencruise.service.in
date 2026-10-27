@@ -6,12 +6,17 @@
 #  2. アプリが画面を開いて最初の 1 枚を描き、準備完了(READY=1)を知らせる(Type=notify)
 #  3. 起動後: plymouth quit --retain-splash … 画面はもうアプリのものなので、黒くならない
 # アプリが止まったとき・起動できなかったときは、Plymouth を終わらせてコンソールに戻す。
+#
+# コンソール: アプリを終了すると(メニューの終了、Ctrl+Alt+Backspace、systemctl stop)、tty1 にログイン画面を出す。
+# 落ちて再起動を繰り返したとき(起動の上限に達したとき)も同じ。アプリに戻るときは: sudo systemctl start opencruise
 [Unit]
 Description=OpenCruise
 # ユーザーのサービス(PipeWire などの音)が先に立ち上がっているように、ユーザーの systemd を先に起動する
 Wants=user@@UID@.service
 After=systemd-user-sessions.service plymouth-start.service sound.target getty@tty1.service user@@UID@.service
 Conflicts=getty@tty1.service
+# 落ち続けて止まったときは、tty1 にログイン画面を出す
+OnFailure=getty@tty1.service
 StartLimitIntervalSec=120
 StartLimitBurst=5
 
@@ -38,6 +43,8 @@ ExecStartPre=-+/usr/bin/plymouth deactivate
 ExecStart=@APP@
 ExecStartPost=-+/usr/bin/plymouth quit --retain-splash
 ExecStopPost=-+/usr/bin/plymouth quit
+# 正常に終わったとき(終了の操作・systemctl stop)は、tty1 にログイン画面を出す(落ちたときは再起動するので出さない)
+ExecStopPost=-+/bin/sh -c '[ "$SERVICE_RESULT" = success ] && systemctl --no-block start getty@tty1.service || true'
 Restart=on-failure
 RestartSec=2
 
