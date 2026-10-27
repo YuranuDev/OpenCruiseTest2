@@ -251,7 +251,7 @@ int main(int argc, char *argv[]) {
     // 画面が出る前に終わる段階(設定〜画面の読み込み)も、かかった時間を残すために並べる。
     // 起動画面の待ちは、準備ができ次第すぐ終える(最低表示時間はほぼ無し・問題があっても長く止めない)。
     // 警告・注意事項は、起動画面のあとの「注意事項」の画面(SplashScreen)で読ませる。問題のあるステップはそこにも出す
-    boot.setTiming(300, 0, 15000);
+    boot.setTiming(1000, 3000, 15000);
     boot.addStep(QStringLiteral("system"), QStringLiteral("設定・表示"), true, 0);
     boot.addStep(QStringLiteral("fonts"), QStringLiteral("フォント"), false, 10000);
     boot.addStep(QStringLiteral("audio"), QStringLiteral("音声・明るさ"), true, 0);
