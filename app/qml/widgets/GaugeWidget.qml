@@ -102,7 +102,7 @@ WidgetBase {
     readonly property color markerLineColor: configuredColor("lineColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
     // 色に「パネル」を選んだ部品(針・出っ張り・マーカーの印と線・リングの帯)は、背景に溶けないよう縁取りする
-    // (中心円はもともと縁取りがあり、その縁も色にかかわらずこの色にする)
+    // (中心円はもともと縁取りがある)。出っ張りの縁は、中心円の縁と同じ暗い色(dialLine)
     readonly property bool needleOutline: config.needleColor === "panel"
     readonly property bool tailOutline: tailOwnColor ? config.tailColor === "panel" : needleOutline
     readonly property bool lineOutline: config.lineColor === "panel"
@@ -1146,7 +1146,7 @@ WidgetBase {
                     height: Math.ceil(tip + tail + 2 * pad)
                     renderStrategy: Canvas.Cooperative
                     readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill,
-                                                   needleEdge, tailEdge, root.outlineColor].join("|")
+                                                   needleEdge, tailEdge, root.outlineColor, root.dialLine].join("|")
                     onKeyChanged: if (visible) requestPaint()
                     onVisibleChanged: if (visible) requestPaint()
 
@@ -1156,7 +1156,8 @@ WidgetBase {
                         const c = width / 2
                         const tipHalf = Math.max(0.75, base * 0.1)
                         const baseHalf = base / 2
-                        const sameColor = Qt.colorEqual(tailFill, needleFill) && needleEdge === tailEdge
+                        // 出っ張りの縁は中心円の縁と同じ色なので、縁取りがあるときは針と別に描く
+                        const sameColor = Qt.colorEqual(tailFill, needleFill) && !needleEdge && !tailEdge
                         ctx.translate(0, pad)
                         ctx.lineJoin = "round"
                         ctx.lineWidth = edgeW
@@ -1183,7 +1184,10 @@ WidgetBase {
                             ctx.lineTo(c - tailHalf, tip + tail)
                             ctx.closePath()
                             ctx.fill()
-                            if (tailEdge) ctx.stroke()
+                            if (tailEdge) {
+                                ctx.strokeStyle = root.dialLine
+                                ctx.stroke()
+                            }
                         }
                     }
                 }
@@ -1241,7 +1245,7 @@ WidgetBase {
                 // レトロは、中心円の色が「パネル」のままなら濃い色にする
                 color: root.lightFace && (root.config.hubColor === undefined || root.config.hubColor === "panel") ? "#2a2622" : root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
-                border.color: root.alerting ? root.alertColor : root.outlineColor   // 針などの縁取りと同じ色(すべてのメーター)
+                border.color: root.alerting ? root.alertColor : root.dialLine
             }
 
             // ---- デジタル表示(アナログ+デジタル) ----
