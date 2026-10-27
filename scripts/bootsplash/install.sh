@@ -151,7 +151,7 @@ if [ "$AUTOSTART" -eq 1 ]; then
     say "自動起動のサービスを入れます: $SERVICE (ユーザー: $RUN_USER)"
     TOUCH_ENV=""
     [ -n "$TOUCH" ] && TOUCH_ENV="Environment=QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS=$TOUCH"
-    sed -e "s|@USER@|$RUN_USER|g" -e "s|@APP@|$APP|g" -e "s|@WORKDIR@|$REPO|g" -e "s|@TOUCH_ENV@|$TOUCH_ENV|g" \
+    sed -e "s|@USER@|$RUN_USER|g" -e "s|@UID@|$(id -u "$RUN_USER")|g" -e "s|@APP@|$APP|g" -e "s|@WORKDIR@|$REPO|g" -e "s|@TOUCH_ENV@|$TOUCH_ENV|g" \
         "$HERE/opencruise.service.in" > "$SERVICE"
     install -m 0644 "$HERE/opencruise-splash-fallback.service" /etc/systemd/system/
     install -m 0644 "$HERE/opencruise-splash-fallback.timer" /etc/systemd/system/

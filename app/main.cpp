@@ -37,6 +37,7 @@
 
 #include <cstdlib>
 #ifdef Q_OS_LINUX
+#include <csignal>
 #include <cstddef>
 #include <cstring>
 #include <sys/socket.h>
@@ -157,6 +158,13 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
 int main(int argc, char *argv[]) {
     // Linux の起動画面(Plymouth)から引き継ぐか(自動起動のサービスが付ける。Plymouth の操作はサービスが行う)
     const bool splashHandoff = qgetenv("OPENCRUISE_SPLASH_HANDOFF") == "1";
+#ifdef Q_OS_LINUX
+    if (splashHandoff) {
+        // Plymouth は終わるときに tty1 を手放し、そのとき tty1 を使っているこのアプリに SIGHUP(端末の切断)が届く。
+        // 既定では SIGHUP で終了してしまう(画面が真っ暗になる)ので、無視する。止めるのは systemd(SIGTERM)
+        std::signal(SIGHUP, SIG_IGN);
+    }
+#endif
     // eglfs(DRM/KMS)なら、プラットフォームを読み込む前(QGuiApplication の前)に、操作する画面だけを Qt に使わせる設定を作る
     opencruise::DrmDisplay::prepare(argc, argv);
     QGuiApplication app(argc, argv);

@@ -8,7 +8,9 @@
 # アプリが止まったとき・起動できなかったときは、Plymouth を終わらせてコンソールに戻す。
 [Unit]
 Description=OpenCruise
-After=systemd-user-sessions.service plymouth-start.service sound.target getty@tty1.service
+# ユーザーのサービス(PipeWire などの音)が先に立ち上がっているように、ユーザーの systemd を先に起動する
+Wants=user@@UID@.service
+After=systemd-user-sessions.service plymouth-start.service sound.target getty@tty1.service user@@UID@.service
 Conflicts=getty@tty1.service
 StartLimitIntervalSec=120
 StartLimitBurst=5
