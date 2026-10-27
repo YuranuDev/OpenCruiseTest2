@@ -259,10 +259,6 @@ int main(int argc, char *argv[]) {
     boot.addStep(QStringLiteral("ui"), QStringLiteral("画面の読み込み"), true, 0);
     boot.addStep(QStringLiteral("home"), QStringLiteral("メイン画面"), true, 0);         // Main.qml が知らせる
     boot.addStep(QStringLiteral("widgets"), QStringLiteral("ウィジェット"), false, 10000); // Main.qml が知らせる
-    // メイン画面とウィジェットは、注意事項の画面が終わってから作り始める(Main.qml)。起動の待ちはこれらを待たないよう、
-    // 先に「後で作る」として確定させておく(作り始めたら Main.qml が Running → Ready と知らせる)
-    boot.report(QStringLiteral("home"), opencruise::BootManager::Skipped, QStringLiteral("注意事項のあとに作成"));
-    boot.report(QStringLiteral("widgets"), opencruise::BootManager::Skipped, QStringLiteral("注意事項のあとに作成"));
     boot.addStep(QStringLiteral("vehicle"), QStringLiteral("車両データ"), false, 3000);
     boot.addStep(QStringLiteral("esp32"), QStringLiteral("外部機器 (ESP32)"), false, 6000);
     boot.report(QStringLiteral("system"), opencruise::BootManager::Ready, msText(lapMs()));

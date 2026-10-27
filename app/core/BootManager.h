@@ -44,6 +44,9 @@ class BootManager : public QAbstractListModel {
     Q_PROPERTY(QString summaryText READ summaryText NOTIFY changed)
     /// 失敗または警告のステップがあるか
     Q_PROPERTY(bool hasProblem READ hasProblem NOTIFY changed)
+    /// 起動画面と注意事項が終わり、メイン画面の動き(ゲージの動き・点滅・警告・警告音など)を始めてよいか。
+    /// メイン画面は注意事項の前に作っておくが、動きは release() まで始めない
+    Q_PROPERTY(bool released READ released NOTIFY releasedChanged)
 
 public:
     /// ステップの状態
@@ -106,8 +109,13 @@ public slots:
     /** @brief 起動画面を出さずに完了扱いにする(開発用の --skip-boot)。 */
     void bypass();
 
+    bool released() const { return released_; }
+    /** @brief 起動画面と注意事項が終わったことを知らせる(メイン画面の動きを始める合図)。2 回目以降は何もしない。 */
+    Q_INVOKABLE void release();
+
 signals:
     void phaseChanged();
+    void releasedChanged();
     /// 進行度・文言・問題の有無のいずれかが変わった
     void changed();
     /// 起動待ちが終わった(通常画面へ移る合図)
@@ -145,6 +153,7 @@ private:
     int minDisplayMs_ = 1800;
     int problemHoldMs_ = 2200;
     int maxMs_ = 15000;
+    bool released_ = false;
 };
 
 } // namespace opencruise

@@ -34,7 +34,9 @@ Item {
     property string widgetId: ""
     readonly property bool titleVisible: config.showTitle !== false
     /// 画面に見えているか(親のどれかが隠れていれば false)。表示の更新だけを止めるのに使う
-    readonly property bool onScreen: visible
+    /// 起動画面と注意事項が終わって、メイン画面の動きを始めてよいか(メイン画面は注意事項の前に作っておくが、動きは終わってから)
+    readonly property bool released: typeof boot === "undefined" || boot.released
+    readonly property bool onScreen: visible && released
 
     function titleText(fallback) {
         const custom = String(config.titleText || "").trim()

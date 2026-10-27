@@ -124,7 +124,7 @@ WidgetBase {
         if (hasData) resetPeak(); else peak = NaN
         // データが来た: オープニング(起動画面がまだ出ていれば、消えてから)
         if (hasData && widgetId !== "") {
-            if (typeof boot !== "undefined" && !boot.done) openingStartup = true
+            if (typeof boot !== "undefined" && !boot.released) openingStartup = true
             else startOpening()
         } else if (!hasData) {
             openingAnim.stop()
@@ -143,7 +143,7 @@ WidgetBase {
 
     // ---------------------------------------------------------------- オープニング(針を左端 → 右端 → 今の値へ振る)
     // 設定 config.openingSweep(既定オン)。行うのは:
-    //  - アプリの起動時: データがもう来ていれば、起動画面が消えてから
+    //  - アプリの起動時: データがもう来ていれば、注意事項が終わってメイン画面へ移ってから
     //  - データが無かったとき: データが来たときに(来るたび)
     // あとから置いたウィジェットや、設定画面のプレビュー(widgetId が空)では行わない。
     // 警告・注意・ピークの判定は rawValue で続けるので、オープニング中の針の位置には影響されない
@@ -184,7 +184,7 @@ WidgetBase {
     Connections {
         target: typeof boot !== "undefined" ? boot : null
         enabled: root.openingStartup
-        function onPhaseChanged() { if (boot.done) openingDelay.restart() }
+        function onReleasedChanged() { if (boot.released) openingDelay.restart() }
     }
 
     function frac(v) { return Math.max(0, Math.min(1, (v - minV) / (maxV - minV))) }
@@ -255,7 +255,7 @@ WidgetBase {
 
     // ---------------------------------------------------------------- 警告(ヒステリシスつき)
     property bool warning: false
-    readonly property bool warningsArmed: can.warningsArmed
+    readonly property bool warningsArmed: can.warningsArmed && released   // 起動画面・注意事項が終わるまでは警告も出さない
     onWarningsArmedChanged: { updateWarning(); updateCaution() }
     function updateWarning() {
         const hysteresis = (maxV - minV) * 0.03
@@ -297,7 +297,7 @@ WidgetBase {
         smoothBase = liveBase   // 宣言の束縛を外す。以後は onLiveBaseChanged / onOnScreenChanged で更新する(見えていない間は止める)
         // 起動時(起動画面が出ている間に作られた)で、データがもう来ていれば、起動画面が消えてからオープニング
         // (この時点では widgetId がまだ入っていないことがあるので、始めるときに判定する)
-        if (typeof boot !== "undefined" && !boot.done && hasData) openingStartup = true
+        if (typeof boot !== "undefined" && !boot.released && hasData) openingStartup = true
     }
 
     // 警告音が鳴っている間は背景が赤く点滅するので、数値は白にして読みやすくする

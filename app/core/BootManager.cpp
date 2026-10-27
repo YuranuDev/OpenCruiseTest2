@@ -97,6 +97,15 @@ void BootManager::skip() {
     }
 }
 
+void BootManager::release() {
+    if (released_) {
+        return;
+    }
+    released_ = true;
+    opencruise::log::info("BOOT", QStringLiteral("起動画面と注意事項が終わりました(メイン画面の動きを始めます)"));
+    emit releasedChanged();
+}
+
 void BootManager::bypass() {
     if (phase_ == Done) {
         return;

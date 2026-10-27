@@ -3,8 +3,8 @@
 //    サブタイトル「An Open-Source Car Integration System」、起動状況と進行バー
 //  - 下部: 「実際の交通規制に従って走行する」旨の警告(角丸のカード。警告色のアイコンと見出しつき)
 // BootManager(context property `boot`)の待ち(ESP32 などの応答待ち)が終わるまで表示を保つ。
-// 起動の待ちが終わったら(ready)、注意事項の画面に切り替える。一定時間(または OK)で注意事項が終わったら、
-// メイン画面を作り始め(startHome)、できたらメイン画面へ移る(canClose)。
+// メイン画面ができて起動の待ちが終わったら(ready)、注意事項の画面に切り替える。一定時間(または OK)で注意事項が終わったら、
+// 起動画面を閉じてメイン画面へ移り(canClose)、メイン画面の動き(ゲージ・点滅・警告など)を始める(boot.release)。
 // 待ちの制御はすべて C++ 側(BootManager)にあり、ここは表示だけ。各ステップの詳細はログに残る。
 import QtQuick
 
@@ -25,18 +25,16 @@ Rectangle {
     readonly property string greetingText: appSettings.userName !== "" ? greeting + "、" + appSettings.userName + " さん" : greeting
 
     // ---- 読み込み後の注意事項 ----
-    // Main.qml が ready(起動の待ちが終わった)を渡す。注意事項を出して、OK を押すか noticeHoldMs が過ぎたら noticeDone になり、
-    // メイン画面を作り始める。できたら(homeReady)canClose で起動画面ごと閉じてメイン画面へ移る。--skip-boot / --open-settings(skipNotice)のときは出さない。
-    property bool ready: false              // 起動の待ちが終わった(boot.done)
-    property bool homeReady: false           // メイン画面ができた
+    // Main.qml が ready を渡す。注意事項を出して、OK を押すか noticeHoldMs が過ぎたら noticeDone になり、
+    // canClose で起動画面ごと閉じてメイン画面へ移る。--skip-boot / --open-settings(skipNotice)のときは出さない。
+    property bool ready: false              // メイン画面ができて、起動の待ちが終わった
     property bool skipNotice: false
     property int noticeHoldMs: 8000          // 自動でメイン画面へ移るまでの時間(ms)。OK で先に進める
     property bool noticeDone: false
     readonly property bool noticeShowing: ready && !skipNotice && !noticeDone && !exportMode
-    // 注意事項が終わった(出さない場合は待ちが終わった)ら、メイン画面を作り始める(Main.qml が見る)
-    readonly property bool startHome: ready && (skipNotice || noticeDone) && !exportMode
-    // メイン画面ができたら、起動画面を閉じてメイン画面へ移る
-    readonly property bool canClose: startHome && homeReady
+    // 注意事項が終わった(出さない場合は待ちが終わった)ら、起動画面を閉じてメイン画面へ移る。同時に動きを始める合図(boot.release)を出す
+    readonly property bool canClose: ready && (skipNotice || noticeDone) && !exportMode
+    onCanCloseChanged: if (canClose) boot.release()
     function dismissNotice() { noticeDone = true }
     // 注意事項の本文(アイコンは Material Icons の名前)
     readonly property var notices: [
@@ -466,23 +464,21 @@ Rectangle {
                 width: Math.max(360 * root.unit, okLabel.implicitWidth + 80 * root.unit)
                 height: 72 * root.unit
                 radius: Theme.radius + 6
-                color: root.noticeDone ? "transparent" : okMouse.pressed ? Theme.mix(Theme.bootAccent, "#000000", 0.2) : Theme.bootAccent
+                color: okMouse.pressed ? Theme.mix(Theme.bootAccent, "#000000", 0.2) : Theme.bootAccent
                 Text {
                     id: okLabel
                     anchors.centerIn: parent
                     font.family: Theme.fontFamily
                     font.pixelSize: 30 * root.unit
-                    font.bold: !root.noticeDone
-                    color: root.noticeDone ? Theme.bootTextSecondary : Theme.bootTextOnAccent
-                    // 注意事項が終わったら、メイン画面ができるまでの間の表示に切り替える
-                    text: root.noticeDone ? "メイン画面を準備しています…" : "確認してメイン画面へ"
+                    font.bold: true
+                    color: Theme.bootTextOnAccent
+                    text: "確認してメイン画面へ"
                 }
-                MouseArea { id: okMouse; anchors.fill: parent; enabled: !root.noticeDone; onClicked: root.dismissNotice() }
+                MouseArea { id: okMouse; anchors.fill: parent; onClicked: root.dismissNotice() }
             }
             Rectangle {
                 id: noticeTrack
                 anchors.horizontalCenter: parent.horizontalCenter
-                opacity: root.noticeDone ? 0 : 1
                 width: Math.min(parent.width, 520 * root.unit)
                 height: 6 * root.unit
                 radius: height / 2
