@@ -101,6 +101,12 @@ WidgetBase {
     // マーカーの 0 から印までの線の色(警告・注意の範囲以外)
     readonly property color markerLineColor: configuredColor("lineColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
+    // 色に「パネル」を選んだ部品(針・出っ張り・マーカーの印と線・リングの帯)は、背景に溶けないよう縁取りする
+    // (中心円はもともと縁取りがある)
+    readonly property bool needleOutline: config.needleColor === "panel"
+    readonly property bool tailOutline: tailOwnColor ? config.tailColor === "panel" : needleOutline
+    readonly property bool lineOutline: config.lineColor === "panel"
+    readonly property color outlineColor: dialFgDim
 
     function configuredColor(key, fallback) {
         const value = String(config[key] || "")
@@ -983,7 +989,8 @@ WidgetBase {
                      dial.angOf(root.shown).toFixed(1),
                      root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
-                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor, root.markerLineColor].join("|")
+                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor, root.markerLineColor,
+                     root.needleOutline, root.lineOutline, root.outlineColor].join("|")
                 onKeyChanged: if (visible) requestPaint()
                 onVisibleChanged: if (visible) requestPaint()
 
@@ -1000,6 +1007,7 @@ WidgetBase {
 
                     // マーカー: 外周の線の上の三角の印(先が内側を向く)。値が 0 でも出す。
                     // 印はマーカーの針なので針の色を使い、線より手前に来るよう最後に描く
+                    const ow = Math.max(1, R * 0.012)   // 縁取りの太さ(色に「パネル」を選んだとき)
                     const drawMarker = () => {
                         const ma = dial.rad(dial.angOf(root.shown))
                         const nx = Math.cos(ma), ny = Math.sin(ma), tx = -ny, ty = nx
@@ -1011,6 +1019,12 @@ WidgetBase {
                         ctx.lineTo(dial.cx + nx * baseR - tx * half, dial.cy + ny * baseR - ty * half)
                         ctx.closePath()
                         ctx.fill()
+                        if (root.needleOutline && !root.inZone(root.shown) && !root.inCaution(root.shown)) {
+                            ctx.lineJoin = "round"
+                            ctx.lineWidth = ow
+                            ctx.strokeStyle = root.outlineColor
+                            ctx.stroke()
+                        }
                     }
                     if (root.dialStyle === "marker") {
                         ctx.lineWidth = R * 0.03   // 0 から印までの線は、外周の線より少し太く
@@ -1061,22 +1075,38 @@ WidgetBase {
                             if (autoNear && !root.inZone(v) && (root.warnBelow ? v <= nearEdge : v >= nearEdge)) return Theme.warn
                             return root.zoneColorAt(v, root.needleColor)   // 帯はリングの針: 針の色の設定を使う
                         }
-                        for (let k = 0; k + 1 < cuts.length; ++k) seg(cuts[k], cuts[k + 1], colorOf((cuts[k] + cuts[k + 1]) / 2))
                         // 帯の先端を丸める: 今の値の側と、目盛りの端から始まっている側(溝の丸い端と重ねる)
-                        const cap = (v) => {
+                        const cap = (v, color, extra) => {
                             const ta = dial.rad(dial.angOf(v))
-                            ctx.fillStyle = colorOf(v)
+                            ctx.fillStyle = color
                             ctx.beginPath()
-                            ctx.arc(dial.cx + Math.cos(ta) * R * dm.trackR, dial.cy + Math.sin(ta) * R * dm.trackR, R * dm.trackW / 2, 0, Math.PI * 2)
+                            ctx.arc(dial.cx + Math.cos(ta) * R * dm.trackR, dial.cy + Math.sin(ta) * R * dm.trackR, R * dm.trackW / 2 + extra, 0, Math.PI * 2)
                             ctx.fill()
                         }
-                        cap(root.shown >= root.originV ? hi : lo)
-                        if (Math.abs(lo - root.minV) < 1e-9 && root.shown >= root.originV) cap(lo)
-                        if (Math.abs(hi - root.maxV) < 1e-9 && root.shown < root.originV) cap(hi)
+                        const caps = (colorAt, extra) => {
+                            cap(root.shown >= root.originV ? hi : lo, colorAt(root.shown >= root.originV ? hi : lo), extra)
+                            if (Math.abs(lo - root.minV) < 1e-9 && root.shown >= root.originV) cap(lo, colorAt(lo), extra)
+                            if (Math.abs(hi - root.maxV) < 1e-9 && root.shown < root.originV) cap(hi, colorAt(hi), extra)
+                        }
+                        // 色に「パネル」を選んだときは、先に一回り太く縁取りの色で描いておく
+                        if (root.needleOutline) {
+                            ctx.lineWidth = R * dm.trackW + 2 * ow
+                            seg(lo, hi, root.outlineColor)
+                            caps(() => root.outlineColor, ow)
+                            ctx.lineWidth = R * dm.trackW
+                        }
+                        for (let k = 0; k + 1 < cuts.length; ++k) seg(cuts[k], cuts[k + 1], colorOf((cuts[k] + cuts[k + 1]) / 2))
+                        caps(colorOf, 0)
                         return
                     }
                     // 注意ゾーン・警告ゾーンと重なる部分だけ、注意色・警告色(マーカーの線は、設定の線の色)
                     const lineColor = root.dialStyle === "marker" ? root.markerLineColor : Theme.accent
+                    if (root.dialStyle === "marker" && root.lineOutline) {   // 色に「パネル」: 一回り太く縁取りの色で先に描く
+                        const lw = ctx.lineWidth
+                        ctx.lineWidth = lw + 2 * ow
+                        seg(lo, hi, root.outlineColor)
+                        ctx.lineWidth = lw
+                    }
                     segColored(lo, hi, (v) => root.zoneColorAt(v, lineColor))
                     if (root.dialStyle === "marker") drawMarker()
                 }
@@ -1105,12 +1135,18 @@ WidgetBase {
                     // 出っ張りの色(色を決めていなければ針と同じ。警告中も、決めた色のまま)
                     readonly property color tailFill: root.tailOwnColor ? root.tailColor : needleFill
                     readonly property real tailHalf: base * root.tailWidth / 2
+                    // 縁取り(色に「パネル」を選んだとき。警告中は警告色なので縁取りしない)
+                    readonly property bool needleEdge: root.needleOutline && !root.alerting
+                    readonly property bool tailEdge: root.tailOutline && (root.tailOwnColor || !root.alerting)
+                    readonly property real edgeW: Math.max(1, base * 0.14)
+                    readonly property real pad: 3   // 縁取りがはみ出さないよう、周りに空ける
                     x: -width / 2
-                    y: -tip
-                    width: Math.ceil(Math.max(base, tailHalf * 2) + 2)
-                    height: Math.ceil(tip + tail + 2)
+                    y: -tip - pad
+                    width: Math.ceil(Math.max(base, tailHalf * 2) + 2 * pad)
+                    height: Math.ceil(tip + tail + 2 * pad)
                     renderStrategy: Canvas.Cooperative
-                    readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill].join("|")
+                    readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill,
+                                                   needleEdge, tailEdge, root.outlineColor].join("|")
                     onKeyChanged: if (visible) requestPaint()
                     onVisibleChanged: if (visible) requestPaint()
 
@@ -1120,7 +1156,11 @@ WidgetBase {
                         const c = width / 2
                         const tipHalf = Math.max(0.75, base * 0.1)
                         const baseHalf = base / 2
-                        const sameColor = Qt.colorEqual(tailFill, needleFill)
+                        const sameColor = Qt.colorEqual(tailFill, needleFill) && needleEdge === tailEdge
+                        ctx.translate(0, pad)
+                        ctx.lineJoin = "round"
+                        ctx.lineWidth = edgeW
+                        ctx.strokeStyle = root.outlineColor
                         ctx.fillStyle = needleFill
                         ctx.beginPath()
                         ctx.moveTo(c - tipHalf, 0)
@@ -1133,6 +1173,7 @@ WidgetBase {
                         ctx.lineTo(c - baseHalf, tip)
                         ctx.closePath()
                         ctx.fill()
+                        if (needleEdge) ctx.stroke()
                         if (tail > 0 && !sameColor) {
                             ctx.fillStyle = tailFill
                             ctx.beginPath()
@@ -1142,6 +1183,7 @@ WidgetBase {
                             ctx.lineTo(c - tailHalf, tip + tail)
                             ctx.closePath()
                             ctx.fill()
+                            if (tailEdge) ctx.stroke()
                         }
                     }
                 }
