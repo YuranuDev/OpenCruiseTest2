@@ -38,9 +38,13 @@ sudo scripts/bootsplash/uninstall.sh
 | `opencruise.service.in` | アプリを tty1 で自動起動(ログインのセッションとして動くので、音や入力の権限はログイン時と同じ) |
 | `opencruise-splash-fallback.*` | アプリが起動できなかったとき、90 秒後に起動画面を消してコンソールに戻す |
 
-- アプリは起動時に Plymouth が出ていれば `plymouth quit --retain-splash` で画面を消さずに終わらせ、画面(DRM)を引き継ぎます。
-  このとき、起動画面の変わらない部分(背景・タイトル・進行バーの溝・警告)はフェードせずに最初から出すので、途切れて見えません。
-  引き継ぎをしないときは環境変数 `OPENCRUISE_SPLASH_HANDOFF=0` を付けます。
-- Plymouth の画面は起動の終わりに自動で消えないようにしています(`plymouth-quit.service` を止める)。消すのはアプリです。
+- 画面の引き継ぎ(Plymouth の操作は root でしかできないので、サービスが行います):
+  1. アプリの起動前に `plymouth deactivate`(Plymouth は画面(DRM)を手放しますが、最後の画面は出したまま)
+  2. アプリが画面を開いて最初の 1 枚を描き、systemd に準備完了を知らせる(`Type=notify`)
+  3. その後で `plymouth quit --retain-splash`(画面はもうアプリのものなので、黒くなりません)
+
+  アプリは `OPENCRUISE_SPLASH_HANDOFF=1` で起動され、起動画面の変わらない部分(背景・タイトル・進行バーの溝・警告)を
+  フェードせずに最初から出すので、途切れて見えません。
+- Plymouth の画面は起動の終わりに自動で消えないようにしています(`plymouth-quit.service` を止める)。消すのは自動起動のサービスです。
 - カーネルの引数に `quiet splash loglevel=3 rd.udev.log_level=3 vt.global_cursor_default=0` などを足して、起動中のメッセージを抑えます。
   重大なエラーは今まで通り画面に出ます。

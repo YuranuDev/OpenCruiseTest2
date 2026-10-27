@@ -1,6 +1,11 @@
 # OpenCruise を tty1 で自動起動する(install.sh が @...@ を置き換えて /etc/systemd/system/ に入れる)。
 # ログインのセッション(PAMName=login)として動かすので、音(PipeWire など)や画面・入力の権限はログインしたときと同じ。
-# アプリは起動時に Plymouth の画面を消さずに引き継ぐ。止まったときは起動画面を消してコンソールに戻す。
+#
+# Linux の起動画面(Plymouth)からの引き継ぎ(Plymouth の操作は root でしかできないので、ここで行う。"+" は root で実行):
+#  1. 起動前: plymouth deactivate … Plymouth は画面(DRM)を手放すが、最後の画面は出したまま
+#  2. アプリが画面を開いて最初の 1 枚を描き、準備完了(READY=1)を知らせる(Type=notify)
+#  3. 起動後: plymouth quit --retain-splash … 画面はもうアプリのものなので、黒くならない
+# アプリが止まったとき・起動できなかったときは、Plymouth を終わらせてコンソールに戻す。
 [Unit]
 Description=OpenCruise
 After=systemd-user-sessions.service plymouth-start.service sound.target getty@tty1.service
@@ -9,7 +14,9 @@ StartLimitIntervalSec=120
 StartLimitBurst=5
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=60
 User=@USER@
 PAMName=login
 TTYPath=/dev/tty1
@@ -23,9 +30,12 @@ UtmpIdentifier=tty1
 UtmpMode=user
 WorkingDirectory=@WORKDIR@
 Environment=QT_QPA_PLATFORM=eglfs
+Environment=OPENCRUISE_SPLASH_HANDOFF=1
 @TOUCH_ENV@
+ExecStartPre=-+/usr/bin/plymouth deactivate
 ExecStart=@APP@
-ExecStopPost=-/usr/bin/plymouth quit
+ExecStartPost=-+/usr/bin/plymouth quit --retain-splash
+ExecStopPost=-+/usr/bin/plymouth quit
 Restart=on-failure
 RestartSec=2
 

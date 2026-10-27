@@ -12,15 +12,17 @@
  *  --export-splash <dir> 起動画面の見た目を、Linux の起動画面(Plymouth)用の画像として書き出して終了
  *                        (tools/bootsplash/install.sh が使う。background.png / progress-fill.png / splash.conf)
  *
- * Linux の起動画面(Plymouth)からの引き継ぎ:
- *  起動時に Plymouth が表示中なら、画面を消さずに終わらせて(plymouth quit --retain-splash)から画面を作る。
+ * Linux の起動画面(Plymouth)からの引き継ぎ(scripts/bootsplash の自動起動のサービスで動かすとき):
+ *  Plymouth の操作は root でしかできないので、サービス(systemd)が行う。アプリは画面を開いて最初の 1 枚を描くだけ。
+ *   1. サービスが plymouth deactivate(Plymouth は画面(DRM)を手放すが、最後の画面は出したまま)
+ *   2. アプリが画面を開いて最初の 1 枚を描き、systemd へ READY=1 を送る
+ *   3. サービスが plymouth quit --retain-splash(この時点で画面はアプリのもの。黒くならない)
  *  Plymouth の画像はこのアプリの起動画面から作るので、同じ見た目のまま途切れずにアプリの起動画面へ移る。
- *  環境変数 OPENCRUISE_SPLASH_HANDOFF=0 で行わない。
+ *  サービスは環境変数 OPENCRUISE_SPLASH_HANDOFF=1 を付けて起動する(変わらない部分をフェードせずに最初から出す)。
  */
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QJSValue>
@@ -34,6 +36,13 @@
 
 
 #include <cstdlib>
+#ifdef Q_OS_LINUX
+#include <cstddef>
+#include <cstring>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#endif
 #include <exception>
 #include <memory>
 
@@ -56,24 +65,32 @@
 #include "core/SystemSound.h"
 
 /**
- * @brief Linux の起動画面(Plymouth)が出ていれば、画面を消さずに終わらせる(画面を作る前に呼ぶ)。
+ * @brief systemd へ準備ができたこと(READY=1)を知らせる(Type=notify のサービスで動いているときだけ)。
  *
- * Plymouth が DRM(画面)を握ったままだと eglfs で画面を作れないので、QGuiApplication の前に終わらせる。
- * --retain-splash なので、アプリが最初の 1 枚を描くまで Plymouth の最後の画面がそのまま残る(黒くならない)。
- * @return 引き継いだ(Plymouth が出ていて、終わらせた)なら true
+ * 自動起動のサービス(scripts/bootsplash)は、これを受けてから Plymouth を終わらせる(plymouth quit --retain-splash)。
+ * 最初の 1 枚を描いた後に送るので、Plymouth が消えても画面は黒くならず、アプリの画面のまま続く。
+ * libsystemd は使わず、NOTIFY_SOCKET(Unix ドメインのデータグラム)へ直接送る。
  */
-static bool releaseBootSplash() {
+static void notifySystemdReady() {
 #ifdef Q_OS_LINUX
-    if (qgetenv("OPENCRUISE_SPLASH_HANDOFF") == "0") {
-        return false;
+    const QByteArray path = qgetenv("NOTIFY_SOCKET");
+    if (path.isEmpty() || (path[0] != '/' && path[0] != '@') || path.size() >= int(sizeof(sockaddr_un::sun_path))) {
+        return;
     }
-    // Plymouth が動いていなければ何もしない(普段の手動起動ではここで終わる)
-    if (!QFileInfo::exists(QStringLiteral("/run/plymouth/pid"))) {
-        return false;
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    memcpy(addr.sun_path, path.constData(), path.size());
+    if (addr.sun_path[0] == '@') {
+        addr.sun_path[0] = '\0'; // 抽象名前空間
     }
-    return std::system("plymouth quit --retain-splash >/dev/null 2>&1") == 0;
-#else
-    return false;
+    const int fd = ::socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    if (fd < 0) {
+        return;
+    }
+    static const char kMessage[] = "READY=1";
+    ::sendto(fd, kMessage, sizeof(kMessage) - 1, 0, reinterpret_cast<const sockaddr *>(&addr),
+             static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + path.size()));
+    ::close(fd);
 #endif
 }
 
@@ -138,8 +155,8 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
  * @return QGuiApplication の終了コード。QML のロードに失敗した場合は -1
  */
 int main(int argc, char *argv[]) {
-    // Linux の起動画面(Plymouth)が出ていれば、画面を消さずに終わらせてから画面を作る(DRM を譲ってもらう)
-    const bool splashHandoff = releaseBootSplash();
+    // Linux の起動画面(Plymouth)から引き継ぐか(自動起動のサービスが付ける。Plymouth の操作はサービスが行う)
+    const bool splashHandoff = qgetenv("OPENCRUISE_SPLASH_HANDOFF") == "1";
     // eglfs(DRM/KMS)なら、プラットフォームを読み込む前(QGuiApplication の前)に、操作する画面だけを Qt に使わせる設定を作る
     opencruise::DrmDisplay::prepare(argc, argv);
     QGuiApplication app(argc, argv);
@@ -193,7 +210,7 @@ int main(int argc, char *argv[]) {
     opencruise::log::info("APP", QStringLiteral("ログ出力先: ") + opencruise::log::currentFilePath());
     opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
     if (splashHandoff) {
-        opencruise::log::info("APP", QStringLiteral("Linux の起動画面(Plymouth)から画面を引き継ぎました"));
+        opencruise::log::info("APP", QStringLiteral("Linux の起動画面(Plymouth)から画面を引き継ぎます"));
     }
     const bool exportingSplash = parser.isSet(exportSplash);
     // 描画方式・垂直同期は、ウィンドウ(QML)を作る前にしか変えられないので、ここで適用する
@@ -348,6 +365,18 @@ int main(int argc, char *argv[]) {
         boot.report(QStringLiteral("ui"), opencruise::BootManager::Ready, msText(qmlLoadTimer.elapsedMs()));
         // 描画が終わるたびに、外部モニターへのミラーを更新する(eglfs のときだけ動く)
         drmDisplay.attach(qobject_cast<QQuickWindow *>(engine.rootObjects().first()));
+        // 最初の 1 枚を描いたら、systemd へ知らせる(自動起動のサービスは、これを受けて Plymouth を終わらせる)
+        if (auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first())) {
+            QObject::connect(
+                window, &QQuickWindow::frameSwapped, &app,
+                [splashHandoff]() {
+                    notifySystemdReady();
+                    if (splashHandoff) {
+                        opencruise::log::info("APP", QStringLiteral("最初の画面を描きました(Linux の起動画面を終わらせます)"));
+                    }
+                },
+                Qt::SingleShotConnection);
+        }
     }
 
     // 捕捉されない例外で異常終了する場合も、理由をログに残してから停止する
