@@ -249,8 +249,9 @@ int main(int argc, char *argv[]) {
     // 外部機器やサービスを増やすときは addStep() で足し、準備ができたら boot.report(id, Ready, ...) を呼ぶだけでよい。
     // 応答が無くても timeoutMs で打ち切って先へ進む(必須でも起動は止まらず、画面に失敗として表示する)。
     // 画面が出る前に終わる段階(設定〜画面の読み込み)も、かかった時間を残すために並べる。
-    // 警告(実際の交通規制に従う旨)を読めるよう、起動画面の最低表示時間を長めにする
-    boot.setTiming(5000, 2200, 15000);
+    // 起動画面の待ちは、準備ができ次第すぐ終える(最低表示時間はほぼ無し・問題があっても長く止めない)。
+    // 警告・注意事項は、起動画面のあとの「注意事項」の画面(SplashScreen)で読ませる。問題のあるステップはそこにも出す
+    boot.setTiming(300, 0, 15000);
     boot.addStep(QStringLiteral("system"), QStringLiteral("設定・表示"), true, 0);
     boot.addStep(QStringLiteral("fonts"), QStringLiteral("フォント"), false, 10000);
     boot.addStep(QStringLiteral("audio"), QStringLiteral("音声・明るさ"), true, 0);
@@ -258,6 +259,10 @@ int main(int argc, char *argv[]) {
     boot.addStep(QStringLiteral("ui"), QStringLiteral("画面の読み込み"), true, 0);
     boot.addStep(QStringLiteral("home"), QStringLiteral("メイン画面"), true, 0);         // Main.qml が知らせる
     boot.addStep(QStringLiteral("widgets"), QStringLiteral("ウィジェット"), false, 10000); // Main.qml が知らせる
+    // メイン画面とウィジェットは、注意事項の画面が終わってから作り始める(Main.qml)。起動の待ちはこれらを待たないよう、
+    // 先に「後で作る」として確定させておく(作り始めたら Main.qml が Running → Ready と知らせる)
+    boot.report(QStringLiteral("home"), opencruise::BootManager::Skipped, QStringLiteral("注意事項のあとに作成"));
+    boot.report(QStringLiteral("widgets"), opencruise::BootManager::Skipped, QStringLiteral("注意事項のあとに作成"));
     boot.addStep(QStringLiteral("vehicle"), QStringLiteral("車両データ"), false, 3000);
     boot.addStep(QStringLiteral("esp32"), QStringLiteral("外部機器 (ESP32)"), false, 6000);
     boot.report(QStringLiteral("system"), opencruise::BootManager::Ready, msText(lapMs()));

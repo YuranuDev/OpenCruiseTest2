@@ -3,7 +3,8 @@
 //    サブタイトル「An Open-Source Car Integration System」、起動状況と進行バー
 //  - 下部: 「実際の交通規制に従って走行する」旨の警告(角丸のカード。警告色のアイコンと見出しつき)
 // BootManager(context property `boot`)の待ち(ESP32 などの応答待ち)が終わるまで表示を保つ。
-// 読み込みが終わったら(ready)、注意事項の画面に切り替え、一定時間(または OK)でメイン画面へ移る(canClose)。
+// 起動の待ちが終わったら(ready)、注意事項の画面に切り替える。一定時間(または OK)で注意事項が終わったら、
+// メイン画面を作り始め(startHome)、できたらメイン画面へ移る(canClose)。
 // 待ちの制御はすべて C++ 側(BootManager)にあり、ここは表示だけ。各ステップの詳細はログに残る。
 import QtQuick
 
@@ -24,14 +25,18 @@ Rectangle {
     readonly property string greetingText: appSettings.userName !== "" ? greeting + "、" + appSettings.userName + " さん" : greeting
 
     // ---- 読み込み後の注意事項 ----
-    // Main.qml が ready(読み込みが終わった)を渡す。注意事項を出して、OK を押すか noticeHoldMs が過ぎたら noticeDone になり、
-    // canClose で起動画面ごと閉じてメイン画面へ移る。--skip-boot / --open-settings(skipNotice)のときは出さない。
-    property bool ready: false
+    // Main.qml が ready(起動の待ちが終わった)を渡す。注意事項を出して、OK を押すか noticeHoldMs が過ぎたら noticeDone になり、
+    // メイン画面を作り始める。できたら(homeReady)canClose で起動画面ごと閉じてメイン画面へ移る。--skip-boot / --open-settings(skipNotice)のときは出さない。
+    property bool ready: false              // 起動の待ちが終わった(boot.done)
+    property bool homeReady: false           // メイン画面ができた
     property bool skipNotice: false
     property int noticeHoldMs: 8000          // 自動でメイン画面へ移るまでの時間(ms)。OK で先に進める
     property bool noticeDone: false
     readonly property bool noticeShowing: ready && !skipNotice && !noticeDone && !exportMode
-    readonly property bool canClose: ready && (skipNotice || noticeDone)
+    // 注意事項が終わった(出さない場合は待ちが終わった)ら、メイン画面を作り始める(Main.qml が見る)
+    readonly property bool startHome: ready && (skipNotice || noticeDone) && !exportMode
+    // メイン画面ができたら、起動画面を閉じてメイン画面へ移る
+    readonly property bool canClose: startHome && homeReady
     function dismissNotice() { noticeDone = true }
     // 注意事項の本文(アイコンは Material Icons の名前)
     readonly property var notices: [
@@ -442,6 +447,18 @@ Rectangle {
                 }
             }
 
+            // 起動の待ちで確認できなかった項目があれば知らせる(起動画面の一覧は、この画面に切り替わると見えないため)
+            Text {
+                visible: boot.hasProblem
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                font.family: Theme.fontFamily
+                font.pixelSize: 20 * root.unit
+                color: Theme.bootWarn
+                wrapMode: Text.WordWrap
+                text: boot.summaryText
+            }
+
             // OK ボタンと、メイン画面へ移るまでの残り時間
             Rectangle {
                 id: okButton
@@ -449,21 +466,23 @@ Rectangle {
                 width: Math.max(360 * root.unit, okLabel.implicitWidth + 80 * root.unit)
                 height: 72 * root.unit
                 radius: Theme.radius + 6
-                color: okMouse.pressed ? Theme.mix(Theme.bootAccent, "#000000", 0.2) : Theme.bootAccent
+                color: root.noticeDone ? "transparent" : okMouse.pressed ? Theme.mix(Theme.bootAccent, "#000000", 0.2) : Theme.bootAccent
                 Text {
                     id: okLabel
                     anchors.centerIn: parent
                     font.family: Theme.fontFamily
                     font.pixelSize: 30 * root.unit
-                    font.bold: true
-                    color: Theme.bootTextOnAccent
-                    text: "確認してメイン画面へ"
+                    font.bold: !root.noticeDone
+                    color: root.noticeDone ? Theme.bootTextSecondary : Theme.bootTextOnAccent
+                    // 注意事項が終わったら、メイン画面ができるまでの間の表示に切り替える
+                    text: root.noticeDone ? "メイン画面を準備しています…" : "確認してメイン画面へ"
                 }
-                MouseArea { id: okMouse; anchors.fill: parent; onClicked: root.dismissNotice() }
+                MouseArea { id: okMouse; anchors.fill: parent; enabled: !root.noticeDone; onClicked: root.dismissNotice() }
             }
             Rectangle {
                 id: noticeTrack
                 anchors.horizontalCenter: parent.horizontalCenter
+                opacity: root.noticeDone ? 0 : 1
                 width: Math.min(parent.width, 520 * root.unit)
                 height: 6 * root.unit
                 radius: height / 2

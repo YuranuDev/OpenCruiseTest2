@@ -386,14 +386,18 @@ ApplicationWindow {
                     stack.push(settingsComponent)
                     boot.report("home", 5, "設定画面から起動")       // 5 = Skipped
                     boot.report("widgets", 5, "設定画面から起動")
-                } else {
-                    homeLoader.waiting = true
                 }
+                // 通常の起動: メイン画面は、注意事項の画面が終わってから作り始める(下の Connections。SplashScreen.startHome)
             }
+        }
+        Connections {
+            target: splash
+            enabled: !startOnSettings && !splashExport && !homeLoader.waiting && homeLoader.startedAt === 0
+            function onStartHomeChanged() { if (splash.startHome) homeLoader.waiting = true }
         }
         QtObject {
             id: homeLoader
-            property bool waiting: false   // 起動画面の最初の 1 枚を待っている
+            property bool waiting: false   // 注意事項が終わった。次の 1 枚を描いたらメイン画面を作り始める
             property var incubator: null
             property bool ready: false     // メイン画面ができた(できるまで起動画面を消さない)
             property real startedAt: 0
@@ -464,8 +468,9 @@ ApplicationWindow {
             anchors.fill: parent
             z: 50
             // 待ちが終わっても、メイン画面ができるまでは起動画面を出したままにする(空の画面を見せない)
-            // 読み込みが終わったら注意事項を出し(SplashScreen)、それが済んだらメイン画面へ移る
-            ready: boot.done && (homeLoader.ready || startOnSettings)
+            // 起動の待ちが終わったら注意事項を出し(SplashScreen)、それが済んでからメイン画面を作り始め、できたら移る
+            ready: boot.done
+            homeReady: homeLoader.ready || startOnSettings
             skipNotice: bootSkipped || startOnSettings
             opacity: splash.canClose ? 0 : 1
             visible: opacity > 0
