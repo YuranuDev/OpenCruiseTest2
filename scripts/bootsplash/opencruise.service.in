@@ -39,6 +39,8 @@ WorkingDirectory=@WORKDIR@
 Environment=QT_QPA_PLATFORM=eglfs
 Environment=OPENCRUISE_SPLASH_HANDOFF=1
 @TOUCH_ENV@
+# アプリが起動して保存済みの明るさを書き込むまでは最大の明るさにする("$$" は systemd での "$")
+ExecStartPre=-+/bin/sh -c 'for d in /sys/class/backlight/*; do [ -r "$$d/max_brightness" ] && read m < "$$d/max_brightness" && echo "$$m" > "$$d/brightness"; done'
 ExecStartPre=-+/usr/bin/plymouth deactivate
 ExecStart=@APP@
 ExecStartPost=-+/usr/bin/plymouth quit --retain-splash

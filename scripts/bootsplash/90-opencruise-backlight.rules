@@ -1,0 +1,4 @@
+# OpenCruise: バックライトの機器が現れたら、最大の明るさにする(起動中の画面が暗くならないように)。
+# アプリが起動して保存済みの明るさを書き込むまでの間(Plymouth の起動画面を含む)は、最大の明るさのままにする。
+# initramfs の中でも動くよう、シェルの組み込みコマンドだけを使う(cat などを使わない)。$$ は udev での $ の書き方。
+SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/sh -c 'read m < /sys%p/max_brightness && echo $$m > /sys%p/brightness'"

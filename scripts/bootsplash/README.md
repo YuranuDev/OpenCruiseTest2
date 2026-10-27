@@ -16,8 +16,9 @@ sudo scripts/bootsplash/install.sh --touch /dev/input/event1
 sudo reboot
 ```
 
-- 起動画面の画像は、アプリの `--export-splash` で、この PC の画面の大きさ・今のテーマの色で作ります。
-  アプリの起動画面の色(テーマ・アクセント色)やレイアウトを変えたら、もう一度 `install.sh` を実行してください。
+- 起動画面の画像は、アプリの `--export-splash` で、この PC の画面の大きさで作ります。
+  色は昼夜テーマ・アクセント色に連動しない固定配色(`app/qml/Theme.qml` の `boot*`)なので、起動した時刻やテーマの設定に関わらず、
+  Plymouth の画面とアプリの起動画面はいつも同じ色です。固定配色やレイアウトを変えたら、もう一度 `install.sh` を実行してください。
 - コンソールを使うとき:
   - アプリを終了すると(メニューの終了、または **Ctrl+Alt+F2**・Ctrl+Alt+Backspace など)、tty1 にログイン画面が出ます。
     アプリが落ち続けて起動をあきらめたときも同じです。SSH はいつでも使えます。
@@ -26,6 +27,11 @@ sudo reboot
     Ctrl+Alt+F1〜F6 は「アプリを終了してコンソールへ」になります。ログイン画面は tty1 に出ます。
 - アプリを手で起動するときは、先に `sudo systemctl stop opencruise` で自動起動の分を止めます。
 - ログは `journalctl -u opencruise` と、いつものログファイルに残ります。
+
+- 起動中の画面が暗くならないよう、バックライトを起動時に最大にします(アプリが起動して保存済みの明るさを書き込むまで最大のまま)。
+  udev のルール(`90-opencruise-backlight.rules`。initramfs にも入れるので Plymouth の画面から効く)と、
+  前回の暗い明るさを復元してしまう `systemd-backlight` の停止(明るさの保存と復元はアプリが行う)で実現しています。
+  入れたくないときは `--no-backlight`。
 
 オプションは `install.sh --help` を参照してください(`--no-autostart`: 起動画面だけ、`--no-grub`: GRUB を変えない など)。
 
@@ -41,6 +47,7 @@ sudo scripts/bootsplash/uninstall.sh
 |---|---|
 | `opencruise.plymouth.in` / `opencruise.script.in` | Plymouth のテーマ。アプリが書き出した画像を全面に出し、進行バーの塗りだけを描く |
 | `opencruise.service.in` | アプリを tty1 で自動起動(ログインのセッションとして動くので、音や入力の権限はログイン時と同じ) |
+| `90-opencruise-backlight.rules` / `opencruise-backlight.hook` / `systemd-backlight-opencruise.conf` | 起動時にバックライトを最大にする(udev のルール・initramfs のフック・systemd-backlight の復元停止) |
 | `opencruise-splash-fallback.*` | アプリが起動できなかったとき、90 秒後に起動画面を消してコンソールに戻す |
 
 - 画面の引き継ぎ(Plymouth の操作は root でしかできないので、サービスが行います):

@@ -473,7 +473,7 @@ ApplicationWindow {
             anchors.fill: parent
             z: 1000
             color: "black"
-            opacity: brightnessController.overlayOpacity
+            opacity: splashExport ? 0 : brightnessController.overlayOpacity   // 起動画面の書き出し(--export-splash)に暗幕を写さない
             visible: opacity > 0
         }
 

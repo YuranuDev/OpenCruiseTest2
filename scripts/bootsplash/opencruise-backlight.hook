@@ -1,0 +1,14 @@
+#!/bin/sh
+# initramfs-tools のフック: 90-opencruise-backlight.rules を initramfs へ入れる(Plymouth が出る頃から最大の明るさにするため)。
+# install.sh が /etc/initramfs-tools/hooks/opencruise-backlight として入れる。
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in
+    prereqs) prereqs; exit 0 ;;
+esac
+. /usr/share/initramfs-tools/hook-functions
+if [ -f /etc/udev/rules.d/90-opencruise-backlight.rules ]; then
+    mkdir -p "${DESTDIR}/etc/udev/rules.d"
+    cp -p /etc/udev/rules.d/90-opencruise-backlight.rules "${DESTDIR}/etc/udev/rules.d/"
+fi
+exit 0

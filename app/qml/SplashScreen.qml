@@ -8,7 +8,7 @@ import QtQuick
 
 Rectangle {
     id: root
-    color: Theme.background
+    color: Theme.bootBackground
 
     readonly property real unit: Math.max(0.6, Math.min(width / 1280, height / 720))
     // 進行バーはなめらかに追従させる
@@ -48,16 +48,16 @@ Rectangle {
     function bootImageGeometry() {
         const p = barTrack.mapToItem(root, 0, 0)
         return { barX: p.x, barY: p.y, barW: barTrack.width * titleBlock.scale, barH: barTrack.height * titleBlock.scale,
-                 fillColor: Theme.accent.toString(), backgroundColor: Theme.background.toString(),
-                 textColor: Theme.textSecondary.toString() }
+                 fillColor: Theme.bootAccent.toString(), backgroundColor: Theme.bootBackground.toString(),
+                 textColor: Theme.bootTextSecondary.toString() }
     }
 
     // 背景: 上からアクセント色がうっすら差すグラデーション
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.mix(Theme.background, Theme.accent, 0.10) }
-            GradientStop { position: 0.6; color: Theme.background }
+            GradientStop { position: 0.0; color: Theme.mix(Theme.bootBackground, Theme.bootAccent, 0.10) }
+            GradientStop { position: 0.6; color: Theme.bootBackground }
         }
     }
 
@@ -81,7 +81,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontFamily
             font.pixelSize: 30 * root.unit
-            color: Theme.textSecondary
+            color: Theme.bootTextSecondary
             elide: Text.ElideRight
             text: root.greetingText
         }
@@ -95,14 +95,14 @@ Rectangle {
                 font.family: Theme.fontFamily
                 font.pixelSize: 108 * root.unit
                 font.weight: Font.Light
-                color: Theme.textPrimary
+                color: Theme.bootTextPrimary
                 text: "Open"
             }
             Text {
                 font.family: Theme.fontFamily
                 font.pixelSize: 108 * root.unit
                 font.weight: Font.Bold
-                color: Theme.accent
+                color: Theme.bootAccent
                 text: "Cruise"
             }
         }
@@ -116,20 +116,20 @@ Rectangle {
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 56 * root.unit; height: Math.max(1, 2 * root.unit)
-                color: Theme.panelBorder
+                color: Theme.bootPanelBorder
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 font.family: Theme.fontFamily
                 font.pixelSize: 26 * root.unit
                 font.letterSpacing: 1.5 * root.unit
-                color: Theme.textSecondary
+                color: Theme.bootTextSecondary
                 text: "An Open-Source Car Integration System"
             }
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 56 * root.unit; height: Math.max(1, 2 * root.unit)
-                color: Theme.panelBorder
+                color: Theme.bootPanelBorder
             }
         }
 
@@ -143,7 +143,7 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontFamily
             font.pixelSize: 20 * root.unit
-            color: boot.hasProblem && boot.done ? Theme.warn : Theme.textSecondary
+            color: boot.hasProblem && boot.done ? Theme.bootWarn : Theme.bootTextSecondary
             elide: Text.ElideRight
             text: boot.summaryText
         }
@@ -155,13 +155,13 @@ Rectangle {
             width: Math.min(parent.width, 520 * root.unit)
             height: 6 * root.unit
             radius: height / 2
-            color: Theme.panelBorder
+            color: Theme.bootPanelBorder
             Rectangle {
                 visible: !root.exportMode   // 塗りは Plymouth が描く
                 width: parent.width * root.shownProgress
                 height: parent.height
                 radius: height / 2
-                color: Theme.accent
+                color: Theme.bootAccent
             }
         }
 
@@ -188,10 +188,10 @@ Rectangle {
                     width: stepGrid.cellW
                     height: 36 * root.unit
                     spacing: 8 * root.unit
-                    readonly property color stateColor: stateKey === "ready" ? Theme.ok
-                                                      : stateKey === "running" ? Theme.accent
-                                                      : stateKey === "warning" ? Theme.warn
-                                                      : stateKey === "failed" ? Theme.error : Theme.textSecondary
+                    readonly property color stateColor: stateKey === "ready" ? Theme.bootOk
+                                                      : stateKey === "running" ? Theme.bootAccent
+                                                      : stateKey === "warning" ? Theme.bootWarn
+                                                      : stateKey === "failed" ? Theme.bootError : Theme.bootTextSecondary
                     MaterialIcon {
                         id: stepIcon
                         anchors.verticalCenter: parent.verticalCenter
@@ -217,7 +217,7 @@ Rectangle {
                             font.family: Theme.fontFamily
                             font.pixelSize: 17 * root.unit
                             font.bold: stepRow.stateKey === "running"
-                            color: stepRow.stateKey === "pending" ? Theme.textSecondary : Theme.textPrimary
+                            color: stepRow.stateKey === "pending" ? Theme.bootTextSecondary : Theme.bootTextPrimary
                             elide: Text.ElideRight
                             text: stepRow.title
                         }
@@ -227,7 +227,7 @@ Rectangle {
                             font.family: Theme.fontFamily
                             font.pixelSize: 13 * root.unit
                             color: stepRow.stateKey === "warning" || stepRow.stateKey === "failed" ? stepRow.stateColor
-                                                                                                 : Theme.textSecondary
+                                                                                                 : Theme.bootTextSecondary
                             elide: Text.ElideRight
                             text: stepRow.detail
                         }
@@ -244,9 +244,9 @@ Rectangle {
         width: Math.min(parent.width - 2 * 28 * root.unit, 1160 * root.unit)
         height: warningRow.implicitHeight + 2 * 20 * root.unit
         radius: Theme.radius + 6
-        color: Theme.mix(Theme.panel, Theme.warn, 0.12)
+        color: Theme.mix(Theme.bootPanel, Theme.bootWarn, 0.12)
         border.width: 2
-        border.color: Theme.warn
+        border.color: Theme.bootWarn
         opacity: root.fixedOpacity
         Behavior on opacity { NumberAnimation { duration: 800; easing.type: Easing.OutCubic } }
 
@@ -261,12 +261,12 @@ Rectangle {
                 id: warningBadge
                 anchors.verticalCenter: parent.verticalCenter
                 width: 76 * root.unit; height: width; radius: width / 2
-                color: Theme.warn
+                color: Theme.bootWarn
                 MaterialIcon {
                     anchors.centerIn: parent
                     name: "warning"
                     size: Math.round(parent.width * 0.6)
-                    color: Theme.textOnAccent
+                    color: Theme.bootTextOnAccent
                 }
             }
 
@@ -279,7 +279,7 @@ Rectangle {
                     font.pixelSize: 26 * root.unit
                     font.bold: true
                     font.letterSpacing: 2 * root.unit
-                    color: Theme.warn
+                    color: Theme.bootWarn
                     text: "警告"
                 }
                 Text {
@@ -287,7 +287,7 @@ Rectangle {
                     font.family: Theme.fontFamily
                     font.pixelSize: 34 * root.unit
                     font.bold: true
-                    color: Theme.textPrimary
+                    color: Theme.bootTextPrimary
                     text: "必ず実際の交通規制(信号・標識・速度制限など)に従って走行してください。"
                     // 1 行に収める。収まらない幅では、収まる最大の大きさまで文字を縮める
                     wrapMode: Text.NoWrap
@@ -299,12 +299,29 @@ Rectangle {
         }
     }
 
-    ActionButton {
+    // スキップ(ActionButton は昼夜テーマに連動するため、起動画面の固定配色で作る)
+    Rectangle {
+        id: skipButton
         anchors { right: parent.right; top: parent.top; rightMargin: Theme.margin * 1.5; topMargin: Theme.margin * 1.5 }
         visible: boot.active && !root.exportMode
         opacity: root.liveOpacity
         Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-        text: "スキップ"
-        onClicked: boot.skip()
+        implicitWidth: skipLabel.implicitWidth + 40
+        implicitHeight: 52
+        width: implicitWidth
+        height: implicitHeight
+        radius: Theme.radius
+        color: skipMouse.pressed ? Theme.bootAccent : Theme.bootPanel
+        border.color: Theme.bootPanelBorder
+        border.width: 1
+        Text {
+            id: skipLabel
+            anchors.centerIn: parent
+            font.family: Theme.fontFamily
+            font.pixelSize: 22
+            color: Theme.bootTextPrimary
+            text: "スキップ"
+        }
+        MouseArea { id: skipMouse; anchors.fill: parent; onClicked: boot.skip() }
     }
 }
