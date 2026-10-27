@@ -102,7 +102,7 @@ WidgetBase {
     readonly property color markerLineColor: configuredColor("lineColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
     // 色に「パネル」を選んだ部品(針・出っ張り・マーカーの印と線・リングの帯)は、背景に溶けないよう縁取りする
-    // (中心円はもともと縁取りがある)
+    // (中心円はもともと縁取りがあり、その縁も色にかかわらずこの色にする)
     readonly property bool needleOutline: config.needleColor === "panel"
     readonly property bool tailOutline: tailOwnColor ? config.tailColor === "panel" : needleOutline
     readonly property bool lineOutline: config.lineColor === "panel"
@@ -1241,7 +1241,7 @@ WidgetBase {
                 // レトロは、中心円の色が「パネル」のままなら濃い色にする
                 color: root.lightFace && (root.config.hubColor === undefined || root.config.hubColor === "panel") ? "#2a2622" : root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
-                border.color: root.alerting ? root.alertColor : root.dialLine
+                border.color: root.alerting ? root.alertColor : root.outlineColor   // 針などの縁取りと同じ色(すべてのメーター)
             }
 
             // ---- デジタル表示(アナログ+デジタル) ----
