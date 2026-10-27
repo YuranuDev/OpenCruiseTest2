@@ -3,6 +3,7 @@
 //    サブタイトル「An Open-Source Car Integration System」、起動状況と進行バー
 //  - 下部: 「実際の交通規制に従って走行する」旨の警告(角丸のカード。警告色のアイコンと見出しつき)
 // BootManager(context property `boot`)の待ち(ESP32 などの応答待ち)が終わるまで表示を保つ。
+// 読み込みが終わったら(ready)、注意事項の画面に切り替え、一定時間(または OK)でメイン画面へ移る(canClose)。
 // 待ちの制御はすべて C++ 側(BootManager)にあり、ここは表示だけ。各ステップの詳細はログに残る。
 import QtQuick
 
@@ -21,6 +22,24 @@ Rectangle {
         return (h >= 4 && h < 11) ? "おはようございます" : (h >= 11 && h < 18) ? "こんにちは" : "こんばんは"
     }
     readonly property string greetingText: appSettings.userName !== "" ? greeting + "、" + appSettings.userName + " さん" : greeting
+
+    // ---- 読み込み後の注意事項 ----
+    // Main.qml が ready(読み込みが終わった)を渡す。注意事項を出して、OK を押すか noticeHoldMs が過ぎたら noticeDone になり、
+    // canClose で起動画面ごと閉じてメイン画面へ移る。--skip-boot / --open-settings(skipNotice)のときは出さない。
+    property bool ready: false
+    property bool skipNotice: false
+    property int noticeHoldMs: 8000          // 自動でメイン画面へ移るまでの時間(ms)。OK で先に進める
+    property bool noticeDone: false
+    readonly property bool noticeShowing: ready && !skipNotice && !noticeDone && !exportMode
+    readonly property bool canClose: ready && (skipNotice || noticeDone)
+    function dismissNotice() { noticeDone = true }
+    // 注意事項の本文(アイコンは Material Icons の名前)
+    readonly property var notices: [
+        { icon: "traffic",      text: "必ず実際の交通規制(信号・標識・速度制限など)に従って走行してください。" },
+        { icon: "touch_app",    text: "運転中は画面の操作や注視を避け、操作が必要なときは安全な場所に停車してから行ってください。" },
+        { icon: "speed",        text: "本システムは試作の動作確認用です。表示される速度・回転数・警告などは参考値のため、車両本来のメーター・警告灯で確認してください。" },
+        { icon: "phone_android", text: "Android Auto など、スマホ連携の映像・音声・通知は、通信状況により遅れたり途切れたりすることがあります。" }
+    ]
 
     // 下へタッチを通さない
     MouseArea { anchors.fill: parent; enabled: root.visible }
@@ -323,5 +342,148 @@ Rectangle {
             text: "スキップ"
         }
         MouseArea { id: skipMouse; anchors.fill: parent; onClicked: boot.skip() }
+    }
+
+    // ---- 注意事項(読み込みが終わったら、起動画面の上に出す) ----
+    Rectangle {
+        id: noticeLayer
+        anchors.fill: parent
+        z: 100
+        color: Theme.bootBackground
+        // 一度出したら出したままにする(閉じるときは起動画面ごとフェードアウトするので、下の起動画面を見せない)
+        opacity: (root.noticeShowing || root.noticeDone) ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
+
+        // 背景: 起動画面と同じ、上からアクセント色がうっすら差すグラデーション
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Theme.mix(Theme.bootBackground, Theme.bootAccent, 0.10) }
+                GradientStop { position: 0.6; color: Theme.bootBackground }
+            }
+        }
+
+        // 入りきらない画面では、全体を少し縮める
+        Column {
+            id: noticeBlock
+            anchors.horizontalCenter: parent.horizontalCenter
+            readonly property real room: parent.height - Theme.margin * 2
+            scale: Math.min(1, room / Math.max(1, height))
+            transformOrigin: Item.Top
+            y: Math.max(Theme.margin, (parent.height - height * scale) / 2)
+            width: Math.min(parent.width - Theme.margin * 4, 1040 * root.unit)
+            spacing: 22 * root.unit
+
+            // 見出し
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 20 * root.unit
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 64 * root.unit; height: width; radius: width / 2
+                    color: Theme.bootWarn
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        name: "warning"
+                        size: Math.round(parent.width * 0.6)
+                        color: Theme.bootTextOnAccent
+                    }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 44 * root.unit
+                    font.bold: true
+                    color: Theme.bootTextPrimary
+                    text: "ご利用にあたっての注意事項"
+                }
+            }
+
+            // 本文のカード
+            Rectangle {
+                width: parent.width
+                height: noticeList.implicitHeight + 2 * 24 * root.unit
+                radius: Theme.radius + 6
+                color: Theme.mix(Theme.bootPanel, Theme.bootWarn, 0.12)
+                border.width: 2
+                border.color: Theme.bootWarn
+
+                Column {
+                    id: noticeList
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
+                              leftMargin: 28 * root.unit; rightMargin: 28 * root.unit }
+                    spacing: 18 * root.unit
+                    Repeater {
+                        model: root.notices
+                        Row {
+                            id: noticeRow
+                            required property var modelData
+                            width: noticeList.width
+                            spacing: 18 * root.unit
+                            MaterialIcon {
+                                id: noticeIcon
+                                anchors.verticalCenter: parent.verticalCenter
+                                size: 36 * root.unit
+                                color: Theme.bootWarn
+                                name: noticeRow.modelData.icon
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - noticeIcon.width - parent.spacing
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 26 * root.unit
+                                color: Theme.bootTextPrimary
+                                wrapMode: Text.WordWrap
+                                text: noticeRow.modelData.text
+                            }
+                        }
+                    }
+                }
+            }
+
+            // OK ボタンと、メイン画面へ移るまでの残り時間
+            Rectangle {
+                id: okButton
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.max(360 * root.unit, okLabel.implicitWidth + 80 * root.unit)
+                height: 72 * root.unit
+                radius: Theme.radius + 6
+                color: okMouse.pressed ? Theme.mix(Theme.bootAccent, "#000000", 0.2) : Theme.bootAccent
+                Text {
+                    id: okLabel
+                    anchors.centerIn: parent
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 30 * root.unit
+                    font.bold: true
+                    color: Theme.bootTextOnAccent
+                    text: "確認してメイン画面へ"
+                }
+                MouseArea { id: okMouse; anchors.fill: parent; onClicked: root.dismissNotice() }
+            }
+            Rectangle {
+                id: noticeTrack
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width, 520 * root.unit)
+                height: 6 * root.unit
+                radius: height / 2
+                color: Theme.bootPanelBorder
+                Rectangle {
+                    // 残り時間(だんだん短くなる)
+                    width: parent.width * root.noticeRemaining
+                    height: parent.height
+                    radius: height / 2
+                    color: Theme.bootAccent
+                }
+            }
+        }
+    }
+    // 注意事項を出している間だけ数える(OK で先に進めたときは止まる)
+    property real noticeRemaining: 1
+    NumberAnimation on noticeRemaining {
+        running: root.noticeShowing
+        from: 1; to: 0
+        duration: root.noticeHoldMs
+        onFinished: root.dismissNotice()
     }
 }

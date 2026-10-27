@@ -345,6 +345,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("brightnessController"), &brightnessController);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
+    engine.rootContext()->setContextProperty(QStringLiteral("bootSkipped"), parser.isSet(skipBoot));   // 起動後の注意事項も出さない
     // 起動画面: Plymouth から引き継いだ(変わらない部分はフェードせずに最初から出す)/ Plymouth 用に書き出す
     engine.rootContext()->setContextProperty(QStringLiteral("splashHandoff"), splashHandoff);
     engine.rootContext()->setContextProperty(QStringLiteral("splashExport"), exportingSplash);

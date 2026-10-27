@@ -65,7 +65,7 @@ ApplicationWindow {
 
     // 下から出るメニュー(シート)を開閉する。設定画面などを開いているときは、メイン画面へ戻ってから開く
     function toggleMenu() {
-        if (boot.active || exitConfirmation.opened) return
+        if (boot.active || splash.noticeShowing || exitConfirmation.opened) return
         if (stack.depth > 1) {
             stack.pop(null)
             if (stack.currentItem) stack.currentItem.menuOpen = true
@@ -84,6 +84,8 @@ ApplicationWindow {
                 notifications.historyOpen = false // 通知履歴を開いている間は、まずそれを閉じる
             } else if (boot.active) {
                 boot.skip()
+            } else if (splash.noticeShowing) {
+                splash.dismissNotice()   // 注意事項の表示中の Esc は「確認してメイン画面へ」
             } else if (stack.depth === 1 && stack.currentItem && stack.currentItem.menuOpen) {
                 stack.currentItem.menuOpen = false
             } else if (window.immersive && stack.currentItem) {
@@ -462,7 +464,10 @@ ApplicationWindow {
             anchors.fill: parent
             z: 50
             // 待ちが終わっても、メイン画面ができるまでは起動画面を出したままにする(空の画面を見せない)
-            opacity: (boot.done && (homeLoader.ready || startOnSettings)) ? 0 : 1
+            // 読み込みが終わったら注意事項を出し(SplashScreen)、それが済んだらメイン画面へ移る
+            ready: boot.done && (homeLoader.ready || startOnSettings)
+            skipNotice: bootSkipped || startOnSettings
+            opacity: splash.canClose ? 0 : 1
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
         }
