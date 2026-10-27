@@ -64,10 +64,8 @@ WidgetBase {
     // 以前の「スポーツ」(sport)・「バンド」(band)は廃止し、マーカーとして扱う
     readonly property string dialStyle: ["minimal", "marker", "retro", "neon", "ring"].indexOf(config.dialStyle) >= 0 ? config.dialStyle
                                         : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
-    // 針を出すか(設定の「針を表示」。未設定なら種類で決める: マーカー・リングは出さない、ほかは出す)。
-    // 針が無いときは、数値を中央に大きく出す(表示方式が「アナログ」でも数値は出す)
-    readonly property bool needleless: config.needleShown === undefined ? (dialStyle === "ring" || dialStyle === "marker")
-                                                                        : config.needleShown === false
+    // マーカー・リングは針を出さず、数値を中央に大きく出す(表示方式が「アナログ」でも数値は出す)
+    readonly property bool needleless: dialStyle === "ring" || dialStyle === "marker"
     readonly property bool showReadout: style === "both" || (style === "analog" && needleless)
     // レトロは明るい文字盤なので、文字盤の上の文字・目盛りは濃い色にする
     readonly property bool lightFace: dialStyle === "retro"
@@ -93,6 +91,7 @@ WidgetBase {
     readonly property bool autoLabelPosition: config.autoLabelPosition !== false
     readonly property bool needleTail: config.needleTail !== false
     readonly property real hubSize: Math.max(0.08, Math.min(0.5, (config.hubSize || 16) / 100))   // 直径 / 半径
+    // 針の色。針の無いマーカーは三角の印と線、リングは帯(警告・注意の範囲以外)にこの色を使う
     readonly property color needleColor: configuredColor("needleColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
 
@@ -977,7 +976,7 @@ WidgetBase {
                      dial.angOf(root.shown).toFixed(1),
                      root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
-                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone].join("|")
+                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor].join("|")
                 onKeyChanged: if (visible) requestPaint()
                 onVisibleChanged: if (visible) requestPaint()
 
@@ -997,7 +996,7 @@ WidgetBase {
                         const ma = dial.rad(dial.angOf(root.shown))
                         const nx = Math.cos(ma), ny = Math.sin(ma), tx = -ny, ty = nx
                         const tipR = R * (dm.trackR - 0.07), baseR = R * (dm.trackR + 0.055), half = R * 0.05
-                        ctx.fillStyle = root.zoneColorAt(root.shown, Theme.accent)
+                        ctx.fillStyle = root.zoneColorAt(root.shown, root.needleColor)   // 印はマーカーの針: 針の色の設定を使う
                         ctx.beginPath()
                         ctx.moveTo(dial.cx + nx * tipR, dial.cy + ny * tipR)
                         ctx.lineTo(dial.cx + nx * baseR + tx * half, dial.cy + ny * baseR + ty * half)
@@ -1047,7 +1046,7 @@ WidgetBase {
                         cuts.sort((a, b) => a - b)
                         const colorOf = (v) => {
                             if (autoNear && !root.inZone(v) && (root.warnBelow ? v <= nearEdge : v >= nearEdge)) return Theme.warn
-                            return root.zoneColorAt(v, Theme.accent)
+                            return root.zoneColorAt(v, root.needleColor)   // 帯はリングの針: 針の色の設定を使う
                         }
                         for (let k = 0; k + 1 < cuts.length; ++k) seg(cuts[k], cuts[k + 1], colorOf((cuts[k] + cuts[k + 1]) / 2))
                         // 帯の先端を丸める: 今の値の側と、目盛りの端から始まっている側(溝の丸い端と重ねる)
@@ -1063,8 +1062,9 @@ WidgetBase {
                         if (Math.abs(hi - root.maxV) < 1e-9 && root.shown < root.originV) cap(hi)
                         return
                     }
-                    // 注意ゾーン・警告ゾーンと重なる部分だけ、注意色・警告色
-                    segColored(lo, hi, (v) => root.zoneColorAt(v, Theme.accent))
+                    // 注意ゾーン・警告ゾーンと重なる部分だけ、注意色・警告色(マーカーの線は、印と同じ針の色)
+                    const lineColor = root.dialStyle === "marker" ? root.needleColor : Theme.accent
+                    segColored(lo, hi, (v) => root.zoneColorAt(v, lineColor))
                 }
             }
 

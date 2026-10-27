@@ -42,9 +42,8 @@ WidgetSettingsBase {
     // 目盛りの間隔は差の値なので、単位の倍率だけで換算する(基本単位で保存)
     function stepShown(key) { return Number(config[key]) > 0 ? Number(config[key]) * unitDef.scale : 0 }
     function saveStep(key, shownValue) { root.edit(key, Number((shownValue / unitDef.scale).toFixed(4))) }
-    // 針を出さないか(「針を表示」が未設定なら、マーカー・リングは出さない。GaugeWidget と同じ決め方)
-    readonly property bool needlelessByStyle: dialStyle === "marker" || dialStyle === "ring"
-    readonly property bool needleless: config.needleShown === undefined ? needlelessByStyle : config.needleShown === false
+    // 針と中心円が無い種類(マーカー・リング)
+    readonly property bool needleless: dialStyle === "marker" || dialStyle === "ring"
     readonly property var colorOptions: [
         { label: "テーマ", value: "theme" }, { label: "パネル", value: "panel" },
         { label: "白", value: "#ffffff" }, { label: "赤", value: "#f44336" },
@@ -76,7 +75,7 @@ WidgetSettingsBase {
         SettingsRow {
             visible: root.config.style !== "digital"
             label: "メーターの種類"
-            description: "マーカーとリングは、はじめは針を出さず数値を中央に大きく表示します(「目盛り・針」の「針を表示」で出せます)"
+            description: "マーカーとリングは針を出さず、数値を中央に大きく表示します"
             SettingsChoice {
                 model: ["クラシック", "シンプル", "マーカー", "レトロ", "ネオン", "リング"]
                 currentIndex: root.dialStyles.indexOf(root.dialStyle)
@@ -330,15 +329,6 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
-            visible: root.config.style !== "digital"
-            label: "針を表示"
-            description: "オフにすると、針と中心円を出さず、数値を中央に大きく表示します"
-            SettingsSwitch {
-                checked: !root.needleless
-                onToggled: (v) => root.edit("needleShown", v)
-            }
-        }
-        SettingsRow {
             visible: root.config.style === "both" && !root.needleless
             label: "数値を空き位置に配置"
             description: "開始角度と終了角度の間の空きに現在値を表示します"
@@ -380,9 +370,10 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
-            visible: root.config.style !== "digital" && !root.needleless
-            label: "針の色"
-            description: "警告中は警告色で表示します"
+            // 針の無いマーカー・リングは、針の代わりの三角の印と線・帯の色になる
+            visible: root.config.style !== "digital"
+            label: root.dialStyle === "marker" ? "印(三角)と線の色" : root.dialStyle === "ring" ? "リングの色" : "針の色"
+            description: root.needleless ? "警告・注意の範囲は警告色・注意色で表示します" : "警告中は警告色で表示します"
             stacked: true
             SettingsColorPalette {
                 width: Math.min(root.width, 620 * Theme.uiScale)
