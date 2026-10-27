@@ -15,8 +15,12 @@ Flow {
     // 使える幅(SettingsRow の中なら自動。それ以外は制限なし)
     property real maxWidth: parent && parent.parent && parent.parent.controlMaxWidth !== undefined
                             ? parent.parent.controlMaxWidth : 1e6
+    // ボタンが作られた・消えたときに増える(naturalWidth を計算し直すため。itemAt() の結果の変化は通知されないので、
+    // これが無いと、ボタンがまだ作られていない時点の幅(ほぼ 0)のままになり、ボタンが 1 つずつ折り返して右へはみ出す)
+    property int itemsRevision: 0
     // 1 行に並べたときの幅
     readonly property real naturalWidth: {
+        itemsRevision
         let w = 0
         for (let i = 0; i < buttons.count; ++i) {
             const it = buttons.itemAt(i)
@@ -31,6 +35,8 @@ Flow {
     Repeater {
         id: buttons
         model: root.model
+        onItemAdded: root.itemsRevision++
+        onItemRemoved: root.itemsRevision++
 
         Rectangle {
             id: btn
