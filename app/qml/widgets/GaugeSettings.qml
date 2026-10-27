@@ -370,9 +370,9 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
-            // 針の無いマーカー・リングは、針の代わりの三角の印と線・帯の色になる
+            // 針の無いマーカー・リングは、針の代わりの三角の印・帯の色になる
             visible: root.config.style !== "digital"
-            label: root.dialStyle === "marker" ? "印(三角)と線の色" : root.dialStyle === "ring" ? "リングの色" : "針の色"
+            label: root.dialStyle === "marker" ? "印(三角)の色" : root.dialStyle === "ring" ? "リングの色" : "針の色"
             description: root.needleless ? "警告・注意の範囲は警告色・注意色で表示します" : "警告中は警告色で表示します"
             stacked: true
             SettingsColorPalette {
@@ -380,6 +380,18 @@ WidgetSettingsBase {
                 options: root.colorOptions
                 selectedValue: root.config.needleColor || "theme"
                 onPicked: (v) => root.edit("needleColor", v)
+            }
+        }
+        SettingsRow {
+            visible: root.config.style !== "digital" && root.dialStyle === "marker"
+            label: "線の色"
+            description: "0 から印までの線。警告・注意の範囲は警告色・注意色で表示します"
+            stacked: true
+            SettingsColorPalette {
+                width: Math.min(root.width, 620 * Theme.uiScale)
+                options: root.colorOptions
+                selectedValue: root.config.lineColor || "theme"
+                onPicked: (v) => root.edit("lineColor", v)
             }
         }
     }

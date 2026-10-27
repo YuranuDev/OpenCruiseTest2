@@ -91,8 +91,10 @@ WidgetBase {
     readonly property bool autoLabelPosition: config.autoLabelPosition !== false
     readonly property bool needleTail: config.needleTail !== false
     readonly property real hubSize: Math.max(0.08, Math.min(0.5, (config.hubSize || 16) / 100))   // 直径 / 半径
-    // 針の色。針の無いマーカーは三角の印と線、リングは帯(警告・注意の範囲以外)にこの色を使う
+    // 針の色。針の無いマーカーは三角の印、リングは帯(警告・注意の範囲以外)にこの色を使う
     readonly property color needleColor: configuredColor("needleColor", Theme.accent)
+    // マーカーの 0 から印までの線の色(警告・注意の範囲以外)
+    readonly property color markerLineColor: configuredColor("lineColor", Theme.accent)
     readonly property color hubColor: configuredColor("hubColor", Theme.panel)
 
     function configuredColor(key, fallback) {
@@ -976,7 +978,7 @@ WidgetBase {
                      dial.angOf(root.shown).toFixed(1),
                      root.minV, root.maxV, root.warnV, root.warnOn,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
-                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor].join("|")
+                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor, root.markerLineColor].join("|")
                 onKeyChanged: if (visible) requestPaint()
                 onVisibleChanged: if (visible) requestPaint()
 
@@ -991,22 +993,28 @@ WidgetBase {
                     ctx.lineCap = "butt"
                     ctx.lineWidth = R * dm.trackW
 
-                    if (root.dialStyle === "marker") {
-                        // 外周の線の上の三角の印(先が内側を向く)。値が 0 でも出す
+                    // マーカー: 外周の線の上の三角の印(先が内側を向く)。値が 0 でも出す。
+                    // 印はマーカーの針なので針の色を使い、線より手前に来るよう最後に描く
+                    const drawMarker = () => {
                         const ma = dial.rad(dial.angOf(root.shown))
                         const nx = Math.cos(ma), ny = Math.sin(ma), tx = -ny, ty = nx
                         const tipR = R * (dm.trackR - 0.07), baseR = R * (dm.trackR + 0.055), half = R * 0.05
-                        ctx.fillStyle = root.zoneColorAt(root.shown, root.needleColor)   // 印はマーカーの針: 針の色の設定を使う
+                        ctx.fillStyle = root.zoneColorAt(root.shown, root.needleColor)
                         ctx.beginPath()
                         ctx.moveTo(dial.cx + nx * tipR, dial.cy + ny * tipR)
                         ctx.lineTo(dial.cx + nx * baseR + tx * half, dial.cy + ny * baseR + ty * half)
                         ctx.lineTo(dial.cx + nx * baseR - tx * half, dial.cy + ny * baseR - ty * half)
                         ctx.closePath()
                         ctx.fill()
+                    }
+                    if (root.dialStyle === "marker") {
                         ctx.lineWidth = R * 0.03   // 0 から印までの線は、外周の線より少し太く
                     }
 
-                    if (dial.angOf(hi) - dial.angOf(lo) < 0.2) return
+                    if (dial.angOf(hi) - dial.angOf(lo) < 0.2) {
+                        if (root.dialStyle === "marker") drawMarker()
+                        return
+                    }
                     const seg = (from, to, color) => {
                         if (to <= from) return
                         ctx.strokeStyle = color
@@ -1062,9 +1070,10 @@ WidgetBase {
                         if (Math.abs(hi - root.maxV) < 1e-9 && root.shown < root.originV) cap(hi)
                         return
                     }
-                    // 注意ゾーン・警告ゾーンと重なる部分だけ、注意色・警告色(マーカーの線は、印と同じ針の色)
-                    const lineColor = root.dialStyle === "marker" ? root.needleColor : Theme.accent
+                    // 注意ゾーン・警告ゾーンと重なる部分だけ、注意色・警告色(マーカーの線は、設定の線の色)
+                    const lineColor = root.dialStyle === "marker" ? root.markerLineColor : Theme.accent
                     segColored(lo, hi, (v) => root.zoneColorAt(v, lineColor))
+                    if (root.dialStyle === "marker") drawMarker()
                 }
             }
 
