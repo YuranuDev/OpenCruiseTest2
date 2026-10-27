@@ -1,0 +1,98 @@
+# OpenCruise の Linux 起動画面(Plymouth のスクリプトテーマ)。
+# アプリの起動画面と同じ見た目の画像(background.png。アプリの --export-splash で作る)を全面に出し、
+# 進行バーの塗りだけをここで描く。アプリは起動するとこの画面を消さずに引き継ぎ(plymouth quit --retain-splash)、
+# 同じ位置に同じものを描くので、途切れずにアプリの起動画面へ移る。
+# @...@ は install.sh が splash.conf の値で置き換える(画面の大きさ・進行バーの位置・色)。
+
+src_w = @WIDTH@;
+src_h = @HEIGHT@;
+
+Window.SetBackgroundTopColor(@BG_RGB_COMMA@);
+Window.SetBackgroundBottomColor(@BG_RGB_COMMA@);
+
+screen_w = Window.GetWidth();
+screen_h = Window.GetHeight();
+# 書き出したときと画面の大きさが違えば、全面に合わせて伸ばす(同じなら等倍)
+sx = screen_w / src_w;
+sy = screen_h / src_h;
+
+background.image = Image("background.png");
+if (background.image.GetWidth() != screen_w || background.image.GetHeight() != screen_h)
+  background.image = background.image.Scale(screen_w, screen_h);
+background.sprite = Sprite(background.image);
+background.sprite.SetPosition(Window.GetX(), Window.GetY(), -100);
+
+#----------------------------------------- 進行バー(塗り) --------------------------------
+# アプリの起動画面の進行バーと同じ位置。アプリの続きにつながるよう、ここでは 3 割までしか進めない
+bar.x = Window.GetX() + @BAR_X@ * sx;
+bar.y = Window.GetY() + @BAR_Y@ * sy;
+bar.w = @BAR_W@ * sx;
+bar.h = @BAR_H@ * sy;
+bar.fill = Image("progress-fill.png");
+bar.sprite = Sprite();
+bar.sprite.SetPosition(bar.x, bar.y, 10);
+global.bar_shown = -1;
+
+fun progress_callback (duration, progress)
+  {
+    w = Math.Int(bar.w * progress * 0.3);
+    if (w < 1) w = 1;
+    if (w != global.bar_shown)
+      {
+        global.bar_shown = w;
+        bar.sprite.SetImage(bar.fill.Scale(w, bar.h));
+      }
+  }
+Plymouth.SetBootProgressFunction(progress_callback);
+
+#----------------------------------------- パスワード(暗号化したディスクなど) --------------------------------
+prompt.sprite = Sprite();
+prompt.sprite.SetPosition(Window.GetX(), bar.y + bar.h + 24 * sy, 20);
+
+fun show_center_text (sprite, text)
+  {
+    image = Image.Text(text, @TEXT_RGB_COMMA@, 1);
+    sprite.SetImage(image);
+    sprite.SetX(Window.GetX() + screen_w / 2 - image.GetWidth() / 2);
+  }
+
+fun display_password_callback (text, bullets)
+  {
+    dots = "";
+    for (i = 0; i < bullets; i++)
+      dots = dots + "*";
+    show_center_text(prompt.sprite, text + "  " + dots);
+    prompt.sprite.SetOpacity(1);
+  }
+
+fun display_question_callback (text, entry)
+  {
+    show_center_text(prompt.sprite, text + "  " + entry);
+    prompt.sprite.SetOpacity(1);
+  }
+
+fun display_normal_callback ()
+  {
+    prompt.sprite.SetOpacity(0);
+  }
+
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayQuestionFunction(display_question_callback);
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+
+#----------------------------------------- メッセージ(ディスクの検査など) --------------------------------
+message.sprite = Sprite();
+message.sprite.SetPosition(Window.GetX(), bar.y + bar.h + 60 * sy, 20);
+
+fun display_message_callback (text)
+  {
+    show_center_text(message.sprite, text);
+  }
+
+fun hide_message_callback (text)
+  {
+    message.sprite.SetImage(Image.Text("", 0, 0, 0, 0));
+  }
+
+Plymouth.SetDisplayMessageFunction(display_message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);

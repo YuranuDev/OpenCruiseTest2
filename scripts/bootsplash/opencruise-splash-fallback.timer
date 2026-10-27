@@ -1,0 +1,10 @@
+# 起動から 90 秒たっても起動画面(Plymouth)が出たままなら消す(普段はアプリが先に消しているので何も起きない)
+[Unit]
+Description=OpenCruise: 起動画面の消し忘れ防止
+
+[Timer]
+OnBootSec=90s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

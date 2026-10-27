@@ -1,0 +1,33 @@
+# OpenCruise を tty1 で自動起動する(install.sh が @...@ を置き換えて /etc/systemd/system/ に入れる)。
+# ログインのセッション(PAMName=login)として動かすので、音(PipeWire など)や画面・入力の権限はログインしたときと同じ。
+# アプリは起動時に Plymouth の画面を消さずに引き継ぐ。止まったときは起動画面を消してコンソールに戻す。
+[Unit]
+Description=OpenCruise
+After=systemd-user-sessions.service plymouth-start.service sound.target getty@tty1.service
+Conflicts=getty@tty1.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=@USER@
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=no
+TTYVHangup=yes
+TTYVTDisallocate=no
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+WorkingDirectory=@WORKDIR@
+Environment=QT_QPA_PLATFORM=eglfs
+@TOUCH_ENV@
+ExecStart=@APP@
+ExecStopPost=-/usr/bin/plymouth quit
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

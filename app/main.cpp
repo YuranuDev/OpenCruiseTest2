@@ -9,15 +9,27 @@
  *  --fullscreen          全画面表示
  *  --open-settings       設定画面を開いた状態で起動（画面遷移の確認用）
  *  --skip-boot           起動(オープニング)画面を出さずに起動
+ *  --export-splash <dir> 起動画面の見た目を、Linux の起動画面(Plymouth)用の画像として書き出して終了
+ *                        (tools/bootsplash/install.sh が使う。background.png / progress-fill.png / splash.conf)
+ *
+ * Linux の起動画面(Plymouth)からの引き継ぎ:
+ *  起動時に Plymouth が表示中なら、画面を消さずに終わらせて(plymouth quit --retain-splash)から画面を作る。
+ *  Plymouth の画像はこのアプリの起動画面から作るので、同じ見た目のまま途切れずにアプリの起動画面へ移る。
+ *  環境変数 OPENCRUISE_SPLASH_HANDOFF=0 で行わない。
  */
 #include <QCommandLineParser>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
+#include <QJSValue>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlError>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QTextStream>
 #include <QTimer>
 
 
@@ -44,10 +56,90 @@
 #include "core/SystemSound.h"
 
 /**
+ * @brief Linux の起動画面(Plymouth)が出ていれば、画面を消さずに終わらせる(画面を作る前に呼ぶ)。
+ *
+ * Plymouth が DRM(画面)を握ったままだと eglfs で画面を作れないので、QGuiApplication の前に終わらせる。
+ * --retain-splash なので、アプリが最初の 1 枚を描くまで Plymouth の最後の画面がそのまま残る(黒くならない)。
+ * @return 引き継いだ(Plymouth が出ていて、終わらせた)なら true
+ */
+static bool releaseBootSplash() {
+#ifdef Q_OS_LINUX
+    if (qgetenv("OPENCRUISE_SPLASH_HANDOFF") == "0") {
+        return false;
+    }
+    // Plymouth が動いていなければ何もしない(普段の手動起動ではここで終わる)
+    if (!QFileInfo::exists(QStringLiteral("/run/plymouth/pid"))) {
+        return false;
+    }
+    return std::system("plymouth quit --retain-splash >/dev/null 2>&1") == 0;
+#else
+    return false;
+#endif
+}
+
+/**
+ * @brief 起動画面の見た目を、Plymouth のテーマ用に書き出す(--export-splash)。
+ *
+ * 書き出すもの(dir の中):
+ *  - background.png    起動画面のうち、変わらない部分(背景・タイトル・警告・進行バーの溝)だけを描いた全画面の画像
+ *  - progress-fill.png 進行バーの塗り(幅 1px。Plymouth が伸ばして使う)
+ *  - splash.conf       画面の大きさ・進行バーの位置・色(install.sh がテーマのスクリプトへ埋め込む)
+ * @return 書き出せたら true
+ */
+static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
+    if (!window || !QDir().mkpath(dir)) {
+        return false;
+    }
+    QObject *splash = window->findChild<QObject *>(QStringLiteral("splash"));
+    if (!splash) {
+        opencruise::log::error("SPLASH", QStringLiteral("起動画面が見つかりません"));
+        return false;
+    }
+    QVariant geometry;
+    QMetaObject::invokeMethod(splash, "bootImageGeometry", Q_RETURN_ARG(QVariant, geometry));
+    // QML の関数が返す JS のオブジェクトは QJSValue で届くので、QVariantMap に直す
+    const QVariantMap g = geometry.userType() == qMetaTypeId<QJSValue>()
+                              ? geometry.value<QJSValue>().toVariant().toMap()
+                              : geometry.toMap();
+    const QImage image = window->grabWindow();
+    if (image.isNull() || g.isEmpty() || !image.save(dir + QStringLiteral("/background.png"))) {
+        opencruise::log::error("SPLASH", QStringLiteral("起動画面の画像を保存できません: ") + dir);
+        return false;
+    }
+    const int barH = qMax(1, qRound(g.value(QStringLiteral("barH")).toReal()));
+    QImage fill(1, barH, QImage::Format_ARGB32);
+    fill.fill(QColor(g.value(QStringLiteral("fillColor")).toString()));
+    fill.save(dir + QStringLiteral("/progress-fill.png"));
+
+    QFile conf(dir + QStringLiteral("/splash.conf"));
+    if (!conf.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        return false;
+    }
+    const auto color = [&g](const QString &key) { return QColor(g.value(key).toString()); };
+    const auto rgb = [](const QColor &c) {
+        return QStringLiteral("%1 %2 %3").arg(c.redF(), 0, 'f', 3).arg(c.greenF(), 0, 'f', 3).arg(c.blueF(), 0, 'f', 3);
+    };
+    QTextStream out(&conf);
+    out << "width=" << image.width() << "\n"
+        << "height=" << image.height() << "\n"
+        << "bar_x=" << qRound(g.value(QStringLiteral("barX")).toReal()) << "\n"
+        << "bar_y=" << qRound(g.value(QStringLiteral("barY")).toReal()) << "\n"
+        << "bar_w=" << qRound(g.value(QStringLiteral("barW")).toReal()) << "\n"
+        << "bar_h=" << barH << "\n"
+        << "background_rgb=" << rgb(color(QStringLiteral("backgroundColor"))) << "\n"
+        << "text_rgb=" << rgb(color(QStringLiteral("textColor"))) << "\n";
+    opencruise::log::info("SPLASH", QStringLiteral("起動画面を書き出しました: %1 (%2 x %3)")
+                                        .arg(dir).arg(image.width()).arg(image.height()));
+    return true;
+}
+
+/**
  * @brief アプリを起動する。
  * @return QGuiApplication の終了コード。QML のロードに失敗した場合は -1
  */
 int main(int argc, char *argv[]) {
+    // Linux の起動画面(Plymouth)が出ていれば、画面を消さずに終わらせてから画面を作る(DRM を譲ってもらう)
+    const bool splashHandoff = releaseBootSplash();
     // eglfs(DRM/KMS)なら、プラットフォームを読み込む前(QGuiApplication の前)に、操作する画面だけを Qt に使わせる設定を作る
     opencruise::DrmDisplay::prepare(argc, argv);
     QGuiApplication app(argc, argv);
@@ -67,12 +159,15 @@ int main(int argc, char *argv[]) {
     const QCommandLineOption fullscreen(QStringLiteral("fullscreen"), QStringLiteral("全画面表示"));
     const QCommandLineOption openSettings(QStringLiteral("open-settings"), QStringLiteral("設定画面を開いた状態で起動"));
     const QCommandLineOption skipBoot(QStringLiteral("skip-boot"), QStringLiteral("起動(オープニング)画面を出さずに起動"));
+    const QCommandLineOption exportSplash(QStringLiteral("export-splash"),
+                                          QStringLiteral("起動画面を Linux の起動画面(Plymouth)用に書き出して終了"),
+                                          QStringLiteral("dir"));
     const QCommandLineOption logDir(QStringLiteral("log-dir"), QStringLiteral("ログの保存先ディレクトリ"),
                                     QStringLiteral("path"));
     const QCommandLineOption logLevel(QStringLiteral("log-level"),
                                       QStringLiteral("記録する最小レベル (debug/info/warn/error/fatal)"),
                                       QStringLiteral("level"));
-    parser.addOptions({testVideo, screenshot, screenshotDelay, fullscreen, openSettings, skipBoot, logDir, logLevel});
+    parser.addOptions({testVideo, screenshot, screenshotDelay, fullscreen, openSettings, skipBoot, exportSplash, logDir, logLevel});
     parser.process(app);
 
     // ログ基盤を最初に立ち上げる。以降の qDebug/qInfo/qWarning も同じ形式でファイルに残る。
@@ -97,6 +192,10 @@ int main(int argc, char *argv[]) {
     opencruise::log::info("APP", opencruise::log::describeEnvironment());
     opencruise::log::info("APP", QStringLiteral("ログ出力先: ") + opencruise::log::currentFilePath());
     opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
+    if (splashHandoff) {
+        opencruise::log::info("APP", QStringLiteral("Linux の起動画面(Plymouth)から画面を引き継ぎました"));
+    }
+    const bool exportingSplash = parser.isSet(exportSplash);
     // 描画方式・垂直同期は、ウィンドウ(QML)を作る前にしか変えられないので、ここで適用する
     const opencruise::log::Stopwatch stageTimer; // 起動の段階ごとの時間(起動画面とログに出す)
     qint64 stageStartMs = 0;
@@ -221,6 +320,9 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("brightnessController"), &brightnessController);
     engine.rootContext()->setContextProperty(QStringLiteral("startFullscreen"), parser.isSet(fullscreen));
     engine.rootContext()->setContextProperty(QStringLiteral("startOnSettings"), parser.isSet(openSettings));
+    // 起動画面: Plymouth から引き継いだ(変わらない部分はフェードせずに最初から出す)/ Plymouth 用に書き出す
+    engine.rootContext()->setContextProperty(QStringLiteral("splashHandoff"), splashHandoff);
+    engine.rootContext()->setContextProperty(QStringLiteral("splashExport"), exportingSplash);
 
     // QML の警告もファイルに残す（バインディング・描画まわりの失敗を追跡するため）
     QObject::connect(&engine, &QQmlApplicationEngine::warnings, &app, [](const QList<QQmlError> &warnings) {
@@ -268,6 +370,9 @@ int main(int argc, char *argv[]) {
     // QTimer::singleShot の第1引数がオブジェクトのポインタであるため、渡すオブジェクトが無効になることを防ぐために
     // androidAuto をスタック上ではなくヒープ上に作成し、親子関係で管理します。
     QTimer::singleShot(0, androidAuto, [&]() {
+        if (exportingSplash) {
+            return; // 書き出すだけ(起動待ち・接続は始めない)
+        }
         if (parser.isSet(skipBoot)) {
             boot.bypass();
         } else {
@@ -288,6 +393,25 @@ int main(int argc, char *argv[]) {
             androidAuto->start();
         }
     });
+
+    if (exportingSplash) {
+        // フォント(太字など)の読み込みが終わってから書き出す(最大 8 秒待つ)
+        auto *poll = new QTimer(&app);
+        auto waited = std::make_shared<int>(0);
+        poll->setInterval(200);
+        QObject::connect(poll, &QTimer::timeout, &app, [&, poll, waited]() {
+            *waited += poll->interval();
+            if (*waited < 1500 || (appSettings.isFontLoading(appSettings.fontFamily()) && *waited < 8000)) {
+                return;
+            }
+            poll->stop();
+            const auto windows = app.allWindows();
+            auto *quickWindow = windows.isEmpty() ? nullptr : qobject_cast<QQuickWindow *>(windows.first());
+            const bool ok = exportBootSplash(quickWindow, parser.value(exportSplash));
+            QCoreApplication::exit(ok ? 0 : 1);
+        });
+        poll->start();
+    }
 
     if (parser.isSet(screenshot)) {
         QTimer::singleShot(parser.value(screenshotDelay).toInt(), &app, [&]() {

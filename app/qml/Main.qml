@@ -43,7 +43,7 @@ ApplicationWindow {
         themeSnap.apply()   // 起動時はそのまま反映する
         if (!displaySettings.isEglfs)
             window.screen = Qt.binding(() => window.findScreen(displaySettings.targetScreenName))
-        systemSound.play("start")
+        if (!splashExport) systemSound.play("start")   // 起動画面の書き出し(--export-splash)では鳴らさない
     }
     onScreenChanged: if (!displaySettings.isEglfs) Qt.callLater(window.placeOnScreen)
     // 画面を移ったとき: 全画面なら一度ウィンドウに戻して出し直し、ウィンドウ表示なら新しい画面の中央へ置く
@@ -364,7 +364,9 @@ ApplicationWindow {
             // メイン画面は、起動画面が 1 度描かれてから作る(作るのに時間がかかるので、先に起動画面を出す)。
             // 作るのも分けて少しずつ進め(非同期)、その間も起動画面のアニメーションが止まらないようにする
             Component.onCompleted: {
-                if (startOnSettings) {
+                if (splashExport) {
+                    // 起動画面の書き出し(--export-splash): メイン画面は作らない(起動画面だけを描く)
+                } else if (startOnSettings) {
                     stack.push(settingsComponent)
                     boot.report("home", 5, "設定画面から起動")       // 5 = Skipped
                     boot.report("widgets", 5, "設定画面から起動")
@@ -442,6 +444,7 @@ ApplicationWindow {
         // 起動(オープニング)画面。外部機器などの待ちが終わるまで最前面に出し、終わったらフェードアウトする
         SplashScreen {
             id: splash
+            objectName: "splash"   // --export-splash で C++ から探す
             anchors.fill: parent
             z: 50
             // 待ちが終わっても、メイン画面ができるまでは起動画面を出したままにする(空の画面を見せない)

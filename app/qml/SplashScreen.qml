@@ -35,6 +35,23 @@ Rectangle {
     }
     Timer { interval: 400; running: !root.revealed; onTriggered: root.revealed = true }   // 念のため(描画の合図が来ないとき)
 
+    // Linux の起動画面(Plymouth)との引き継ぎ:
+    //  - handoff: Plymouth から引き継いだ。Plymouth は、この画面の変わらない部分(背景・タイトル・サブタイトル・
+    //    進行バーの溝・警告)と同じ画像を出していたので、それらはフェードせずに最初から出す(途切れて見えない)。
+    //    あいさつ・起動状況・段階の一覧・スキップだけをフェードインする
+    //  - exportMode(--export-splash): Plymouth 用の画像を作る。変わる部分と進行バーの塗りは描かない
+    readonly property bool handoff: typeof splashHandoff !== "undefined" && splashHandoff === true
+    readonly property bool exportMode: typeof splashExport !== "undefined" && splashExport === true
+    readonly property real fixedOpacity: (handoff || exportMode || revealed) ? 1 : 0   // 変わらない部分
+    readonly property real liveOpacity: exportMode ? 0 : (revealed ? 1 : 0)            // 変わる部分
+    // --export-splash で C++ が呼ぶ: 進行バー(溝)の位置と大きさ(この画面の座標)と色
+    function bootImageGeometry() {
+        const p = barTrack.mapToItem(root, 0, 0)
+        return { barX: p.x, barY: p.y, barW: barTrack.width * titleBlock.scale, barH: barTrack.height * titleBlock.scale,
+                 fillColor: Theme.accent.toString(), backgroundColor: Theme.background.toString(),
+                 textColor: Theme.textSecondary.toString() }
+    }
+
     // 背景: 上からアクセント色がうっすら差すグラデーション
     Rectangle {
         anchors.fill: parent
@@ -56,10 +73,10 @@ Rectangle {
         y: Math.max(Theme.margin, (parent.height - warning.height - warning.anchors.bottomMargin - height * scale) / 2)
         width: Math.min(parent.width - Theme.margin * 4, 900 * root.unit)
         spacing: 10 * root.unit
-        opacity: root.revealed ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
 
         Text {
+            opacity: root.liveOpacity
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontFamily
@@ -71,6 +88,8 @@ Rectangle {
 
         // タイトル: 「Open」は細め、「Cruise」は太字のアクセント色
         Row {
+            opacity: root.fixedOpacity
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
             anchors.horizontalCenter: parent.horizontalCenter
             Text {
                 font.family: Theme.fontFamily
@@ -90,6 +109,8 @@ Rectangle {
 
         // サブタイトル(両側に細い線)
         Row {
+            opacity: root.fixedOpacity
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 18 * root.unit
             Rectangle {
@@ -116,6 +137,8 @@ Rectangle {
 
         // 起動状況と進行バー
         Text {
+            opacity: root.liveOpacity
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             font.family: Theme.fontFamily
@@ -125,12 +148,16 @@ Rectangle {
             text: boot.summaryText
         }
         Rectangle {
+            id: barTrack
+            opacity: root.fixedOpacity
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
             anchors.horizontalCenter: parent.horizontalCenter
             width: Math.min(parent.width, 520 * root.unit)
             height: 6 * root.unit
             radius: height / 2
             color: Theme.panelBorder
             Rectangle {
+                visible: !root.exportMode   // 塗りは Plymouth が描く
                 width: parent.width * root.shownProgress
                 height: parent.height
                 radius: height / 2
@@ -143,6 +170,9 @@ Rectangle {
         // 起動の段階の一覧(どこまで読み込んだか)。状態のアイコン + 名前 + 補足(かかった時間など)
         Grid {
             id: stepGrid
+            opacity: root.liveOpacity
+            Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 3
             columnSpacing: 18 * root.unit
@@ -217,7 +247,7 @@ Rectangle {
         color: Theme.mix(Theme.panel, Theme.warn, 0.12)
         border.width: 2
         border.color: Theme.warn
-        opacity: root.revealed ? 1 : 0
+        opacity: root.fixedOpacity
         Behavior on opacity { NumberAnimation { duration: 800; easing.type: Easing.OutCubic } }
 
         Row {
@@ -271,7 +301,9 @@ Rectangle {
 
     ActionButton {
         anchors { right: parent.right; top: parent.top; rightMargin: Theme.margin * 1.5; topMargin: Theme.margin * 1.5 }
-        visible: boot.active
+        visible: boot.active && !root.exportMode
+        opacity: root.liveOpacity
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
         text: "スキップ"
         onClicked: boot.skip()
     }

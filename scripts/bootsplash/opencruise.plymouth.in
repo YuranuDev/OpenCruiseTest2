@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=OpenCruise
+Description=OpenCruise の起動画面(アプリの起動画面と同じ見た目)
+ModuleName=script
+
+[script]
+ImageDir=@THEME_DIR@
+ScriptFile=@THEME_DIR@/opencruise.script

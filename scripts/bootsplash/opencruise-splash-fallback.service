@@ -1,0 +1,7 @@
+# アプリが起動できなかったとき、起動画面(Plymouth)が出たままにならないよう、消してコンソールに戻す
+[Unit]
+Description=OpenCruise: 起動画面が残っていれば消す
+
+[Service]
+Type=oneshot
+ExecStart=-/usr/bin/plymouth quit
