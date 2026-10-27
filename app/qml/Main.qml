@@ -18,6 +18,9 @@ ApplicationWindow {
     Binding { target: Theme; property: "uiScale"; value: Math.max(0.6, Math.min(rotor.width / 1280, rotor.height / 720)) }
     // 選択中のフォント。同梱フォントを読み込めず空のときは OS 既定のまま
     Binding { target: Theme; property: "fontFamily"; value: appSettings.fontFamily; when: appSettings.fontFamily !== "" }
+    // 数値用のフォント(空なら文章と同じ)と、数値の斜体
+    Binding { target: Theme; property: "numberFontFamily"; value: appSettings.numberFontFamily !== "" ? appSettings.numberFontFamily : Theme.fontFamily }
+    Binding { target: Theme; property: "numberItalic"; value: appSettings.numberItalic }
 
     // 映像表示中かつ「接続後フルスクリーン」設定が有効で、メイン画面を見ているとき
     readonly property bool immersive: androidAuto.fullscreenOnStream && androidAuto.stateKey === "streaming"

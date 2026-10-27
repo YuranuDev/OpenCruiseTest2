@@ -367,9 +367,9 @@ WidgetBase {
                 anchors.horizontalCenter: parent.horizontalCenter
                 height: Math.round(pl.px * 1.2)
                 verticalAlignment: Text.AlignVCenter
-                font.family: Theme.fontFamily
+                font.family: Theme.numberFontFamily
                 font.bold: true
-                font.italic: true
+                font.italic: Theme.numberItalic
                 font.pixelSize: Math.round(pl.px)
                 color: root.zoneColorAt(root.peak, pl.textColor)
                 text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
@@ -392,9 +392,9 @@ WidgetBase {
             }
             Text {
                 id: plValue
-                font.family: Theme.fontFamily
+                font.family: Theme.numberFontFamily
                 font.bold: true
-                font.italic: true
+                font.italic: Theme.numberItalic
                 font.pixelSize: Math.round(pl.px)
                 color: root.zoneColorAt(root.peak, pl.textColor)
                 text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
@@ -750,7 +750,7 @@ WidgetBase {
                 readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
                                                root.warnOn, root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
                                                root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
-                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.fontFamily, root.faceColor,
+                                               Theme.textPrimary, Theme.error, Theme.accent, Theme.numberFontFamily, root.faceColor,
                                                root.splitScale, root.zeroAngle, root.negStepShown, root.posStepShown,
                                                root.negSub, root.posSub, root.majorStepShown, root.minorSub,
                                                root.negFont, root.negFontEnd,
@@ -926,7 +926,7 @@ WidgetBase {
                     ctx.textAlign = "center"
                     ctx.textBaseline = "middle"
                     const px = Math.max(9, Math.round(R * dm.labelPx))
-                    ctx.font = "bold " + px + "px '" + Theme.fontFamily + "'"
+                    ctx.font = "bold " + px + "px '" + Theme.numberFontFamily + "'"
                     const labelOf = (v) => (Math.abs(v) < 1e-9 ? 0 : v / root.labelDiv).toFixed(dec)
                     if (root.dialStyle === "ring") {
                         // リング: 目盛りは描かず、両端の値だけ(リングの内側)
@@ -956,7 +956,7 @@ WidgetBase {
                             ctx.fillStyle = inWarn ? Theme.error : inCaution ? Theme.warn
                                                    : (isZero || root.dialStyle === "retro" || root.dialStyle === "marker" ? root.dialFg : root.dialFgDim)
                             // 数字の大きさは側ごと・位置ごとに変わる(目盛りを分けていないときは一定)
-                            ctx.font = "bold " + Math.max(8, Math.round(px * root.labelScaleAt(v))) + "px '" + Theme.fontFamily + "'"
+                            ctx.font = "bold " + Math.max(8, Math.round(px * root.labelScaleAt(v))) + "px '" + Theme.numberFontFamily + "'"
                             ctx.fillText((isZero ? 0 : v / root.labelDiv).toFixed(t.dec),
                                          cx + Math.cos(a) * R * dm.labelR, cy + Math.sin(a) * R * dm.labelR)
                         }
@@ -1194,9 +1194,9 @@ WidgetBase {
                     height: (parent.height - dial.peakH * dial.rpx) * 0.7
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignBottom   // 単位との間を詰めるため、枠の下端に寄せる
-                    font.family: Theme.fontFamily
+                    font.family: Theme.numberFontFamily
                     font.bold: true
-                    font.italic: true   // 数値は全種類で太字の斜体
+                    font.italic: Theme.numberItalic   // 数値は全種類で太字(斜体は設定の「数値を斜体にする」)
                     font.pixelSize: 300
                     minimumPixelSize: 12
                     fontSizeMode: Text.Fit
@@ -1293,9 +1293,9 @@ WidgetBase {
                               bottom: parent.bottom; rightMargin: 6 }
                     horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter
-                    font.family: Theme.fontFamily
+                    font.family: Theme.numberFontFamily
                     font.bold: true
-                    font.italic: true
+                    font.italic: Theme.numberItalic
                     font.pixelSize: 300
                     minimumPixelSize: 14
                     fontSizeMode: Text.Fit
@@ -1364,7 +1364,7 @@ WidgetBase {
                 Text {
                     visible: !root.compact
                     anchors { left: parent.left; top: bar.bottom; topMargin: 4 }
-                    font.family: Theme.fontFamily
+                    font.family: Theme.numberFontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
                     color: root.warnOn && root.warnBelow ? Theme.error : Theme.textSecondary
                     text: root.fmt(root.minV, root.unitDef.stepDec)
@@ -1372,7 +1372,7 @@ WidgetBase {
                 Text {
                     visible: !root.compact
                     anchors { right: parent.right; top: bar.bottom; topMargin: 4 }
-                    font.family: Theme.fontFamily
+                    font.family: Theme.numberFontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
                     color: root.warnOn && !root.warnBelow ? Theme.error : Theme.textSecondary
                     text: root.fmt(root.maxV, root.unitDef.stepDec)

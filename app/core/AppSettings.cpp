@@ -28,7 +28,7 @@ namespace {
 /// 選択肢として提示するフォント(表示順)。同梱ファイルから読み込めたものだけが実際の選択肢になる
 const QStringList kFontCatalog = {
     QStringLiteral("Noto Sans JP"),
-    QStringLiteral("Noto Sans CJK JP"),
+    QStringLiteral("LINE Seed JP"),       // 数字が見やすい(メーターの数値向け)
     QStringLiteral("IBM Plex Sans JP"),
 };
 
@@ -37,8 +37,8 @@ const QString kDefaultFont = QStringLiteral("Noto Sans JP");
 
 /// カタログのフォントのファイル名の頭(ファイル名だけでファミリを見分け、使うときまで読み込まない)
 QString familyOfFile(const QString &fileName) {
-    if (fileName.startsWith(QStringLiteral("NotoSansCJKjp-"), Qt::CaseInsensitive)) return QStringLiteral("Noto Sans CJK JP");
     if (fileName.startsWith(QStringLiteral("NotoSansJP-"), Qt::CaseInsensitive)) return QStringLiteral("Noto Sans JP");
+    if (fileName.startsWith(QStringLiteral("LINESeedJP-"), Qt::CaseInsensitive)) return QStringLiteral("LINE Seed JP");
     if (fileName.startsWith(QStringLiteral("IBMPlexSansJP-"), Qt::CaseInsensitive)) return QStringLiteral("IBM Plex Sans JP");
     return {};
 }
@@ -70,6 +70,7 @@ int AppSettings::loadBundledFonts() {
         }
         int foundInDir = 0;
         int loadedNow = 0;
+        int skipped = 0;
         QDirIterator it(dir, {QStringLiteral("*.otf"), QStringLiteral("*.ttf")}, QDir::Files,
                         QDirIterator::Subdirectories);
         while (it.hasNext()) {
@@ -80,16 +81,17 @@ int AppSettings::loadBundledFonts() {
                 pendingFontFiles_[family] << path;   // カタログのフォントは、使うときに読み込む
                 continue;
             }
-            // カタログ外(アイコンなど小さいもの)は、今のうちに登録する
-            if (QFontDatabase::addApplicationFont(path) < 0) {
-                log::warn("FONT", QStringLiteral("フォントを読み込めません: ") + path);
-            } else {
-                ++loadedNow;
-            }
+            // カタログ外のフォント(以前の版で同梱していた Noto Sans CJK JP がビルド先に残っている場合など)は読まない。
+            // 大きいフォントを起動時にまとめて読むと、起動画面が出るまでに時間がかかるため(アイコンはリソースに埋め込み済み)
+            ++skipped;
         }
         foundFiles += foundInDir;
         log::info("FONT", QStringLiteral("%1 に %2 個のフォントがあります(すぐ登録: %3 個。ほかは使うときに登録)")
                               .arg(dir).arg(foundInDir).arg(loadedNow));
+        if (skipped > 0) {
+            log::info("FONT", QStringLiteral("選択肢に無いフォント %1 個は読み込みません(使わなくなったフォントなら、消してかまいません)")
+                                  .arg(skipped));
+        }
         if (foundInDir > 0) {
             break; // 最初に見つかった探索先だけを使う(同じフォントの二重登録を避ける)
         }
@@ -190,6 +192,23 @@ void AppSettings::loadFontInBackground(const QString &family, std::function<void
     thread->start(QThread::LowPriority);
 }
 
+void AppSettings::whenFontLoaded(const QString &family, std::function<void(bool)> then) {
+    if (!loadingFamilies_.contains(family)) {
+        loadFontInBackground(family, std::move(then));
+        return;
+    }
+    // もう読んでいる(文章用・数値用のどちらかで): 読み終わりの通知を 1 回だけ待つ
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = connect(this, &AppSettings::fontLoadFinished, this,
+                          [this, family, connection, then](const QString &loaded, int, qint64) {
+                              if (loaded != family) {
+                                  return;
+                              }
+                              disconnect(*connection);
+                              then(registeredFamilies_.contains(family));
+                          });
+}
+
 void AppSettings::applyFontFamily(const QString &family) {
     if (family == fontFamily_) {
         return;
@@ -224,6 +243,21 @@ AppSettings::AppSettings(QObject *parent) : QObject(parent) {
         // 残りの太さは、画面を止めずに読む(読み終わったものから使える)
         loadFontInBackground(fontFamily_);
     }
+
+    // 数値用のフォント(空なら文章と同じ)。文章と違うフォントなら、その通常の太さも今読む(太字などは別スレッドで)
+    numberItalic_ = store.value(QStringLiteral("ui/numberItalic"), true).toBool();
+    QString numberFamily = store.value(QStringLiteral("ui/numberFontFamily"), QString()).toString();
+    if (!numberFamily.isEmpty() && !fontFamilies_.contains(numberFamily)) {
+        numberFamily.clear();
+    }
+    if (!numberFamily.isEmpty() && numberFamily != fontFamily_) {
+        if (loadFontNow(numberFamily, true)) {
+            loadFontInBackground(numberFamily);
+        } else {
+            numberFamily.clear();
+        }
+    }
+    numberFontFamily_ = numberFamily;
 }
 
 AppSettings::~AppSettings() {
@@ -257,11 +291,9 @@ void AppSettings::setFontFamily(const QString &family) {
     }
     // 初めて選ばれたフォント: 画面を止めないよう別スレッドで読み、読み終わったら切り替える
     // (読んでいる間にほかのフォントを選んだら、最後に選んだものにする)
+    // (読み終わりを待つ処理は何度登録しても、切り替えるのは最初の 1 回だけ: requestedFamily_ を空にするため)
     requestedFamily_ = family;
-    if (loadingFamilies_.contains(family)) {
-        return; // もう読んでいる: 読み終わったときに切り替える
-    }
-    loadFontInBackground(family, [this, family](bool ok) {
+    whenFontLoaded(family, [this, family](bool ok) {
         if (requestedFamily_ != family) {
             return;
         }
@@ -272,6 +304,50 @@ void AppSettings::setFontFamily(const QString &family) {
             log::warn("FONT", QStringLiteral("フォントを登録できませんでした: ") + family);
         }
     });
+}
+
+void AppSettings::setNumberFontFamily(const QString &family) {
+    if (!family.isEmpty() && !fontFamilies_.contains(family)) {
+        return;
+    }
+    const auto apply = [this](const QString &chosen) {
+        requestedNumberFamily_.clear();
+        if (chosen == numberFontFamily_) {
+            return;
+        }
+        numberFontFamily_ = chosen;
+        openStore().setValue(QStringLiteral("ui/numberFontFamily"), numberFontFamily_);
+        emit numberFontFamilyChanged();
+    };
+    if (family.isEmpty() || registeredFamilies_.contains(family)) {
+        apply(family);
+        if (!family.isEmpty()) {
+            loadFontInBackground(family); // 残りの太さがあれば読む
+        }
+        return;
+    }
+    // 初めて使うフォント: 別スレッドで読み、読み終わったら切り替える(その間にほかを選んだら、最後に選んだもの)
+    requestedNumberFamily_ = family;
+    whenFontLoaded(family, [this, family, apply](bool ok) {
+        if (requestedNumberFamily_ != family) {
+            return;
+        }
+        if (ok) {
+            apply(family);
+        } else {
+            requestedNumberFamily_.clear();
+            log::warn("FONT", QStringLiteral("フォントを登録できませんでした: ") + family);
+        }
+    });
+}
+
+void AppSettings::setNumberItalic(bool italic) {
+    if (italic == numberItalic_) {
+        return;
+    }
+    numberItalic_ = italic;
+    openStore().setValue(QStringLiteral("ui/numberItalic"), numberItalic_);
+    emit numberItalicChanged();
 }
 
 void AppSettings::setPowerMode(int mode) {

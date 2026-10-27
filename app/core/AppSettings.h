@@ -37,6 +37,10 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString userName READ userName WRITE setUserName NOTIFY userNameChanged)
     /** 表示フォントのファミリ名。空なら OS 既定のフォント */
     Q_PROPERTY(QString fontFamily READ fontFamily WRITE setFontFamily NOTIFY fontFamilyChanged)
+    /** 数値(メーターの値・目盛り、グラフ、時計)に使うフォントのファミリ名。空なら文章と同じ(fontFamily) */
+    Q_PROPERTY(QString numberFontFamily READ numberFontFamily WRITE setNumberFontFamily NOTIFY numberFontFamilyChanged)
+    /** メーター・グラフの値を斜体にするか(既定: する) */
+    Q_PROPERTY(bool numberItalic READ numberItalic WRITE setNumberItalic NOTIFY numberItalicChanged)
     /** 選択できるフォントのファミリ名(読み込めた同梱フォントのみ) */
     Q_PROPERTY(QStringList fontFamilies READ fontFamilies CONSTANT)
     /** アプリが選択する電源モード(0:標準、1:省電力、2:高性能) */
@@ -57,6 +61,8 @@ public:
     QString userName() const { return userName_; }
     QString fontFamily() const { return fontFamily_; }
     QStringList fontFamilies() const { return fontFamilies_; }
+    QString numberFontFamily() const { return numberFontFamily_; }
+    bool numberItalic() const { return numberItalic_; }
     int powerMode() const { return powerMode_; }
     QString powerModeStatus() const { return powerModeStatus_; }
     bool phoneNoticePopupEnabled() const { return phoneNoticePopupEnabled_; }
@@ -68,6 +74,10 @@ public:
 
     /** @brief フォントを変更して保存する。選択肢にないファミリ名は無視する。アプリ既定フォントにも反映する。 */
     void setFontFamily(const QString &family);
+    /** @brief 数値用のフォントを変更して保存する。空なら文章と同じ。選択肢にないファミリ名は無視する。 */
+    void setNumberFontFamily(const QString &family);
+    /** @brief 数値を斜体にするかを変更して保存する。 */
+    void setNumberItalic(bool italic);
     /** @brief アプリの電源モードを変更して保存する。 */
     void setPowerMode(int mode);
     /** @brief スマートフォン通知のポップアップ表示を保存する。既定はオフ。 */
@@ -78,6 +88,8 @@ public:
 signals:
     void userNameChanged();
     void fontFamilyChanged();
+    void numberFontFamilyChanged();
+    void numberItalicChanged();
     void powerModeChanged();
     void phoneNoticePopupEnabledChanged();
     /** 別スレッドでのフォントの読み込みが終わった(files: 読んだファイル数、ms: かかった時間) */
@@ -107,6 +119,11 @@ private:
      * then(登録できたか)は、登録し終えたときに UI スレッドで呼ぶ。
      */
     void loadFontInBackground(const QString &family, std::function<void(bool)> then = {});
+    /**
+     * @brief そのファミリを読み込み、読み終わったら then(登録できたか)を UI スレッドで呼ぶ。
+     * ほかの設定(文章・数値)のために読んでいる途中なら、それが終わるのを待つ。
+     */
+    void whenFontLoaded(const QString &family, std::function<void(bool)> then);
     /** @brief 登録できたフォントを選ぶ(保存・アプリ既定フォントへの反映・通知)。 */
     void applyFontFamily(const QString &family);
     /** @brief powerprofilesctl を別プロセスで動かし、終わったら次の手順へ進む(待たない)。 */
@@ -115,6 +132,8 @@ private:
     QString userName_;
     QString fontFamily_;
     QStringList fontFamilies_;
+    QString numberFontFamily_;
+    bool numberItalic_ = true;
     int powerMode_ = 0;
     QString powerModeStatus_;
     bool phoneNoticePopupEnabled_ = false;
@@ -125,6 +144,8 @@ private:
     QStringList registeredFamilies_;
     /// 設定で選ばれ、読み込みを待っているファミリ(読み終わったら切り替える。空なら無し)
     QString requestedFamily_;
+    /// 数値用に選ばれ、読み込みを待っているファミリ
+    QString requestedNumberFamily_;
     /// フォントを読んでいるスレッド(終了時に待つ)と、読んでいるファミリ
     QList<QThread *> fontThreads_;
     QStringList loadingFamilies_;

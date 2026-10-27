@@ -10,6 +10,10 @@ QtObject {
     property int accentIndex: 0
     // 表示フォントのファミリ名(AppSettings から Main.qml の Binding で受け取る)。通常のテキストは font.family にこれを指定する
     property string fontFamily: Qt.application.font.family
+    // 数値(メーターの値・目盛り、グラフ、時計)に使うフォント。設定で「文章と同じ」なら fontFamily と同じ
+    property string numberFontFamily: fontFamily
+    // メーター・グラフの値を斜体にするか(設定の「数値を斜体にする」)
+    property bool numberItalic: true
     // 画面サイズに応じた拡大率(Main.qml から Binding で受け取る。1280x720 で 1.0、小さい画面でも 0.6 まで)。設定画面などが寸法に掛ける
     property real uiScale: 1.0
 

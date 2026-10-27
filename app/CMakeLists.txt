@@ -185,11 +185,11 @@ endif()
 target_compile_options(opencruise PRIVATE -Wall -Wextra)
 
 # ---------------------------------------------------------------------------
-# 同梱フォント(Noto Sans JP / Noto Sans CJK JP / IBM Plex Sans JP。いずれも SIL OFL 1.1)。
-# 合計 170MB 超でリソース(qrc)に埋め込むとビルドが極端に重くなるため、実行ファイルの隣の fonts/ へコピーし、
+# 同梱フォント(Noto Sans JP / LINE Seed JP / IBM Plex Sans JP。いずれも SIL OFL 1.1)。
+# 合計 80MB ほどあり、リソース(qrc)に埋め込むとビルドが極端に重くなるため、実行ファイルの隣の fonts/ へコピーし、
 # 起動時に AppSettings が読み込む。ライセンス文は各フォルダの OFL.txt。詳細は fonts/README-FONTS.md。
 # ---------------------------------------------------------------------------
-set(OPENCRUISE_BUNDLED_FONT_DIRS NotoSansJP NotoSansCJKjp IBMPlexSansJP)
+set(OPENCRUISE_BUNDLED_FONT_DIRS NotoSansJP LINESeedJP IBMPlexSansJP)
 foreach(font_dir IN LISTS OPENCRUISE_BUNDLED_FONT_DIRS)
     add_custom_command(TARGET opencruise POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

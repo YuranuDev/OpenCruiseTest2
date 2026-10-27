@@ -43,7 +43,7 @@ WidgetBase {
             height: Math.min(body.height * (root.dateShown ? 0.72 : 0.95), parent.width * 0.48)
             horizontalAlignment: root.hAlign
             verticalAlignment: Text.AlignVCenter
-            font.family: Theme.fontFamily
+            font.family: Theme.numberFontFamily
             font.bold: true
             font.pixelSize: 200
             minimumPixelSize: 12

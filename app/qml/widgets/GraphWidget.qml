@@ -164,9 +164,9 @@ WidgetBase {
             spacing: 4
             Text {
                 id: valueText
-                font.family: Theme.fontFamily
+                font.family: Theme.numberFontFamily
                 font.bold: true
-                font.italic: true
+                font.italic: Theme.numberItalic
                 font.pixelSize: Math.round(Math.max(18, Math.min(root.height * 0.16, 44)))
                 color: root.inZone ? Theme.error : Theme.textPrimary
                 text: isNaN(root.current) || !root.hasData ? "--" : root.fmt(root.current, root.decimals)
@@ -203,9 +203,9 @@ WidgetBase {
                 }
                 Text {
                     id: statVal
-                    font.family: Theme.fontFamily
+                    font.family: Theme.numberFontFamily
                     font.bold: true
-                    font.italic: true
+                    font.italic: Theme.numberItalic
                     font.pixelSize: Math.round(Math.max(12, Math.min(root.titleFontSize, 18)))
                     color: root.warnOn && !isNaN(modelData.v) && (root.warnBelow ? modelData.v <= root.warnV : modelData.v >= root.warnV)
                            ? Theme.error : Theme.textPrimary
@@ -242,14 +242,14 @@ WidgetBase {
         onHeightChanged: if (visible) requestPaint()
         readonly property color lineColor: root.inZone ? Theme.error : Theme.accent
         readonly property string key: [Theme.accent, Theme.error, Theme.panelBorder, Theme.textSecondary, root.fillOn,
-                                       root.warnOn, root.warnV, root.range.lo, root.range.hi].join("|")
+                                       root.warnOn, root.warnV, root.range.lo, root.range.hi, Theme.numberFontFamily].join("|")
         onKeyChanged: if (visible) requestPaint()
 
         onPaint: {
             const ctx = getContext("2d")
             ctx.reset()
             const fontPx = Math.round(Math.max(10, Math.min(root.titleFontSize * 0.75, 14)))
-            ctx.font = fontPx + "px \"" + Theme.fontFamily + "\""
+            ctx.font = fontPx + "px \"" + Theme.numberFontFamily + "\""
             const lo = root.range.lo, hi = root.range.hi
             // 左の目盛りの幅
             let labelW = 0

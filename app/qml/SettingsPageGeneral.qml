@@ -69,5 +69,43 @@ SettingsPage {
             Text { font.family: Theme.fontFamily; text: "Light 見本: 東京都 1234567890 ABCabc"; color: Theme.textSecondary; font.pixelSize: 24 * Theme.uiScale; font.weight: Font.Light }
             Text { font.family: Theme.fontFamily; text: "Bold 見本: 東京都 1234567890 ABCabc"; color: Theme.textSecondary; font.pixelSize: 24 * Theme.uiScale; font.bold: true }
         }
+
+        // 数値(メーターの値・目盛り、グラフ、時計)だけ別のフォントにできる
+        SettingsRow {
+            visible: appSettings.fontFamilies.length > 0
+            label: "数値のフォント"
+            description: "メーターの値・目盛り、グラフ、時計の数字に使います"
+            stacked: true
+
+            SettingsChoice {
+                model: ["文章と同じ"].concat(appSettings.fontFamilies)
+                currentIndex: appSettings.numberFontFamily === "" ? 0 : appSettings.fontFamilies.indexOf(appSettings.numberFontFamily) + 1
+                onPicked: (index) => appSettings.numberFontFamily = index === 0 ? "" : appSettings.fontFamilies[index - 1]
+            }
+        }
+
+        SettingsRow {
+            label: "数値を斜体にする"
+            description: "メーターとグラフの値を斜めの字で表示します"
+
+            SettingsSwitch {
+                checked: appSettings.numberItalic
+                onToggled: (value) => appSettings.numberItalic = value
+            }
+        }
+
+        // 数値の見本(メーターの値と同じ太字)
+        Text {
+            width: parent.width
+            topPadding: 8 * Theme.uiScale
+            bottomPadding: 6 * Theme.uiScale
+            font.family: Theme.numberFontFamily
+            font.bold: true
+            font.italic: Theme.numberItalic
+            font.pixelSize: 34 * Theme.uiScale
+            color: Theme.textPrimary
+            wrapMode: Text.WordWrap
+            text: "数値の見本: 0.50  88  3000  123.4  -1.0  12:34"
+        }
     }
 }
