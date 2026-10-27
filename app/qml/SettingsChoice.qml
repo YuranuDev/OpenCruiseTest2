@@ -15,28 +15,37 @@ Flow {
     // 使える幅(SettingsRow の中なら自動。それ以外は制限なし)
     property real maxWidth: parent && parent.parent && parent.parent.controlMaxWidth !== undefined
                             ? parent.parent.controlMaxWidth : 1e6
-    // ボタンが作られた・消えたときに増える(naturalWidth を計算し直すため。itemAt() の結果の変化は通知されないので、
-    // これが無いと、ボタンがまだ作られていない時点の幅(ほぼ 0)のままになり、ボタンが 1 つずつ折り返して右へはみ出す)
+    // 各ボタンの幅(ボタン自身が、作られたとき・幅が変わったときに知らせる)。
+    // Repeater.itemAt() で読むと、作られる順番によっては、まだボタンが無い時点の幅(ほぼ 0)のまま計算し直されず、
+    // ボタンが 1 つずつ折り返して右へはみ出すことがある(環境・解像度によって起きる)ので、ボタンから知らせてもらう
+    property var itemWidths: []
     property int itemsRevision: 0
-    // 1 行に並べたときの幅
+    function setItemWidth(i, w) {
+        if (itemWidths[i] === w) return
+        const list = itemWidths.slice()
+        list[i] = w
+        itemWidths = list
+        ++itemsRevision
+    }
+    readonly property int itemCount: model ? (model.length !== undefined ? model.length : buttons.count) : 0
+    // 1 行に並べたときの幅(まだ幅を知らせていないボタンは、ボタンの最小の幅で見積もる)
     readonly property real naturalWidth: {
         itemsRevision
         let w = 0
-        for (let i = 0; i < buttons.count; ++i) {
-            const it = buttons.itemAt(i)
-            if (it) w += it.implicitWidth
+        for (let i = 0; i < itemCount; ++i) {
+            const iw = itemWidths[i]
+            w += iw > 0 ? iw : 112 * unit
         }
-        return w + spacing * Math.max(0, buttons.count - 1)
+        return w + spacing * Math.max(0, itemCount - 1)
     }
 
     spacing: 10 * unit
-    width: Math.max(1, Math.min(naturalWidth, maxWidth))
+    // 小数の誤差で最後のボタンが折り返さないよう、少しだけ余裕を持たせる
+    width: Math.max(1, Math.min(Math.ceil(naturalWidth) + 1, maxWidth))
 
     Repeater {
         id: buttons
         model: root.model
-        onItemAdded: root.itemsRevision++
-        onItemRemoved: root.itemsRevision++
 
         Rectangle {
             id: btn
@@ -44,6 +53,8 @@ Flow {
 
             implicitWidth: Math.max(112 * root.unit, content.implicitWidth + 44 * root.unit)
             width: implicitWidth
+            onImplicitWidthChanged: root.setItemWidth(index, implicitWidth)
+            Component.onCompleted: root.setItemWidth(index, implicitWidth)
             height: 64 * root.unit
             radius: Theme.radius
             color: selected ? Theme.accentFill
