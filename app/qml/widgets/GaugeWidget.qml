@@ -139,9 +139,9 @@ WidgetBase {
     onLiveBaseChanged: if (onScreen) smoothBase = liveBase
     onOnScreenChanged: if (onScreen) smoothBase = liveBase
     Behavior on smoothBase { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
-    readonly property real shown: toShown(openingActive ? openingBase : smoothBase)
+    readonly property real shown: toShown(openingActive ? openingBase : (openingHold ? openingStartBase : smoothBase))
 
-    // ---------------------------------------------------------------- オープニング(針を最小 → 最大 → 今の値へ振る)
+    // ---------------------------------------------------------------- オープニング(針を左端 → 右端 → 今の値へ振る)
     // 設定 config.openingSweep(既定オン)。行うのは:
     //  - アプリの起動時: データがもう来ていれば、起動画面が消えてから
     //  - データが無かったとき: データが来たときに(来るたび)
@@ -149,18 +149,24 @@ WidgetBase {
     // 警告・注意・ピークの判定は rawValue で続けるので、オープニング中の針の位置には影響されない
     readonly property bool openingOn: config.openingSweep !== false
     property bool openingStartup: false   // 起動画面が消えるのを待っている(起動時にデータがあったとき)
-    property real openingPhase: 0         // 0 → 1: 最小 → 最大、1 → 2: 最大 → 今の値
+    property real openingPhase: 0         // 0 → 1: 左端(最小) → 右端(最大)、1 → 2: 右端 → 今の値
     readonly property bool openingActive: openingAnim.running
     readonly property real openingMinBase: config.min !== undefined ? Number(config.min) : gauge.limitMin
     readonly property real openingMaxBase: config.max !== undefined ? Number(config.max) : gauge.limitMax
+    // 振り始めの位置: メーターの左端(最小値)。今の値からではなく、ここから右端(最大値)まで振る
+    readonly property real openingStartBase: openingMinBase
+    // 起動画面が消えるのを待っている間は、今の値ではなく振り始めの位置に置いておく(消えた直後に今の値が見えてから
+    // 0 へ飛ぶ、ということが無いように)
+    readonly property bool openingHold: openingStartup && openingOn && widgetId !== "" && hasData
     readonly property real openingBase: {
         const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-        if (openingPhase <= 1) return openingMinBase + (openingMaxBase - openingMinBase) * ease(openingPhase)
+        if (openingPhase <= 1) return openingStartBase + (openingMaxBase - openingStartBase) * ease(openingPhase)
         return openingMaxBase + (smoothBase - openingMaxBase) * ease(openingPhase - 1)
     }
     function startOpening() {
         openingStartup = false
         if (!openingOn || widgetId === "" || !hasData) return
+        openingPhase = 0
         openingAnim.restart()
     }
     SequentialAnimation {

@@ -37,6 +37,13 @@ Item {
     // (画面を壊している途中にタブが切り替わると、壊れかけの行の寸法が計算し直されて警告が大量に出るため)
     property string currentTab: ""
     property bool tearingDown: false
+    // アプリの終了時: 設定の中身を、まだ部品が生きているうちに先に片付ける。終了の最後に画面全体を壊すときに
+    // まとめて壊すと、壊れかけの行の寸法が計算し直されて警告(Cannot read property ... of null)が大量に出るため
+    property bool shuttingDown: false
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() { root.tearingDown = true; root.shuttingDown = true }
+    }
     Component.onDestruction: tearingDown = true
     function updateCurrentTab() {
         if (tearingDown) return
@@ -241,6 +248,7 @@ Item {
                     id: settingsLoader
                     width: parent.width
                     visible: root.currentTab !== root.commonKey
+                    active: !root.shuttingDown
                     sourceComponent: root.def ? root.def.settings : null
                 }
                 Binding { target: settingsLoader.item; property: "config"; value: root.cfg; when: settingsLoader.item !== null }
@@ -253,64 +261,71 @@ Item {
                 }
 
                 // ---- 全ウィジェット共通(「枠・サイズ」タブ): 枠・タイトル・サイズ ----
-                Column {
+                Loader {
+                    id: commonLoader
                     width: parent.width
                     visible: root.currentTab === root.commonKey
-                    SettingsRow {
-                        label: "枠"
-                        description: "「なし」にすると背景のカードを描きません"
-                        SettingsChoice {
-                            model: ["カード", "なし"]
-                            currentIndex: root.cfg.frame === "plain" ? 1 : 0
-                            onPicked: (i) => { if (root.area) root.area.setConfigValue(root.wid, "frame", i === 1 ? "plain" : "card") }
-                        }
-                    }
+                    active: !root.shuttingDown
+                    sourceComponent: Component {
+                        Column {
+                            width: commonLoader.width
+                            SettingsRow {
+                                label: "枠"
+                                description: "「なし」にすると背景のカードを描きません"
+                                SettingsChoice {
+                                    model: ["カード", "なし"]
+                                    currentIndex: root.cfg.frame === "plain" ? 1 : 0
+                                    onPicked: (i) => { if (root.area) root.area.setConfigValue(root.wid, "frame", i === 1 ? "plain" : "card") }
+                                }
+                            }
 
-                    // ---- 全ウィジェット共通: タイトル ----
-                    SettingsRow {
-                        label: "上部タイトルを表示"
-                        SettingsSwitch {
-                            checked: root.cfg.showTitle !== false
-                            onToggled: (v) => { if (root.area) root.area.setConfigValue(root.wid, "showTitle", v) }
-                        }
-                    }
-                    SettingsRow {
-                        label: "タイトル文字"
-                        description: "空欄ならウィジェット標準の名前を表示します"
-                        stacked: true
-                        WSTextField {
-                            width: 520 * Theme.uiScale
-                            text: root.cfg.titleText || ""
-                            placeholder: root.def ? root.def.name : "タイトル"
-                            maxLength: 32
-                            // 入力中はウィジェットとプレビューに即反映、保存は確定時(WSTextField の edited)
-                            onChanging: (t) => { if (root.area) root.area.previewConfigValue(root.wid, "titleText", t) }
-                            onEdited: (t) => { if (root.area) root.area.setConfigValue(root.wid, "titleText", t) }
-                        }
-                    }
+                            // ---- 全ウィジェット共通: タイトル ----
+                            SettingsRow {
+                                label: "上部タイトルを表示"
+                                SettingsSwitch {
+                                    checked: root.cfg.showTitle !== false
+                                    onToggled: (v) => { if (root.area) root.area.setConfigValue(root.wid, "showTitle", v) }
+                                }
+                            }
+                            SettingsRow {
+                                label: "タイトル文字"
+                                description: "空欄ならウィジェット標準の名前を表示します"
+                                stacked: true
+                                WSTextField {
+                                    width: 520 * Theme.uiScale
+                                    text: root.cfg.titleText || ""
+                                    placeholder: root.def ? root.def.name : "タイトル"
+                                    maxLength: 32
+                                    // 入力中はウィジェットとプレビューに即反映、保存は確定時(WSTextField の edited)
+                                    onChanging: (t) => { if (root.area) root.area.previewConfigValue(root.wid, "titleText", t) }
+                                    onEdited: (t) => { if (root.area) root.area.setConfigValue(root.wid, "titleText", t) }
+                                }
+                            }
 
-                    // ---- 共通: サイズ ----
-                    SettingsRow {
-                        label: "サイズ(横)"
-                        description: "グリッドのマス数です。隣のウィジェットと重なる大きさにはできません"
-                        WSStepper {
-                            value: root.size.w
-                            from: root.def ? root.def.minSize.w : 1
-                            to: root.def ? root.def.maxSize.w : 12
-                            step: 1
-                            suffix: " マス"
-                            onMoved: (v) => { if (root.area) root.area.resizeWidget(root.wid, v, root.size.h) }
-                        }
-                    }
-                    SettingsRow {
-                        label: "サイズ(縦)"
-                        WSStepper {
-                            value: root.size.h
-                            from: root.def ? root.def.minSize.h : 1
-                            to: root.def ? root.def.maxSize.h : 6
-                            step: 1
-                            suffix: " マス"
-                            onMoved: (v) => { if (root.area) root.area.resizeWidget(root.wid, root.size.w, v) }
+                            // ---- 共通: サイズ ----
+                            SettingsRow {
+                                label: "サイズ(横)"
+                                description: "グリッドのマス数です。隣のウィジェットと重なる大きさにはできません"
+                                WSStepper {
+                                    value: root.size.w
+                                    from: root.def ? root.def.minSize.w : 1
+                                    to: root.def ? root.def.maxSize.w : 12
+                                    step: 1
+                                    suffix: " マス"
+                                    onMoved: (v) => { if (root.area) root.area.resizeWidget(root.wid, v, root.size.h) }
+                                }
+                            }
+                            SettingsRow {
+                                label: "サイズ(縦)"
+                                WSStepper {
+                                    value: root.size.h
+                                    from: root.def ? root.def.minSize.h : 1
+                                    to: root.def ? root.def.maxSize.h : 6
+                                    step: 1
+                                    suffix: " マス"
+                                    onMoved: (v) => { if (root.area) root.area.resizeWidget(root.wid, root.size.w, v) }
+                                }
+                            }
                         }
                     }
                 }
@@ -381,7 +396,7 @@ Item {
                         id: previewLoader
                         anchors.fill: parent
                         // 開いている間(閉じるアニメーション中も含む)だけ作る
-                        active: root.visible && root.def !== null
+                        active: root.visible && root.def !== null && !root.shuttingDown
                         sourceComponent: root.def ? root.def.component : null
                     }
                     Binding { target: previewLoader.item; property: "config"; value: root.cfg; when: previewLoader.item !== null }

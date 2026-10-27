@@ -463,6 +463,8 @@ int main(int argc, char *argv[]) {
     }
 
     const int exitCode = app.exec();
+    // 終了の合図(aboutToQuit)で片付けた画面の部品を、画面全体を壊す前に消しておく(後回しにした削除を実行する)
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 
     opencruise::log::info("APP", QStringLiteral("イベントループを終了しました (コード %1)").arg(exitCode));
     opencruise::log::shutdown();
