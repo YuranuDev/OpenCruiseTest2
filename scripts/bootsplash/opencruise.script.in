@@ -2,6 +2,7 @@
 # アプリの起動画面と同じ見た目の画像(background.png。アプリの --export-splash で作る)を全面に出し、
 # 進行バーの塗りだけをここで描く。アプリは起動するとこの画面を消さずに引き継ぎ(plymouth quit --retain-splash)、
 # 同じ位置に同じものを描くので、途切れずにアプリの起動画面へ移る。
+# シャットダウン・再起動のときも同じ画像を出す(アプリは終わる前に、この画像へ切り替えてから終わる)。
 # @...@ は install.sh が splash.conf の値で置き換える(画面の大きさ・進行バーの位置・色)。
 
 src_w = @WIDTH@;
@@ -35,6 +36,9 @@ global.bar_shown = -1;
 
 fun progress_callback (duration, progress)
   {
+    # シャットダウン・再起動の画面では進めない(溝だけ。アプリの終了画面と同じ見た目のまま)
+    if (Plymouth.GetMode() != "boot")
+      return;
     w = Math.Int(bar.w * progress * 0.3);
     if (w < 1) w = 1;
     if (w != global.bar_shown)
