@@ -91,9 +91,17 @@ struct AasdkBackend::Impl {
         stopping_ = false;
         running_ = true;
         usbEventStop_ = false;
-        usbEventThread_ = std::thread([this]() { runUsbEvents(); });
+        usbEventRunning_ = true;
+        usbEventThread_ = std::thread([this]() {
+            runUsbEvents();
+            usbEventRunning_ = false;
+        });
+        ioRunning_ = config::kIoThreadCount;
         for (int i = 0; i < config::kIoThreadCount; ++i) {
-            ioThreads_.emplace_back([this]() { runIo(); });
+            ioThreads_.emplace_back([this]() {
+                runIo();
+                --ioRunning_;
+            });
         }
 
         strand_->post([this]() { beginWaiting(); });
@@ -106,6 +114,8 @@ struct AasdkBackend::Impl {
      * 手順: 停止要求を strand に投げる → セッション終了通知(ByeBye 送信→応答待ち→終了)を最大2.5秒待つ →
      * io スレッドを終了 → USB イベントスレッドを終了 → libusb 解放。
      * 終了待ちは「上限つきのベストエフォート」。
+     * スレッドが USB の処理(open / reset など)の中で戻ってこないときは、待ち続けて画面ごと止まらないよう、
+     * 上限まで待ってから切り離す(その場合は、使っているかもしれない USB 基盤を解放しない)。
      */
     void stop() {
         if (!running_.exchange(false)) {
@@ -137,13 +147,47 @@ struct AasdkBackend::Impl {
         // 終了していないハンドラがあっても io スレッドが必ず戻るよう、猶予後に強制停止してから join する
         ioService_.stop();
         workGuard_.reset();
+        const bool ioDone = waitUntil([this]() { return ioRunning_ == 0; }, std::chrono::milliseconds(3000));
         for (auto &thread : ioThreads_) {
-            thread.join();
+            if (ioDone) {
+                thread.join();
+            } else {
+                thread.detach();
+            }
         }
         ioThreads_.clear();
 
         usbEventStop_ = true;
-        usbEventThread_.join();
+        const bool usbDone = waitUntil([this]() { return !usbEventRunning_; }, std::chrono::milliseconds(2000));
+        if (usbDone) {
+            usbEventThread_.join();
+        } else {
+            usbEventThread_.detach();
+        }
+        // USB デバイスのリセット(別スレッド)が終わるのも待つ
+        const bool resetDone = waitUntil([this]() { return !resetRunning_; }, std::chrono::milliseconds(2000));
+        if (resetThread_.joinable()) {
+            if (resetDone) {
+                resetThread_.join();
+            } else {
+                resetThread_.detach();
+            }
+        }
+
+        if (!ioDone || !usbDone || !resetDone) {
+            // 戻ってこないスレッドが USB 基盤を使っているかもしれないので、解放せずに手放す(アプリの終了時に OS が片付ける)
+            log(std::string("[backend] 停止: 終わらないスレッドがあるため切り離しました(io=") + (ioDone ? "済" : "未") +
+                " / USB=" + (usbDone ? "済" : "未") + " / リセット=" + (resetDone ? "済" : "未") + ")");
+            // shared_ptr は、手放すために別の入れ物へ移して捨てる(デストラクタで libusb を呼ばせない)
+            static_cast<void>(new std::shared_ptr<AasdkSession>(std::move(session_)));
+            static_cast<void>(new aasdk::usb::DeviceHandle(std::move(currentHandle_)));
+            static_cast<void>(new aasdk::usb::IUSBHub::Pointer(std::move(hub_)));
+            (void)chainFactory_.release();
+            (void)queryFactory_.release();
+            (void)usbWrapper_.release();
+            usbContext_ = nullptr;
+            return;
+        }
 
         session_.reset();
         currentHandle_.reset(); // libusb_exit の前に USB ハンドルを閉じる
@@ -341,9 +385,21 @@ struct AasdkBackend::Impl {
         session_.reset();
         // 正規の切断手順を経ていない場合、スマートフォンは前の接続が続いていると思い込んだままになり得る。
         // USB をリセットして再列挙させ、次の接続で無応答にならないようにする。
-        if (currentHandle_ && needsUsbReset(reason)) {
-            const int rc = libusb_reset_device(currentHandle_.get());
-            log(std::string("[backend] 異常終了のため USB デバイスをリセットしました: ") + libusb_error_name(rc));
+        // リセットは、スマートフォンが切り替え中だと長く戻ってこないことがある。ここ(strand)で待つと、
+        // 次の接続も、アプリの終了も止まってしまうので、別のスレッドで行う
+        if (currentHandle_ && needsUsbReset(reason) && !resetRunning_) {
+            if (resetThread_.joinable()) {
+                resetThread_.join(); // 前のリセットは終わっている(resetRunning_ が false)
+            }
+            resetRunning_ = true;
+            resetThread_ = std::thread([this, handle = currentHandle_]() {
+                const auto started = std::chrono::steady_clock::now();
+                const int rc = libusb_reset_device(handle.get());
+                const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
+                log(std::string("[backend] 異常終了のため USB デバイスをリセットしました: ") + libusb_error_name(rc) +
+                    " (" + std::to_string(ms) + " ms)");
+                resetRunning_ = false;
+            });
         }
         currentHandle_.reset();
         if (hub_) {
@@ -379,6 +435,21 @@ struct AasdkBackend::Impl {
         std::lock_guard<std::mutex> lock(goneMutex_);
         sessionGone_ = true;
         goneCv_.notify_all();
+    }
+
+    /**
+     * @brief pred が true になるまで、最大 timeout 待つ。
+     * @return 時間内に true になったら true
+     */
+    template <typename Pred> static bool waitUntil(Pred pred, std::chrono::milliseconds timeout) {
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (!pred()) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        return true;
     }
 
     /**
@@ -486,8 +557,12 @@ struct AasdkBackend::Impl {
     std::unique_ptr<boost::asio::steady_timer> rescanTimer_;
     aasdk::usb::DeviceHandle currentHandle_; ///< 接続中の USB デバイス（切断後のリセット用。strand_ 上でのみ触る）
     std::vector<std::thread> ioThreads_;
+    std::atomic<int> ioRunning_{0};              ///< まだ戻っていない io スレッドの数
     std::thread usbEventThread_;
     std::atomic<bool> usbEventStop_{false};
+    std::atomic<bool> usbEventRunning_{false};
+    std::thread resetThread_;                    ///< 切断後の USB リセット(長く戻らないことがあるので別スレッド)
+    std::atomic<bool> resetRunning_{false};
 
     aasdk::usb::IUSBHub::Pointer hub_;      ///< strand_ 上でのみ触る
     std::shared_ptr<AasdkSession> session_; ///< strand_ 上でのみ触る
