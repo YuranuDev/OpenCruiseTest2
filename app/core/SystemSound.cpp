@@ -110,8 +110,18 @@ bool isCategory(const QString &category) {
 } // namespace
 
 SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
-    : QObject(parent), settings_(settings), click_(this), start_(this), alert_(this), caution_(this), preview_(this),
+    : QObject(parent), settings_(settings),
       startOutput_(this), startPlayer_(this), previewOutput_(this), previewPlayer_(this) {
+    // 再生器は再生用のスレッドで動かす(鳴らし始め・止めるときの出力先とのやり取りで、画面が止まらないように)
+    audioContext_ = new QObject;
+    click_ = new QSoundEffect(audioContext_);
+    start_ = new QSoundEffect(audioContext_);
+    alert_ = new QSoundEffect(audioContext_);
+    caution_ = new QSoundEffect(audioContext_);
+    preview_ = new QSoundEffect(audioContext_);
+    audioThread_.setObjectName(QStringLiteral("OpenCruiseSound"));
+    audioContext_->moveToThread(&audioThread_);
+    audioThread_.start();
     setupPlayer(startPlayer_, startOutput_);
     setupPlayer(previewPlayer_, previewOutput_);
     setupEffect(click_, clickPending_);
@@ -149,6 +159,19 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
         connect(settings_, &AudioSettings::deviceChangedFor, this, onChanged);
     }
     applySettings();
+}
+
+SystemSound::~SystemSound() {
+    if (audioThread_.isRunning()) {
+        // 再生器は、それが動いているスレッドで消す
+        QObject *context = audioContext_;
+        QMetaObject::invokeMethod(context, [context]() { delete context; }, Qt::BlockingQueuedConnection);
+        audioThread_.quit();
+        audioThread_.wait();
+    } else {
+        delete audioContext_;
+    }
+    audioContext_ = nullptr;
 }
 
 QString SystemSound::userSoundDirectory() const {
@@ -283,22 +306,25 @@ void SystemSound::loadCategory(const QString &category) {
             url = QUrl();   // WAV 用の再生器は空にしておく
         }
     }
-    QSoundEffect &effect = effectOf(category);
+    QSoundEffect *effect = effectOf(category);
+    bool *pending = &pendingOf(category);
     mutedOf(category) = muted;
-    pendingOf(category) = false;
-    if (effect.source() != url) {
-        effect.setSource(url);
-    }
+    onAudio([effect, pending, url]() {
+        *pending = false;
+        if (effect->source() != url) {
+            effect->setSource(url);
+        }
+    });
     if (category == QStringLiteral("alert") && alertLooping_) {
         alertLooping_ = false; // ずっと鳴らしている途中で音を変えたら、新しい音で鳴らし直す
-        alert_.setLoopCount(1);
+        onAudio([this]() { alert_->setLoopCount(1); });
         updateAlertLoop();
     } else if (category == QStringLiteral("alert")) {
         updateAlertLoop();
     }
 }
 
-QSoundEffect &SystemSound::effectOf(const QString &category) {
+QSoundEffect *SystemSound::effectOf(const QString &category) {
     if (category == QStringLiteral("start")) {
         return start_;
     }
@@ -330,7 +356,7 @@ bool &SystemSound::mutedOf(const QString &category) {
 
 void SystemSound::preview(const QString &category, const QString &id) {
     if (id == kNone || !isCategory(category)) {
-        preview_.stop();
+        onAudio([this]() { preview_->stop(); });
         previewPlayer_.stop();
         return;
     }
@@ -338,7 +364,7 @@ void SystemSound::preview(const QString &category, const QString &id) {
     if (url.isEmpty()) {
         return;
     }
-    preview_.stop();
+    onAudio([this]() { preview_->stop(); });
     previewPlayer_.stop();
     if (isMp3(url)) {
         // MP3 は QMediaPlayer で試聴する
@@ -349,10 +375,12 @@ void SystemSound::preview(const QString &category, const QString &id) {
         previewPlayer_.play();
         return;
     }
-    if (preview_.source() != url) {
-        preview_.setSource(url);
-    }
-    playEffect(preview_, previewPending_);
+    onAudio([this, url]() {
+        if (preview_->source() != url) {
+            preview_->setSource(url);
+        }
+        playEffect(preview_, previewPending_);
+    });
 }
 
 void SystemSound::rescan() {
@@ -455,8 +483,13 @@ void SystemSound::rebuildSynth() {
     if (selectedSound(QStringLiteral("alert")) == kSynthId) {
         loadCategory(QStringLiteral("alert"));
     }
-    if (!old.isEmpty() && preview_.source() != QUrl::fromLocalFile(old)) {
-        QFile::remove(old);
+    if (!old.isEmpty()) {
+        // 前の合成音のファイルを消す(試聴中でなければ)。再生器を見るので、再生用のスレッドで
+        onAudio([this, old]() {
+            if (preview_->source() != QUrl::fromLocalFile(old) && alert_->source() != QUrl::fromLocalFile(old)) {
+                QFile::remove(old);
+            }
+        });
     }
 }
 
@@ -520,11 +553,13 @@ void SystemSound::previewSynth() {
     if (url.isEmpty()) {
         return;
     }
-    preview_.stop();
-    if (preview_.source() != url) {
-        preview_.setSource(url);
-    }
-    playEffect(preview_, previewPending_);
+    onAudio([this, url]() {
+        preview_->stop();
+        if (preview_->source() != url) {
+            preview_->setSource(url);
+        }
+        playEffect(preview_, previewPending_);
+    });
 }
 
 void SystemSound::setAlertInterval(int ms) {
@@ -561,25 +596,30 @@ void SystemSound::updateAlertLoop() {
     const bool loop = alertContinuous_ && alertActive_ && !alertMuted_;
     if (loop && !alertLooping_) {
         alertLooping_ = true;
-        alert_.stop();
-        alert_.setLoopCount(QSoundEffect::Infinite);
-        playEffect(alert_, alertPending_); // 読み込み中なら、読み込みが終わってから鳴らし始める
+        onAudio([this]() {
+            alert_->stop();
+            alert_->setLoopCount(QSoundEffect::Infinite);
+            playEffect(alert_, alertPending_); // 読み込み中なら、読み込みが終わってから鳴らし始める
+        });
     } else if (!loop && alertLooping_) {
         alertLooping_ = false; // 繰り返しモードの 1 回分は止めない(ループしていたときだけ止める)
-        alert_.stop();
-        alert_.setLoopCount(1);
-        alertPending_ = false;
+        onAudio([this]() {
+            alert_->stop();
+            alert_->setLoopCount(1);
+            alertPending_ = false;
+        });
     }
 }
 
-void SystemSound::setupEffect(QSoundEffect &effect, bool &pending) {
-    connect(&effect, &QSoundEffect::statusChanged, this, [&effect, &pending]() {
-        if (effect.status() == QSoundEffect::Error) {
-            log::warn("AUDIO", QStringLiteral("システム音を読み込めません: ") + effect.source().toString());
+void SystemSound::setupEffect(QSoundEffect *effect, bool &pending) {
+    // 受け手を再生器自身にして、再生用のスレッドで受ける
+    connect(effect, &QSoundEffect::statusChanged, effect, [effect, &pending]() {
+        if (effect->status() == QSoundEffect::Error) {
+            log::warn("AUDIO", QStringLiteral("システム音を読み込めません: ") + effect->source().toString());
             pending = false;
-        } else if (effect.status() == QSoundEffect::Ready && pending) {
+        } else if (effect->status() == QSoundEffect::Ready && pending) {
             pending = false;
-            effect.play();
+            effect->play();
         }
     });
 }
@@ -590,12 +630,14 @@ void SystemSound::applySettings() {
     }
     const float gain = static_cast<float>(settings_->gain(AudioSettings::System));
     const QAudioDevice device = settings_->device(AudioSettings::System);
-    for (QSoundEffect *effect : {&click_, &start_, &alert_, &caution_, &preview_}) {
-        effect->setVolume(gain);
-        if (!device.isNull() && effect->audioDevice().id() != device.id()) {
-            effect->setAudioDevice(device);
+    onAudio([this, gain, device]() {
+        for (QSoundEffect *effect : {click_, start_, alert_, caution_, preview_}) {
+            effect->setVolume(gain);
+            if (!device.isNull() && effect->audioDevice().id() != device.id()) {
+                effect->setAudioDevice(device);
+            }
         }
-    }
+    });
     for (QAudioOutput *output : {&startOutput_, &previewOutput_}) {
         output->setVolume(gain);
         if (!device.isNull() && output->device().id() != device.id()) {
@@ -604,10 +646,17 @@ void SystemSound::applySettings() {
     }
 }
 
-void SystemSound::playEffect(QSoundEffect &effect, bool &pending) {
-    switch (effect.status()) {
+void SystemSound::playEffect(QSoundEffect *effect, bool &pending) {
+    // 再生用のスレッドで呼ぶ。鳴らし始めに時間がかかったら、ログに残す(画面は止まらないが、音が遅れる)
+    QElapsedTimer timer;
+    timer.start();
+    switch (effect->status()) {
     case QSoundEffect::Ready:
-        effect.play();
+        effect->play();
+        if (timer.elapsed() >= 30) {
+            log::info("AUDIO", QStringLiteral("音を鳴らし始めるのに %1 ms かかりました: %2")
+                                   .arg(timer.elapsed()).arg(effect->source().fileName()));
+        }
         break;
     case QSoundEffect::Loading:
         pending = true; // 読み込みが終わったら鳴らす
@@ -623,7 +672,7 @@ void SystemSound::play(const QString &name) {
             return;
         }
         sinceClick_.restart();
-        playEffect(click_, clickPending_);
+        onAudio([this]() { playEffect(click_, clickPending_); });
     } else if (name == QStringLiteral("start")) {
         if (startMuted_) {
             return;
@@ -633,12 +682,14 @@ void SystemSound::play(const QString &name) {
             startPlayer_.setPosition(0);
             startPlayer_.play();   // 読み込み中なら、読み込みが終わってから鳴る
         } else {
-            playEffect(start_, startPending_);
+            onAudio([this]() { playEffect(start_, startPending_); });
         }
     } else if (name == QStringLiteral("alert")) {
         if (!alertMuted_ && !(alertContinuous_ && alertActive_)) { // ずっと鳴らしている間は、ループに任せる
-            alert_.stop(); // 前の 1 回が残っていても頭から鳴らし直す
-            playEffect(alert_, alertPending_);
+            onAudio([this]() {
+                alert_->stop(); // 前の 1 回が残っていても頭から鳴らし直す
+                playEffect(alert_, alertPending_);
+            });
         }
     } else if (name == QStringLiteral("caution")) {
         // いくつかのメーターが同時に注意になっても、まとめて 1 回だけ鳴らす
@@ -646,8 +697,10 @@ void SystemSound::play(const QString &name) {
             return;
         }
         sinceCaution_.restart();
-        caution_.stop();
-        playEffect(caution_, cautionPending_);
+        onAudio([this]() {
+            caution_->stop();
+            playEffect(caution_, cautionPending_);
+        });
     }
 }
 

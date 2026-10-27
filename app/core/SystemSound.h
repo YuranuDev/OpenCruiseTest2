@@ -19,6 +19,10 @@
  * 鳴らし方(alertContinuous)を「ずっと鳴らす」にすると、警告がある間(alertActive が true の間)は警告音を
  * 途切れずにループ再生し続ける。合成音はつなぎ目で途切れないよう、末尾の無音を付けず、1 音の長さを波の周期に合わせる。
  *
+ * 再生器(QSoundEffect)は専用のスレッドで動かす。鳴らし始め・止めるときに音の出力先(PulseAudio / PipeWire)との
+ * やり取りを待つため、画面のスレッドで鳴らすと、その間だけ画面が止まる(警告・注意になった瞬間など)。
+ * 再生器への操作はすべて onAudio() でそのスレッドへ渡す(順番はそのまま)。読み込み待ちの印(*Pending_)も
+ * そのスレッドでだけ読み書きする。
  * 音量と出力先は AudioSettings の「システム」の設定に従い、設定が変わると再生器へ反映する。
  * 操作音(click)は、パネルに指が 1 本触れた時点で 1 回だけ鳴らす。すべての指が離れるまでは「鳴らし済み」の
  * 状態(ラッチ)を保ち、指を足しても・動かしても・ボタンをまたいでも再度は鳴らさない。
@@ -40,6 +44,7 @@
 #include <QPointer>
 #include <QSoundEffect>
 #include <QString>
+#include <QThread>
 #include <QStringList>
 #include <QUrl>
 #include <QVariant>
@@ -83,6 +88,8 @@ public:
      * @param parent 親オブジェクト
      */
     explicit SystemSound(AudioSettings *settings, QObject *parent = nullptr);
+    /** @brief 再生器を再生用のスレッドで片付けてから、スレッドを止める。 */
+    ~SystemSound() override;
 
     /**
      * @brief 名前の音を鳴らす。未知の名前は無視する。操作音は連打時に間引く。
@@ -149,11 +156,13 @@ private:
     /** @brief 設定の音量・出力先を、すべての再生器へ反映する。 */
     void applySettings();
     /** @brief 再生器の読み込み完了・失敗の通知をつなぐ。読み込み中に play() されたときは、読み込み完了後に鳴らす。 */
-    void setupEffect(QSoundEffect &effect, bool &pending);
-    /** @brief 再生する。読み込み中なら完了後に回し、読み込みに失敗していれば何もしない。 */
-    void playEffect(QSoundEffect &effect, bool &pending);
+    void setupEffect(QSoundEffect *effect, bool &pending);
+    /** @brief 再生する。読み込み中なら完了後に回し、読み込みに失敗していれば何もしない(再生用のスレッドで呼ぶ)。 */
+    void playEffect(QSoundEffect *effect, bool &pending);
+    /** @brief 再生用のスレッドで f を実行する(呼んだ順に実行される。待たない)。 */
+    template <typename F> void onAudio(F &&f) { QMetaObject::invokeMethod(audioContext_, std::forward<F>(f), Qt::QueuedConnection); }
     /** @brief カテゴリの再生器・読み込み待ち・「なし」の状態(未知のカテゴリは操作音の分を返す) */
-    QSoundEffect &effectOf(const QString &category);
+    QSoundEffect *effectOf(const QString &category);
     bool &pendingOf(const QString &category);
     bool &mutedOf(const QString &category);
     /** @brief カテゴリの選択に従って再生器へ音を読み込む(「なし」なら空にする)。 */
@@ -176,11 +185,14 @@ private:
     void setupPlayer(QMediaPlayer &player, QAudioOutput &output);
 
     QPointer<AudioSettings> settings_;
-    QSoundEffect click_;
-    QSoundEffect start_;
-    QSoundEffect alert_;
-    QSoundEffect caution_;
-    QSoundEffect preview_;
+    // 再生器は再生用のスレッド(audioThread_)で動かす。audioContext_ が親で、どれも audioContext_ と一緒にそのスレッドにいる
+    QThread audioThread_;
+    QObject *audioContext_ = nullptr;
+    QSoundEffect *click_ = nullptr;
+    QSoundEffect *start_ = nullptr;
+    QSoundEffect *alert_ = nullptr;
+    QSoundEffect *caution_ = nullptr;
+    QSoundEffect *preview_ = nullptr;
     // MP3 の起動音・試聴用(QSoundEffect は WAV しか鳴らせないため)
     QAudioOutput startOutput_;
     QMediaPlayer startPlayer_;
