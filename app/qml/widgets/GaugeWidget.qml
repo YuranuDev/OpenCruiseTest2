@@ -64,8 +64,10 @@ WidgetBase {
     // 以前の「スポーツ」(sport)・「バンド」(band)は廃止し、マーカーとして扱う
     readonly property string dialStyle: ["minimal", "marker", "retro", "neon", "ring"].indexOf(config.dialStyle) >= 0 ? config.dialStyle
                                         : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
-    // マーカー・リングは針を出さず、数値を中央に大きく出す(表示方式が「アナログ」でも数値は出す)
-    readonly property bool needleless: dialStyle === "ring" || dialStyle === "marker"
+    // 針を出すか(設定の「針を表示」。未設定なら種類で決める: マーカー・リングは出さない、ほかは出す)。
+    // 針が無いときは、数値を中央に大きく出す(表示方式が「アナログ」でも数値は出す)
+    readonly property bool needleless: config.needleShown === undefined ? (dialStyle === "ring" || dialStyle === "marker")
+                                                                        : config.needleShown === false
     readonly property bool showReadout: style === "both" || (style === "analog" && needleless)
     // レトロは明るい文字盤なので、文字盤の上の文字・目盛りは濃い色にする
     readonly property bool lightFace: dialStyle === "retro"

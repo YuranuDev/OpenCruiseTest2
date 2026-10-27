@@ -42,8 +42,9 @@ WidgetSettingsBase {
     // 目盛りの間隔は差の値なので、単位の倍率だけで換算する(基本単位で保存)
     function stepShown(key) { return Number(config[key]) > 0 ? Number(config[key]) * unitDef.scale : 0 }
     function saveStep(key, shownValue) { root.edit(key, Number((shownValue / unitDef.scale).toFixed(4))) }
-    // 針と中心円が無い種類(マーカー・リング)
-    readonly property bool needleless: dialStyle === "marker" || dialStyle === "ring"
+    // 針を出さないか(「針を表示」が未設定なら、マーカー・リングは出さない。GaugeWidget と同じ決め方)
+    readonly property bool needlelessByStyle: dialStyle === "marker" || dialStyle === "ring"
+    readonly property bool needleless: config.needleShown === undefined ? needlelessByStyle : config.needleShown === false
     readonly property var colorOptions: [
         { label: "テーマ", value: "theme" }, { label: "パネル", value: "panel" },
         { label: "白", value: "#ffffff" }, { label: "赤", value: "#f44336" },
@@ -75,7 +76,7 @@ WidgetSettingsBase {
         SettingsRow {
             visible: root.config.style !== "digital"
             label: "メーターの種類"
-            description: "マーカーとリングは針を出さず、数値を中央に大きく表示します"
+            description: "マーカーとリングは、はじめは針を出さず数値を中央に大きく表示します(「目盛り・針」の「針を表示」で出せます)"
             SettingsChoice {
                 model: ["クラシック", "シンプル", "マーカー", "レトロ", "ネオン", "リング"]
                 currentIndex: root.dialStyles.indexOf(root.dialStyle)
@@ -326,6 +327,15 @@ WidgetSettingsBase {
                 step: 10
                 suffix: " %"
                 onMoved: (v) => root.edit("posFontEnd", v)
+            }
+        }
+        SettingsRow {
+            visible: root.config.style !== "digital"
+            label: "針を表示"
+            description: "オフにすると、針と中心円を出さず、数値を中央に大きく表示します"
+            SettingsSwitch {
+                checked: !root.needleless
+                onToggled: (v) => root.edit("needleShown", v)
             }
         }
         SettingsRow {
