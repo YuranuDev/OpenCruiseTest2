@@ -4,6 +4,8 @@
 // 最後に全ウィジェット共通の「枠・サイズ」(枠・上部タイトル・サイズ)を付ける。選んだタブは種類ごとに覚えておく。
 // 左に設定、右にプレビュー(実際の配置と同じ大きさ・設定のウィジェットを縮小表示)を並べる。
 // 設定は変更のたびに WidgetArea へ反映・保存される(「完了」で閉じるだけ)。
+// 「一緒に変える」で同じ種類のウィジェット(全ページ)を選ぶと、開いている間に変えた項目がそれらにも同時に入る
+// (計測値ごとに違う範囲・単位・警告値・注意値・目盛り間隔と、タイトル文字は写さない。WidgetRegistry.copiesTogether)。
 import QtQuick
 import OpenCruise
 
@@ -63,8 +65,68 @@ Item {
         flick.contentY = 0
     }
 
+    // ---- 一緒に変えるウィジェット(開いている間だけ。{ area, wid } の配列) ----
+    property var partners: []
+    property bool partnerPickerOpen: false
+    property var partnerCandidates: []
+    // 一緒に変えられるウィジェット(このウィジェットと設定画面が同じもの。ページがあれば全ページから)
+    function findCandidates() {
+        if (!area) return []
+        const pg = area.pages
+        const areas = []
+        if (pg) {
+            for (let i = 0; i < pg.count; ++i) {
+                const a = pg.areaAt(i)
+                if (a) areas.push({ area: a, where: (i + 1) + " ページ目" + (pg.names[i] ? "「" + pg.names[i] + "」" : "") })
+            }
+        } else {
+            areas.push({ area: area, where: "" })
+        }
+        const out = []
+        for (const e of areas) {
+            for (const w of e.area.widgetEntries()) {
+                if (e.area === area && w.wid === wid) continue
+                if (!WidgetRegistry.canEditTogether(wtype, w.wtype)) continue
+                const d = WidgetRegistry.find(w.wtype)
+                const c = e.area.configOf(w.wid)
+                out.push({ area: e.area, wid: w.wid, icon: d.icon,
+                           title: d.name + (c.titleText ? "「" + c.titleText + "」" : ""),
+                           where: (e.where ? e.where + "・" : "") + "左から " + (w.col + 1) + " マス目、上から " + (w.row + 1) + " マス目" })
+            }
+        }
+        return out
+    }
+    function isPartner(c) { return partners.some(p => p.area === c.area && p.wid === c.wid) }
+    function togglePartner(c) {
+        partners = isPartner(c) ? partners.filter(p => !(p.area === c.area && p.wid === c.wid))
+                                : partners.concat([{ area: c.area, wid: c.wid }])
+    }
+    function openPartnerPicker() {
+        panel.forceActiveFocus()
+        partnerCandidates = findCandidates()
+        partnerPickerOpen = true
+    }
+    // 設定を変える(選んだウィジェットにも、写す項目なら同じ値を入れる)
+    function setValue(key, value) {
+        if (!area) return
+        area.setConfigValue(wid, key, value)
+        for (const p of partners) {
+            if (WidgetRegistry.copiesTogether(p.area.typeOf(p.wid), key)) p.area.setConfigValue(p.wid, key, value)
+        }
+    }
+    // 入力中の仮の反映(保存しない)
+    function previewValue(key, value) {
+        if (!area) return
+        area.previewConfigValue(wid, key, value)
+        for (const p of partners) {
+            if (WidgetRegistry.copiesTogether(p.area.typeOf(p.wid), key)) p.area.previewConfigValue(p.wid, key, value)
+        }
+    }
+
     function show(id) {
         wid = id
+        partners = []
+        partnerPickerOpen = false
         tabKey = lastTabs[wtype] !== undefined ? lastTabs[wtype] : ""
         flick.contentY = 0
         open = true
@@ -72,6 +134,7 @@ Item {
     function close() {
         // 入力中のテキスト欄からフォーカスを外し、確定(editingFinished)させてから閉じる
         panel.forceActiveFocus()
+        partnerPickerOpen = false
         open = false
     }
 
@@ -123,6 +186,25 @@ Item {
                     font.pixelSize: 26 * root.unit
                     color: Theme.textPrimary
                     text: root.def ? root.def.name + " の設定" : "ウィジェットの設定"
+                }
+            }
+            // 一緒に変えるウィジェットを選ぶ
+            Row {
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                spacing: 12 * root.unit
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.partners.length > 0
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 19 * root.unit
+                    color: Theme.accent
+                    text: "ほか " + root.partners.length + " 個も一緒に変更中"
+                }
+                ActionButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    selected: root.partnerPickerOpen
+                    text: "一緒に変える"
+                    onClicked: root.partnerPickerOpen ? (root.partnerPickerOpen = false) : root.openPartnerPicker()
                 }
             }
             Rectangle {
@@ -255,9 +337,9 @@ Item {
                 Binding { target: settingsLoader.item; property: "currentKey"; value: root.currentTab; when: settingsLoader.item !== null }
                 Connections {
                     target: settingsLoader.item
-                    function onEdit(key, value) { if (root.area) root.area.setConfigValue(root.wid, key, value) }
+                    function onEdit(key, value) { root.setValue(key, value) }
                     // 文字の入力中: 保存せずに、ウィジェットへだけすぐ反映する(確定時は onEdit で保存)
-                    function onPreview(key, value) { if (root.area) root.area.previewConfigValue(root.wid, key, value) }
+                    function onPreview(key, value) { root.previewValue(key, value) }
                 }
 
                 // ---- 全ウィジェット共通(「枠・サイズ」タブ): 枠・タイトル・サイズ ----
@@ -275,7 +357,7 @@ Item {
                                 SettingsChoice {
                                     model: ["カード", "なし"]
                                     currentIndex: root.cfg.frame === "plain" ? 1 : 0
-                                    onPicked: (i) => { if (root.area) root.area.setConfigValue(root.wid, "frame", i === 1 ? "plain" : "card") }
+                                    onPicked: (i) => root.setValue("frame", i === 1 ? "plain" : "card")
                                 }
                             }
 
@@ -284,7 +366,7 @@ Item {
                                 label: "上部タイトルを表示"
                                 SettingsSwitch {
                                     checked: root.cfg.showTitle !== false
-                                    onToggled: (v) => { if (root.area) root.area.setConfigValue(root.wid, "showTitle", v) }
+                                    onToggled: (v) => root.setValue("showTitle", v)
                                 }
                             }
                             SettingsRow {
@@ -297,8 +379,8 @@ Item {
                                     placeholder: root.def ? root.def.name : "タイトル"
                                     maxLength: 32
                                     // 入力中はウィジェットとプレビューに即反映、保存は確定時(WSTextField の edited)
-                                    onChanging: (t) => { if (root.area) root.area.previewConfigValue(root.wid, "titleText", t) }
-                                    onEdited: (t) => { if (root.area) root.area.setConfigValue(root.wid, "titleText", t) }
+                                    onChanging: (t) => root.previewValue("titleText", t)
+                                    onEdited: (t) => root.setValue("titleText", t)
                                 }
                             }
 
@@ -406,6 +488,114 @@ Item {
 
                 // プレビューは見るだけ(タップ・ドラッグを受けない)
                 MouseArea { anchors.fill: parent }
+            }
+        }
+
+        // ---- 一緒に変えるウィジェットの選択(設定欄・プレビューの上に重ねる) ----
+        Rectangle {
+            id: partnerPicker
+            z: 5
+            visible: root.partnerPickerOpen
+            // 左右は端まで覆う(下のタブが端からはみ出して見えないように)。中身は左右に余白を取る
+            anchors { top: titleBar.bottom; bottom: footer.top; left: parent.left; right: parent.right
+                      leftMargin: 1; rightMargin: 1 }
+            color: Theme.panel
+            MouseArea { anchors.fill: parent }   // 下の設定欄へタップを通さない
+
+            Column {
+                id: pickerHead
+                anchors { top: parent.top; left: parent.left; right: parent.right; topMargin: 14 * root.unit
+                          leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
+                spacing: 4 * root.unit
+                Text {
+                    width: parent.width
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 24 * root.unit
+                    font.bold: true
+                    color: Theme.textPrimary
+                    text: "一緒に変えるウィジェット"
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 18 * root.unit
+                    color: Theme.textSecondary
+                    text: "選んだウィジェットにも、この画面を開いている間に変えた設定が同時に入ります(今の設定は写しません)。"
+                          + "範囲・単位・警告値・注意値・目盛り間隔と、タイトル文字は、それぞれのウィジェットのままにします。"
+                }
+            }
+            Flickable {
+                id: pickerList
+                anchors { top: pickerHead.bottom; bottom: parent.bottom; left: parent.left; right: parent.right
+                          topMargin: 12 * root.unit; bottomMargin: 8 * root.unit
+                          leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
+                clip: true
+                contentHeight: pickerCol.height
+                boundsBehavior: Flickable.StopAtBounds
+                interactive: contentHeight > height
+                Column {
+                    id: pickerCol
+                    width: pickerList.width
+                    spacing: 6 * root.unit
+                    Text {
+                        visible: root.partnerCandidates.length === 0
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 20 * root.unit
+                        color: Theme.textSecondary
+                        text: "同じ種類のウィジェットがほかにありません"
+                    }
+                    Repeater {
+                        model: root.partnerCandidates
+                        Rectangle {
+                            id: candRow
+                            required property var modelData
+                            // partners が変わるたびに見直す
+                            readonly property bool checked: { root.partners; return root.isPartner(modelData) }
+                            width: pickerCol.width
+                            height: 76 * root.unit
+                            radius: Theme.radius
+                            color: Theme.mix(Theme.panel, Theme.accentFill, checked ? 0.3 : (candMouse.pressed ? 0.15 : 0))
+                            border.color: checked ? Theme.accent : Theme.panelBorder
+                            Row {
+                                anchors { left: parent.left; leftMargin: 16 * root.unit; verticalCenter: parent.verticalCenter }
+                                spacing: 14 * root.unit
+                                MaterialIcon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    name: candRow.checked ? "check_box" : "check_box_outline_blank"
+                                    size: 34 * root.unit
+                                    color: candRow.checked ? Theme.accent : Theme.textSecondary
+                                }
+                                MaterialIcon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    name: candRow.modelData.icon || "widgets"
+                                    size: 30 * root.unit
+                                    color: Theme.accent
+                                }
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text {
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 21 * root.unit
+                                        color: Theme.textPrimary
+                                        text: candRow.modelData.title
+                                    }
+                                    Text {
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 16 * root.unit
+                                        color: Theme.textSecondary
+                                        text: candRow.modelData.where
+                                    }
+                                }
+                            }
+                            MouseArea {
+                                id: candMouse
+                                anchors.fill: parent
+                                onClicked: root.togglePartner(candRow.modelData)
+                            }
+                        }
+                    }
+                }
             }
         }
 

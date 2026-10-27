@@ -44,6 +44,13 @@ WidgetSettingsBase {
     function saveStep(key, shownValue) { root.edit(key, Number((shownValue / unitDef.scale).toFixed(4))) }
     // 針と中心円が無い種類(マーカー・リング)
     readonly property bool needleless: dialStyle === "marker" || dialStyle === "ring"
+    // 針の反対側の出っ張りの設定を出すか
+    readonly property bool tailShown: config.style !== "digital" && !needleless && config.needleTail !== false
+    // 「針と同じ」の見本の色(針の色の設定。テーマ・パネルはその色)
+    readonly property color needleSwatch: {
+        const v = String(config.needleColor || "theme")
+        return v === "theme" ? Theme.accent : v === "panel" ? Theme.panel : v
+    }
     readonly property var colorOptions: [
         { label: "テーマ", value: "theme" }, { label: "パネル", value: "panel" },
         { label: "白", value: "#ffffff" }, { label: "赤", value: "#f44336" },
@@ -343,6 +350,44 @@ WidgetSettingsBase {
             SettingsSwitch {
                 checked: root.config.needleTail !== false
                 onToggled: (v) => root.edit("needleTail", v)
+            }
+        }
+        SettingsRow {
+            visible: root.tailShown
+            label: "出っ張りの長さ"
+            description: "メーターの半径に対する割合"
+            WSStepper {
+                value: Number(root.config.tailLength) || 22
+                from: 5
+                to: 60
+                step: 1
+                suffix: "%"
+                onMoved: (v) => root.edit("tailLength", v)
+            }
+        }
+        SettingsRow {
+            visible: root.tailShown
+            label: "出っ張りの幅"
+            description: "先の幅。針の根元の幅に対する割合(100% で根元と同じ幅)"
+            WSStepper {
+                value: Number(root.config.tailWidth) || 64
+                from: 20
+                to: 200
+                step: 5
+                suffix: "%"
+                onMoved: (v) => root.edit("tailWidth", v)
+            }
+        }
+        SettingsRow {
+            visible: root.tailShown
+            label: "出っ張りの色"
+            description: "「針と同じ」なら、警告中は針と一緒に警告色になります"
+            stacked: true
+            SettingsColorPalette {
+                width: Math.min(root.width, 620 * Theme.uiScale)
+                options: [{ label: "針と同じ", value: "same", swatch: root.needleSwatch }].concat(root.colorOptions)
+                selectedValue: root.config.tailColor || "same"
+                onPicked: (v) => root.edit("tailColor", v)
             }
         }
         SettingsRow {

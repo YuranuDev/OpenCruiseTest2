@@ -90,6 +90,11 @@ WidgetBase {
     readonly property real sweepAngle: endAngle - startAngle
     readonly property bool autoLabelPosition: config.autoLabelPosition !== false
     readonly property bool needleTail: config.needleTail !== false
+    // 針の反対側の出っ張り: 長さ(半径に対する %)、先の幅(針の根元の幅に対する %)、色("same" か未設定なら針と同じ)
+    readonly property real tailLength: Math.max(5, Math.min(60, Number(config.tailLength) || 22)) / 100
+    readonly property real tailWidth: Math.max(20, Math.min(200, Number(config.tailWidth) || 64)) / 100
+    readonly property bool tailOwnColor: config.tailColor !== undefined && config.tailColor !== "same"
+    readonly property color tailColor: configuredColor("tailColor", needleColor)
     readonly property real hubSize: Math.max(0.08, Math.min(0.5, (config.hubSize || 16) / 100))   // 直径 / 半径
     // 針の色。針の無いマーカーは三角の印、リングは帯(警告・注意の範囲以外)にこの色を使う
     readonly property color needleColor: configuredColor("needleColor", Theme.accent)
@@ -1091,18 +1096,21 @@ WidgetBase {
                 Canvas {
                     id: needleShape
                     readonly property real tip: dial.rpx * dial.dims.needleTip
-                    readonly property real tail: root.needleTail ? dial.rpx * 0.22 : 0
+                    readonly property real tail: root.needleTail ? dial.rpx * root.tailLength : 0
                     readonly property real base: Math.max(4, dial.rpx * 0.07)
                     // レトロは、針の色が「テーマ」のままなら赤い針にする
                     readonly property color needleFill: root.alerting ? root.alertColor
                         : (root.lightFace && (root.config.needleColor === undefined || root.config.needleColor === "theme")
                            ? "#c62828" : root.needleColor)
+                    // 出っ張りの色(色を決めていなければ針と同じ。警告中も、決めた色のまま)
+                    readonly property color tailFill: root.tailOwnColor ? root.tailColor : needleFill
+                    readonly property real tailHalf: base * root.tailWidth / 2
                     x: -width / 2
                     y: -tip
-                    width: Math.ceil(base + 2)
+                    width: Math.ceil(Math.max(base, tailHalf * 2) + 2)
                     height: Math.ceil(tip + tail + 2)
                     renderStrategy: Canvas.Cooperative
-                    readonly property string key: [width, height, tip, tail, base, needleFill].join("|")
+                    readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill].join("|")
                     onKeyChanged: if (visible) requestPaint()
                     onVisibleChanged: if (visible) requestPaint()
 
@@ -1112,19 +1120,29 @@ WidgetBase {
                         const c = width / 2
                         const tipHalf = Math.max(0.75, base * 0.1)
                         const baseHalf = base / 2
-                        const tailHalf = base * 0.32
+                        const sameColor = Qt.colorEqual(tailFill, needleFill)
                         ctx.fillStyle = needleFill
                         ctx.beginPath()
                         ctx.moveTo(c - tipHalf, 0)
                         ctx.lineTo(c + tipHalf, 0)
                         ctx.lineTo(c + baseHalf, tip)
-                        if (tail > 0) {
+                        if (tail > 0 && sameColor) {   // 同じ色なら 1 つの形で描く(つなぎ目の線が出ないように)
                             ctx.lineTo(c + tailHalf, tip + tail)
                             ctx.lineTo(c - tailHalf, tip + tail)
                         }
                         ctx.lineTo(c - baseHalf, tip)
                         ctx.closePath()
                         ctx.fill()
+                        if (tail > 0 && !sameColor) {
+                            ctx.fillStyle = tailFill
+                            ctx.beginPath()
+                            ctx.moveTo(c - baseHalf, tip)
+                            ctx.lineTo(c + baseHalf, tip)
+                            ctx.lineTo(c + tailHalf, tip + tail)
+                            ctx.lineTo(c - tailHalf, tip + tail)
+                            ctx.closePath()
+                            ctx.fill()
+                        }
                     }
                 }
             }

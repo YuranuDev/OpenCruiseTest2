@@ -78,6 +78,9 @@ Item {
         refreshNames()
     }
 
+    // index 番目のページの WidgetArea(設定ダイアログの「一緒に変える」が、全ページのウィジェットを探すのに使う)
+    function areaAt(index) { return rep.itemAt(index) }
+
     // WidgetArea から呼ばれる
     function pageWidgets(index) {
         if (index < 0 || index >= pageModel.count) return []

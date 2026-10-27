@@ -340,6 +340,15 @@ Item {
         const i = indexOfId(wid)
         return i < 0 ? { w: 1, h: 1 } : { w: layout.get(i).w, h: layout.get(i).h }
     }
+    // 置いてあるウィジェットの一覧(よけておいたものは除く)。{ wid, wtype, col, row }
+    function widgetEntries() {
+        const list = []
+        for (let i = 0; i < layout.count; ++i) {
+            const it = layout.get(i)
+            list.push({ wid: it.wid, wtype: it.wtype, col: it.col, row: it.row })
+        }
+        return list
+    }
     function typeOf(wid) {
         const i = indexOfId(wid)
         return i < 0 ? "" : layout.get(i).wtype

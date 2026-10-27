@@ -31,7 +31,9 @@ Item {
                     width: 52 * root.unit
                     height: width
                     radius: width / 2
-                    color: modelData.value === "theme" ? Theme.accent
+                    // swatch があれば見本にその色を使う(「針と同じ」など、値が色そのものでない選択肢)
+                    color: modelData.swatch !== undefined ? modelData.swatch
+                           : modelData.value === "theme" ? Theme.accent
                            : (modelData.value === "panel" ? Theme.panel : modelData.value)
                     border.width: root.selectedValue === modelData.value ? 3 * root.unit : 1
                     border.color: root.selectedValue === modelData.value ? Theme.textPrimary : Theme.panelBorder

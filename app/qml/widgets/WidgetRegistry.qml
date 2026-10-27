@@ -380,6 +380,25 @@ QtObject {
         return out
     }
 
+    // ---- 複数のウィジェットの同時編集(設定ダイアログの「一緒に変える」) ----
+    // 設定画面が同じ種類なら一緒に変えられる(メーターなら水温計とタコメーターなど、計測値が違っても可)
+    function canEditTogether(typeA, typeB) {
+        const a = find(typeA), b = find(typeB)
+        return a !== null && b !== null && a.settings !== undefined && a.settings !== null && a.settings === b.settings
+    }
+    // 一緒に変えても写さない項目(計測値ごとに違う範囲・単位・警告値・注意値・目盛り間隔と、タイトル文字)
+    readonly property var gaugeOwnKeys: ["metric", "unit", "min", "max", "warn", "caution",
+                                         "majorStep", "negStep", "posStep", "zeroAngle"]
+    readonly property var graphOwnKeys: ["metric", "unit", "warn"]
+    function copiesTogether(type, key) {
+        if (key === "titleText") return false
+        const def = find(type)
+        if (!def) return false
+        if (def.settings === gaugeSettings) return gaugeOwnKeys.indexOf(key) < 0
+        if (def.settings === graphSettings) return graphOwnKeys.indexOf(key) < 0
+        return true
+    }
+
     function find(type) {
         for (let i = 0; i < types.length; ++i) {
             if (types[i].type === type) return types[i]
