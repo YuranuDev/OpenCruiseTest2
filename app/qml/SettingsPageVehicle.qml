@@ -62,15 +62,6 @@ SettingsPage {
                 onPicked: (i) => can.mockDriveStyle = i
             }
         }
-        SettingsRow {
-            label: "フリーホイール(惰性走行)"
-            description: "走行中にアクセルを離すと、駆動を切り離して惰性で走ります(回転はアイドリングへ落ち、エンジンブレーキが掛かりません)。"
-                         + "アクセルかブレーキを踏むと、回転を車速に合わせてからつなぎ直します"
-            SettingsSwitch {
-                checked: can.mockFreewheel
-                onToggled: (value) => can.mockFreewheel = value
-            }
-        }
         SettingsInfoRow {
             label: "今の状態"
             value: Math.round(can.speedKmh) + " km/h ・ " + Math.round(can.rpm) + " rpm ・ "
@@ -78,7 +69,6 @@ SettingsPage {
                       ? (can.gear > 0 ? "疑似変速 " + can.gear + " 段" : "変速比 " + can.transmissionRatio.toFixed(2))
                       : can.gear + " 速")
                    + " ・ アクセル " + Math.round(can.throttlePercent) + " %"
-                   + (can.freewheeling ? " ・ 惰性走行中" : "")
         }
     }
 }

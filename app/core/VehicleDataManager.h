@@ -18,15 +18,13 @@
  *      クリープで動き出す → 少し遅れてアクセル、の順。トルクコンバーターは、踏むとストール回転数近くまで回転が上がり、
  *      滑っている間はトルクを最大 2 倍に増やす。速度が上がると直結(ロックアップ)する。アクセルを離すと、低速ではクリープで
  *      時速 6km ほどで進む(止まるときはブレーキでそれを抑える)
- *  - フリーホイール(惰性走行): 設定で選ぶ(mockFreewheel)。走行中(約 25km/h 以上)にアクセルを離してブレーキも踏まずに
- *      少したつと、駆動を切り離して惰性で走る。回転はアイドリングへ落ち、エンジンブレーキが掛からない(空気抵抗と
- *      転がり抵抗だけでゆっくり減速)。アクセルかブレーキを踏む・速度が下がると、回転を車速に合わせて(少し吹かして)
- *      からつなぎ直す。つなぎ直している間(約 0.3 秒)は駆動力が抜ける
  *  - 運転のしかた: 設定で選ぶ(mockDriveStyle。穏やか / 普通 / アグレッシブ)。アクセルの踏み方・踏む速さ、
  *      全開加速の頻度、ブレーキの強さ、変速(AT の変速点・CVT の目標回転数)が変わる
  *  - エンジン: 回転数ごとのトルク特性 + ターボ(回転数とアクセル開度で決まる目標ブーストへ遅れて追従)
- *  - 急な変化を抑える: 回転数・ブーストは、変わる速さに上限を設ける(エンジン・ターボの重さ)。変速・ロックアップの
- *      切り替わり・キックダウン・疑似変速でも、0.1 秒で回転が 1000rpm 以上飛ぶようなことはしない
+ *  - フライホイール(回る部分の慣性): 回転数は速さを持って目標の回転数へ近づく(ばね + ダンパー)。踏んでもじわっと動き出し、
+ *      離しても惰性で少し回ってから落ち着く。駆動輪とつながっている間は軽く(車速に付いていく)、変速中・停車中・
+ *      トルクコンバーターが滑っている間は重い。上がる・下がる速さと、その変わる速さにも上限があるので、
+ *      変速・ロックアップの切り替わり・キックダウンでも急に飛ばない。ブーストも変わる速さに上限を設ける
  *  - 水温: 燃焼の発熱で暖機し、サーモスタット(約 86℃)が開くとラジエーターで 86〜90℃前後に保つ
  *  - 燃料: 出力から燃料消費を求め、タンク容量に対する残量を減らす
  *  - 油温: 水温より遅れて暖まり、負荷が高いほど水温より高くなる
@@ -92,10 +90,6 @@ class VehicleDataManager : public QObject {
     Q_PROPERTY(int mockTransmission READ mockTransmission WRITE setMockTransmission NOTIFY mockSettingsChanged)
     /// モックの運転のしかた(0 = 穏やか / 1 = 普通 / 2 = アグレッシブ)。保存される
     Q_PROPERTY(int mockDriveStyle READ mockDriveStyle WRITE setMockDriveStyle NOTIFY mockSettingsChanged)
-    /// モックでフリーホイール(アクセルを離すと惰性走行)を使うか。保存される(既定: 使う)
-    Q_PROPERTY(bool mockFreewheel READ mockFreewheel WRITE setMockFreewheel NOTIFY mockSettingsChanged)
-    /// 今フリーホイールで惰性走行しているか(駆動を切り離している)
-    Q_PROPERTY(bool freewheeling READ freewheeling NOTIFY changed)
     Q_PROPERTY(double throttlePercent READ throttlePercent NOTIFY changed)
     /// ブレーキの踏み込み量 [%](モックは減速度から求める。停車中は踏んだまま)
     Q_PROPERTY(double brakePercent READ brakePercent NOTIFY changed)
@@ -165,9 +159,6 @@ public:
     void setMockTransmission(int value);
     int mockDriveStyle() const { return static_cast<int>(style_); }
     void setMockDriveStyle(int value);
-    bool mockFreewheel() const { return mockFreewheel_; }
-    void setMockFreewheel(bool enabled);
-    bool freewheeling() const { return freewheel_; }
     /** @brief アクセル開度 [%]。 */
     double throttlePercent() const { return throttle_ * 100.0; }
     /** @brief ブレーキの踏み込み量 [%]。 */
@@ -249,6 +240,8 @@ private:
     void update();
     /** @brief dt 秒だけシミュレーションを進める(update から呼ぶ。試験でも直接呼べる)。 */
     void step(double dt);
+    /** @brief フライホイールの慣性つきで、回転数を目標(targetRpm)へ進める(wn: 重さ。小さいほど重い)。 */
+    void stepFlywheel(double targetRpm, double wn, double dt);
     /** @brief AT の変速を進める。 */
     void updateAt(double dt);
     /** @brief CVT の変速比を進める。 */
@@ -330,15 +323,10 @@ private:
     int gear_ = 1;               ///< ギア(1〜6)
     double shiftLeftS_ = 0.0;    ///< 変速中の残り時間 [s](この間は駆動力が抜ける)
     double fuelLiters_ = 0.0;    ///< 燃料 [L]
-
-    // ---- フリーホイール(惰性走行) ----
-    bool freewheel_ = false;     ///< 駆動を切り離して惰性で走っているか
-    double liftS_ = 0.0;         ///< アクセルを離して(ブレーキも踏まずに)いる時間 [s](少したってから切り離す)
-    double resyncLeftS_ = 0.0;   ///< つなぎ直している残り時間 [s](回転を車速に合わせる間。駆動力が抜ける)
+    double rpmVel_ = 0.0;        ///< 回転数の変わる速さ [rpm/s](フライホイールの慣性)
 
     // ---- モックの設定 ----
     bool mockGauges_ = true;     ///< メーター・グラフにダミーデータを使う
-    bool mockFreewheel_ = true;  ///< フリーホイール(惰性走行)を使う
     Transmission transmission_ = Transmission::At;
     DriveStyle style_ = DriveStyle::Normal;
 

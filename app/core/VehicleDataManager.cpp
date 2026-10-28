@@ -32,18 +32,20 @@ constexpr double kAmbientC = 22.0;              ///< 外気温
 constexpr double kThermostatC = 86.0;           ///< サーモスタットの開弁温度(全開は +10℃)
 constexpr double kShiftTimeS = 0.35;            ///< 変速にかかる時間(駆動力が抜ける)
 
-// ---- フリーホイール(惰性走行) ----
-constexpr double kFreewheelMinKmh = 25.0;       ///< この速度以上でアクセルを離すと切り離す
-constexpr double kFreewheelExitKmh = 18.0;      ///< 惰性走行中にこの速度まで下がったら、つなぎ直す
-constexpr double kFreewheelDelayS = 0.6;        ///< アクセルを離してから切り離すまでの間
-constexpr double kResyncTimeS = 0.3;            ///< つなぎ直すときに、回転を車速に合わせる時間(駆動力が抜ける)
-
 // ---- 値の変わる速さの上限(エンジンやターボの重さで、一瞬では変わらないようにする) ----
 constexpr double kRpmRiseRate = 4500.0;         ///< 回転が上がる速さの上限 [rpm/s](キックダウン・踏み込みでも 0.1 秒で 450rpm まで)
 constexpr double kRpmFallRate = 3500.0;         ///< 回転が下がる速さの上限 [rpm/s](変速で約 1000rpm 落ちるのに 0.3 秒ほど)
 constexpr double kBoostRiseRate = 2.5;          ///< ブーストが上がる速さの上限 [bar/s]
 constexpr double kBoostFallRate = 3.0;          ///< ブーストが抜ける速さの上限 [bar/s](ブローオフでも 0.1 秒で 0.3bar まで)
 constexpr double kCvtStepRate = 3.5;            ///< 疑似変速で段を切り替える速さ [変速比/s]
+
+// ---- フライホイール(エンジンの回る部分の慣性) ----
+// 回転数は、目標の回転数へ「ばね + ダンパー」のように近づける(速さを持つので、動き出しも止まり方もなめらか)。
+// 固有角振動数 ωn [rad/s] が小さいほど重い(ゆっくり動き出して、ゆっくり止まる)。臨界減衰なので行き過ぎない
+constexpr double kFlywheelCoupledWn = 16.0;     ///< 駆動輪とつながっている(ロックアップ・直結)とき。車速にほぼそのまま付いていく
+constexpr double kFlywheelShiftWn = 9.0;        ///< 変速中(クラッチが滑りながらつながる)
+constexpr double kFlywheelFreeWn = 6.0;         ///< つながっていない・滑っているとき(停車中・発進・トルコンの滑り)。いちばん重く感じる
+constexpr double kFlywheelMaxAccel = 30000.0;   ///< 回転の速さが変わる速さの上限 [rpm/s²](踏んだ瞬間に急に吹け上がらない)
 
 // ---- CVT(ベルト式。トルクコンバーター付き) ----
 constexpr double kCvtMaxRatio = 2.631;          ///< いちばん低い変速比(発進側)
@@ -95,7 +97,6 @@ VehicleDataManager::VehicleDataManager(QObject *parent)
                                                                                           : Transmission::At;
         style_ = static_cast<DriveStyle>(std::clamp(store.value(QStringLiteral("mock/driveStyle"), 1).toInt(), 0, 2));
         mockGauges_ = store.value(QStringLiteral("mock/gaugeData"), true).toBool();
-        mockFreewheel_ = store.value(QStringLiteral("mock/freewheel"), true).toBool();
     }
     std::uniform_real_distribution<double> fuel(0.4, 0.8);
     fuelLiters_ = kTankLiters * fuel(rng_);
@@ -151,14 +152,6 @@ void VehicleDataManager::setMockGauges(bool enabled) {
     qInfo() << "[vehicle] メーター・グラフのダミーデータ:" << (enabled ? "使う" : "使わない(データなし)");
     emit dataAvailableChanged();
     emit engineStateChanged();   // warningsArmed も変わる
-}
-
-void VehicleDataManager::setMockFreewheel(bool enabled) {
-    if (enabled == mockFreewheel_) return;
-    mockFreewheel_ = enabled;
-    openStore().setValue(QStringLiteral("mock/freewheel"), enabled);
-    qInfo() << "[vehicle] フリーホイール(惰性走行):" << (enabled ? "使う" : "使わない");
-    emit mockSettingsChanged();
 }
 
 void VehicleDataManager::setMockDriveStyle(int value) {
@@ -300,13 +293,8 @@ void VehicleDataManager::driveControl(double dt, double &brakeDecel) {
     } else if (phase_ == Phase::Pull && err > 0.5) {
         wantThrottle = maxThrottle_;
     } else if (err < -1.5) {
-        // 目標より速い: アクセルを離し、差が大きければブレーキ。
-        // 惰性走行(フリーホイール)中は、少し速いくらいならブレーキを踏まずに惰性で落とす(約 15km/h 速いまで)
-        const double coastMargin = freewheel_ ? 4.0 : 1.5;
-        brakeDecel = std::clamp((-err - coastMargin) * 0.35 * p.brakeScale, 0.0, 2.5 * p.brakeScale);
-    } else if (freewheel_ && err < 1.5) {
-        // 惰性走行中: 目標より少し(約 5km/h)遅くなるまでは踏まずに惰性で走る(すぐ踏み直して行ったり来たりしない)
-        wantThrottle = 0.0;
+        // 目標より速い: アクセルを離し、差が大きければブレーキ
+        brakeDecel = std::clamp((-err - 1.5) * 0.35 * p.brakeScale, 0.0, 2.5 * p.brakeScale);
     } else {
         // 走行抵抗に釣り合う分 + 速度差に比例した分
         const double cruiseForce = kAeroCoef * speedMs_ * speedMs_ + kRollingN;
@@ -404,6 +392,23 @@ void VehicleDataManager::updateCvt(double dt) {
     cvtRatio_ += std::clamp(target - cvtRatio_, -rate * dt, rate * dt);
 }
 
+/**
+ * @brief フライホイールの慣性つきで、回転数を目標へ進める。
+ * 目標との差でばねのように引かれ、速さに比例したダンパーで止まる(臨界減衰: 行き過ぎずに止まる)。
+ * 速さ(上がる・下がる速さの上限)と、速さの変わる速さ(加速度の上限)も抑えるので、急に飛んだり折れ曲がったりしない。
+ * 100ms ごとでは粗いので、10ms ずつに分けて進める。
+ */
+void VehicleDataManager::stepFlywheel(double targetRpm, double wn, double dt) {
+    const int n = std::max(1, static_cast<int>(std::ceil(dt / 0.01)));
+    const double h = dt / n;
+    for (int i = 0; i < n; ++i) {
+        double accel = wn * wn * (targetRpm - rpm_) - 2.0 * wn * rpmVel_;
+        accel = std::clamp(accel, -kFlywheelMaxAccel, kFlywheelMaxAccel);
+        rpmVel_ = std::clamp(rpmVel_ + accel * h, -kRpmFallRate, kRpmRiseRate);
+        rpm_ += rpmVel_ * h;
+    }
+}
+
 void VehicleDataManager::step(double dt) {
     std::normal_distribution<double> noise(0.0, 1.0);
 
@@ -445,25 +450,6 @@ void VehicleDataManager::step(double dt) {
         updateAt(dt);
     }
 
-    // ---- フリーホイール(惰性走行): アクセルを離して少したつと切り離し、アクセル・ブレーキ・低速でつなぎ直す ----
-    {
-        const double kmhNow = speedMs_ * 3.6;
-        // 切り離すのはアクセルを離しきったとき、つなぎ直すのははっきり踏んだとき(行ったり来たりしないよう差をつける)
-        const bool lifted = throttle_ < 0.01 && brakePedal_ < 0.02;
-        const bool pressed = throttle_ > 0.06 || brakePedal_ >= 0.02;
-        liftS_ = lifted ? liftS_ + dt : 0.0;
-        // AT は 3 速以上(低いギアでは切り離さない)。変速中・つなぎ直し中は待つ
-        const bool gearOk = transmission_ == Transmission::Cvt || gear_ >= 3;
-        if (!freewheel_ && mockFreewheel_ && lifted && liftS_ >= kFreewheelDelayS && kmhNow >= kFreewheelMinKmh
-            && gearOk && shiftLeftS_ <= 0.0 && resyncLeftS_ <= 0.0) {
-            freewheel_ = true;
-        } else if (freewheel_ && (pressed || kmhNow < kFreewheelExitKmh || !mockFreewheel_)) {
-            freewheel_ = false;
-            resyncLeftS_ = kResyncTimeS;   // 回転を車速に合わせてからつなぐ
-        }
-        if (resyncLeftS_ > 0.0) resyncLeftS_ -= dt;
-    }
-
     // ---- エンジン回転数(トルクコンバーター) ----
     // 直結(ロックアップ)していない間は滑り、踏むとストール回転数(止まった状態で踏み込んだときの回転)近くまで回る。
     // 滑りの幅は、速度が上がるにつれて小さくなる。ロックアップは CVT が約 20km/h、AT が 2 速以上の約 30km/h から
@@ -480,18 +466,10 @@ void VehicleDataManager::step(double dt) {
         targetRpm = std::max(coupled, std::min(stallRpm, coupled + band));
     }
     targetRpm = std::max(targetRpm, idleRpm);
-    // 変速中は、回転が新しいギアの回転へ変速時間をかけて移る(クラッチが滑りながらつながる)
-    double rpmTau = shiftLeftS_ > 0.0 ? 0.16 : 0.08;
-    if (freewheel_) {
-        // 惰性走行: 駆動から切り離されているので、回転はアイドリングへゆっくり落ちる
-        targetRpm = kIdleRpm;
-        rpmTau = 0.45;
-    } else if (resyncLeftS_ > 0.0) {
-        // つなぎ直し: 回転を車速に合わせる(落ちていた回転を素早く上げる)
-        rpmTau = 0.07;
-    }
-    // 回転は、エンジンの重さで一瞬には変わらない(変速・ロックアップの切り替わり・キックダウンでも急に飛ばない)
-    rpm_ = approachLimited(rpm_, std::min(targetRpm, kRedlineRpm + 100.0), rpmTau, dt, kRpmRiseRate, kRpmFallRate);
+    // フライホイールの慣性: 回転は速さ(rpmVel_)を持って目標へ近づく。つながり方で重さが変わる
+    const bool coupledNow = lockup && shiftLeftS_ <= 0.0;
+    const double wn = shiftLeftS_ > 0.0 ? kFlywheelShiftWn : (coupledNow ? kFlywheelCoupledWn : kFlywheelFreeWn);
+    stepFlywheel(std::min(targetRpm, kRedlineRpm + 100.0), wn, dt);
     const bool limiter = rpm_ >= kRedlineRpm;
 
     // ---- ターボ(回転数で過給が立ち上がり、アクセル開度で目標が決まる。上がるときは遅れ = ターボラグ) ----
@@ -503,8 +481,8 @@ void VehicleDataManager::step(double dt) {
     } else if (rpm_ < 1200.0) {
         targetBoost = std::min(targetBoost, -0.35);
     }
-    if (shiftLeftS_ > 0.0 || limiter || resyncLeftS_ > 0.0) {
-        targetBoost = std::min(targetBoost, 0.1);   // 変速・リミッター・つなぎ直し中は抜ける(ブローオフ)
+    if (shiftLeftS_ > 0.0 || limiter) {
+        targetBoost = std::min(targetBoost, 0.1);   // 変速・リミッター中は抜ける(ブローオフ)
     }
     const bool rising = targetBoost > boostBar_;
     boostBar_ = approachLimited(boostBar_, targetBoost, rising ? lerp(0.9, 0.35, spool) : 0.18, dt,
@@ -517,7 +495,7 @@ void VehicleDataManager::step(double dt) {
 
     // ---- 駆動力と車速 ----
     double torqueNm = 0.0;
-    if (shiftLeftS_ <= 0.0 && resyncLeftS_ <= 0.0 && !limiter) {
+    if (shiftLeftS_ <= 0.0 && !limiter) {
         const double boostGain = 1.0 + 0.8 * std::max(0.0, boostBar_) / kMaxBoostBar;
         torqueNm = pedalTorqueFrac(throttle_) * baseTorqueNm(rpm_) * boostGain;
         // トルクコンバーターのトルクの増幅(滑っているほど大きく、止まった状態で約 2 倍)
@@ -531,11 +509,6 @@ void VehicleDataManager::step(double dt) {
     }
     const double eff = transmission_ == Transmission::Cvt ? kCvtEff : kDrivetrainEff;
     double driveN = torqueNm * overallRatio() * eff / kTireRadiusM;
-    if (freewheel_) {
-        driveN = 0.0;   // 惰性走行: エンジンブレーキが掛からない(空気抵抗と転がり抵抗だけで減速)
-    } else if (resyncLeftS_ > 0.0 && throttle_ < 0.05) {
-        driveN *= 0.3;   // つなぎ直しの途中(ブレーキで抜けたとき): エンジンブレーキはじわっと戻る
-    }
     if (throttle_ < 0.05 && speedMs_ < 2.4) {
         // クリープ: アクセルを離していても、アイドリングの力でゆっくり進む(時速 6km ほどで釣り合う)
         driveN = 520.0 * (1.0 - speedMs_ / 2.4);
