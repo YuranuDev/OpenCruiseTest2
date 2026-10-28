@@ -381,7 +381,7 @@ WidgetSettingsBase {
         SettingsRow {
             visible: root.tailShown
             label: "出っ張りの色"
-            description: "「針と同じ」なら、警告中は針と一緒に警告色になります"
+            description: "警告中は、決めた色に関係なく針・中心円と一緒に赤くなります"
             stacked: true
             SettingsColorPalette {
                 width: Math.min(root.width, 620 * Theme.uiScale)
@@ -418,7 +418,8 @@ WidgetSettingsBase {
             // 針の無いマーカー・リングは、針の代わりの三角の印・帯の色になる
             visible: root.config.style !== "digital"
             label: root.dialStyle === "marker" ? "印(三角)の色" : root.dialStyle === "ring" ? "リングの色" : "針の色"
-            description: root.needleless ? "警告・注意の範囲は警告色・注意色で表示します" : "警告中は警告色で表示します"
+            description: root.needleless ? (root.dialStyle === "marker" ? "警告の範囲では赤で表示します(注意の範囲では色を変えません)" : "警告・注意の範囲は警告色・注意色で表示します")
+                                          : "警告中は、出っ張り・中心円と一緒に赤くなります(注意中は色を変えません)"
             stacked: true
             SettingsColorPalette {
                 width: Math.min(root.width, 620 * Theme.uiScale)
@@ -535,7 +536,7 @@ WidgetSettingsBase {
         SettingsRow {
             label: "注意"
             description: (root.warnBelow ? "注意値以下になると" : "注意値以上になると")
-                         + "、注意音を 1 回鳴らし、メーターを黄色くして知らせます(警告値まで行くと警告が優先します)。"
+                         + "、注意音を 1 回鳴らし、目盛りの注意の帯を光らせ、数値と名前を黄色くして知らせます(針の色は変えません。警告値まで行くと警告が優先します)。"
                          + "注意の設定も、同じ種類のメーターすべてで共通です"
             SettingsSwitch {
                 checked: root.config.cautionEnabled === true

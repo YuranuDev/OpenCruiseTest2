@@ -15,7 +15,8 @@
 // (解除は警告値から少し戻ったとき)。
 // 警告(と、警告音・通知)は、エンジンが始動したとみなされてから有効になる(can.warningsArmed。判定は VehicleDataManager)。
 // 注意(警告の手前の段階): 注意値(config.caution)を超えると、注意音を 1 回鳴らし(設定 > サウンド > 注意音)、
-// メーターを黄色くし、通知にも今の状態を出す。警告値まで超えたら警告(赤)が優先する。目盛りには注意ゾーンを黄色で描く。
+// 目盛りの注意の帯を光らせて点滅させ、数値・名前を黄色にし、通知にも今の状態を出す(針・中心円の色は変えない)。
+// 警告値まで超えたら警告(赤)が優先する。警告中は針・出っ張り・中心円を赤にする。目盛りには注意ゾーンを黄色で描く。
 // 始動前は警告値を超えていても警告しない。
 // ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。数値のすぐ上に小さく「MAX 値 単位 ↺」を出し
 //   (アナログのみのときは単位の下)、タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
@@ -107,6 +108,10 @@ WidgetBase {
     readonly property bool tailOutline: tailOwnColor ? config.tailColor === "panel" : needleOutline
     readonly property bool lineOutline: config.lineColor === "panel"
     readonly property color outlineColor: dialFgDim
+    // 警告中: 針・出っ張り・中心円を赤にする。塗りは 3 つとも同じ赤、縁(出っ張り・中心円)も同じ暗い赤にそろえる
+    // (注意中は針・中心円の色を変えず、目盛りの外側の注意の帯を光らせて知らせる)
+    readonly property color warnFill: Theme.error
+    readonly property color warnEdge: Theme.mix(Theme.error, "#000000", 0.35)
 
     function configuredColor(key, fallback) {
         const value = String(config[key] || "")
@@ -978,6 +983,39 @@ WidgetBase {
                 }
             }
 
+            // ---- 注意中の知らせ: 注意の範囲の帯を、太く光らせてゆっくり点滅させる(針・中心円の色は変えない) ----
+            // 帯の形は一度だけ描き、点滅は不透明度だけ動かす(軽い)
+            Canvas {
+                id: cautionGlow
+                anchors.fill: parent
+                visible: root.hasCautionZone && root.cautionShown
+                opacity: 0.25 + 0.75 * root.blink
+                renderStrategy: Canvas.Cooperative
+                readonly property bool bandOutside: root.dialStyle === "classic" || root.dialStyle === "retro" || root.dialStyle === "marker"
+                readonly property string key: !visible ? "" :
+                    [width, height, dial.cx, dial.cy, dial.rpx, root.cZoneLo, root.cZoneHi, root.dialStyle,
+                     root.startAngle, root.endAngle, root.splitScale, root.zeroAngle, Theme.warn].join("|")
+                onKeyChanged: if (visible) requestPaint()
+                onPaint: {
+                    const ctx = getContext("2d")
+                    ctx.reset()
+                    const R = dial.rpx, dm = dial.dims
+                    if (R <= 1 || !visible) return
+                    const a0 = dial.rad(dial.angOf(root.cZoneLo)), a1 = dial.rad(dial.angOf(root.cZoneHi))
+                    const r = bandOutside ? R * 0.905 : R * dm.trackR
+                    const w = bandOutside ? R * 0.04 : R * dm.trackW
+                    ctx.lineCap = "butt"
+                    // 外側のにじみ(太く薄く)と、帯そのもの(明るく)
+                    for (const [k, a] of [[3.2, 0.18], [2.0, 0.35], [1.15, 1.0]]) {
+                        ctx.lineWidth = w * k
+                        ctx.strokeStyle = Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, a)
+                        ctx.beginPath()
+                        ctx.arc(dial.cx, dial.cy, r, a0, a1)
+                        ctx.stroke()
+                    }
+                }
+            }
+
             // ---- 進捗(シンプル: 細いリング / マーカー: 細い線と三角の印 / ネオン: 光る線 / リング: 太めの帯)。0 から現在値まで ----
             Canvas {
                 id: progress
@@ -1012,14 +1050,15 @@ WidgetBase {
                         const ma = dial.rad(dial.angOf(root.shown))
                         const nx = Math.cos(ma), ny = Math.sin(ma), tx = -ny, ty = nx
                         const tipR = R * (dm.trackR - 0.07), baseR = R * (dm.trackR + 0.055), half = R * 0.05
-                        ctx.fillStyle = root.zoneColorAt(root.shown, root.needleColor)
+                        // 印はマーカーの針: 警告の範囲だけ赤(注意の範囲では色を変えない。線と帯で分かる)
+                        ctx.fillStyle = root.inZone(root.shown) ? root.warnFill : root.needleColor
                         ctx.beginPath()
                         ctx.moveTo(dial.cx + nx * tipR, dial.cy + ny * tipR)
                         ctx.lineTo(dial.cx + nx * baseR + tx * half, dial.cy + ny * baseR + ty * half)
                         ctx.lineTo(dial.cx + nx * baseR - tx * half, dial.cy + ny * baseR - ty * half)
                         ctx.closePath()
                         ctx.fill()
-                        if (root.needleOutline && !root.inZone(root.shown) && !root.inCaution(root.shown)) {
+                        if (root.needleOutline && !root.inZone(root.shown)) {
                             ctx.lineJoin = "round"
                             ctx.lineWidth = ow
                             ctx.strokeStyle = root.outlineColor
@@ -1129,15 +1168,17 @@ WidgetBase {
                     readonly property real tail: root.needleTail ? dial.rpx * root.tailLength : 0
                     readonly property real base: Math.max(4, dial.rpx * 0.07)
                     // レトロは、針の色が「テーマ」のままなら赤い針にする
-                    readonly property color needleFill: root.alerting ? root.alertColor
+                    readonly property color needleFill: root.warning ? root.warnFill
                         : (root.lightFace && (root.config.needleColor === undefined || root.config.needleColor === "theme")
                            ? "#c62828" : root.needleColor)
-                    // 出っ張りの色(色を決めていなければ針と同じ。警告中も、決めた色のまま)
-                    readonly property color tailFill: root.tailOwnColor ? root.tailColor : needleFill
+                    // 出っ張りの色(色を決めていなければ針と同じ。警告中は色を決めていても赤)
+                    readonly property color tailFill: root.warning ? root.warnFill : (root.tailOwnColor ? root.tailColor : needleFill)
                     readonly property real tailHalf: base * root.tailWidth / 2
-                    // 縁取り(色に「パネル」を選んだとき。警告中は警告色なので縁取りしない)
-                    readonly property bool needleEdge: root.needleOutline && !root.alerting
-                    readonly property bool tailEdge: root.tailOutline && (root.tailOwnColor || !root.alerting)
+                    // 縁取り(色に「パネル」を選んだとき)。警告中は、針・出っ張りを中心円と同じ暗い赤で縁取る
+                    readonly property bool needleEdge: root.warning || root.needleOutline
+                    readonly property bool tailEdge: root.warning || root.tailOutline
+                    readonly property color edgeColor: root.warning ? root.warnEdge : root.outlineColor
+                    readonly property color tailEdgeColor: root.warning ? root.warnEdge : root.dialLine
                     readonly property real edgeW: Math.max(1, base * 0.14)
                     readonly property real pad: 3   // 縁取りがはみ出さないよう、周りに空ける
                     x: -width / 2
@@ -1146,7 +1187,7 @@ WidgetBase {
                     height: Math.ceil(tip + tail + 2 * pad)
                     renderStrategy: Canvas.Cooperative
                     readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill,
-                                                   needleEdge, tailEdge, root.outlineColor, root.dialLine].join("|")
+                                                   needleEdge, tailEdge, edgeColor, tailEdgeColor, root.warning].join("|")
                     onKeyChanged: if (visible) requestPaint()
                     onVisibleChanged: if (visible) requestPaint()
 
@@ -1157,11 +1198,12 @@ WidgetBase {
                         const tipHalf = Math.max(0.75, base * 0.1)
                         const baseHalf = base / 2
                         // 出っ張りの縁は中心円の縁と同じ色なので、縁取りがあるときは針と別に描く
-                        const sameColor = Qt.colorEqual(tailFill, needleFill) && !needleEdge && !tailEdge
+                        // (警告中は針・出っ張り・縁がすべて同じ色なので、1 つの形で描いて縁取る)
+                        const sameColor = root.warning || (Qt.colorEqual(tailFill, needleFill) && !needleEdge && !tailEdge)
                         ctx.translate(0, pad)
                         ctx.lineJoin = "round"
                         ctx.lineWidth = edgeW
-                        ctx.strokeStyle = root.outlineColor
+                        ctx.strokeStyle = edgeColor
                         ctx.fillStyle = needleFill
                         ctx.beginPath()
                         ctx.moveTo(c - tipHalf, 0)
@@ -1185,7 +1227,7 @@ WidgetBase {
                             ctx.closePath()
                             ctx.fill()
                             if (tailEdge) {
-                                ctx.strokeStyle = root.dialLine
+                                ctx.strokeStyle = tailEdgeColor
                                 ctx.stroke()
                             }
                         }
@@ -1243,9 +1285,11 @@ WidgetBase {
                 height: width
                 radius: width / 2
                 // レトロは、中心円の色が「パネル」のままなら濃い色にする
-                color: root.lightFace && (root.config.hubColor === undefined || root.config.hubColor === "panel") ? "#2a2622" : root.hubColor
+                // 警告中は、針・出っ張りと同じ赤で塗り、縁も出っ張りの縁と同じ暗い赤(注意中は変えない)
+                color: root.warning ? root.warnFill
+                     : root.lightFace && (root.config.hubColor === undefined || root.config.hubColor === "panel") ? "#2a2622" : root.hubColor
                 border.width: Math.max(1, dial.rpx * 0.02)
-                border.color: root.alerting ? root.alertColor : root.dialLine
+                border.color: root.warning ? root.warnEdge : root.dialLine
             }
 
             // ---- デジタル表示(アナログ+デジタル) ----
