@@ -28,7 +28,7 @@ bool TestVideoFeeder::start(const QString &path, QString &error) {
 
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        error = QStringLiteral("テスト映像を開けません: ") + path;
+        error = QStringLiteral("Cannot open the test video: ") + path;
         return false;
     }
     const QByteArray bytes = file.readAll();
@@ -43,7 +43,7 @@ bool TestVideoFeeder::start(const QString &path, QString &error) {
         }
     }
     if (starts.empty()) {
-        error = QStringLiteral("AUD が見つかりません。x264 の aud=1 付きで作成した H.264 を指定してください");
+        error = QStringLiteral("No AUD found. Use an H.264 file encoded by x264 with aud=1");
         return false;
     }
 

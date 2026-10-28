@@ -106,7 +106,7 @@ void pruneOldRunsLocked(const QString &directory, int keep) {
     for (int index = files.size() - 1; index >= keep; --index) {
         const QString path = files.at(index).absoluteFilePath();
         if (!QFile::remove(path)) {
-            std::fprintf(stderr, "[LOG] 古いログを削除できません: %s\n", qPrintable(path));
+            std::fprintf(stderr, "[LOG] cannot delete an old log: %s\n", qPrintable(path));
             std::fflush(stderr);
         }
     }
@@ -136,7 +136,7 @@ bool rotateLocked() {
     g_state.file.close();
     if (g_state.part >= std::max(1, g_state.options.maxFilesPerRun)) {
         g_state.fileActive = false;
-        std::fprintf(stderr, "[LOG] ログファイルの分割上限に達したため、以降はコンソールのみに出力します\n");
+        std::fprintf(stderr, "[LOG] reached the log file rotation limit; logging to the console only from now on\n");
         std::fflush(stderr);
         return false;
     }
@@ -155,7 +155,7 @@ bool rotateLocked() {
 void reportWriteFailureLocked() {
     if (!g_state.writeFailureNotified) {
         g_state.writeFailureNotified = true;
-        std::fprintf(stderr, "[LOG] ログファイルへの書き込みに失敗しました: %s (%s)\n",
+        std::fprintf(stderr, "[LOG] failed to write to the log file: %s (%s)\n",
                      qPrintable(g_state.currentPath), qPrintable(g_state.file.errorString()));
         std::fflush(stderr);
     }
@@ -359,7 +359,7 @@ bool initialize(const Options &requestedOptions, QString *errorMessage) {
         std::lock_guard<std::mutex> lock(g_state.mutex);
         if (g_state.initialized) {
             if (errorMessage != nullptr) {
-                *errorMessage = QStringLiteral("ログ基盤は既に初期化されています");
+                *errorMessage = QStringLiteral("logging is already initialized");
             }
             return g_state.fileActive;
         }
@@ -373,7 +373,7 @@ bool initialize(const Options &requestedOptions, QString *errorMessage) {
         QString failure;
         QDir dir(options.directory);
         if (!dir.exists() && !QDir().mkpath(options.directory)) {
-            failure = QStringLiteral("ログディレクトリを作成できません: ") + options.directory;
+            failure = QStringLiteral("cannot create the log directory: ") + options.directory;
         } else {
             pruneOldRunsLocked(options.directory, options.maxRuns);
             const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
@@ -382,7 +382,7 @@ bool initialize(const Options &requestedOptions, QString *errorMessage) {
             if (openPartLocked()) {
                 g_state.fileActive = true;
             } else {
-                failure = QStringLiteral("ログファイルを開けません: %1 (%2)")
+                failure = QStringLiteral("cannot open the log file: %1 (%2)")
                               .arg(g_state.file.fileName(), g_state.file.errorString());
             }
         }
@@ -394,17 +394,17 @@ bool initialize(const Options &requestedOptions, QString *errorMessage) {
     qInstallMessageHandler(&messageHandler);
     g_state.handlerInstalled = true;
 
-    info("LOG", QStringLiteral("ログを開始しました (ファイル出力: %1)")
-                    .arg(g_state.fileActive ? QStringLiteral("有効") : QStringLiteral("無効")));
+    info("LOG", QStringLiteral("logging started (file output: %1)")
+                    .arg(g_state.fileActive ? QStringLiteral("enabled") : QStringLiteral("disabled")));
     info("LOG", describeEnvironment());
     if (g_state.fileActive) {
-        info("LOG", QStringLiteral("ログファイル: %1").arg(currentFilePath()));
-        info("LOG", QStringLiteral("記録レベル: %1 以上 / サイズ上限: %2 バイト / 分割上限: %3")
+        info("LOG", QStringLiteral("log file: %1").arg(currentFilePath()));
+        info("LOG", QStringLiteral("level: %1 and above / size limit: %2 bytes / rotation limit: %3")
                         .arg(QString::fromLatin1(levelToString(options.minLevel)))
                         .arg(options.maxFileBytes)
                         .arg(options.maxFilesPerRun));
     } else {
-        warn("LOG", QStringLiteral("ファイルへのログ出力を開始できませんでした。コンソールのみ出力します"));
+        warn("LOG", QStringLiteral("could not start logging to a file; logging to the console only"));
     }
     return g_state.fileActive;
 }
@@ -419,7 +419,7 @@ void shutdown() {
         return;
     }
 
-    info("LOG", QStringLiteral("ログを終了します"));
+    info("LOG", QStringLiteral("logging stopped"));
 
     {
         std::lock_guard<std::mutex> lock(g_state.mutex);
@@ -472,16 +472,16 @@ void error(const char *component, const QString &message) { write(Level::Error, 
 void fatal(const char *component, const QString &message) { write(Level::Fatal, component, message); }
 
 QString describeEnvironment() {
-    QString text = QStringLiteral("環境: OS=%1 / カーネル=%2 / CPU=%3 / Qt=%4 (ビルド %5) / アプリ=%6 %7")
+    QString text = QStringLiteral("environment: OS=%1 / kernel=%2 / CPU=%3 / Qt=%4 (built with %5) / app=%6 %7")
                        .arg(QSysInfo::prettyProductName(), QSysInfo::kernelVersion(), QSysInfo::currentCpuArchitecture(),
                             QString::fromLatin1(qVersion()), QString::fromLatin1(QT_VERSION_STR),
                             QCoreApplication::applicationName(), QCoreApplication::applicationVersion());
 #ifdef OPENCRUISE_WITH_AASDK
-    text += QStringLiteral(" / aasdk=有効");
+    text += QStringLiteral(" / aasdk=enabled");
 #else
-    text += QStringLiteral(" / aasdk=無効");
+    text += QStringLiteral(" / aasdk=disabled");
 #endif
-    text += QStringLiteral(" / プロセスID=%1").arg(QCoreApplication::applicationPid());
+    text += QStringLiteral(" / PID=%1").arg(QCoreApplication::applicationPid());
     return text;
 }
 

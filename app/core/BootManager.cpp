@@ -56,22 +56,22 @@ void BootManager::start() {
         emit dataChanged(index(0), index(steps_.size() - 1));
     }
     tick_.start();
-    opencruise::log::info("BOOT", QStringLiteral("起動待ちを開始しました (ステップ %1 件)").arg(steps_.size()));
+    opencruise::log::info("BOOT", QStringLiteral("boot wait started (%1 steps)").arg(steps_.size()));
     emit phaseChanged();
     emit changed();
     evaluate();
 }
 
-void BootManager::report(const QString &id, int state, const QString &detail) {
+void BootManager::report(const QString &id, int state, const QString &detail, const QString &logDetail) {
     // 機器との通信スレッドなど、別スレッドからの通知は本体のスレッドへ渡す
     if (QThread::currentThread() != thread()) {
         QMetaObject::invokeMethod(
-            this, [this, id, state, detail]() { report(id, state, detail); }, Qt::QueuedConnection);
+            this, [this, id, state, detail, logDetail]() { report(id, state, detail, logDetail); }, Qt::QueuedConnection);
         return;
     }
     const int row = indexOf(id);
     if (row < 0) {
-        opencruise::log::warn("BOOT", QStringLiteral("未登録のステップへの通知です: ") + id);
+        opencruise::log::warn("BOOT", QStringLiteral("report for an unknown step: ") + id);
         return;
     }
     if (state < Pending || state > Skipped) {
@@ -84,7 +84,13 @@ void BootManager::report(const QString &id, int state, const QString &detail) {
     if (s.state == Running && s.timeoutMs > 0 && phase_ == Active) {
         s.deadlineMs = elapsed() + s.timeoutMs;
     }
-    opencruise::log::info("BOOT", QStringLiteral("%1: %2 %3").arg(id, keyFor(s.state), detail));
+    // ログは英語: logDetail を使う。無ければ、detail が英数字だけのときだけ出す(日本語の補足は画面だけ)
+    bool asciiDetail = true;
+    for (const QChar c : detail) {
+        if (c.unicode() > 0x7e) { asciiDetail = false; break; }
+    }
+    const QString forLog = !logDetail.isEmpty() ? logDetail : (asciiDetail ? detail : QString());
+    opencruise::log::info("BOOT", QStringLiteral("%1: %2 %3").arg(id, keyFor(s.state), forLog).trimmed());
     emit dataChanged(index(row), index(row));
     emit stepReported(id, state, detail);
     emit changed();
@@ -102,7 +108,7 @@ void BootManager::release() {
         return;
     }
     released_ = true;
-    opencruise::log::info("BOOT", QStringLiteral("起動画面と注意事項が終わりました(メイン画面の動きを始めます)"));
+    opencruise::log::info("BOOT", QStringLiteral("splash and notice finished (starting the main screen)"));
     emit releasedChanged();
 }
 
@@ -124,7 +130,7 @@ void BootManager::onTick() {
         if (s.state == Running && s.deadlineMs >= 0 && now >= s.deadlineMs) {
             s.state = timeoutState(s);
             s.detail = QStringLiteral("応答がありません(時間切れ)");
-            opencruise::log::warn("BOOT", QStringLiteral("%1: 時間切れ").arg(s.id));
+            opencruise::log::warn("BOOT", QStringLiteral("%1: timed out").arg(s.id));
             emit dataChanged(index(i), index(i));
             emit stepReported(s.id, s.state, s.detail);
             emit changed();
@@ -179,9 +185,9 @@ void BootManager::finish(bool bySkip) {
     }
     phase_ = Done;
     tick_.stop();
-    opencruise::log::info("BOOT", QStringLiteral("起動待ちを終了しました (%1 ms%2)")
+    opencruise::log::info("BOOT", QStringLiteral("boot wait finished (%1 ms%2)")
                                       .arg(clock_.elapsed())
-                                      .arg(bySkip ? QStringLiteral(", スキップ") : QString()));
+                                      .arg(bySkip ? QStringLiteral(", skipped") : QString()));
     emit phaseChanged();
     emit changed();
     emit finished();

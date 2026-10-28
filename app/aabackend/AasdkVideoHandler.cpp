@@ -81,8 +81,8 @@ void AasdkVideoHandler::fillFeatures(proto::service::control::message::ServiceDi
  * @brief チャネルオープン要求に成功を返す。
  */
 void AasdkVideoHandler::onChannelOpenRequest(const proto::service::control::message::ChannelOpenRequest &request) {
-    log("[video] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) +
-        ") → STATUS_SUCCESS を返します");
+    log("[video] channel open request received (service_id=" + std::to_string(request.service_id()) +
+        ") -> replying STATUS_SUCCESS");
 
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -94,9 +94,9 @@ void AasdkVideoHandler::onChannelOpenRequest(const proto::service::control::mess
  * @brief メディアのセットアップ要求に「準備完了」を返す。
  */
 void AasdkVideoHandler::onMediaChannelSetupRequest(const proto::service::media::shared::message::Setup &request) {
-    log("[video] メディアセットアップ要求を受信 (codec type=" +
+    log("[video] media setup request received (codec type=" +
         std::to_string(static_cast<int>(request.type())) + ") → STATUS_READY / max_unacked=" +
-        std::to_string(config::kVideoMaxUnacked) + " を返します");
+        std::to_string(config::kVideoMaxUnacked) + "");
 
     proto::service::media::shared::message::Config response;
     response.set_status(proto::service::media::shared::message::Config::STATUS_READY);
@@ -107,7 +107,7 @@ void AasdkVideoHandler::onMediaChannelSetupRequest(const proto::service::media::
     promise->then([self = shared_from_this()]() { self->sendVideoFocus(); },
                   [self = shared_from_this()](const aasdk::error::Error &e) {
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError(std::string("映像チャネル送信失敗(Config): ") + e.what());
+                          self->callbacks_.onFatalError(std::string("Video channel send failed (Config): ") + e.what());
                       }
                   });
     channel_->sendChannelSetupResponse(response, std::move(promise));
@@ -119,7 +119,7 @@ void AasdkVideoHandler::onMediaChannelSetupRequest(const proto::service::media::
  */
 void AasdkVideoHandler::onMediaChannelStartIndication(const proto::service::media::shared::message::Start &indication) {
     sessionId_ = indication.session_id();
-    log("映像ストリーム開始 (session_id=" + std::to_string(sessionId_) + ")");
+    log("video stream started (session_id=" + std::to_string(sessionId_) + ")");
     channel_->receive(shared_from_this());
 }
 
@@ -127,10 +127,10 @@ void AasdkVideoHandler::onMediaChannelStartIndication(const proto::service::medi
  * @brief 映像ストリーム停止通知。状態を「接続済み(映像待ち)」に戻す。
  */
 void AasdkVideoHandler::onMediaChannelStopIndication(const proto::service::media::shared::message::Stop &) {
-    log("映像ストリーム停止");
+    log("video stream stopped");
     streaming_ = false;
     if (callbacks_.onStateChanged) {
-        callbacks_.onStateChanged(LinkState::Connected, "映像ストリームが停止しました");
+        callbacks_.onStateChanged(LinkState::Connected, "Video stream stopped");
     }
     channel_->receive(shared_from_this());
 }
@@ -158,7 +158,7 @@ void AasdkVideoHandler::onVideoFocusRequest(
     using proto::service::media::video::message::VideoFocusMode;
 
     const VideoFocusMode mode = request.has_mode() ? request.mode() : VideoFocusMode::VIDEO_FOCUS_PROJECTED;
-    log("映像フォーカス要求 (mode=" + std::to_string(static_cast<int>(mode)) + ")");
+    log("video focus request (mode=" + std::to_string(static_cast<int>(mode)) + ")");
 
     proto::service::media::video::message::VideoFocusNotification indication;
     indication.set_focus(mode);
@@ -172,7 +172,7 @@ void AasdkVideoHandler::onVideoFocusRequest(
  */
 void AasdkVideoHandler::onChannelError(const aasdk::error::Error &e) {
     if (callbacks_.onFatalError) {
-        callbacks_.onFatalError(std::string("映像チャネルエラー: ") + e.what());
+        callbacks_.onFatalError(std::string("Video channel error: ") + e.what());
     }
 }
 
@@ -199,7 +199,7 @@ aasdk::channel::SendPromise::Pointer AasdkVideoHandler::makeSendPromise(const ch
     promise->then([]() {},
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError("映像チャネル送信失敗(" + what + "): " + e.what());
+                          self->callbacks_.onFatalError("Video channel send failed (" + what + "): " + e.what());
                       }
                   });
     return promise;
@@ -216,7 +216,7 @@ void AasdkVideoHandler::handleMediaData(const aasdk::common::DataConstBuffer &bu
     if (isFrame && !streaming_) {
         streaming_ = true;
         if (callbacks_.onStateChanged) {
-            callbacks_.onStateChanged(LinkState::Streaming, "映像を受信中");
+            callbacks_.onStateChanged(LinkState::Streaming, "Receiving video");
         }
     }
     if (callbacks_.onVideoData) {

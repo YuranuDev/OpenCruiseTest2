@@ -27,7 +27,7 @@ AasdkBackend::~AasdkBackend() = default;
  * @brief 常に失敗を返す（aasdk が組み込まれていないため）。
  */
 bool AasdkBackend::start(std::string &errorMessage) {
-    errorMessage = "aasdk なしでビルドされています (OPENCRUISE_ENABLE_AASDK=OFF)";
+    errorMessage = "Built without aasdk (OPENCRUISE_ENABLE_AASDK=OFF)";
     return false;
 }
 

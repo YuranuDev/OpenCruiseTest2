@@ -70,7 +70,7 @@ aasdk::channel::SendPromise::Pointer makeLoggingPromise(boost::asio::io_service:
                   [onLog = callbacks.onLog, tag = std::string(tag), what = std::string(what)](
                       const aasdk::error::Error &e) {
                       if (onLog) {
-                          onLog("[" + tag + "] 送信に失敗(" + what + "): " + e.what());
+                          onLog("[" + tag + "] send failed (" + what + "): " + e.what());
                       }
                   });
     return promise;
@@ -98,7 +98,7 @@ void AasdkPhoneStatusHandler::fillFeatures(proto::service::control::message::Ser
 }
 
 void AasdkPhoneStatusHandler::onChannelOpenRequest(const proto::service::control::message::ChannelOpenRequest &request) {
-    log("チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) + ") → STATUS_SUCCESS");
+    log("channel open request received (service_id=" + std::to_string(request.service_id()) + ") → STATUS_SUCCESS");
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
     channel_->sendChannelOpenResponse(response, makeSendPromise("ChannelOpenResponse"));
@@ -126,7 +126,7 @@ void AasdkPhoneStatusHandler::onPhoneStatusUpdate(const proto::service::phonesta
 
 void AasdkPhoneStatusHandler::onChannelError(const aasdk::error::Error &e) {
     // 情報チャネルの切断は致命的ではない。セッション全体の終了は制御チャネル側の通知に任せる
-    log(std::string("チャネルエラー: ") + e.what());
+    log(std::string("channel error: ") + e.what());
 }
 
 aasdk::channel::SendPromise::Pointer AasdkPhoneStatusHandler::makeSendPromise(const char *what) {
@@ -161,7 +161,7 @@ void AasdkNotificationHandler::fillFeatures(proto::service::control::message::Se
 
 void AasdkNotificationHandler::onChannelOpenRequest(
     const proto::service::control::message::ChannelOpenRequest &request) {
-    log("チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) + ") → STATUS_SUCCESS");
+    log("channel open request received (service_id=" + std::to_string(request.service_id()) + ") → STATUS_SUCCESS");
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
     channel_->sendChannelOpenResponse(response, makeSendPromise("ChannelOpenResponse"));
@@ -175,7 +175,7 @@ void AasdkNotificationHandler::onNotification(
     PhoneNoticeInfo info;
     info.id = notification.id();
     info.text = notification.text();
-    log("通知を受信: id=" + info.id + " text=" + info.text);
+    log("notification received: id=" + info.id + " text=" + info.text);
     if (callbacks_.onNotice && !info.text.empty()) {
         callbacks_.onNotice(info);
     }
@@ -188,7 +188,7 @@ void AasdkNotificationHandler::onNotification(
 }
 
 void AasdkNotificationHandler::onChannelError(const aasdk::error::Error &e) {
-    log(std::string("チャネルエラー: ") + e.what());
+    log(std::string("channel error: ") + e.what());
 }
 
 aasdk::channel::SendPromise::Pointer AasdkNotificationHandler::makeSendPromise(const char *what) {
@@ -222,7 +222,7 @@ void AasdkPlaybackHandler::fillFeatures(proto::service::control::message::Servic
 }
 
 void AasdkPlaybackHandler::onChannelOpenRequest(const proto::service::control::message::ChannelOpenRequest &request) {
-    log("チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) + ") → STATUS_SUCCESS");
+    log("channel open request received (service_id=" + std::to_string(request.service_id()) + ") → STATUS_SUCCESS");
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
     channel_->sendChannelOpenResponse(response, makeSendPromise("ChannelOpenResponse"));
@@ -256,7 +256,7 @@ void AasdkPlaybackHandler::onPlaybackUpdate(const proto::service::mediaplayback:
 }
 
 void AasdkPlaybackHandler::onChannelError(const aasdk::error::Error &e) {
-    log(std::string("チャネルエラー: ") + e.what());
+    log(std::string("channel error: ") + e.what());
 }
 
 aasdk::channel::SendPromise::Pointer AasdkPlaybackHandler::makeSendPromise(const char *what) {
@@ -291,7 +291,7 @@ void AasdkNavigationHandler::fillFeatures(proto::service::control::message::Serv
 }
 
 void AasdkNavigationHandler::onChannelOpenRequest(const proto::service::control::message::ChannelOpenRequest &request) {
-    log("[navigation] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) + ")");
+    log("[navigation] channel open request received (service_id=" + std::to_string(request.service_id()) + ")");
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
     channel_->sendChannelOpenResponse(response, makeLoggingPromise(*strand_, callbacks_, "navigation", "ChannelOpenResponse"));
@@ -385,7 +385,7 @@ void AasdkNavigationHandler::onCurrentPosition(
 }
 
 void AasdkNavigationHandler::onChannelError(const aasdk::error::Error &error) {
-    log(std::string("[navigation] チャネルエラー: ") + error.what());
+    log(std::string("[navigation] channel error: ") + error.what());
 }
 
 void AasdkNavigationHandler::publish() {

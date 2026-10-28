@@ -12,6 +12,7 @@
 #include <QMetaObject>
 
 #include "core/NotificationManager.h"
+#include "core/UiText.h"
 
 namespace opencruise {
 
@@ -45,7 +46,7 @@ void MicrophoneInput::setRequested(bool requested) {
         return;
     }
     requested_ = requested;
-    qInfo().noquote() << "[mic] Android Auto がマイクを" << (requested ? "要求しました" : "閉じました");
+    qInfo().noquote() << "[mic] Android Auto" << (requested ? "requested the microphone" : "closed the microphone");
     reconcile();
 }
 
@@ -63,7 +64,7 @@ void MicrophoneInput::reconcile() {
         if (wanted.id() == currentDeviceId_) {
             return;
         }
-        qInfo().noquote() << "[mic] 入力元が変わったため、録音を作り直します";
+        qInfo().noquote() << "[mic] input device changed; recreating the recorder";
         stopCapture();
         startCapture(false); // 録音は続いているので「オンになった」通知は出さない
         return;
@@ -84,17 +85,17 @@ void MicrophoneInput::startCapture(bool announce) {
     if (!device.isNull() && !device.isFormatSupported(format)) {
         const QAudioDevice fallback = QMediaDevices::defaultAudioInput();
         if (!fallback.isNull() && fallback.id() != device.id()) {
-            qWarning().noquote() << "[mic] 選択した入力元が形式に未対応のため、システム既定を使います:" << device.description();
+            qWarning().noquote() << "[mic] selected input does not support the format; using the system default:" << device.description();
             device = fallback;
         }
     }
     if (device.isNull()) {
-        errorText_ = QStringLiteral("入力デバイスが見つかりません");
+        errorText_ = QStringLiteral("No input device found");
     } else if (!device.isFormatSupported(format)) {
-        errorText_ = QStringLiteral("入力デバイスが 16kHz/16bit/モノラルに対応していません: ") + device.description();
+        errorText_ = QStringLiteral("The input device does not support 16 kHz / 16-bit / mono: ") + device.description();
     }
     if (!errorText_.isEmpty()) {
-        qWarning().noquote() << "[mic] 録音を開始できません:" << errorText_;
+        qWarning().noquote() << "[mic] cannot start recording:" << errorText_;
         refreshStatus();
         return;
     }
@@ -105,7 +106,7 @@ void MicrophoneInput::startCapture(bool announce) {
     // 録音中の異常(機器の取り外しなど)は、デバイスを閉じてエラー表示にする。次の要求/設定変更で再試行する
     connect(source.get(), &QAudioSource::stateChanged, this, [this]() {
         if (source_ && source_->error() != QAudio::NoError) {
-            errorText_ = QStringLiteral("録音中にエラーが発生しました (コード %1)").arg(static_cast<int>(source_->error()));
+            errorText_ = QStringLiteral("Recording error (code %1)").arg(static_cast<int>(source_->error()));
             qWarning().noquote() << "[mic]" << errorText_;
             // シグナルの処理中に自分自身を破棄しないよう、後で閉じる
             QMetaObject::invokeMethod(
@@ -122,7 +123,7 @@ void MicrophoneInput::startCapture(bool announce) {
 
     QIODevice *io = source->start(); // pull モード: readyRead で読み出す
     if (io == nullptr || source->error() != QAudio::NoError) {
-        errorText_ = QStringLiteral("録音を開始できませんでした: ") + device.description();
+        errorText_ = QStringLiteral("Could not start recording: ") + device.description();
         qWarning().noquote() << "[mic]" << errorText_ << "error:" << static_cast<int>(source->error());
         source->stop();
         refreshStatus();
@@ -134,7 +135,7 @@ void MicrophoneInput::startCapture(bool announce) {
     io_ = io;
     currentDeviceId_ = device.id();
     currentDeviceName_ = device.description();
-    qInfo().noquote() << "[mic] 録音を開始します:" << kSampleRate << "Hz" << kChannels << "ch on" << currentDeviceName_;
+    qInfo().noquote() << "[mic] starting recording:" << kSampleRate << "Hz" << kChannels << "ch on" << currentDeviceName_;
     refreshStatus();
     if (announce) {
         NotificationManager::notify(QStringLiteral("マイクがオンになりました"), currentDeviceName_,
@@ -151,7 +152,7 @@ void MicrophoneInput::stopCapture() {
     io_ = nullptr;
     currentDeviceId_.clear();
     currentDeviceName_.clear();
-    qInfo().noquote() << "[mic] 録音を停止しました";
+    qInfo().noquote() << "[mic] recording stopped";
 }
 
 void MicrophoneInput::onReadyRead() {
@@ -168,7 +169,7 @@ void MicrophoneInput::refreshStatus() {
     QString text;
     const bool enabled = settings_ ? settings_->micEnabled() : true;
     if (!errorText_.isEmpty()) {
-        text = QStringLiteral("エラー: ") + errorText_;
+        text = QStringLiteral("エラー: ") + uitext::toJapanese(errorText_);   // エラーはログ用に英語で持つ
     } else if (source_) {
         text = QStringLiteral("録音中 (%1)").arg(currentDeviceName_);
     } else if (!enabled) {

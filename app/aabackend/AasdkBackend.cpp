@@ -69,13 +69,13 @@ struct AasdkBackend::Impl {
         const int rc = libusb_init(&usbContext_);
         if (rc != LIBUSB_SUCCESS) {
             usbContext_ = nullptr;
-            error = std::string("libusb の初期化に失敗: ") + libusb_error_name(rc);
+            error = std::string("libusb initialization failed: ") + libusb_error_name(rc);
             return false;
         }
         if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
             libusb_exit(usbContext_);
             usbContext_ = nullptr;
-            error = "この環境の libusb はホットプラグ検出に対応していません";
+            error = "libusb on this system does not support hotplug detection";
             return false;
         }
 
@@ -176,8 +176,8 @@ struct AasdkBackend::Impl {
 
         if (!ioDone || !usbDone || !resetDone) {
             // 戻ってこないスレッドが USB 基盤を使っているかもしれないので、解放せずに手放す(アプリの終了時に OS が片付ける)
-            log(std::string("[backend] 停止: 終わらないスレッドがあるため切り離しました(io=") + (ioDone ? "済" : "未") +
-                " / USB=" + (usbDone ? "済" : "未") + " / リセット=" + (resetDone ? "済" : "未") + ")");
+            log(std::string("[backend] stop: detached threads that did not finish (io=") + (ioDone ? "done" : "pending") +
+                " / USB=" + (usbDone ? "done" : "pending") + " / reset=" + (resetDone ? "done" : "pending") + ")");
             // shared_ptr は、手放すために別の入れ物へ移して捨てる(デストラクタで libusb を呼ばせない)
             static_cast<void>(new std::shared_ptr<AasdkSession>(std::move(session_)));
             static_cast<void>(new aasdk::usb::DeviceHandle(std::move(currentHandle_)));
@@ -237,16 +237,16 @@ struct AasdkBackend::Impl {
         libusb_device **list = nullptr;
         const ssize_t count = libusb_get_device_list(usbContext_, &list);
         if (count < 0) {
-            log(std::string("[backend] USB デバイス一覧の取得に失敗: ") +
+            log(std::string("[backend] failed to get the USB device list: ") +
                 libusb_error_name(static_cast<int>(count)));
             return;
         }
 
-        std::string summary = "[backend] USB デバイス " + std::to_string(count) + " 台:";
+        std::string summary = "[backend] USB devices (" + std::to_string(count) + "):";
         for (ssize_t i = 0; i < count; ++i) {
             libusb_device_descriptor descriptor{};
             if (libusb_get_device_descriptor(list[i], &descriptor) != LIBUSB_SUCCESS) {
-                summary += " (不明)";
+                summary += " (unknown)";
                 continue;
             }
             char buffer[32]{};
@@ -264,7 +264,7 @@ struct AasdkBackend::Impl {
         if (stopping_) {
             return;
         }
-        log("[backend] USB 検出待ちを開始します: " + waitingDetail_);
+        log("[backend] waiting for a USB device: " + waitingDetail_);
         logUsbDevices();
         hub_ = std::make_shared<aasdk::usb::USBHub>(*usbWrapper_, ioService_, *chainFactory_);
 
@@ -275,9 +275,9 @@ struct AasdkBackend::Impl {
         // OS 側がデバイスの切替中で open() が遅いと、ここで長く止まる。所要時間をログに残す。
         const auto hubStart = std::chrono::steady_clock::now();
         hub_->start(std::move(promise));
-        log("[backend] USB 検出の開始処理に " +
+        log("[backend] starting USB detection took " +
             std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - hubStart).count()) +
-            " ms かかりました");
+            " ms");
 
         report(LinkState::Waiting, waitingDetail_);
         armRescan();
@@ -299,7 +299,7 @@ struct AasdkBackend::Impl {
                 if (stopping_ || session_ || !hub_) {
                     return;
                 }
-                log("[backend] デバイスが見つからないため、USB 検出をやり直します");
+                log("[backend] no device found; restarting USB detection");
                 hub_->cancel();
                 hub_.reset();
                 beginWaiting();
@@ -313,7 +313,7 @@ struct AasdkBackend::Impl {
      * 正規の ByeBye 手順を経た終了(スマートフォン発の切断要求・こちら発への応答受信)以外は true。
      */
     static bool needsUsbReset(const std::string &reason) {
-        return reason.rfind("スマートフォンからの切断要求", 0) != 0 && reason.rfind("切断応答を受信", 0) != 0;
+        return reason.rfind("Disconnect requested by the phone", 0) != 0 && reason.rfind("Received disconnect response", 0) != 0;
     }
 
     /**
@@ -328,8 +328,8 @@ struct AasdkBackend::Impl {
         }
         rescanTimer_->cancel();
         currentHandle_ = handle; // 切断後の USB リセット用に控えておく
-        report(LinkState::Connecting, "スマートフォンを検出しました。接続処理中です");
-        log("[backend] AOAP デバイスを検出しました → セッションを生成します");
+        report(LinkState::Connecting, "Phone detected. Connecting");
+        log("[backend] AOAP device detected -> creating a session");
 
         try {
             auto aoapDevice = aasdk::usb::AOAPDevice::create(*usbWrapper_, ioService_, std::move(handle));
@@ -357,10 +357,10 @@ struct AasdkBackend::Impl {
             session_->start();
         } catch (const aasdk::error::Error &e) {
             session_.reset();
-            onSessionFinished(std::string("USB デバイスの初期化に失敗: ") + e.what());
+            onSessionFinished(std::string("USB device initialization failed: ") + e.what());
         } catch (const std::exception &e) {
             session_.reset();
-            onSessionFinished(std::string("セッション生成に失敗: ") + e.what());
+            onSessionFinished(std::string("Session creation failed: ") + e.what());
         }
     }
 
@@ -371,9 +371,9 @@ struct AasdkBackend::Impl {
         if (stopping_ || e == aasdk::error::ErrorCode::OPERATION_ABORTED) {
             return;
         }
-        log(std::string("[backend] USBHub エラー: ") + e.what());
+        log(std::string("[backend] USBHub error: ") + e.what());
         hub_.reset();
-        waitingDetail_ = std::string("USB 検出エラーのため再試行します: ") + e.what();
+        waitingDetail_ = std::string("Retrying after a USB detection error: ") + e.what();
         report(LinkState::Waiting, waitingDetail_);
         scheduleRetry();
     }
@@ -396,7 +396,7 @@ struct AasdkBackend::Impl {
                 const auto started = std::chrono::steady_clock::now();
                 const int rc = libusb_reset_device(handle.get());
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
-                log(std::string("[backend] 異常終了のため USB デバイスをリセットしました: ") + libusb_error_name(rc) +
+                log(std::string("[backend] reset the USB device after an abnormal end: ") + libusb_error_name(rc) +
                     " (" + std::to_string(ms) + " ms)");
                 resetRunning_ = false;
             });
@@ -410,8 +410,8 @@ struct AasdkBackend::Impl {
             notifySessionGone();
             return;
         }
-        log("[backend] セッション終了 → 待機へ復帰: " + reason);
-        waitingDetail_ = "切断: " + reason;
+        log("[backend] session ended -> back to waiting: " + reason);
+        waitingDetail_ = "Disconnected: " + reason;
         report(LinkState::Waiting, waitingDetail_);
         scheduleRetry();
     }
@@ -461,7 +461,7 @@ struct AasdkBackend::Impl {
                 ioService_.run();
                 return;
             } catch (const std::exception &e) {
-                log(std::string("[backend] io ハンドラで例外: ") + e.what());
+                log(std::string("[backend] exception in the io handler: ") + e.what());
             }
         }
     }
@@ -474,7 +474,7 @@ struct AasdkBackend::Impl {
             timeval timeout{0, 100000};
             const int rc = libusb_handle_events_timeout_completed(usbContext_, &timeout, nullptr);
             if (rc != LIBUSB_SUCCESS && rc != LIBUSB_ERROR_TIMEOUT && rc != LIBUSB_ERROR_INTERRUPTED) {
-                log(std::string("[backend] libusb イベント処理エラー: ") + libusb_error_name(rc));
+                log(std::string("[backend] libusb event handling error: ") + libusb_error_name(rc));
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
@@ -498,7 +498,7 @@ struct AasdkBackend::Impl {
      * @brief 状態をコールバックへ通知する。通知自体もログに残す。
      */
     void report(LinkState state, const std::string &detail) {
-        log(std::string("[backend] 状態通知: ") + stateName(state) + " - " + detail);
+        log(std::string("[backend] state: ") + stateName(state) + " - " + detail);
         if (callbacks.onStateChanged) {
             callbacks.onStateChanged(state, detail);
         }
@@ -543,7 +543,7 @@ struct AasdkBackend::Impl {
         }
     }
     std::atomic<bool> stopping_{false};
-    std::string waitingDetail_ = "スマートフォンの接続を待っています";
+    std::string waitingDetail_ = "Waiting for the phone to connect";
 
     libusb_context *usbContext_ = nullptr;
     std::unique_ptr<aasdk::usb::USBWrapper> usbWrapper_;

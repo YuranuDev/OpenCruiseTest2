@@ -121,7 +121,7 @@ static void onTermSignal(int) {
 static void installTermHandler(QGuiApplication &app, QQmlApplicationEngine &engine) {
 #ifdef Q_OS_LINUX
     if (::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0, g_termFds) != 0) {
-        opencruise::log::warn("APP", QStringLiteral("終了の合図を受ける準備ができませんでした(終了画面は出しません)"));
+        opencruise::log::warn("APP", QStringLiteral("could not set up the termination signal handler (no shutdown screen)"));
         return;
     }
     struct sigaction action {};
@@ -138,7 +138,7 @@ static void installTermHandler(QGuiApplication &app, QQmlApplicationEngine &engi
         while (::read(g_termFds[0], buffer, sizeof(buffer)) > 0) {
         }
         if (*stopping) {
-            opencruise::log::info("APP", QStringLiteral("もう一度終了の合図を受けたので、すぐに終わります"));
+            opencruise::log::info("APP", QStringLiteral("termination signal received again; exiting now"));
             app.quit();
             return;
         }
@@ -147,14 +147,14 @@ static void installTermHandler(QGuiApplication &app, QQmlApplicationEngine &engi
         const QString image = QStringLiteral("/usr/share/plymouth/themes/opencruise/background.png");
         const QString url = QFile::exists(image) ? QUrl::fromLocalFile(image).toString() : QString();
         QObject *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
-        opencruise::log::info("APP", QStringLiteral("終了の合図(SIGTERM)を受けました。終了画面に切り替えてから終わります%1")
-                                         .arg(url.isEmpty() ? QStringLiteral("(Plymouth の画像が無いので背景色のみ)") : QString()));
+        opencruise::log::info("APP", QStringLiteral("termination signal (SIGTERM) received; showing the shutdown screen before exiting%1")
+                                         .arg(url.isEmpty() ? QStringLiteral(" (no Plymouth image; background color only)") : QString()));
         if (!root || !QMetaObject::invokeMethod(root, "showShutdownScreen", Q_ARG(QVariant, url))) {
             app.quit();
             return;
         }
         QTimer::singleShot(3000, &app, [&app]() {
-            opencruise::log::warn("APP", QStringLiteral("終了画面を描き終えられなかったので、そのまま終わります"));
+            opencruise::log::warn("APP", QStringLiteral("could not finish drawing the shutdown screen; exiting anyway"));
             app.quit();
         });
     });
@@ -179,7 +179,7 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
     }
     QObject *splash = window->findChild<QObject *>(QStringLiteral("splash"));
     if (!splash) {
-        opencruise::log::error("SPLASH", QStringLiteral("起動画面が見つかりません"));
+        opencruise::log::error("SPLASH", QStringLiteral("splash screen not found"));
         return false;
     }
     QVariant geometry;
@@ -190,7 +190,7 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
                               : geometry.toMap();
     const QImage image = window->grabWindow();
     if (image.isNull() || g.isEmpty() || !image.save(dir + QStringLiteral("/background.png"))) {
-        opencruise::log::error("SPLASH", QStringLiteral("起動画面の画像を保存できません: ") + dir);
+        opencruise::log::error("SPLASH", QStringLiteral("cannot save the splash image: ") + dir);
         return false;
     }
     const int barH = qMax(1, qRound(g.value(QStringLiteral("barH")).toReal()));
@@ -215,7 +215,7 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
         << "bar_h=" << barH << "\n"
         << "background_rgb=" << rgb(color(QStringLiteral("backgroundColor"))) << "\n"
         << "text_rgb=" << rgb(color(QStringLiteral("textColor"))) << "\n";
-    opencruise::log::info("SPLASH", QStringLiteral("起動画面を書き出しました: %1 (%2 x %3)")
+    opencruise::log::info("SPLASH", QStringLiteral("exported the splash screen: %1 (%2 x %3)")
                                         .arg(dir).arg(image.width()).arg(image.height()));
     return true;
 }
@@ -275,19 +275,19 @@ int main(int argc, char *argv[]) {
         if (levelOk) {
             logOptions.minLevel = level;
         } else {
-            qWarning().noquote() << "--log-level の値が不正です:" << parser.value(logLevel) << "(info を使用します)";
+            qWarning().noquote() << "invalid --log-level value:" << parser.value(logLevel) << "(using info)";
         }
     }
     QString logError;
     if (!opencruise::log::initialize(logOptions, &logError)) {
-        qWarning().noquote() << "ファイルへのログ出力を開始できません:" << logError;
+        qWarning().noquote() << "cannot start logging to a file:" << logError;
     }
-    opencruise::log::info("APP", QStringLiteral("OpenCruise を起動しました"));
+    opencruise::log::info("APP", QStringLiteral("OpenCruise started"));
     opencruise::log::info("APP", opencruise::log::describeEnvironment());
-    opencruise::log::info("APP", QStringLiteral("ログ出力先: ") + opencruise::log::currentFilePath());
-    opencruise::log::info("APP", QStringLiteral("コマンドライン: ") + app.arguments().join(QStringLiteral(" ")));
+    opencruise::log::info("APP", QStringLiteral("log file: ") + opencruise::log::currentFilePath());
+    opencruise::log::info("APP", QStringLiteral("command line: ") + app.arguments().join(QStringLiteral(" ")));
     if (splashHandoff) {
-        opencruise::log::info("APP", QStringLiteral("Linux の起動画面(Plymouth)から画面を引き継ぎます"));
+        opencruise::log::info("APP", QStringLiteral("taking over the display from the Linux boot splash (Plymouth)"));
     }
     const bool exportingSplash = parser.isSet(exportSplash);
     // 描画方式・垂直同期は、ウィンドウ(QML)を作る前にしか変えられないので、ここで適用する
@@ -338,11 +338,13 @@ int main(int argc, char *argv[]) {
         const QString family = appSettings.fontFamily();
         const qint64 ms = lapMs();
         if (family.isEmpty()) {
-            boot.report(QStringLiteral("fonts"), opencruise::BootManager::Warning, QStringLiteral("同梱フォントなし(OS 既定)"));
+            boot.report(QStringLiteral("fonts"), opencruise::BootManager::Warning, QStringLiteral("同梱フォントなし(OS 既定)"),
+                        QStringLiteral("no bundled fonts (OS default)"));
         } else if (appSettings.isFontLoading(family)) {
             // 通常の太さだけ読み終わっている。残りの太さは別スレッドで読み込み中(終わったら完了にする)
             boot.report(QStringLiteral("fonts"), opencruise::BootManager::Running,
-                        QStringLiteral("残りの太さを読み込み中(基本 %1)").arg(msText(ms)));
+                        QStringLiteral("残りの太さを読み込み中(基本 %1)").arg(msText(ms)),
+                        QStringLiteral("loading the other weights (regular %1)").arg(msText(ms)));
             auto once = std::make_shared<QMetaObject::Connection>();
             *once = QObject::connect(&appSettings, &opencruise::AppSettings::fontLoadFinished, &boot,
                                      [&boot, family, ms, msText, once](const QString &f, int files, qint64 bgMs) {
@@ -350,11 +352,14 @@ int main(int argc, char *argv[]) {
                                          QObject::disconnect(*once);
                                          boot.report(QStringLiteral("fonts"), opencruise::BootManager::Ready,
                                                      QStringLiteral("%1(基本 %2 + 残り %3 ファイル %4)")
+                                                         .arg(family, msText(ms), QString::number(files), msText(bgMs)),
+                                                     QStringLiteral("%1 (regular %2 + %3 more files %4)")
                                                          .arg(family, msText(ms), QString::number(files), msText(bgMs)));
                                      });
         } else {
             boot.report(QStringLiteral("fonts"), opencruise::BootManager::Ready,
-                        QStringLiteral("%1(%2)").arg(family, msText(ms)));
+                        QStringLiteral("%1(%2)").arg(family, msText(ms)),
+                        QStringLiteral("%1 (%2)").arg(family, msText(ms)));
         }
     }
     // 音量(マップ音声・音楽音声・システム)と出力先の設定。AndroidAutoController より先に作る(寿命を app に合わせる)
@@ -371,28 +376,32 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName(QStringLiteral("OpenCruise"));
     app.setApplicationName(QStringLiteral("OpenCruise"));
 
-    opencruise::log::info("APP", QStringLiteral("aasdk 接続層: ") +
-                                      (androidAuto->aasdkEnabled() ? QStringLiteral("有効")
-                                                                  : QStringLiteral("無効(スタブ)")));
-    if (!androidAuto->lastIssue().isEmpty()) {
-        opencruise::log::warn("APP", QStringLiteral("初期化時の問題: ") + androidAuto->lastIssue());
+    opencruise::log::info("APP", QStringLiteral("aasdk connection layer: ") +
+                                      (androidAuto->aasdkEnabled() ? QStringLiteral("enabled")
+                                                                  : QStringLiteral("disabled (stub)")));
+    if (!androidAuto->lastIssueForLog().isEmpty()) {
+        opencruise::log::warn("APP", QStringLiteral("issue during initialization: ") + androidAuto->lastIssueForLog());
     }
 
     // Android Auto 接続層: 作るところまで(接続待ちに入ったら完了にする)
     const qint64 aaInitMs = lapMs();
     if (parser.isSet(testVideo)) {
-        boot.report(QStringLiteral("aa"), opencruise::BootManager::Skipped, QStringLiteral("テスト映像モード"));
+        boot.report(QStringLiteral("aa"), opencruise::BootManager::Skipped, QStringLiteral("テスト映像モード"),
+                    QStringLiteral("test video mode"));
     } else if (!androidAuto->aasdkEnabled()) {
-        boot.report(QStringLiteral("aa"), opencruise::BootManager::Warning, QStringLiteral("aasdk 無効(スタブ)"));
+        boot.report(QStringLiteral("aa"), opencruise::BootManager::Warning, QStringLiteral("aasdk 無効(スタブ)"),
+                    QStringLiteral("aasdk disabled (stub)"));
     } else {
         // 接続待ち(待機中)に入った時点で、接続層は準備完了とみなす(スマホの接続自体は待たない)
         QObject::connect(androidAuto, &opencruise::AndroidAutoController::stateChanged, &boot, [&boot, androidAuto]() {
             if (androidAuto->stateKey() != QStringLiteral("unavailable")) {
-                boot.report(QStringLiteral("aa"), opencruise::BootManager::Ready, androidAuto->stateText());
+                boot.report(QStringLiteral("aa"), opencruise::BootManager::Ready, androidAuto->stateText(),
+                            androidAuto->stateKey());
             }
         });
         boot.report(QStringLiteral("aa"), opencruise::BootManager::Running,
-                    QStringLiteral("初期化 %1。接続待ちの開始を待っています").arg(msText(aaInitMs)));
+                    QStringLiteral("初期化 %1。接続待ちの開始を待っています").arg(msText(aaInitMs)),
+                    QStringLiteral("initialized in %1; waiting for the connection wait to start").arg(msText(aaInitMs)));
     }
 
     QQmlApplicationEngine engine;
@@ -430,7 +439,7 @@ int main(int argc, char *argv[]) {
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         []() {
-            opencruise::log::error("QML", QStringLiteral("ルートオブジェクトの生成に失敗しました"));
+            opencruise::log::error("QML", QStringLiteral("failed to create the root object"));
             QCoreApplication::exit(-1);
         },
         Qt::QueuedConnection);
@@ -438,9 +447,9 @@ int main(int argc, char *argv[]) {
     const opencruise::log::Stopwatch qmlLoadTimer;
     engine.load(QUrl(QStringLiteral("qrc:/OpenCruise/qml/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
-        opencruise::log::error("QML", QStringLiteral("QML の読み込みに失敗しました (qrc:/OpenCruise/qml/Main.qml)"));
+        opencruise::log::error("QML", QStringLiteral("failed to load QML (qrc:/OpenCruise/qml/Main.qml)"));
     } else {
-        opencruise::log::info("QML", QStringLiteral("メイン画面を読み込みました (%1 ms)").arg(qmlLoadTimer.elapsedMs()));
+        opencruise::log::info("QML", QStringLiteral("main window loaded (%1 ms)").arg(qmlLoadTimer.elapsedMs()));
         boot.report(QStringLiteral("ui"), opencruise::BootManager::Ready, msText(qmlLoadTimer.elapsedMs()));
         // 描画が終わるたびに、外部モニターへのミラーを更新する(eglfs のときだけ動く)
         drmDisplay.attach(qobject_cast<QQuickWindow *>(engine.rootObjects().first()));
@@ -451,7 +460,7 @@ int main(int argc, char *argv[]) {
                 [splashHandoff]() {
                     notifySystemdReady();
                     if (splashHandoff) {
-                        opencruise::log::info("APP", QStringLiteral("最初の画面を描きました(Linux の起動画面を終わらせます)"));
+                        opencruise::log::info("APP", QStringLiteral("first frame drawn (ending the Linux boot splash)"));
                     }
                 },
                 Qt::SingleShotConnection);
@@ -465,13 +474,13 @@ int main(int argc, char *argv[]) {
 
     // 捕捉されない例外で異常終了する場合も、理由をログに残してから停止する
     std::set_terminate([]() {
-        opencruise::log::fatal("APP", QStringLiteral("捕捉されない例外により異常終了します"));
+        opencruise::log::fatal("APP", QStringLiteral("aborting due to an uncaught exception"));
         opencruise::log::shutdown();
         std::abort();
     });
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &app, []() {
-        opencruise::log::info("APP", QStringLiteral("終了要求を受け取りました"));
+        opencruise::log::info("APP", QStringLiteral("quit requested"));
     });
 
     // 終了時は、接続層のスレッドを先に止めてから QML/ウィンドウを破棄する
@@ -491,18 +500,20 @@ int main(int argc, char *argv[]) {
         } else {
             boot.start();
         }
-        boot.report(QStringLiteral("vehicle"), opencruise::BootManager::Ready, can.sourceText());
+        boot.report(QStringLiteral("vehicle"), opencruise::BootManager::Ready, can.sourceText(),
+                    can.dataAvailable() ? QStringLiteral("dummy data") : QStringLiteral("none"));
         // TODO(ESP32): 接続機能を作ったら、ここをその通知に置き換える。例:
         //   connect(esp32Link, &Esp32Link::handshake, &boot, [&](const QString &s) { boot.report("esp32", BootManager::Running, s); });
         //   connect(esp32Link, &Esp32Link::ready,     &boot, [&](const QString &fw) { boot.report("esp32", BootManager::Ready, fw); });
         //   connect(esp32Link, &Esp32Link::failed,    &boot, [&](const QString &e)  { boot.report("esp32", BootManager::Failed, e); });
         // 通知が来ない場合は timeoutMs(6 秒)で警告にして先へ進む。
-        boot.report(QStringLiteral("esp32"), opencruise::BootManager::Skipped, QStringLiteral("未実装(接続機能の追加待ち)"));
+        boot.report(QStringLiteral("esp32"), opencruise::BootManager::Skipped, QStringLiteral("未実装(接続機能の追加待ち)"),
+                    QStringLiteral("not implemented yet"));
         if (parser.isSet(testVideo)) {
-            opencruise::log::info("APP", QStringLiteral("テスト映像を再生します: %1").arg(parser.value(testVideo)));
+            opencruise::log::info("APP", QStringLiteral("playing test video: %1").arg(parser.value(testVideo)));
             androidAuto->playTestStream(parser.value(testVideo));
         } else {
-            opencruise::log::info("APP", QStringLiteral("Android Auto の接続待ちを開始します"));
+            opencruise::log::info("APP", QStringLiteral("waiting for an Android Auto connection"));
             androidAuto->start();
         }
     });
@@ -542,7 +553,7 @@ int main(int argc, char *argv[]) {
     // 終了の合図(aboutToQuit)で片付けた画面の部品を、画面全体を壊す前に消しておく(後回しにした削除を実行する)
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 
-    opencruise::log::info("APP", QStringLiteral("イベントループを終了しました (コード %1)").arg(exitCode));
+    opencruise::log::info("APP", QStringLiteral("event loop finished (code %1)").arg(exitCode));
     opencruise::log::shutdown();
     return exitCode;
 }

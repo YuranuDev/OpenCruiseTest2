@@ -144,7 +144,7 @@ ApplicationWindow {
         context: Qt.ApplicationShortcut
         sequences: ["Ctrl+Alt+Backspace", "Ctrl+Alt+F1", "Ctrl+Alt+F2", "Ctrl+Alt+F3", "Ctrl+Alt+F4", "Ctrl+Alt+F5", "Ctrl+Alt+F6"]
         onActivated: {
-            console.info("[app] コンソールへ切り替えるため終了します(Ctrl+Alt+F1〜F6 / Ctrl+Alt+Backspace)")
+            console.info("[app] quitting to switch to the console (Ctrl+Alt+F1-F6 / Ctrl+Alt+Backspace)")
             Qt.quit()
         }
     }
@@ -387,8 +387,8 @@ ApplicationWindow {
                     // 起動画面の書き出し(--export-splash): メイン画面は作らない(起動画面だけを描く)
                 } else if (startOnSettings) {
                     stack.push(settingsComponent)
-                    boot.report("home", 5, "設定画面から起動")       // 5 = Skipped
-                    boot.report("widgets", 5, "設定画面から起動")
+                    boot.report("home", 5, "設定画面から起動", "started on the settings screen")       // 5 = Skipped
+                    boot.report("widgets", 5, "設定画面から起動", "started on the settings screen")
                 } else {
                     homeLoader.waiting = true
                 }
@@ -402,8 +402,8 @@ ApplicationWindow {
             property real startedAt: 0
             function create() {
                 startedAt = Date.now()
-                boot.report("home", 1, "作成中")                         // 1 = Running
-                boot.report("widgets", 1, "メイン画面の作成を待っています")
+                boot.report("home", 1, "作成中", "creating")                         // 1 = Running
+                boot.report("widgets", 1, "メイン画面の作成を待っています", "waiting for the main screen")
                 const inc = homeComponent.incubateObject(stack, {}, Qt.Asynchronous)
                 const done = () => {
                     if (inc.status === Component.Ready) {
@@ -411,13 +411,13 @@ ApplicationWindow {
                         homeLoader.ready = true
                         const ms = Date.now() - startedAt
                         boot.report("home", 2, ms + " ms")                // 2 = Ready
-                        console.info("[boot] メイン画面を作りました (" + ms + " ms。起動画面を出したまま、少しずつ作成)")
+                        console.info("[boot] main screen created (" + ms + " ms, built incrementally behind the splash)")
                         widgetWatch.update()
                     } else if (inc.status === Component.Error) {
-                        console.error("[boot] メイン画面を作れませんでした")
-                        boot.report("home", 4, "作成に失敗しました")      // 4 = Failed
+                        console.error("[boot] could not create the main screen")
+                        boot.report("home", 4, "作成に失敗しました", "creation failed")      // 4 = Failed
                         widgetWatch.finished = true
-                        boot.report("widgets", 5, "メイン画面を作れなかったため中止")
+                        boot.report("widgets", 5, "メイン画面を作れなかったため中止", "cancelled (main screen failed)")
                         homeLoader.ready = true   // 起動画面のまま固まらないようにする
                     }
                 }
@@ -438,11 +438,15 @@ ApplicationWindow {
                 if (!homeLoader.ready || loading > 0) {
                     const text = homeLoader.ready ? "作成中 " + loaded + " / " + (loaded + loading) + " 個"
                                                   : "作成中 " + loaded + " 個できました"
-                    if (text !== lastText) { lastText = text; boot.report("widgets", 1, text) }
+                    if (text !== lastText) {
+                        lastText = text
+                        boot.report("widgets", 1, text, "creating " + loaded + (homeLoader.ready ? " / " + (loaded + loading) : " done so far"))
+                    }
                     return
                 }
                 finished = true
-                boot.report("widgets", 2, loaded + " 個 (" + (Date.now() - homeLoader.startedAt) + " ms)")
+                const took = Date.now() - homeLoader.startedAt
+                boot.report("widgets", 2, loaded + " 個 (" + took + " ms)", loaded + " widgets (" + took + " ms)")
             }
         }
         Connections {

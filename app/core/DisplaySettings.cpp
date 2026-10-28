@@ -123,7 +123,8 @@ void DisplaySettings::applyStartupSettings() {
         api = 1;
         g_graphicsNote = QStringLiteral("Vulkan はこの環境(%1)で使えないため、OpenGL で描画しています")
                              .arg(QGuiApplication::platformName());
-        log::warn("DISPLAY", g_graphicsNote);
+        log::warn("DISPLAY", QStringLiteral("Vulkan is not usable on this platform (%1); rendering with OpenGL")
+                                 .arg(QGuiApplication::platformName()));
     }
     switch (api) {
     case 1: QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL); break;
@@ -137,10 +138,10 @@ void DisplaySettings::applyStartupSettings() {
     format.setSwapInterval(g_startup.vsync ? g_startup.frameDivider : 0);
     QSurfaceFormat::setDefaultFormat(format);
 
-    static const char *const kApiNames[] = {"自動", "OpenGL", "Vulkan", "ソフトウェア"};
-    log::info("DISPLAY", QStringLiteral("描画方式=%1 / 垂直同期=%2 / 間引き=1/%3")
+    static const char *const kApiNames[] = {"auto", "OpenGL", "Vulkan", "software"};
+    log::info("DISPLAY", QStringLiteral("graphics API=%1 / vsync=%2 / divider=1/%3")
                              .arg(QString::fromUtf8(kApiNames[g_startup.graphicsApi]),
-                                  g_startup.vsync ? QStringLiteral("オン") : QStringLiteral("オフ"))
+                                  g_startup.vsync ? QStringLiteral("on") : QStringLiteral("off"))
                              .arg(g_startup.frameDivider));
 }
 
@@ -201,12 +202,13 @@ void DisplaySettings::rebuildScreens() {
     if (previous != targetScreenName_) {
         QString reason;
         if (usingFallback_) {
-            reason = QStringLiteral("(選んだ画面 %1 が未接続のためメイン画面)").arg(savedScreen_);
+            reason = QStringLiteral(" (selected screen %1 is not connected; using the primary screen)").arg(savedScreen_);
         } else if (savedScreen_ == kAutoExternal) {
-            reason = external ? QStringLiteral("(外部画面を自動で選択)") : QStringLiteral("(外部画面が無いためメイン画面)");
+            reason = external ? QStringLiteral(" (external screen chosen automatically)")
+                              : QStringLiteral(" (no external screen; using the primary screen)");
         }
-        log::info("DISPLAY", QStringLiteral("表示する画面: %1%2")
-                                 .arg(targetScreenName_.isEmpty() ? QStringLiteral("(不明)") : targetScreenName_, reason));
+        log::info("DISPLAY", QStringLiteral("target screen: %1%2")
+                                 .arg(targetScreenName_.isEmpty() ? QStringLiteral("(unknown)") : targetScreenName_, reason));
     }
     emit screensChanged();
 }
@@ -293,11 +295,11 @@ void DisplaySettings::restartApp() {
     if (!args.isEmpty()) {
         args.removeFirst();   // 先頭は実行ファイル自身
     }
-    log::info("DISPLAY", QStringLiteral("設定を反映するため再起動します"));
+    log::info("DISPLAY", QStringLiteral("restarting to apply the settings"));
     if (QProcess::startDetached(QCoreApplication::applicationFilePath(), args)) {
         QCoreApplication::quit();
     } else {
-        log::warn("DISPLAY", QStringLiteral("再起動できませんでした(新しいプロセスを起動できません)"));
+        log::warn("DISPLAY", QStringLiteral("could not restart (cannot start a new process)"));
     }
 }
 

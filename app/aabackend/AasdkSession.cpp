@@ -129,12 +129,12 @@ AasdkSession::AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAP
 void AasdkSession::start() {
     auto self = shared_from_this();
     strand_->dispatch([self]() {
-        self->log("USB/AOAP セッション開始");
+        self->log("USB/AOAP session started");
         try {
             self->cryptor_->init();
-            self->log("TLS コンテキスト初期化完了");
+            self->log("TLS context initialized");
         } catch (const aasdk::error::Error &e) {
-            self->doTerminate(std::string("SSL 初期化に失敗: ") + e.what());
+            self->doTerminate(std::string("SSL initialization failed: ") + e.what());
             return;
         }
 
@@ -287,7 +287,7 @@ void AasdkSession::start() {
         self->navigationHandler_->start();
 
         self->controlChannel_->receive(self);
-        self->log("VersionRequest 送信開始");
+        self->log("sending VersionRequest");
         self->controlChannel_->sendVersionRequest(self->makeSendPromise("VersionRequest"));
 
         // スマートフォンが前回の接続状態のまま無応答だと、受信待ちで永久に止まる。上限時間で打ち切る
@@ -296,7 +296,7 @@ void AasdkSession::start() {
         self->handshakeTimer_->expires_from_now(std::chrono::seconds(15));
         self->handshakeTimer_->async_wait(self->strand_->wrap([self](const boost::system::error_code &ec) {
             if (!ec && !self->discoveryDone_) {
-                self->doTerminate("接続確立がタイムアウトしました（スマートフォンが応答しません）");
+                self->doTerminate("Connection setup timed out (the phone is not responding)");
             }
         }));
     });
@@ -339,15 +339,15 @@ void AasdkSession::stop() {
         self->shutdownTimer_->expires_from_now(std::chrono::milliseconds(1000));
         self->shutdownTimer_->async_wait(self->strand_->wrap([self](const boost::system::error_code &ec) {
             if (!ec) {
-                self->doTerminate("アプリが停止要求を出しました（切断応答の待機がタイムアウト）");
+                self->doTerminate("Stop requested by the app (timed out waiting for the disconnect response)");
             }
         }));
         proto::service::control::message::ByeByeRequest request;
         request.set_reason(proto::service::control::message::ByeByeReason::USER_SELECTION);
         auto promise = aasdk::channel::SendPromise::defer(*self->strand_);
-        promise->then([self]() { self->log("ByeByeRequest を送信しました。応答を待ちます"); },
+        promise->then([self]() { self->log("sent ByeByeRequest; waiting for the response"); },
                       [self](const aasdk::error::Error &e) {
-                          self->doTerminate("アプリが停止要求を出しました（ByeBye 送信失敗: " + describeAasdkError(e) + "）");
+                          self->doTerminate("Stop requested by the app (ByeBye send failed: " + describeAasdkError(e) + ")");
                       });
         self->controlChannel_->sendShutdownRequest(request, std::move(promise));
     });
@@ -385,12 +385,12 @@ void AasdkSession::sendMicrophoneData(std::vector<std::uint8_t> data) {
  * major/minor は aasdk がエンディアン変換せずに渡してくるため、ログには生値として出す。
  */
 void AasdkSession::onVersionResponse(uint16_t majorCode, uint16_t minorCode, proto::shared::MessageStatus status) {
-    log("バージョン応答 (経過 " + std::to_string(elapsedMs()) + " ms, 生値 major=" +
+    log("version response (elapsed " + std::to_string(elapsedMs()) + " ms, raw major=" +
         std::to_string(majorCode) + ", minor=" + std::to_string(minorCode) +
         ", status=" + std::to_string(static_cast<int>(status)) + ")");
 
     if (status != proto::shared::MessageStatus::STATUS_SUCCESS) {
-        terminate("プロトコルバージョンが一致しません (status=" + std::to_string(static_cast<int>(status)) + ")");
+        terminate("Protocol version mismatch (status=" + std::to_string(static_cast<int>(status)) + ")");
         return;
     }
 
@@ -399,7 +399,7 @@ void AasdkSession::onVersionResponse(uint16_t majorCode, uint16_t minorCode, pro
         controlChannel_->sendHandshake(cryptor_->readHandshakeBuffer(), makeSendPromise("Handshake"));
         controlChannel_->receive(shared_from_this());
     } catch (const aasdk::error::Error &e) {
-        terminate(std::string("SSL ハンドシェイク開始に失敗: ") + e.what());
+        terminate(std::string("Failed to start the SSL handshake: ") + e.what());
     }
 }
 
@@ -407,23 +407,23 @@ void AasdkSession::onVersionResponse(uint16_t majorCode, uint16_t minorCode, pro
  * @brief SSL ハンドシェイクの受信データを処理し、未完了なら続きを送り、完了なら認証完了を送る。
  */
 void AasdkSession::onHandshake(const aasdk::common::DataConstBuffer &payload) {
-    log("TLS ハンドシェイクデータ受信 (経過 " + std::to_string(elapsedMs()) + " ms)");
+    log("TLS handshake data received (elapsed " + std::to_string(elapsedMs()) + " ms)");
     try {
         cryptor_->writeHandshakeBuffer(payload);
 
         if (!cryptor_->doHandshake()) {
-            log("TLS ハンドシェイク継続データを送信");
+            log("sending TLS handshake continuation data");
             controlChannel_->sendHandshake(cryptor_->readHandshakeBuffer(), makeSendPromise("Handshake"));
         } else {
-            log("[session] SSL ハンドシェイク完了 (経過 " + std::to_string(elapsedMs()) +
-                " ms) → 認証完了を送信します");
+            log("[session] SSL handshake complete (elapsed " + std::to_string(elapsedMs()) +
+                " ms) -> sending auth complete");
             proto::service::control::message::AuthResponse authResponse;
             authResponse.set_status(static_cast<std::int32_t>(proto::shared::MessageStatus::STATUS_SUCCESS));
             controlChannel_->sendAuthComplete(authResponse, makeSendPromise("AuthComplete"));
         }
         controlChannel_->receive(shared_from_this());
     } catch (const aasdk::error::Error &e) {
-        terminate(std::string("SSL ハンドシェイクに失敗: ") + e.what());
+        terminate(std::string("SSL handshake failed: ") + e.what());
     }
 }
 
@@ -436,9 +436,9 @@ void AasdkSession::onHandshake(const aasdk::common::DataConstBuffer &payload) {
  */
 void AasdkSession::onServiceDiscoveryRequest(
     const proto::service::control::message::ServiceDiscoveryRequest &request) {
-    log("[session] サービス探索要求を受信 (経過 " + std::to_string(elapsedMs()) + " ms)" +
-        (request.has_device_name() ? " (端末名: " + request.device_name() + ")" : std::string()));
-    log("サービス探索要求の内容: " + request.ShortDebugString());
+    log("[session] service discovery request received (elapsed " + std::to_string(elapsedMs()) + " ms)" +
+        (request.has_device_name() ? " (device name: " + request.device_name() + ")" : std::string()));
+    log("service discovery request: " + request.ShortDebugString());
 
     proto::service::control::message::ServiceDiscoveryResponse response;
     response.set_display_name(config::kDisplayName);
@@ -475,25 +475,25 @@ void AasdkSession::onServiceDiscoveryRequest(
     notificationHandler_->fillFeatures(response);
     playbackHandler_->fillFeatures(response);
     navigationHandler_->fillFeatures(response);
-    log("サービス探索応答を作成 (チャネル数=" + std::to_string(response.channels_size()) + ")");
-    log("サービス探索応答の内容: " + response.ShortDebugString());
+    log("built the service discovery response (channels=" + std::to_string(response.channels_size()) + ")");
+    log("service discovery response: " + response.ShortDebugString());
 
     auto promise = aasdk::channel::SendPromise::defer(*strand_);
     promise->then(
         [self = shared_from_this()]() {
-            self->log("サービス探索応答の送信完了");
+            self->log("service discovery response sent");
             self->discoveryDone_ = true;
             self->lastRx_ = std::chrono::steady_clock::now();
             if (self->handshakeTimer_) {
                 self->handshakeTimer_->cancel();
             }
             if (!self->finished_ && self->callbacks_.onStateChanged) {
-                self->callbacks_.onStateChanged(LinkState::Connected, "接続済み（映像の開始を待っています）");
+                self->callbacks_.onStateChanged(LinkState::Connected, "Connected (waiting for video to start)");
             }
             self->schedulePing();
         },
         [self = shared_from_this()](const aasdk::error::Error &e) {
-            self->terminate(std::string("サービス探索応答の送信に失敗: ") + e.what());
+            self->terminate(std::string("Failed to send the service discovery response: ") + e.what());
         });
     controlChannel_->sendServiceDiscoveryResponse(response, std::move(promise));
     controlChannel_->receive(shared_from_this());
@@ -518,11 +518,11 @@ void AasdkSession::onAudioFocusRequest(const proto::service::control::message::A
  * @brief スマートフォンからの切断要求。応答を返してからセッションを終了する。
  */
 void AasdkSession::onByeByeRequest(const proto::service::control::message::ByeByeRequest &) {
-    log("スマートフォンから切断要求を受信");
+    log("disconnect request received from the phone");
     auto promise = aasdk::channel::SendPromise::defer(*strand_);
-    promise->then([self = shared_from_this()]() { self->terminate("スマートフォンからの切断要求"); },
+    promise->then([self = shared_from_this()]() { self->terminate("Disconnect requested by the phone"); },
                   [self = shared_from_this()](const aasdk::error::Error &) {
-                      self->terminate("スマートフォンからの切断要求（応答送信は失敗）");
+                      self->terminate("Disconnect requested by the phone (failed to send the response)");
                   });
     controlChannel_->sendShutdownResponse(proto::service::control::message::ByeByeResponse(), std::move(promise));
 }
@@ -531,7 +531,7 @@ void AasdkSession::onByeByeRequest(const proto::service::control::message::ByeBy
  * @brief 切断要求(こちらから送った場合)への応答。セッションを終了する。
  */
 void AasdkSession::onByeByeResponse(const proto::service::control::message::ByeByeResponse &) {
-    terminate("切断応答を受信");
+    terminate("Received disconnect response");
 }
 
 /**
@@ -568,7 +568,7 @@ void AasdkSession::onVoiceSessionRequest(const proto::service::control::message:
  * @brief Ping 要求に、同じタイムスタンプで応答する。
  */
 void AasdkSession::onPingRequest(const proto::service::control::message::PingRequest &request) {
-    log("PingRequest を受信");
+    log("PingRequest received");
     lastRx_ = std::chrono::steady_clock::now();
     proto::service::control::message::PingResponse response;
     response.set_timestamp(request.timestamp());
@@ -580,7 +580,7 @@ void AasdkSession::onPingRequest(const proto::service::control::message::PingReq
  * @brief Ping 応答。車載機側から Ping を送っていないので読み捨てる。
  */
 void AasdkSession::onPingResponse(const proto::service::control::message::PingResponse &) {
-    log("PingResponse を受信");
+    log("PingResponse received");
     lastRx_ = std::chrono::steady_clock::now();
     controlChannel_->receive(shared_from_this());
 }
@@ -605,7 +605,7 @@ void AasdkSession::schedulePing() {
         }
         // 通知した Ping タイムアウト(3秒)の倍の間、何も返ってこなければ切断扱いにする
         if (std::chrono::steady_clock::now() - self->lastRx_ > std::chrono::seconds(6)) {
-            self->doTerminate("スマートフォンから応答がありません（Ping タイムアウト）");
+            self->doTerminate("No response from the phone (ping timeout)");
             return;
         }
         proto::service::control::message::PingRequest request;
@@ -615,7 +615,7 @@ void AasdkSession::schedulePing() {
         auto promise = aasdk::channel::SendPromise::defer(*self->strand_);
         promise->then([]() {},
                       [self](const aasdk::error::Error &e) {
-                          self->terminate("PingRequest 送信失敗: " + describeAasdkError(e));
+                          self->terminate("PingRequest send failed: " + describeAasdkError(e));
                       });
         self->controlChannel_->sendPingRequest(request, std::move(promise));
         self->schedulePing();
@@ -626,7 +626,7 @@ void AasdkSession::schedulePing() {
  * @brief 制御チャネルのエラー（受信失敗/パース失敗/USB切断など）でセッションを終了する。
  */
 void AasdkSession::onChannelError(const aasdk::error::Error &e) {
-    terminate("制御チャネルエラー: " + describeAasdkError(e));
+    terminate("Control channel error: " + describeAasdkError(e));
 }
 
 /**
@@ -635,10 +635,10 @@ void AasdkSession::onChannelError(const aasdk::error::Error &e) {
 aasdk::channel::SendPromise::Pointer AasdkSession::makeSendPromise(const char *what) {
     auto promise = aasdk::channel::SendPromise::defer(*strand_);
     promise->then([self = shared_from_this(), what = std::string(what)]() {
-                      self->log(what + " 送信完了");
+                      self->log(what + " sent");
                   },
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
-                      self->terminate("制御チャネル送信失敗(" + what + "): " + describeAasdkError(e));
+                      self->terminate("Control channel send failed (" + what + "): " + describeAasdkError(e));
                   });
     return promise;
 }
@@ -660,7 +660,7 @@ void AasdkSession::doTerminate(const std::string &reason) {
         return;
     }
     finished_ = true;
-    log("セッション終了: " + reason);
+    log("session ended: " + reason);
     // マイクが開いたまま終わる場合は、上位が録音を止められるよう閉じた扱いで通知する
     if (microphoneHandler_ && microphoneHandler_->isOpen() && callbacks_.onMicrophoneRequest) {
         callbacks_.onMicrophoneRequest(false);

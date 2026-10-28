@@ -52,7 +52,7 @@ void AasdkMicrophoneHandler::fillFeatures(proto::service::control::message::Serv
 
 void AasdkMicrophoneHandler::onChannelOpenRequest(
     const proto::service::control::message::ChannelOpenRequest &request) {
-    log("[mic] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) + ")");
+    log("[mic] channel open request received (service_id=" + std::to_string(request.service_id()) + ")");
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
     channel_->sendChannelOpenResponse(response, makeSendPromise("ChannelOpenResponse"));
@@ -60,7 +60,7 @@ void AasdkMicrophoneHandler::onChannelOpenRequest(
 }
 
 void AasdkMicrophoneHandler::onMediaChannelSetupRequest(const proto::service::media::shared::message::Setup &) {
-    log("[mic] メディアセットアップ要求を受信 → STATUS_READY");
+    log("[mic] media setup request received -> STATUS_READY");
     proto::service::media::shared::message::Config response;
     response.set_status(proto::service::media::shared::message::Config::STATUS_READY);
     response.set_max_unacked(1);
@@ -71,7 +71,7 @@ void AasdkMicrophoneHandler::onMediaChannelSetupRequest(const proto::service::me
 
 void AasdkMicrophoneHandler::onMediaSourceOpenRequest(
     const proto::service::media::source::message::MicrophoneRequest &request) {
-    log(std::string("[mic] マイク ") + (request.open() ? "オープン" : "クローズ") + "要求を受信");
+    log(std::string("[mic] microphone ") + (request.open() ? "open" : "close") + " request received");
     open_ = request.open();
     proto::service::media::source::message::MicrophoneResponse response;
     response.set_status(0);
@@ -89,8 +89,8 @@ void AasdkMicrophoneHandler::sendAudio(const std::uint8_t *data, std::size_t siz
     }
     if (pendingSends_ >= kMaxPendingSends) {
         if (++droppedChunks_ == 1 || droppedChunks_ % 100 == 0) {
-            log("[mic] 送信待ちが溜まっているため録音データを破棄しました (累計 " + std::to_string(droppedChunks_) +
-                " チャンク)");
+            log("[mic] dropped recorded audio because the send queue is full (total " + std::to_string(droppedChunks_) +
+                " chunks)");
         }
         return;
     }
@@ -107,7 +107,7 @@ void AasdkMicrophoneHandler::sendAudio(const std::uint8_t *data, std::size_t siz
                           return;
                       }
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError(std::string("マイクチャネル送信失敗(録音データ): ") + e.what());
+                          self->callbacks_.onFatalError(std::string("Microphone channel send failed (audio data): ") + e.what());
                       }
                   });
     channel_->sendMediaSourceWithTimestampIndication(timestamp, aasdk::common::Data(data, data + size),
@@ -123,7 +123,7 @@ void AasdkMicrophoneHandler::onChannelError(const aasdk::error::Error &e) {
         return;
     }
     if (callbacks_.onFatalError) {
-        callbacks_.onFatalError(std::string("マイクチャネルエラー: ") + e.what());
+        callbacks_.onFatalError(std::string("Microphone channel error: ") + e.what());
     }
 }
 
@@ -132,7 +132,7 @@ aasdk::channel::SendPromise::Pointer AasdkMicrophoneHandler::makeSendPromise(con
     promise->then([]() {},
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError("マイクチャネル送信失敗(" + what + "): " + e.what());
+                          self->callbacks_.onFatalError("Microphone channel send failed (" + what + "): " + e.what());
                       }
                   });
     return promise;

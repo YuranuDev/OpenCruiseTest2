@@ -136,8 +136,8 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
     }
     loadSynth();
     rebuildSynth();
-    log::info("AUDIO", QStringLiteral("効果音フォルダ: 同梱=%1 / ユーザー=%2")
-                           .arg(builtinSoundDirectory().isEmpty() ? QStringLiteral("(見つかりません)") : builtinSoundDirectory(),
+    log::info("AUDIO", QStringLiteral("sound folders: bundled=%1 / user=%2")
+                           .arg(builtinSoundDirectory().isEmpty() ? QStringLiteral("(not found)") : builtinSoundDirectory(),
                                 userSoundDirectory()));
     for (const QString &category : kCategories) {
         loadCategory(category);
@@ -211,7 +211,7 @@ QStringList SystemSound::soundFiles(const QString &directory, const QString &cat
 void SystemSound::setupPlayer(QMediaPlayer &player, QAudioOutput &output) {
     player.setAudioOutput(&output);
     connect(&player, &QMediaPlayer::errorOccurred, this, [&player](QMediaPlayer::Error, const QString &text) {
-        log::warn("AUDIO", QStringLiteral("システム音を読み込めません: %1 (%2)").arg(player.source().toString(), text));
+        log::warn("AUDIO", QStringLiteral("cannot load system sound: %1 (%2)").arg(player.source().toString(), text));
     });
 }
 
@@ -291,7 +291,7 @@ void SystemSound::loadCategory(const QString &category) {
     QUrl url = muted ? QUrl() : urlFor(category, id);
     if (!muted && url.isEmpty()) {
         // 選んでいたファイルが消えている: 既定の音に戻す(設定はそのまま。ファイルが戻れば次回から使う)
-        log::warn("AUDIO", QStringLiteral("効果音が見つかりません(%1: %2)。既定の音を使います").arg(category, id));
+        log::warn("AUDIO", QStringLiteral("sound effect not found (%1: %2); using the default").arg(category, id));
         url = urlFor(category, kBuiltinPrefix + defaultFile(category));
     }
     // 起動音に MP3 を選んだときは QMediaPlayer で鳴らす(QSoundEffect は WAV しか読めない)
@@ -475,7 +475,7 @@ void SystemSound::rebuildSynth() {
     QDir().mkpath(dir);
     const QString path = dir + QStringLiteral("/alert-synth-%1.wav").arg(++synthSerial_);
     if (!writeWav(path, pcm)) {
-        log::warn("AUDIO", QStringLiteral("合成音を書き出せません: ") + path);
+        log::warn("AUDIO", QStringLiteral("cannot write the synthesized sound: ") + path);
         return;
     }
     const QString old = synthPath_;
@@ -615,7 +615,7 @@ void SystemSound::setupEffect(QSoundEffect *effect, bool &pending) {
     // 受け手を再生器自身にして、再生用のスレッドで受ける
     connect(effect, &QSoundEffect::statusChanged, effect, [effect, &pending]() {
         if (effect->status() == QSoundEffect::Error) {
-            log::warn("AUDIO", QStringLiteral("システム音を読み込めません: ") + effect->source().toString());
+            log::warn("AUDIO", QStringLiteral("cannot load system sound: ") + effect->source().toString());
             pending = false;
         } else if (effect->status() == QSoundEffect::Ready && pending) {
             pending = false;
@@ -654,7 +654,7 @@ void SystemSound::playEffect(QSoundEffect *effect, bool &pending) {
     case QSoundEffect::Ready:
         effect->play();
         if (timer.elapsed() >= 30) {
-            log::info("AUDIO", QStringLiteral("音を鳴らし始めるのに %1 ms かかりました: %2")
+            log::info("AUDIO", QStringLiteral("starting to play a sound took %1 ms: %2")
                                    .arg(timer.elapsed()).arg(effect->source().fileName()));
         }
         break;

@@ -56,7 +56,7 @@ AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
     for (const QAudioDevice &dev : std::as_const(outputs_)) {
         outputNames_ << dev.description();
     }
-    log::info("AUDIO", QStringLiteral("出力デバイス %1 個を検出しました").arg(outputs_.size()));
+    log::info("AUDIO", QStringLiteral("found %1 output devices").arg(outputs_.size()));
 
     connect(&mediaDevices_, &QMediaDevices::audioOutputsChanged, this, [this]() { refreshOutputs(); });
 
@@ -67,7 +67,7 @@ AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
     for (const QAudioDevice &dev : std::as_const(inputs_)) {
         inputNames_ << dev.description();
     }
-    log::info("AUDIO", QStringLiteral("入力デバイス %1 個を検出しました").arg(inputs_.size()));
+    log::info("AUDIO", QStringLiteral("found %1 input devices").arg(inputs_.size()));
     connect(&mediaDevices_, &QMediaDevices::audioInputsChanged, this, [this]() { refreshInputs(); });
 }
 
@@ -164,7 +164,8 @@ void AudioSettings::setDeviceIndex(Group group, int index) {
     }
     selectedIds_[group] = id;
     openStore().setValue(QStringLiteral("audio/%1Device").arg(keyName(group)), QString::fromLatin1(id.toBase64()));
-    log::info("AUDIO", QStringLiteral("%1の出力先: %2").arg(displayName(group), outputNames_.value(index)));
+    log::info("AUDIO", QStringLiteral("%1 output: %2")
+                           .arg(keyName(group), index == 0 ? QStringLiteral("system default") : outputNames_.value(index)));
     emit devicesChanged();
     emit deviceChangedFor(static_cast<int>(group));
 }
@@ -181,7 +182,7 @@ void AudioSettings::refreshOutputs() {
     for (const QAudioDevice &dev : std::as_const(outputs_)) {
         outputNames_ << dev.description();
     }
-    log::info("AUDIO", QStringLiteral("出力デバイスの構成が変わりました(%1 個)").arg(outputs_.size()));
+    log::info("AUDIO", QStringLiteral("output devices changed (%1)").arg(outputs_.size()));
     emit outputsChanged();
     emit devicesChanged(); // 番号が指す機器がずれた可能性があるので、選択表示も更新させる
 
@@ -198,7 +199,7 @@ void AudioSettings::setMicEnabled(bool enabled) {
     }
     micEnabled_ = enabled;
     openStore().setValue(QStringLiteral("audio/micEnabled"), enabled);
-    log::info("AUDIO", QStringLiteral("マイク: %1").arg(enabled ? QStringLiteral("オン") : QStringLiteral("オフ")));
+    log::info("AUDIO", QStringLiteral("microphone: %1").arg(enabled ? QStringLiteral("on") : QStringLiteral("off")));
     emit micChanged();
 }
 
@@ -232,7 +233,7 @@ void AudioSettings::setMicDeviceIndex(int index) {
     }
     selectedMicId_ = id;
     openStore().setValue(QStringLiteral("audio/micDevice"), QString::fromLatin1(id.toBase64()));
-    log::info("AUDIO", QStringLiteral("マイクの入力元: %1").arg(inputNames_.value(index)));
+    log::info("AUDIO", QStringLiteral("microphone input: %1").arg(index == 0 ? QStringLiteral("system default") : inputNames_.value(index)));
     emit micChanged();
 }
 
@@ -243,7 +244,7 @@ void AudioSettings::refreshInputs() {
     for (const QAudioDevice &dev : std::as_const(inputs_)) {
         inputNames_ << dev.description();
     }
-    log::info("AUDIO", QStringLiteral("入力デバイスの構成が変わりました(%1 個)").arg(inputs_.size()));
+    log::info("AUDIO", QStringLiteral("input devices changed (%1)").arg(inputs_.size()));
     emit inputsChanged();
     emit micChanged(); // 番号が指す機器がずれた/選んだ機器が現れた・消えた可能性があるので、録音側にも見直させる
 }

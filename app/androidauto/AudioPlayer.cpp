@@ -49,7 +49,7 @@ void PcmQueueDevice::push(const QByteArray &pcm) {
         const qint64 keep = static_cast<qint64>(bytesPerSecond_) * kQueueKeepMs / 1000;
         const qint64 frame = 4; // 2ch×16bit の倍数に揃えておけば 1ch でも壊れない
         readPos_ = buffer_.size() - (keep / frame) * frame;
-        qWarning() << "[audio] キューが溜まりすぎたため古い音声を破棄しました";
+        qWarning() << "[audio] queue too long; dropped old audio";
     }
     sinceLastPush_.restart();
     pushedOnce_ = true;
@@ -125,7 +125,7 @@ void AudioPlayer::reopenGroup(int group) {
             continue;
         }
         if (ch.sink) {
-            qInfo().noquote() << "[audio] 出力先が変わったため、出力を作り直します:" << nameOf(kind);
+            qInfo().noquote() << "[audio] output device changed; recreating output:" << nameOf(kind);
             destroy(ch);
         }
         ch.failed = false; // 出力先を変えたら、前回の失敗は再試行する
@@ -152,13 +152,13 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
         if (!device.isNull() && !device.isFormatSupported(format)) {
             const QAudioDevice fallback = QMediaDevices::defaultAudioOutput();
             if (fallback.id() != device.id()) {
-                qWarning().noquote() << "[audio] 選択した出力先が形式に未対応のため、システム既定を使います:" << nameOf(kind)
+                qWarning().noquote() << "[audio] selected output does not support the format; using the system default:" << nameOf(kind)
                                      << "device:" << device.description();
                 device = fallback;
             }
         }
         if (device.isNull() || !device.isFormatSupported(format)) {
-            qWarning().noquote() << "[audio] 出力デバイスが無い、または形式に未対応です:" << nameOf(kind)
+            qWarning().noquote() << "[audio] no output device, or the format is not supported:" << nameOf(kind)
                                  << "device:" << device.description();
             ch.failed = true;
             return;
@@ -172,12 +172,12 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
         }
         ch.sink->start(ch.device.get()); // pull モード: シンクがデバイスから読み出す
         if (ch.sink->error() != QAudio::NoError) {
-            qWarning().noquote() << "[audio] 出力を開始できませんでした:" << nameOf(kind) << ch.sink->error();
+            qWarning().noquote() << "[audio] could not start output:" << nameOf(kind) << ch.sink->error();
             destroy(ch);
             ch.failed = true;
             return;
         }
-        qInfo().noquote() << "[audio] 再生を開始します:" << nameOf(kind) << format.sampleRate() << "Hz"
+        qInfo().noquote() << "[audio] starting playback:" << nameOf(kind) << format.sampleRate() << "Hz"
                           << format.channelCount() << "ch on" << device.description();
         if (!timer_.isActive()) {
             timer_.start();
@@ -226,7 +226,7 @@ void AudioPlayer::housekeeping() {
         // 余韻(シンク内バッファ分)を待ってから閉じる
         const bool quiet = ch.device->msSinceLastPush() >= (ch.draining ? kTailMs + kSinkBufferMs : kIdleCloseMs);
         if (empty && quiet) {
-            qInfo().noquote() << "[audio] 出力を閉じます:" << nameOf(kind);
+            qInfo().noquote() << "[audio] closing output:" << nameOf(kind);
             destroy(ch);
         } else {
             anyActive = true;

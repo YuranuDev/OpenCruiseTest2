@@ -121,11 +121,11 @@ SystemStats::SystemStats(QObject *parent) : QObject(parent) {
 
     detectCpu();
     detectGpu();
-    log::info("SYS", QStringLiteral("システム情報: CPU=%1 / 周波数=%2 / 温度=%3 / GPU=%4")
-                         .arg(cpuName_.isEmpty() ? QStringLiteral("不明") : cpuName_)
+    log::info("SYS", QStringLiteral("system info: CPU=%1 / frequency=%2 / temperature=%3 / GPU=%4")
+                         .arg(cpuName_.isEmpty() ? QStringLiteral("unknown") : cpuName_)
                          .arg(!cpuFreqPaths_.isEmpty() ? QStringLiteral("cpufreq") : QStringLiteral("cpuinfo"))
-                         .arg(cpuTempPath_.isEmpty() ? QStringLiteral("取得不可") : cpuTempPath_)
-                         .arg(gpuSource_.isEmpty() ? QStringLiteral("未検出")
+                         .arg(cpuTempPath_.isEmpty() ? QStringLiteral("unavailable") : cpuTempPath_)
+                         .arg(gpuSource_.isEmpty() ? QStringLiteral("not detected")
                                                    : gpuName_ + QStringLiteral(" (") + gpuSource_ + QLatin1Char(')')));
 
     timer_.setInterval(1000);

@@ -61,21 +61,21 @@ void H264Decoder::reset() {
 bool H264Decoder::openLocked() {
     const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (codec == nullptr) {
-        error_ = QStringLiteral("FFmpeg に H.264 デコーダがありません");
+        error_ = QStringLiteral("FFmpeg has no H.264 decoder");
         return false;
     }
     context_ = avcodec_alloc_context3(codec);
     frame_ = av_frame_alloc();
     packet_ = av_packet_alloc();
     if (context_ == nullptr || frame_ == nullptr || packet_ == nullptr) {
-        error_ = QStringLiteral("FFmpeg のメモリ確保に失敗しました");
+        error_ = QStringLiteral("FFmpeg memory allocation failed");
         closeLocked();
         return false;
     }
     context_->flags |= AV_CODEC_FLAG_LOW_DELAY;
     context_->thread_count = 1; // フレームスレッドは遅延が増えるので使わない
     if (avcodec_open2(context_, codec, nullptr) < 0) {
-        error_ = QStringLiteral("H.264 デコーダを開けませんでした");
+        error_ = QStringLiteral("Could not open the H.264 decoder");
         closeLocked();
         return false;
     }

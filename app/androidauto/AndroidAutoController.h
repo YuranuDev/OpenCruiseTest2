@@ -97,6 +97,8 @@ public:
     QString stateText() const { return stateText_; }
     QString detailText() const { return detailText_; }
     QString lastIssue() const { return lastIssue_; }
+    /** @brief 直近の問題(ログ用の英語)。lastIssue は画面用の日本語。 */
+    QString lastIssueForLog() const { return lastIssueLog_; }
     qulonglong frameCount() const { return frameCount_; }
     QString videoInfo() const { return videoInfo_; }
     int attemptCount() const { return attemptCount_; }
@@ -263,6 +265,7 @@ private:
     QString stateText_;
     QString detailText_;
     QString lastIssue_;
+    QString lastIssueLog_;   ///< lastIssue_ の英語(ログ用)
     QString navigationRoad_;
     int navigationManeuver_ = 0;
     int navigationSide_ = 0;

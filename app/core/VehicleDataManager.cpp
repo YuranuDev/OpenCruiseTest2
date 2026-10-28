@@ -149,7 +149,7 @@ void VehicleDataManager::setMockGauges(bool enabled) {
     if (enabled == mockGauges_) return;
     mockGauges_ = enabled;
     openStore().setValue(QStringLiteral("mock/gaugeData"), enabled);
-    qInfo() << "[vehicle] メーター・グラフのダミーデータ:" << (enabled ? "使う" : "使わない(データなし)");
+    qInfo() << "[vehicle] dummy data for gauges and graphs:" << (enabled ? "on" : "off (no data)");
     emit dataAvailableChanged();
     emit engineStateChanged();   // warningsArmed も変わる
 }
@@ -562,7 +562,7 @@ void VehicleDataManager::updateEngineState(double dt) {
         if (aboveStartS_ >= kEngineConfirmSec) {
             engineRunning_ = true;
             runningS_ = 0.0;
-            qInfo() << "[vehicle] エンジン始動とみなしました(" << rpm_ << "rpm)";
+            qInfo() << "[vehicle] engine considered started (" << rpm_ << "rpm)";
             emit engineStateChanged();
         }
         return;
@@ -574,7 +574,7 @@ void VehicleDataManager::updateEngineState(double dt) {
     runningS_ += dt;
     if (runningS_ >= kWarnSettleSec) {
         warningsArmed_ = true;
-        qInfo() << "[vehicle] メーターの警告を有効にしました";
+        qInfo() << "[vehicle] gauge warnings enabled";
         emit engineStateChanged();
     }
 }

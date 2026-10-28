@@ -94,8 +94,8 @@ void AasdkSystemAudioHandler::fillFeatures(
  */
 void AasdkSystemAudioHandler::onChannelOpenRequest(
     const proto::service::control::message::ChannelOpenRequest &request) {
-    log("[audio] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) +
-        ") → STATUS_SUCCESS を返します");
+    log("[audio] channel open request received (service_id=" + std::to_string(request.service_id()) +
+        ") -> replying STATUS_SUCCESS");
 
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -108,8 +108,8 @@ void AasdkSystemAudioHandler::onChannelOpenRequest(
  */
 void AasdkSystemAudioHandler::onMediaChannelSetupRequest(
     const proto::service::media::shared::message::Setup &request) {
-    log("[audio] メディアセットアップ要求を受信 (codec type=" +
-        std::to_string(static_cast<int>(request.type())) + ") → STATUS_READY を返します");
+    log("[audio] media setup request received (codec type=" +
+        std::to_string(static_cast<int>(request.type())) + ") -> replying STATUS_READY");
 
     proto::service::media::shared::message::Config response;
     response.set_status(proto::service::media::shared::message::Config::STATUS_READY);
@@ -125,7 +125,7 @@ void AasdkSystemAudioHandler::onMediaChannelSetupRequest(
 void AasdkSystemAudioHandler::onMediaChannelStartIndication(
     const proto::service::media::shared::message::Start &indication) {
     sessionId_ = indication.session_id();
-    log("[audio] System audio ストリーム開始 (session_id=" + std::to_string(sessionId_) + ")");
+    log("[audio] system audio stream started (session_id=" + std::to_string(sessionId_) + ")");
     channel_->receive(shared_from_this());
 }
 
@@ -134,7 +134,7 @@ void AasdkSystemAudioHandler::onMediaChannelStartIndication(
  */
 void AasdkSystemAudioHandler::onMediaChannelStopIndication(
     const proto::service::media::shared::message::Stop &) {
-    log("[audio] System audio ストリーム停止");
+    log("[audio] system audio stream stopped");
     sessionId_ = 0;
     if (callbacks_.onAudioStop) {
         callbacks_.onAudioStop();
@@ -179,7 +179,7 @@ void AasdkSystemAudioHandler::onChannelError(const aasdk::error::Error &e) {
         return;
     }
     if (callbacks_.onFatalError) {
-        callbacks_.onFatalError(std::string("音声チャネルエラー: ") + e.what());
+        callbacks_.onFatalError(std::string("Audio channel error: ") + e.what());
     }
 }
 
@@ -191,7 +191,7 @@ aasdk::channel::SendPromise::Pointer AasdkSystemAudioHandler::makeSendPromise(co
     promise->then([]() {},
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError("音声チャネル送信失敗(" + what + "): " + e.what());
+                          self->callbacks_.onFatalError("Audio channel send failed (" + what + "): " + e.what());
                       }
                   });
     return promise;

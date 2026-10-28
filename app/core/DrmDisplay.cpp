@@ -5,6 +5,7 @@
 #include "DrmDisplay.h"
 
 #include "Log.h"
+#include "UiText.h"
 
 #include <QDir>
 #include <QFile>
@@ -104,14 +105,14 @@ QString autoMain(const QList<SysConnector> &all) {
 bool g_prepared = false;     ///< KMS 設定ファイルを作って Qt に渡した
 QString g_card;              ///< 使う GPU("card0")
 QString g_main;              ///< 操作する画面(カーネルの接続名)
-QString g_note;              ///< ログへ出す説明
+QString g_note;              ///< ログへ出す説明(英語。画面に出すときは uitext::toJapanese)
 } // namespace
 
 // ============================================================================ 起動前
 void DrmDisplay::prepare(int argc, char *argv[]) {
     if (!wantsEglfs(argc, argv)) return;
     if (qEnvironmentVariableIsSet("QT_QPA_EGLFS_KMS_CONFIG")) {
-        g_note = QStringLiteral("QT_QPA_EGLFS_KMS_CONFIG が設定済みのため、画面の設定はそちらに従います(ミラーは使いません)");
+        g_note = QStringLiteral("QT_QPA_EGLFS_KMS_CONFIG is already set; following it for the screen setup (no mirroring)");
         return;
     }
     const QList<SysConnector> all = scanSysfs();
@@ -120,7 +121,7 @@ void DrmDisplay::prepare(int argc, char *argv[]) {
         if (c.connected) connected << c;
     }
     if (connected.isEmpty()) {
-        g_note = QStringLiteral("つながっている画面が見つかりません(/sys/class/drm)");
+        g_note = QStringLiteral("No connected screen found (/sys/class/drm)");
         return;
     }
     // 操作する画面: 保存した画面 → 内蔵パネル(タッチパネルが付いているのは普通こちら) → 先頭
@@ -158,7 +159,7 @@ void DrmDisplay::prepare(int argc, char *argv[]) {
     const QString path = QDir::tempPath() + QStringLiteral("/opencruise-eglfs-kms.json");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        g_note = QStringLiteral("KMS 設定ファイルを作れません: ") + path;
+        g_note = QStringLiteral("Cannot create the KMS config file: ") + path;
         return;
     }
     const QByteArray json = QJsonDocument(config).toJson(QJsonDocument::Compact);
@@ -166,7 +167,7 @@ void DrmDisplay::prepare(int argc, char *argv[]) {
     file.close();
     qputenv("QT_QPA_EGLFS_KMS_CONFIG", path.toLocal8Bit());
     g_prepared = true;
-    g_note = QStringLiteral("操作する画面: %1(%2)/ 設定 %3: %4")
+    g_note = QStringLiteral("control screen: %1 (%2) / config %3: %4")
                  .arg(g_main, g_card, path, QString::fromUtf8(json));
 }
 
@@ -325,7 +326,7 @@ struct DrmDisplay::Private {
     bool start(MirrorOutput &m, uint32_t fb, int scaleMode) {
         drmModeFB *info = drmModeGetFB(fd, fb);
         if (!info) {
-            m.detail = QStringLiteral("操作する画面の画を読めません");
+            m.detail = QStringLiteral("Cannot read the image of the control screen");
             return false;
         }
         const int fbW = static_cast<int>(info->width), fbH = static_cast<int>(info->height);
@@ -334,7 +335,7 @@ struct DrmDisplay::Private {
         drmModeConnector *c = findConnector(m.name);
         if (!c || c->connection != DRM_MODE_CONNECTED || c->count_modes == 0) {
             drmModeFreeConnector(c);
-            m.detail = QStringLiteral("画面の情報を読めません");
+            m.detail = QStringLiteral("Cannot read the screen information");
             return false;
         }
         // 解像度: 同じ解像度(推奨・60Hz に近いもの)→ 無ければ推奨解像度で拡大縮小
@@ -356,13 +357,13 @@ struct DrmDisplay::Private {
         m.crtcId = pickCrtc(c, &crtcIndex);
         drmModeFreeConnector(c);
         if (!m.crtcId) {
-            m.detail = QStringLiteral("空いている出力回路(CRTC)がありません");
+            m.detail = QStringLiteral("No free output circuit (CRTC)");
             return false;
         }
 
         if (!m.scaled) {
             if (drmModeSetCrtc(fd, m.crtcId, fb, 0, 0, &m.connectorId, 1, &m.mode) != 0) {
-                m.detail = QStringLiteral("表示を始められません(%1)").arg(QString::fromLocal8Bit(std::strerror(errno)));
+                m.detail = QStringLiteral("Cannot start displaying (%1)").arg(QString::fromLocal8Bit(std::strerror(errno)));
                 return false;
             }
         } else {
@@ -372,13 +373,13 @@ struct DrmDisplay::Private {
             if (drmModeCreateDumbBuffer(fd, m.mode.hdisplay, m.mode.vdisplay, 32, 0, &m.dumbHandle, &pitch, &size) != 0 ||
                 drmModeAddFB(fd, m.mode.hdisplay, m.mode.vdisplay, 24, 32, pitch, m.dumbHandle, &m.dumbFb) != 0 ||
                 drmModeSetCrtc(fd, m.crtcId, m.dumbFb, 0, 0, &m.connectorId, 1, &m.mode) != 0) {
-                m.detail = QStringLiteral("表示を始められません(%1)").arg(QString::fromLocal8Bit(std::strerror(errno)));
+                m.detail = QStringLiteral("Cannot start displaying (%1)").arg(QString::fromLocal8Bit(std::strerror(errno)));
                 releaseDumb(m);
                 return false;
             }
             m.planeId = primaryPlane(crtcIndex);
             if (!m.planeId || !setPlane(m, fb, fbW, fbH)) {
-                m.detail = QStringLiteral("この GPU では拡大縮小して表示できません(%1×%2 → %3×%4)")
+                m.detail = QStringLiteral("This GPU cannot scale the image (%1x%2 -> %3x%4)")
                                .arg(fbW).arg(fbH).arg(m.mode.hdisplay).arg(m.mode.vdisplay);
                 stop(m);
                 return false;
@@ -388,7 +389,7 @@ struct DrmDisplay::Private {
         m.running = true;
         m.detail = QStringLiteral("%1×%2 %3Hz%4")
                        .arg(m.mode.hdisplay).arg(m.mode.vdisplay).arg(m.mode.vrefresh)
-                       .arg(m.scaled ? QStringLiteral("(%1×%2 を拡大縮小)").arg(fbW).arg(fbH) : QString());
+                       .arg(m.scaled ? QStringLiteral(" (scaled from %1×%2)").arg(fbW).arg(fbH) : QString());
         return true;
     }
 
@@ -450,13 +451,13 @@ DrmDisplay::DrmDisplay(QObject *parent) : QObject(parent), d_(std::make_unique<P
     }
 #ifdef OPENCRUISE_WITH_DRM
     if (!g_prepared) {
-        status_ = g_note.isEmpty() ? QStringLiteral("画面の設定を用意できませんでした") : g_note;
+        status_ = g_note.isEmpty() ? QStringLiteral("画面の設定を用意できませんでした") : uitext::toJapanese(g_note);
         return;
     }
     d_->fd = Private::findMasterFd(g_card);
     if (d_->fd < 0) {
         status_ = QStringLiteral("Qt の DRM(/dev/dri/%1)を見つけられません").arg(g_card);
-        log::warn("DISPLAY", QStringLiteral("DRM: ") + status_);
+        log::warn("DISPLAY", QStringLiteral("DRM: cannot find Qt's DRM device (/dev/dri/%1)").arg(g_card));
         return;
     }
     active_ = true;
@@ -508,7 +509,7 @@ void DrmDisplay::poll() {
         m.connected = c.connected;
         if (m.running && (!m.connected || !mirrorEnabled_)) {
             d_->stop(m);
-            if (!m.connected) log::info("DISPLAY", QStringLiteral("DRM: %1 が外れたのでミラーをやめました").arg(m.name));
+            if (!m.connected) log::info("DISPLAY", QStringLiteral("DRM: %1 was disconnected; mirroring stopped").arg(m.name));
         } else if (m.running && !d_->alive(m)) {
             d_->stop(m);   // 画面が消されていた: 次の描画でやり直す
         }
@@ -539,10 +540,10 @@ void DrmDisplay::onFrame() {
             d_->update(m, fb);
         } else if (!m.failed) {   // 失敗した画面は、つなぎ直すか設定を変えるまで再挑戦しない
             if (d_->start(m, fb, scaleMode_)) {
-                log::info("DISPLAY", QStringLiteral("DRM: %1 へミラーを始めました(%2)").arg(m.name, m.detail));
+                log::info("DISPLAY", QStringLiteral("DRM: started mirroring to %1 (%2)").arg(m.name, m.detail));
             } else {
                 m.failed = true;
-                log::warn("DISPLAY", QStringLiteral("DRM: %1 へミラーできません: %2").arg(m.name, m.detail));
+                log::warn("DISPLAY", QStringLiteral("DRM: cannot mirror to %1: %2").arg(m.name, m.detail));
             }
             changedAny = true;
         }
@@ -574,7 +575,7 @@ QVariantList DrmDisplay::outputs() const {
             role = mirrorEnabled_ ? QStringLiteral("ミラー待ち") : QStringLiteral("使わない");
             for (const MirrorOutput &m : d_->mirrors) {
                 if (m.name != c.name) continue;
-                detail = m.detail;
+                detail = uitext::toJapanese(m.detail);   // 理由はログ用に英語で持つ
                 if (m.running) role = QStringLiteral("ミラー中");
                 else if (m.failed && mirrorEnabled_) role = QStringLiteral("ミラーできません");
             }

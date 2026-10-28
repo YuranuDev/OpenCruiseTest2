@@ -82,12 +82,12 @@ void AasdkInputHandler::sendTouch(const TouchEvent &event) {
     if (!ready_) {
         if (!notReadyLogged_) {
             notReadyLogged_ = true;
-            log("[input] KeyBindingRequest への応答前なので、タッチ入力を送らずに捨てます");
+            log("[input] dropping touch input (KeyBindingRequest not answered yet)");
         }
         return;
     }
     if (event.points.empty() || event.actionIndex >= event.points.size()) {
-        log("[input] 不正なタッチ入力を破棄しました (指=" + std::to_string(event.points.size()) +
+        log("[input] dropped an invalid touch input (fingers=" + std::to_string(event.points.size()) +
             ", action_index=" + std::to_string(event.actionIndex) + ")");
         return;
     }
@@ -118,8 +118,8 @@ void AasdkInputHandler::sendTouch(const TouchEvent &event) {
 
     if (!firstTouchLogged_) {
         firstTouchLogged_ = true;
-        log("[input] 最初のタッチ入力を送信します (action=" + std::to_string(static_cast<int>(event.action)) +
-            ", 指=" + std::to_string(event.points.size()) + ")");
+        log("[input] sending the first touch input (action=" + std::to_string(static_cast<int>(event.action)) +
+            ", fingers=" + std::to_string(event.points.size()) + ")");
     }
     channel_->sendInputReport(report, makeSendPromise("InputReport"));
 }
@@ -129,8 +129,8 @@ void AasdkInputHandler::sendTouch(const TouchEvent &event) {
  */
 void AasdkInputHandler::onChannelOpenRequest(
     const proto::service::control::message::ChannelOpenRequest &request) {
-    log("[input] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) +
-        ") → STATUS_SUCCESS を返します");
+    log("[input] channel open request received (service_id=" + std::to_string(request.service_id()) +
+        ") -> replying STATUS_SUCCESS");
 
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -143,8 +143,8 @@ void AasdkInputHandler::onChannelOpenRequest(
  */
 void AasdkInputHandler::onKeyBindingRequest(
     const proto::service::media::sink::message::KeyBindingRequest &request) {
-    log("[input] KeyBindingRequest を受信 (キー数=" + std::to_string(request.keycodes_size()) +
-        ") → STATUS_SUCCESS を返します");
+    log("[input] KeyBindingRequest received (keys=" + std::to_string(request.keycodes_size()) +
+        ") -> replying STATUS_SUCCESS");
 
     proto::service::media::sink::message::KeyBindingResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -161,7 +161,7 @@ void AasdkInputHandler::onChannelError(const aasdk::error::Error &e) {
         return;
     }
     if (callbacks_.onFatalError) {
-        callbacks_.onFatalError(std::string("入力チャネルエラー: ") + e.what());
+        callbacks_.onFatalError(std::string("Input channel error: ") + e.what());
     }
 }
 
@@ -173,7 +173,7 @@ aasdk::channel::SendPromise::Pointer AasdkInputHandler::makeSendPromise(const ch
     promise->then([]() {},
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError("入力チャネル送信失敗(" + what + "): " + e.what());
+                          self->callbacks_.onFatalError("Input channel send failed (" + what + "): " + e.what());
                       }
                   });
     return promise;

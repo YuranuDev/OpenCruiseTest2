@@ -86,10 +86,10 @@ int AppSettings::loadBundledFonts() {
             ++skipped;
         }
         foundFiles += foundInDir;
-        log::info("FONT", QStringLiteral("%1 に %2 個のフォントがあります(すぐ登録: %3 個。ほかは使うときに登録)")
+        log::info("FONT", QStringLiteral("%1 has %2 fonts (registered now: %3; others are registered when used)")
                               .arg(dir).arg(foundInDir).arg(loadedNow));
         if (skipped > 0) {
-            log::info("FONT", QStringLiteral("選択肢に無いフォント %1 個は読み込みません(使わなくなったフォントなら、消してかまいません)")
+            log::info("FONT", QStringLiteral("skipping %1 fonts that are not in the list (unused fonts can be deleted)")
                                   .arg(skipped));
         }
         if (foundInDir > 0) {
@@ -102,11 +102,11 @@ int AppSettings::loadBundledFonts() {
         if (pendingFontFiles_.contains(name)) {
             fontFamilies_ << name;
         } else if (foundFiles > 0) {
-            log::warn("FONT", QStringLiteral("同梱フォントが見つかりません: ") + name);
+            log::warn("FONT", QStringLiteral("bundled font not found: ") + name);
         }
     }
     if (foundFiles == 0) {
-        log::warn("FONT", QStringLiteral("同梱フォントが見つかりませんでした。OS 既定のフォントを使用します"));
+        log::warn("FONT", QStringLiteral("no bundled fonts found; using the OS default font"));
     }
     return foundFiles;
 }
@@ -120,12 +120,12 @@ bool isEssentialWeight(const QString &path) {
 /// 読んだフォントのデータを登録し、そのファミリが登録できたかを返す
 bool registerFontData(const QString &family, const QString &path, const QByteArray &data) {
     if (data.isEmpty()) {
-        log::warn("FONT", QStringLiteral("フォントを読み込めません: ") + path);
+        log::warn("FONT", QStringLiteral("cannot read font: ") + path);
         return false;
     }
     const int id = QFontDatabase::addApplicationFontFromData(data);
     if (id < 0) {
-        log::warn("FONT", QStringLiteral("フォントを登録できません: ") + path);
+        log::warn("FONT", QStringLiteral("cannot register font: ") + path);
         return false;
     }
     return QFontDatabase::applicationFontFamilies(id).contains(family);
@@ -157,7 +157,7 @@ bool AppSettings::loadFontNow(const QString &family, bool essentialOnly) {
         if (registerFontData(family, path, readFontFile(path))) registered = true;
     }
     if (registered && !registeredFamilies_.contains(family)) registeredFamilies_ << family;
-    log::info("FONT", QStringLiteral("%1 を登録しました(%2 ファイル、%3 ms)").arg(family).arg(now.size()).arg(timer.elapsedMs()));
+    log::info("FONT", QStringLiteral("registered %1 (%2 files, %3 ms)").arg(family).arg(now.size()).arg(timer.elapsedMs()));
     return registered;
 }
 
@@ -184,7 +184,7 @@ void AppSettings::loadFontInBackground(const QString &family, std::function<void
             if (registerFontData(family, files.at(i), results->at(i))) registered = true;
         }
         if (registered && !registeredFamilies_.contains(family)) registeredFamilies_ << family;
-        log::info("FONT", QStringLiteral("%1 の残りを登録しました(%2 ファイル、%3 ms。画面は止めずに読み込み)")
+        log::info("FONT", QStringLiteral("registered the rest of %1 (%2 files, %3 ms, loaded in the background)")
                               .arg(family).arg(files.size()).arg(timer->elapsedMs()));
         emit fontLoadFinished(family, static_cast<int>(files.size()), timer->elapsedMs());
         if (then) then(registered);
@@ -301,7 +301,7 @@ void AppSettings::setFontFamily(const QString &family) {
         if (ok) {
             applyFontFamily(family);
         } else {
-            log::warn("FONT", QStringLiteral("フォントを登録できませんでした: ") + family);
+            log::warn("FONT", QStringLiteral("could not register font: ") + family);
         }
     });
 }
@@ -336,7 +336,7 @@ void AppSettings::setNumberFontFamily(const QString &family) {
             apply(family);
         } else {
             requestedNumberFamily_.clear();
-            log::warn("FONT", QStringLiteral("フォントを登録できませんでした: ") + family);
+            log::warn("FONT", QStringLiteral("could not register font: ") + family);
         }
     });
 }
@@ -452,7 +452,7 @@ void AppSettings::restorePowerMode() {
     process.start(executable, {QStringLiteral("set"), originalPowerProfile_});
     if (!process.waitForStarted(1000) || !process.waitForFinished(2000) ||
         process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
-        log::warn("POWER", QStringLiteral("以前の Linux 電源プロファイルを復元できませんでした: ") + originalPowerProfile_);
+        log::warn("POWER", QStringLiteral("could not restore the previous Linux power profile: ") + originalPowerProfile_);
     }
 #endif
 }

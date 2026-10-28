@@ -79,8 +79,8 @@ void AasdkSensorHandler::fillFeatures(proto::service::control::message::ServiceD
  */
 void AasdkSensorHandler::onChannelOpenRequest(
     const proto::service::control::message::ChannelOpenRequest &request) {
-    log("[sensor] チャネルオープン要求を受信 (service_id=" + std::to_string(request.service_id()) +
-        ") → STATUS_SUCCESS を返します");
+    log("[sensor] channel open request received (service_id=" + std::to_string(request.service_id()) +
+        ") -> replying STATUS_SUCCESS");
 
     proto::service::control::message::ChannelOpenResponse response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -104,7 +104,7 @@ void AasdkSensorHandler::setNightMode(bool night) {
         proto::service::sensorsource::message::SensorBatch batch;
         batch.add_night_mode_data()->set_night_mode(night);
         self->channel_->sendSensorEventIndication(batch, self->makeSendPromise("SensorEvent(night)"));
-        self->log(std::string("[sensor] 昼夜モードを送信しました: ") + (night ? "夜" : "昼"));
+        self->log(std::string("[sensor] sent day/night mode: ") + (night ? "night" : "day"));
     });
 }
 
@@ -124,17 +124,17 @@ void AasdkSensorHandler::sendVehicleData(const VehicleSnapshot &snapshot) {
         std::string sent;
         if (started(sm::SENSOR_SPEED)) {
             batch.add_speed_data()->set_speed_e3(static_cast<std::int32_t>(std::lround(snapshot.speedKmh / 3.6 * 1000.0)));
-            sent += "速度 ";
+            sent += "speed ";
         }
         if (started(sm::SENSOR_RPM)) {
             batch.add_rpm_data()->set_rpm_e3(snapshot.rpm * 1000);
-            sent += "回転数 ";
+            sent += "rpm ";
         }
         if (started(sm::SENSOR_FUEL)) {
             auto *fuel = batch.add_fuel_data();
             fuel->set_fuel_level(snapshot.fuelPercent);
             fuel->set_low_fuel_warning(snapshot.lowFuel);
-            sent += "燃料 ";
+            sent += "fuel ";
         }
         if (started(sm::SENSOR_GEAR)) {
             sm::Gear gear = sm::GEAR_PARK;
@@ -145,11 +145,11 @@ void AasdkSensorHandler::sendVehicleData(const VehicleSnapshot &snapshot) {
             case VehicleGear::Drive: gear = sm::GEAR_DRIVE; break;
             }
             batch.add_gear_data()->set_gear(gear);
-            sent += "ギア ";
+            sent += "gear ";
         }
         if (started(sm::SENSOR_PARKING_BRAKE)) {
             batch.add_parking_brake_data()->set_parking_brake(snapshot.parkingBrake);
-            sent += "パーキングブレーキ ";
+            sent += "parking-brake ";
         }
         if (started(sm::SENSOR_LOCATION)) {
             auto *location = batch.add_location_data();
@@ -158,7 +158,7 @@ void AasdkSensorHandler::sendVehicleData(const VehicleSnapshot &snapshot) {
             location->set_accuracy_e3(5000);
             location->set_speed_e3(static_cast<std::int32_t>(std::lround(snapshot.speedKmh / 3.6 * 1000.0)));
             location->set_bearing_e6(static_cast<std::int32_t>(std::lround(snapshot.bearingDeg * 1e6)));
-            sent += "位置 ";
+            sent += "location ";
         }
         if (sent.empty()) {
             return; // スマホがまだどのセンサーも開始していない
@@ -166,7 +166,7 @@ void AasdkSensorHandler::sendVehicleData(const VehicleSnapshot &snapshot) {
         self->channel_->sendSensorEventIndication(batch, self->makeSendPromise("SensorEvent(vehicle)"));
         if (!self->loggedFirstVehicleSend_) {
             self->loggedFirstVehicleSend_ = true;
-            self->log("車両データの送信を開始しました: " + sent);
+            self->log("started sending vehicle data: " + sent);
         }
     });
 }
@@ -181,7 +181,7 @@ void AasdkSensorHandler::onSensorStartRequest(
 
     const auto type = request.type();
     started_.insert(static_cast<int>(type));
-    log("[sensor] SensorStartRequest を受信 (type=" + std::to_string(static_cast<int>(type)) + ")");
+    log("[sensor] SensorStartRequest received (type=" + std::to_string(static_cast<int>(type)) + ")");
 
     proto::service::sensorsource::message::SensorStartResponseMessage response;
     response.set_status(proto::shared::MessageStatus::STATUS_SUCCESS);
@@ -207,7 +207,7 @@ void AasdkSensorHandler::onSensorStartRequest(
         },
         [self = shared_from_this()](const aasdk::error::Error &e) {
             if (self->callbacks_.onFatalError) {
-                self->callbacks_.onFatalError(std::string("センサーチャネル送信失敗: ") + e.what());
+                self->callbacks_.onFatalError(std::string("Sensor channel send failed: ") + e.what());
             }
         });
     channel_->sendSensorStartResponse(response, std::move(promise));
@@ -222,7 +222,7 @@ void AasdkSensorHandler::onChannelError(const aasdk::error::Error &e) {
         return;
     }
     if (callbacks_.onFatalError) {
-        callbacks_.onFatalError(std::string("センサーチャネルエラー: ") + e.what());
+        callbacks_.onFatalError(std::string("Sensor channel error: ") + e.what());
     }
 }
 
@@ -234,7 +234,7 @@ aasdk::channel::SendPromise::Pointer AasdkSensorHandler::makeSendPromise(const c
     promise->then([]() {},
                   [self = shared_from_this(), what = std::string(what)](const aasdk::error::Error &e) {
                       if (self->callbacks_.onFatalError) {
-                          self->callbacks_.onFatalError("センサーチャネル送信失敗(" + what + "): " + e.what());
+                          self->callbacks_.onFatalError("Sensor channel send failed (" + what + "): " + e.what());
                       }
                   });
     return promise;

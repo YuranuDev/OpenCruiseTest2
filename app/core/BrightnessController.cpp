@@ -61,7 +61,10 @@ BrightnessController::BrightnessController(QObject *parent) : QObject(parent) {
         }
     }
 
-    log::info("DISPLAY", QStringLiteral("明るさ: ") + QString::number(brightness_) + QStringLiteral("% / ") + methodText());
+    log::info("DISPLAY", QStringLiteral("brightness: %1% / %2")
+                             .arg(brightness_)
+                             .arg(hardwareControl() ? QStringLiteral("backlight (%1)").arg(backlightName_)
+                                                    : QStringLiteral("software dimming")));
 }
 
 void BrightnessController::detectBacklight() {
@@ -121,7 +124,7 @@ void BrightnessController::applyToBacklight() {
 }
 
 void BrightnessController::fallBackToSoftware(const QString &reason) {
-    log::warn("DISPLAY", QStringLiteral("バックライトへ書き込めないため、画面を暗幕で暗くする方式へ切り替えます: %1").arg(reason));
+    log::warn("DISPLAY", QStringLiteral("cannot write to the backlight; switching to software dimming: %1").arg(reason));
     backlightPath_.clear();
     backlightName_.clear();
     backlightMax_ = 0;

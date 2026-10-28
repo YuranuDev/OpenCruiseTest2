@@ -99,9 +99,12 @@ public slots:
      * @brief ステップの状態を知らせる。どのスレッドからでも呼べる。
      * @param id addStep() で登録した識別子
      * @param state StepState の値。Running を送ると、そのステップの時間切れの期限が延びる(途中経過の通知に使う)
-     * @param detail 画面に出す補足(バージョン、エラー内容など)
+     * @param detail 画面に出す補足(バージョン、エラー内容など。日本語でよい)
+     * @param logDetail ログに出す補足(英語)。空なら、detail が英数字だけのとき(「120 ms」など)はそれを、
+     *                  日本語を含むときは何も出さない(ログは英語にするため)
      */
-    void report(const QString &id, int state, const QString &detail = QString());
+    Q_INVOKABLE void report(const QString &id, int state, const QString &detail = QString(),
+                            const QString &logDetail = QString());
 
     /** @brief 待ちを打ち切って先へ進む(スキップ操作)。未確定のステップは Skipped になる。 */
     void skip();
