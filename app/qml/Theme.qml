@@ -1,4 +1,10 @@
 // 画面全体で共有する色・サイズ（シングルトン）。昼夜 2 つの配色を nightLevel(0..1) で補間する。
+// テーマ(style。設定「表示 > テーマ」。themeSettings から Main.qml が渡す)で配色と形が変わる:
+//  - simple(シンプル): これまでの見た目。平らな面・大きめの角丸・青のアクセント
+//  - classic(クラシック): 2000 年代ごろの車の内装に合わせた見た目。ガンメタ(夜)/シルバー(昼)の面に、上から下への
+//    ゆるいグラデーションと内側の細いハイライト(控えめな立体感)、小さめの角丸、アンバー(オレンジ)の照明色。
+//    アクセント色の選択肢も、当時のメーター照明の色(アンバー・赤・青・緑・アイボリー・シアン)になる
+// 面は Panel.qml(グラデーションとハイライトを描く Rectangle)を使うと、テーマに合わせて描き分けられる。
 // 切り替えは一度で行う(色をアニメーションさせると、色を使うすべての部品が毎フレーム計算し直し・描き直しになって重い)。
 // 見た目の滑らかさは、Main.qml が切り替え前の画面を 1 枚の画像にして重ね、それを薄くしていくことで出す。
 pragma Singleton
@@ -8,6 +14,8 @@ QtObject {
     // ---- Main.qml から Binding で受け取る状態 ----
     property bool night: true
     property int accentIndex: 0
+    property string style: "simple"
+    readonly property bool classic: style === "classic"
     // 表示フォントのファミリ名(AppSettings から Main.qml の Binding で受け取る)。通常のテキストは font.family にこれを指定する
     property string fontFamily: Qt.application.font.family
     // 数値(メーターの値・目盛り、グラフ、時計)に使うフォント。設定で「文章と同じ」なら fontFamily と同じ
@@ -18,7 +26,8 @@ QtObject {
     property real uiScale: 1.0
 
     // アクセント色のプリセット（設定画面の選択肢）
-    readonly property var accentPresets: ["#4da3ff", "#3ddc84", "#ffa040", "#ff6fa5", "#a78bfa", "#2dd4d4"]
+    readonly property var accentPresets: classic ? ["#ff9a2e", "#ff5244", "#4fa8ff", "#78d35c", "#e9e2cf", "#35cfd6"]
+                                                 : ["#4da3ff", "#3ddc84", "#ffa040", "#ff6fa5", "#a78bfa", "#2dd4d4"]
 
     // 昼夜の補間係数(0 = 昼 / 1 = 夜)
     readonly property real nightLevel: night ? 1 : 0
@@ -33,12 +42,22 @@ QtObject {
                        ca.b + (cb.b - ca.b) * t, ca.a + (cb.a - ca.a) * t)
     }
 
-    //                                   昼          夜
-    readonly property color background:    mix("#eef1f6", "#0d1015", nightLevel)
-    readonly property color panel:         mix("#ffffff", "#161b23", nightLevel)
-    readonly property color panelBorder:   mix("#d3d9e2", "#252c37", nightLevel)
-    readonly property color textPrimary:   mix("#1b2330", "#e8ebf0", nightLevel)
-    readonly property color textSecondary: mix("#5d6878", "#8c95a3", nightLevel)
+    // テーマごとの配色(昼, 夜)。classic は少し暖かみのあるグレー(ガンメタ・シルバー)と、生成りの文字
+    function pick(simpleDay, simpleNight, classicDay, classicNight) {
+        return classic ? mix(classicDay, classicNight, nightLevel) : mix(simpleDay, simpleNight, nightLevel)
+    }
+    //                                         シンプル 昼  シンプル 夜  クラシック 昼  クラシック 夜
+    readonly property color background:    pick("#eef1f6", "#0d1015", "#c6c9cd", "#0e0e0f")
+    readonly property color panel:         pick("#ffffff", "#161b23", "#e7e9ec", "#1f2022")
+    readonly property color panelBorder:   pick("#d3d9e2", "#252c37", "#a3a9b1", "#3a3c41")
+    readonly property color textPrimary:   pick("#1b2330", "#e8ebf0", "#1b1d21", "#ede7db")
+    readonly property color textSecondary: pick("#5d6878", "#8c95a3", "#525962", "#a49e93")
+    // 面のグラデーション(上 → 下)と、内側のハイライト(縁の内側の細い明るい線)。シンプルは平ら(どちらも panel)
+    readonly property color panelTop:      classic ? mix("#f6f7f8", "#2b2c30", nightLevel) : panel
+    readonly property color panelBottom:   classic ? mix("#d6d9de", "#161719", nightLevel) : panel
+    readonly property color bevelLight:    classic ? Qt.rgba(1, 1, 1, night ? 0.07 : 0.75) : "transparent"
+    // 角の丸み(クラシックは控えめ)
+    readonly property int radius: classic ? 6 : 14
     // 昼は明るい背景で見やすいよう、アクセント色を少し暗くする
     readonly property color accent:        mix(mix(accentBase, "#000000", 0.25), accentBase, nightLevel)
     // ボタンの塗りなど面に使うアクセント色。accent(文字・アイコン用)と違い、昼は白寄りに明るく(30%)、夜は少し暗く(20%)する
@@ -62,7 +81,6 @@ QtObject {
     readonly property color bootOk:            "#3ddc84"
     readonly property color bootWarn:          "#ffb74d"
     readonly property color bootError:         "#ff5c5c"
-    readonly property int radius: 14
     readonly property int margin: 16
 
     // 接続状態キーに対応する表示色

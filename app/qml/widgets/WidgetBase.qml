@@ -32,6 +32,11 @@ Item {
     property int gridH: 3
     /// 配置エリア上のウィジェットの ID(設定画面のプレビューなど、配置されていないときは空)
     property string widgetId: ""
+    /// 飾りの画像(重ね方「パネル」)。初期画面のウィジェットだけ WidgetHost が注入する(無ければ出さない)
+    property Item decorStore: null
+    property point decorOrigin: Qt.point(0, 0)   // このウィジェットの左上の、画面上の位置
+    property real decorRootW: 1
+    property real decorRootH: 1
     readonly property bool titleVisible: config.showTitle !== false
     /// 画面に見えているか(親のどれかが隠れていれば false)。表示の更新だけを止めるのに使う
     /// 起動画面と注意事項が終わって、メイン画面の動きを始めてよいか(メイン画面は注意事項の前に作っておくが、動きは終わってから)
@@ -66,14 +71,25 @@ Item {
 
     default property alias content: slot.data
 
-    Rectangle {
+    Panel {   // カード(テーマに合わせた面)
         anchors.fill: parent
         radius: Theme.radius + 6
-        color: Theme.panel
-        border.color: Theme.panelBorder
         opacity: root.framed ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 200 } }
+    }
+
+    // パネルと中身の間の、飾りの画像(パネルを出しているときだけ)
+    Loader {
+        anchors.fill: parent
+        active: root.framed && root.decorStore !== null
+        sourceComponent: DecorationPanelLayer {
+            store: root.decorStore
+            origin: root.decorOrigin
+            rootW: root.decorRootW
+            rootH: root.decorRootH
+            radius: Theme.radius + 6
+        }
     }
 
     Item {

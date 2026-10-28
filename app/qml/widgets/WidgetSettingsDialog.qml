@@ -4,7 +4,7 @@
 // 最後に全ウィジェット共通の「枠・サイズ」(枠・上部タイトル・サイズ)を付ける。選んだタブは種類ごとに覚えておく。
 // 左に設定、右にプレビュー(実際の配置と同じ大きさ・設定のウィジェットを縮小表示)を並べる。
 // 設定は変更のたびに WidgetArea へ反映・保存される(「完了」で閉じるだけ)。
-// 「一緒に変える」で同じ種類のウィジェット(全ページ)を選ぶと、開いている間に変えた項目がそれらにも同時に入る
+// 「一緒に変える」で同じ種類のウィジェット(初期画面の全ページと、Android Auto 画面)を選ぶと、開いている間に変えた項目がそれらにも同時に入る
 // (計測値ごとに違う範囲・単位・警告値・注意値・目盛り間隔と、タイトル文字は写さない。WidgetRegistry.copiesTogether)。
 // まとめて設定(showMulti。編集モードで複数選んだとき): 選んだウィジェットすべてに同じ値を入れる。
 //  - 同じ種類(設定画面が同じ)だけなら、その種類の設定をすべて出す。違う種類が混ざっていれば、共通の項目(枠・上部タイトル)だけ
@@ -105,19 +105,22 @@ Item {
     property var partners: []
     property bool partnerPickerOpen: false
     property var partnerCandidates: []
-    // 一緒に変えられるウィジェット(このウィジェットと設定画面が同じもの。ページがあれば全ページから)
+    // 一緒に変える候補を探す範囲(HomeScreen / LauncherScreen が渡す): 初期画面のページ(WidgetPages)と、Android Auto 画面の WidgetArea
+    property Item homePages: null
+    property Item aaArea: null
+    // 一緒に変えられるウィジェット(このウィジェットと設定画面が同じもの。初期画面の全ページと、Android Auto 画面から)
     function findCandidates() {
         if (!area) return []
-        const pg = area.pages
+        const pg = homePages ? homePages : (area.pages && area.pages.areaAt ? area.pages : null)
         const areas = []
         if (pg) {
             for (let i = 0; i < pg.count; ++i) {
                 const a = pg.areaAt(i)
-                if (a) areas.push({ area: a, where: (i + 1) + " ページ目" + (pg.names[i] ? "「" + pg.names[i] + "」" : "") })
+                if (a) areas.push({ area: a, where: "初期画面 " + (i + 1) + " ページ目" + (pg.names[i] ? "「" + pg.names[i] + "」" : "") })
             }
-        } else {
-            areas.push({ area: area, where: "" })
         }
+        if (aaArea && !areas.some(e => e.area === aaArea)) areas.push({ area: aaArea, where: "Android Auto 画面" })
+        if (!areas.some(e => e.area === area)) areas.push({ area: area, where: "" })
         const out = []
         for (const e of areas) {
             for (const w of e.area.widgetEntries()) {
@@ -205,7 +208,7 @@ Item {
         MouseArea { anchors.fill: parent; enabled: root.open; onClicked: root.close() }
     }
 
-    Rectangle {
+    Panel {   // テーマに合わせた面(クラシックはグラデーションとハイライト)
         id: panel
         anchors.centerIn: parent
         width: Math.min(parent.width - 2 * Theme.margin, 1220 * root.unit)
@@ -721,7 +724,8 @@ Item {
                 anchors { left: parent.left; verticalCenter: parent.verticalCenter }
                 // 削除は 2 回押し(1 回目で確認の文に変わる。3 秒で元に戻る)
                 ActionButton {
-                    color: root.confirmDelete ? Theme.error : Theme.panel
+                    tint: Theme.error
+                    tintAmount: root.confirmDelete ? 1 : 0
                     text: root.confirmDelete ? (root.multi ? "もう一度押すと " + root.multiWids.length + " 個を削除" : "もう一度押すと削除")
                                              : (root.multi ? "選んだ " + root.multiWids.length + " 個を削除" : "このウィジェットを削除")
                     onClicked: {

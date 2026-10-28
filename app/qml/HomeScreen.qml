@@ -13,7 +13,7 @@ import OpenCruise
 
 Rectangle {
     id: root
-    color: Theme.background
+    color: "transparent"   // 背景は Main.qml の ThemeBackground(テーマの背景色・模様・画像)
     signal openSettings()
     signal goHome()
     signal openAndroidAuto()
@@ -83,6 +83,7 @@ Rectangle {
         aaAvailable: androidAuto.stateKey === "streaming"
         onOpenSettings: root.openSettings()
         onOpenAndroidAuto: root.openAndroidAuto()
+        aaArea: aaWidgets
     }
 
     // ---- ステータスバー(初期画面と同じ形: 左に接続状態のアイコン、中央に時刻、右にメニュー・通知・警告の解除) ----
@@ -399,6 +400,8 @@ Rectangle {
         anchors.fill: parent
         z: 20
         area: aaWidgets
+        homePages: launcher.pages
+        aaArea: aaWidgets
     }
     WidgetPicker {
         id: aaPicker
@@ -449,7 +452,7 @@ Rectangle {
         }
     }
 
-    Rectangle {
+    Panel {
         id: sheet
         z: 12
         readonly property int cornerRadius: Theme.radius + 8

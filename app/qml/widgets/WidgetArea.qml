@@ -55,6 +55,11 @@ Item {
     property bool showEmptyState: true
     onBlockedChanged: if (loaded) applyBlocked()
 
+    // ---- 飾りの画像(重ね方「パネル」。初期画面のページだけ) ----
+    property Item decorSource: null    // DecorationStore
+    property real decorOx: 0           // このエリアの左上の、画面上の位置
+    property real decorOy: 0
+
     // ---- ページ ----
     property Item pages: null          // WidgetPages(保存先)
     property int pageIndex: 0
@@ -613,7 +618,9 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: Theme.radius + 6
-            color: Theme.mix(Theme.background, Theme.accent, 0.04)
+            // 半透明にして、背景の模様・画像と、奥に置いた飾りの画像が透けて見えるようにする
+            readonly property color base: Theme.mix(Theme.background, Theme.accent, 0.04)
+            color: Qt.rgba(base.r, base.g, base.b, 0.55)
             border.width: 1
             border.color: Theme.panelBorder
         }

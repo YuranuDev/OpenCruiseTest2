@@ -1,7 +1,7 @@
 // 車載向けの大きめボタン（タッチしやすい高さ）。
 import QtQuick
 
-Rectangle {
+Panel {   // テーマに合わせた面(押した・選んだときはアクセント色)
     id: root
     property alias text: label.text
     property bool selected: false
@@ -10,7 +10,7 @@ Rectangle {
     implicitWidth: label.implicitWidth + 40
     implicitHeight: 52
     radius: Theme.radius
-    color: (mouse.pressed || selected) ? Theme.accent : Theme.panel
+    tintAmount: (mouse.pressed || selected) ? 1 : 0
     border.color: Theme.panelBorder
     border.width: 1
 

@@ -14,7 +14,7 @@ import QtQuick.Controls
 
 Rectangle {
     id: root
-    color: Theme.background
+    color: "transparent"   // 背景は Main.qml の ThemeBackground(テーマの背景色・模様・画像)
     signal back()
 
     readonly property real unit: Theme.uiScale

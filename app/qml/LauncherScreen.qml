@@ -1,6 +1,9 @@
 // 初期画面(ランチャー): 最上部にステータスバー(中央にウィジェットのページのタブ)、中央はウィジェット配置エリア
 // (ページごと。時計・あいさつもウィジェット)、下部にナビバー(大型ボタン 6 つ。Android Auto 画面へ移るボタンもここ)。
 // 運転中でも迷わないよう、操作は下部バーに集約する。未実装の機能は押すとモック通知を出す。
+// 飾りの画像(キャラなど): ページごとに、画面のどこにでも置ける(ステータスバー・ナビバーの上も)。
+//  奥(ウィジェット・バーの後ろ)・パネル(ウィジェットのパネルの上、中身の下)・手前(ウィジェットの前。タッチは下へ通す)の 3 層。
+//  編集モードの「画像」で置き直す(DecorationEditor。選んだ画像の操作は下の DecorationPanel)。
 import QtQuick
 import OpenCruise
 
@@ -24,11 +27,44 @@ Item {
     // ウィジェットの追加パネルを開く
     function openPicker() { picker.show() }
     // ウィジェットの編集モード(ナビバーの「編集」で入る・出る。上に編集用のバーが出る)
-    readonly property bool editing: widgetPages.editMode
+    readonly property bool editing: editingOn
+    property bool editingOn: false
+    // 編集モードのうち、飾りの画像を置き直している間(false ならウィジェットの編集)
+    property bool decorEditing: false
     function setEditing(on) {
-        widgetPages.editMode = on
-        if (!on) settingsDialog.close()
+        editingOn = on
+        if (!on) {
+            decorEditing = false
+            settingsDialog.close()
+            decorPicker.close()
+        }
     }
+    function setDecorEditing(on) {
+        decorEditing = on
+        decorStore.selectedId = ""
+        if (on) settingsDialog.close()
+        else decorPicker.close()
+    }
+    onDecorEditingChanged: if (!decorEditing) decorStore.selectedId = ""
+
+    // ---- 飾りの画像(今のページの分)と、奥の層(ほかの何よりも後ろ) ----
+    DecorationStore {
+        id: decorStore
+        pages: widgetPages
+        areaW: root.width
+        areaH: root.height
+    }
+    DecorationLayer {
+        anchors.fill: parent
+        z: -1
+        store: decorStore
+        layerName: "back"
+        editing: root.decorEditing
+    }
+    // ウィジェットのページ(Android Auto 画面の設定ダイアログの「一緒に変える」が、ここのウィジェットも探す)
+    readonly property Item pages: widgetPages
+    // Android Auto 画面のウィジェット(HomeScreen が渡す。「一緒に変える」の候補に入れる)
+    property Item aaArea: null
     // 選んだウィジェット({ area, wid } の配列。ページをまたいでもよい)の設定を開く(1 つなら普通の設定、2 つ以上ならまとめて設定)
     function openSettingsFor(entries) {
         if (entries.length === 0) return
@@ -98,6 +134,8 @@ Item {
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
         height: 52
+        // 画像を置き直している間は、編集用のバーのボタンを画像の操作の層より上にする(ボタン以外はタッチを下へ通す)
+        z: root.decorEditing ? 17 : 0
 
         // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
         WidgetEditBar {
@@ -108,6 +146,12 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 180 } }
             area: widgetPages.currentArea
             pages: widgetPages
+            decorAvailable: true
+            decorMode: root.decorEditing
+            onDecorModeRequested: (on) => root.setDecorEditing(on)
+            onAddDecorRequested: decorPicker.show()
+            canUndo: decorStore.canUndo
+            onUndoRequested: decorStore.undo()
             onAddRequested: root.openPicker()
             onSettingsRequested: (entries) => root.openSettingsFor(entries)
             onDoneRequested: root.setEditing(false)
@@ -153,9 +197,45 @@ Item {
         WidgetPages {
             id: widgetPages
             anchors.fill: parent
+            editMode: root.editingOn && !root.decorEditing
+            showEmptyState: !root.decorEditing
+            decorSource: decorStore
+            decorRoot: root
+            // 画像を置き直している間は、ウィジェットを薄くして、後ろ(奥)の画像も見えるようにする
+            opacity: root.decorEditing ? 0.55 : 1
+            Behavior on opacity { NumberAnimation { duration: 180 } }
             onSettingsRequested: (area, wid) => { settingsDialog.area = area; settingsDialog.show(wid) }
             onPickerRequested: picker.show()
         }
+    }
+
+    // ---- 飾りの画像: 手前の層(ウィジェット・バーより前。タッチは受けない)と、置き直す操作 ----
+    DecorationLayer {
+        anchors.fill: parent
+        z: 15
+        store: decorStore
+        layerName: "front"
+        editing: root.decorEditing
+    }
+    DecorationEditor {
+        anchors.fill: parent
+        z: 16
+        visible: root.decorEditing
+        store: decorStore
+        pages: widgetPages
+        handleBottom: decorStore.selectedId !== "" ? bar.y - 6 : root.height
+        tagTop: topBar.y + topBar.height
+    }
+    // 選んだ画像の操作(ナビバーの場所に重ねる)
+    DecorationPanel {
+        z: 18
+        x: bar.x
+        width: bar.width
+        height: bar.height
+        y: root.decorEditing && decorStore.selectedId !== "" ? bar.y : root.height + 10
+        visible: y < root.height
+        Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        store: decorStore
     }
 
     // ---- 設定ダイアログ・追加パネル(画面全体に重ねる) ----
@@ -164,12 +244,20 @@ Item {
         anchors.fill: parent
         z: 20
         area: widgetPages.currentArea
+        homePages: widgetPages
+        aaArea: root.aaArea
     }
     WidgetPicker {
         id: picker
         anchors.fill: parent
         z: 21
         area: widgetPages.currentArea   // 追加するのは今のページ
+    }
+    DecorationPicker {
+        id: decorPicker
+        anchors.fill: parent
+        z: 21
+        store: decorStore
     }
     PageMenu {
         id: pageMenu

@@ -52,6 +52,7 @@
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppInfo.h"
 #include "core/AppSettings.h"
+#include "core/ThemeSettings.h"
 #include "core/AudioSettings.h"
 #include "core/BrightnessController.h"
 #include "core/BootManager.h"
@@ -334,6 +335,7 @@ int main(int argc, char *argv[]) {
 
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
+    opencruise::ThemeSettings themeSettings;   // テーマ(シンプル / クラシック)と背景(模様・画像)
     {
         const QString family = appSettings.fontFamily();
         const qint64 ms = lapMs();
@@ -419,6 +421,7 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("boot"), &boot);
     engine.rootContext()->setContextProperty(QStringLiteral("androidAuto"), androidAuto);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
+    engine.rootContext()->setContextProperty(QStringLiteral("themeSettings"), &themeSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioSettings"), audioSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("systemSound"), &systemSound);
     engine.rootContext()->setContextProperty(QStringLiteral("brightnessController"), &brightnessController);

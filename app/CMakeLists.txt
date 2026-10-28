@@ -46,6 +46,7 @@ qt_add_executable(opencruise
     main.cpp
     core/AppInfo.cpp
     core/AppSettings.cpp
+    core/ThemeSettings.cpp
     core/AudioSettings.cpp
     core/BrightnessController.cpp
     core/BootManager.cpp
@@ -68,7 +69,7 @@ qt_add_executable(opencruise
     androidauto/TestVideoFeeder.cpp)
 
 set_source_files_properties(qml/Theme.qml qml/widgets/WidgetRegistry.qml qml/widgets/WarningAlarm.qml
-    qml/widgets/VehicleHistory.qml
+    qml/widgets/VehicleHistory.qml qml/widgets/DecorationEffects.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(opencruise
@@ -110,6 +111,8 @@ qt_add_qml_module(opencruise
         qml/VolumeOsd.qml
         qml/BrightnessOsd.qml
         qml/ActionButton.qml
+        qml/Panel.qml
+        qml/ThemeBackground.qml
         qml/MaterialIcon.qml
         qml/MdiCodes.js
         qml/SplashScreen.qml
@@ -131,6 +134,13 @@ qt_add_qml_module(opencruise
         qml/widgets/WidgetHost.qml
         qml/widgets/WidgetArea.qml
         qml/widgets/WidgetEditBar.qml
+        qml/widgets/DecorationStore.qml
+        qml/widgets/DecorationLayer.qml
+        qml/widgets/DecorationEditor.qml
+        qml/widgets/DecorationPanel.qml
+        qml/widgets/DecorationPicker.qml
+        qml/widgets/DecorationPanelLayer.qml
+        qml/widgets/DecorationEffects.qml
         qml/widgets/WidgetSettingsBase.qml
         qml/widgets/WidgetSettingsGroup.qml
         qml/widgets/WidgetSettingsDialog.qml

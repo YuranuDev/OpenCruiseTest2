@@ -12,8 +12,10 @@ ApplicationWindow {
     // (切り替えは themeSnap が受け持つ: 切り替え前の画面を画像にして重ね、テーマを一度で変えてから画像を薄くする)
     readonly property bool wantNight: androidAuto.nightActive
     readonly property int wantAccent: androidAuto.accentIndex
+    readonly property string wantStyle: themeSettings.style   // テーマ(シンプル / クラシック)
     onWantNightChanged: themeSnap.request()
     onWantAccentChanged: themeSnap.request()
+    onWantStyleChanged: themeSnap.request()
     // 画面サイズに応じた拡大率(1280x720 基準)。設定画面など、寸法を拡大率で決める部品が Theme.uiScale を参照する
     Binding { target: Theme; property: "uiScale"; value: Math.max(0.6, Math.min(rotor.width / 1280, rotor.height / 720)) }
     // 選択中のフォント。同梱フォントを読み込めず空のときは OS 既定のまま
@@ -172,9 +174,11 @@ ApplicationWindow {
         function apply() {
             Theme.night = window.wantNight
             Theme.accentIndex = window.wantAccent
+            Theme.style = window.wantStyle
         }
         function request() {
-            if (Theme.night === window.wantNight && Theme.accentIndex === window.wantAccent) return
+            if (Theme.night === window.wantNight && Theme.accentIndex === window.wantAccent
+                    && Theme.style === window.wantStyle) return
             if (pending) return   // 写している最中。写し終えたときに今の値で切り替える
             if (!window.visible || rotor.width <= 0) { apply(); return }
             themeFade.stop()
@@ -216,6 +220,12 @@ ApplicationWindow {
         width: quarter ? parent.height : parent.width
         height: quarter ? parent.width : parent.height
         rotation: displaySettings.rotation
+
+        // 背景(テーマの背景色と、模様・画像)。各画面は背景を塗らず、これが見える
+        ThemeBackground {
+            anchors.fill: parent
+            z: -1
+        }
 
         // Windows キー(Meta / Super)で下から出るメニューを開閉する(どの画面でも。設定画面からはメイン画面へ戻って開く)
         Item {

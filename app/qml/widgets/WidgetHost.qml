@@ -186,6 +186,17 @@ Item {
         Binding { target: loader.item; property: "gridW"; value: host.w; when: loader.item !== null }
         Binding { target: loader.item; property: "gridH"; value: host.h; when: loader.item !== null }
         Binding { target: loader.item; property: "widgetId"; value: host.wid; when: loader.item !== null }
+        // 飾りの画像(重ね方「パネル」): 今のページのものだけ、画面上の位置とあわせて渡す
+        Binding {
+            target: loader.item; property: "decorStore"; when: loader.item !== null
+            value: host.area.decorSource && host.area.decorSource.pageIndex === host.area.pageIndex ? host.area.decorSource : null
+        }
+        Binding {
+            target: loader.item; property: "decorOrigin"; when: loader.item !== null && host.area.decorSource !== null
+            value: Qt.point(host.area.decorOx + host.x, host.area.decorOy + host.y)
+        }
+        Binding { target: loader.item; property: "decorRootW"; value: host.area.decorSource ? host.area.decorSource.areaW : 1; when: loader.item !== null }
+        Binding { target: loader.item; property: "decorRootH"; value: host.area.decorSource ? host.area.decorSource.areaH : 1; when: loader.item !== null }
 
         // 持ち上げ中の縁取り
         Rectangle {

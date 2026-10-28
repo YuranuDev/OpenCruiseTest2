@@ -1,7 +1,7 @@
 // 設定ページ内のまとまり(カード)。タイトル(アイコン付き)の下に、子要素(SettingsRow など)を縦に並べる。
 import QtQuick
 
-Rectangle {
+Panel {   // テーマに合わせた面
     id: root
     property string title: ""
     property string icon: ""
@@ -13,10 +13,7 @@ Rectangle {
     width: parent ? parent.width : implicitWidth
     implicitHeight: inner.implicitHeight + 2 * pad
     height: implicitHeight
-    color: Theme.panel
     radius: Theme.radius + 6
-    border.width: 1
-    border.color: Theme.panelBorder
 
     Column {
         id: inner

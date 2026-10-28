@@ -1,12 +1,27 @@
-// 設定ジャンル「表示」: 昼夜テーマ・Android Auto との連動・アクセント色・画面の明るさ・
+// 設定ジャンル「表示」: テーマ(シンプル / クラシック)と背景(themeSettings)・昼夜テーマ・Android Auto との連動・アクセント色・画面の明るさ・
 //   表示する画面と回転・描画方式(垂直同期・フレームレート)は displaySettings(core/DisplaySettings)、
 //   eglfs での操作する画面と外部モニターへのミラーは drmDisplay(core/DrmDisplay)。
 import QtQuick
 
 SettingsPage {
+    // 設定画面を開いたときに、背景の画像フォルダを読み直す(置いた画像がすぐ選べるように)
+    Component.onCompleted: themeSettings.refreshBackgroundImages()
+
     SettingsSection {
         title: "テーマ"
         icon: "brightness_6"
+
+        SettingsRow {
+            label: "テーマ"
+            description: themeSettings.style === "classic"
+                         ? "2000 年代ごろの車の内装に合う見た目です。ガンメタ(夜)・シルバー(昼)の面に控えめな立体感、照明色はアンバーが基本です"
+                         : "平らな面と大きめの角丸の、これまでの見た目です"
+            SettingsChoice {
+                model: ["シンプル", "クラシック"]
+                currentIndex: themeSettings.style === "classic" ? 1 : 0
+                onPicked: (index) => themeSettings.style = index === 1 ? "classic" : "simple"
+            }
+        }
 
         SettingsRow {
             label: "昼夜"
@@ -66,6 +81,74 @@ SettingsPage {
                     }
                 }
             }
+        }
+    }
+
+    SettingsSection {
+        title: "背景"
+        icon: "wallpaper"
+
+        SettingsRow {
+            label: "背景"
+            description: "「テーマに合わせる」は、シンプルなら無地、クラシックならカーボンです"
+            stacked: true
+            SettingsChoice {
+                model: ["テーマに合わせる", "無地", "カーボン", "ヘアライン", "パンチング", "ストライプ", "画像"]
+                readonly property var kinds: ["auto", "none", "carbon", "brushed", "dots", "stripes", "image"]
+                currentIndex: Math.max(0, kinds.indexOf(themeSettings.background))
+                onPicked: (index) => themeSettings.background = kinds[index]
+            }
+        }
+
+        // ---- 画像 ----
+        SettingsRow {
+            visible: themeSettings.background === "image" && themeSettings.backgroundImages.length > 0
+            label: "画像"
+            stacked: true
+            SettingsChoice {
+                model: themeSettings.backgroundImages
+                currentIndex: themeSettings.backgroundImages.indexOf(themeSettings.backgroundImage)
+                onPicked: (index) => themeSettings.backgroundImage = themeSettings.backgroundImages[index]
+            }
+        }
+        SettingsRow {
+            visible: themeSettings.background === "image"
+            label: "画像の表示"
+            SettingsChoice {
+                model: ["並べる", "画面を埋める", "引き伸ばす"]
+                currentIndex: themeSettings.backgroundFit
+                onPicked: (index) => themeSettings.backgroundFit = index
+            }
+        }
+        SettingsNote {
+            visible: themeSettings.background === "image"
+            text: (themeSettings.backgroundImages.length === 0 ? "画像がまだありません。" : "")
+                  + "次のフォルダに PNG / JPEG を置くと、ここで選べます(置いたら「読み直す」): " + themeSettings.backgroundFolder
+        }
+        SettingsRow {
+            visible: themeSettings.background === "image"
+            label: "画像フォルダを読み直す"
+            ActionButton {
+                text: "読み直す"
+                onClicked: themeSettings.refreshBackgroundImages()
+            }
+        }
+
+        SettingsRow {
+            visible: themeSettings.background !== "none" && !(themeSettings.background === "auto" && themeSettings.style !== "classic")
+            label: "背景の濃さ"
+            description: "濃くすると模様・画像がはっきりしますが、文字が読みにくくなることがあります"
+            SettingsSlider {
+                iconName: "wallpaper"
+                iconMinName: "wallpaper"
+                value: themeSettings.backgroundOpacity
+                onMoved: (v) => themeSettings.backgroundOpacity = v
+            }
+        }
+
+        SettingsNote {
+            text: "キャラなどの画像は、初期画面の「編集」→ バーの「画像」で、ページごとに好きな場所へ置けます"
+                  + "(ウィジェットの奥・手前、ステータスバーの上も)。画像のフォルダ: " + themeSettings.decorationFolder
         }
     }
 

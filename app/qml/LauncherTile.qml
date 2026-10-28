@@ -1,7 +1,7 @@
 // ランチャー下部のナビバーのボタン。アイコンを上、ラベルを下に置く縦型。タップ領域は全面。
 import QtQuick
 
-Rectangle {
+Panel {   // テーマに合わせた面(押した・選んだときはアクセント色を混ぜる)
     id: root
     property string icon: ""
     property string title: ""
@@ -17,7 +17,7 @@ Rectangle {
 
     radius: Theme.radius + 6
     // 押している間はアクセント色をパネル色に混ぜて、押下を一目で分かるようにする(文字色はそのまま読める濃さに留める)
-    color: Theme.mix(Theme.panel, Theme.accent, mouse.pressed ? 0.35 : (selected ? 0.12 : 0))
+    tintAmount: mouse.pressed ? 0.35 : (selected ? 0.12 : 0)
     border.width: (mouse.pressed || selected) ? 2 : 1
     border.color: (mouse.pressed || selected) ? Theme.accent : Theme.panelBorder
     scale: mouse.pressed ? 0.97 : 1.0

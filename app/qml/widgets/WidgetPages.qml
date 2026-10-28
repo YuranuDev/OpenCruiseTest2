@@ -2,7 +2,8 @@
 //  - どのページのウィジェットも常に動かしておく(隠れているページのメーターも警告・警告音を出し、
 //    そのページのタブが赤くなる)。隠れているページは描画しない
 //  - 切り替え: ページのタブ(PageBar)をタップ、またはウィジェットの無い所を左右にスワイプ
-//  - 保存: widgetStore.layoutJson に { version: 2, current, pages: [{ id, name, widgets: [...] }] }。
+//  - 保存: widgetStore.layoutJson に { version: 2, current, pages: [{ id, name, widgets: [...], decor: [...] }] }。
+//    decor はそのページに置いた飾りの画像(キャラなど。DecorationStore が読み書きする。無ければ空)
 //    以前の形式(version 1 = 1 ページ分の widgets)は、1 ページ目として読み込む
 //  - 外からは currentArea(追加パネル・設定ダイアログの対象)と、addPage / removePage / renamePage / movePage /
 //    setCurrent / resetAll、settingsRequested(area, wid) / pickerRequested() を使う
@@ -19,9 +20,23 @@ Item {
     property var names: []
     // 保存内容(ページ id → widgets の配列。null なら初期配置)
     property var store: ({})
+    // 飾りの画像(ページ id → 配列)。読み込み・ページの増減のたびに増える decorRevision で、DecorationStore が読み直す
+    property var decorStore: ({})
+    property int decorRevision: 0
     readonly property Item currentArea: rep.count > current ? rep.itemAt(current) : null
     // 編集モード(全ページ共通)。選択はページごとに持つが、ページを移っても外さない(ページをまたいで選べる)
     property bool editMode: false
+    // 飾りの画像(DecorationStore)と、その座標の基準(画面。LauncherScreen)。ウィジェットのパネルの上に出す画像に使う
+    property Item decorSource: null
+    property Item decorRoot: null
+    readonly property real slideX: strip.x
+    readonly property point originInRoot: {
+        if (!decorRoot) return Qt.point(0, 0)
+        decorRoot.width; decorRoot.height; width; height; x; y
+        return mapToItem(decorRoot, 0, 0)
+    }
+    // ウィジェットが無いページの案内(「ウィジェットを追加」)を出すか(画像を置き直している間は出さない)
+    property bool showEmptyState: true
     // どこかのページの選択が変わるたびに増える(全ページの選択数などを束縛で読み直すため)
     property int selectionRevision: 0
     function noteSelectionChanged() { selectionRevision++ }
@@ -83,7 +98,9 @@ Item {
         for (let i = 0; i < pageModel.count; ++i) {
             const pg = pageModel.get(i)
             const w = store[pg.pid]
-            pages.push({ id: pg.pid, name: pg.name, widgets: Array.isArray(w) ? w : null })
+            const d = decorStore[pg.pid]
+            pages.push({ id: pg.pid, name: pg.name, widgets: Array.isArray(w) ? w : null,
+                         decor: Array.isArray(d) ? d : [] })
         }
         widgetStore.layoutJson = JSON.stringify({ version: 2, current: current, pages: pages })
     }
@@ -103,6 +120,7 @@ Item {
         if (pages === null) pages = [{ name: "ページ 1", widgets: null }]
         // 先に保存内容をそろえてから、ページ(WidgetArea)を作る(作られたときに pageWidgets() で読むため)
         const st = {}
+        const dst = {}
         const used = {}
         const entries = []
         for (let i = 0; i < Math.min(pages.length, maxPages); ++i) {
@@ -110,13 +128,28 @@ Item {
             const pid = (p.id && !used[p.id]) ? p.id : newPid()
             used[pid] = true
             st[pid] = Array.isArray(p.widgets) ? p.widgets : (i === 0 ? null : [])
+            dst[pid] = Array.isArray(p.decor) ? p.decor : []
             entries.push({ pid: pid, name: String(p.name || ("ページ " + (i + 1))) })
         }
         pageModel.clear()
         store = st
+        decorStore = dst
         current = Math.max(0, Math.min(entries.length - 1, cur))
         for (let i = 0; i < entries.length; ++i) pageModel.append(entries[i])
         refreshNames()
+        decorRevision++
+    }
+
+    // 飾りの画像(DecorationStore から呼ばれる)
+    function pageDecor(index) {
+        if (index < 0 || index >= pageModel.count) return []
+        const d = decorStore[pageModel.get(index).pid]
+        return Array.isArray(d) ? d : []
+    }
+    function savePageDecor(index, list) {
+        if (index < 0 || index >= pageModel.count) return
+        decorStore[pageModel.get(index).pid] = list
+        persist()
     }
 
     // index 番目のページの WidgetArea(設定ダイアログの「一緒に変える」が、全ページのウィジェットを探すのに使う)
@@ -152,6 +185,7 @@ Item {
         }
         const pid = newPid()
         store[pid] = []
+        decorStore[pid] = []
         pageModel.append({ pid: pid, name: "ページ " + n })
         refreshNames()
         current = pageModel.count - 1
@@ -163,10 +197,12 @@ Item {
         const pid = pageModel.get(index).pid
         pageModel.remove(index)   // そのページのウィジェット(警告の登録も)ごと消える
         delete store[pid]
+        delete decorStore[pid]
         if (current >= pageModel.count) current = pageModel.count - 1
         else if (current > index) current--
         refreshNames()
         persist()
+        decorRevision++
         return true
     }
     function renamePage(index, name) {
@@ -186,10 +222,18 @@ Item {
         else if (current === to) current = index
         refreshNames()
         persist()
+        decorRevision++
     }
     function resetAll() {
+        // 飾りの画像はウィジェットの配置とは別なので、1 ページ目に置いていたものは残す
+        const keepDecor = pageDecor(0)
         widgetStore.layoutJson = ""
         load()
+        if (keepDecor.length > 0) {
+            decorStore[pageModel.get(0).pid] = keepDecor
+            persist()
+            decorRevision++
+        }
     }
     // そのページに警告中のウィジェットがあるか(タブ用)
     function pageAlarm(index) {
@@ -232,6 +276,10 @@ Item {
                 pages: root
                 pageIndex: index
                 editMode: root.editMode
+                showEmptyState: root.showEmptyState
+                decorSource: root.decorSource
+                decorOx: root.originInRoot.x + root.slideX + x
+                decorOy: root.originInRoot.y + y
                 // 隠れているページは描画しない(切り替えのアニメーション中は、両隣も描く)
                 visible: index === root.current || (slideAnim.running && Math.abs(index - root.current) <= 1)
                 onSettingsRequested: (wid) => root.settingsRequested(pageArea, wid)

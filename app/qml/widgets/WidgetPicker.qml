@@ -33,7 +33,7 @@ Item {
         MouseArea { anchors.fill: parent; enabled: root.open; onClicked: root.close() }
     }
 
-    Rectangle {
+    Panel {   // テーマに合わせた面(クラシックはグラデーションとハイライト)
         id: panel
         anchors.centerIn: parent
         width: Math.min(parent.width - 2 * Theme.margin, 980 * root.unit)
