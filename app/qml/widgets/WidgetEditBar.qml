@@ -1,6 +1,7 @@
 // ウィジェットの編集モードで、画面の上(ステータスバーの場所)に出す編集用のバー。
 //  左: 「編集中」と、ページの切り替え(pages があるとき)
-//  右: 選んでいる数と、選んだものの操作(まとめて設定・削除・選択の解除)、すべて選択・追加・完了
+//  右: 選んでいる数と、選んだものの操作(まとめて設定・削除・選択の解除)、すべて選択・全ページを選択・追加・完了
+// 初期画面(pages があるとき)は、ページをまたいで選べる(ページを移っても選択は残る)。数・操作は全ページの分
 // 削除は 2 回押し(1 回目で「もう一度押すと N 個を削除」に変わる。3 秒で元に戻る)。
 import QtQuick
 import OpenCruise
@@ -10,12 +11,21 @@ Item {
     property Item area: null           // 今編集している WidgetArea
     property Item pages: null          // WidgetPages(初期画面のとき。Android Auto 画面では null)
     signal addRequested()
-    signal settingsRequested(var wids)
+    signal settingsRequested(var entries)   // 選んだウィジェット({ area, wid } の配列)
     signal doneRequested()
 
     readonly property real unit: Theme.uiScale
-    readonly property int selCount: area ? area.selection.length : 0
+    // 選んでいる数(ページをまたぐときは全ページの分)と、選んだものがあるページの数
+    readonly property int selCount: pages ? pages.selectedEntries().length : (area ? area.selection.length : 0)
+    readonly property int selPages: pages ? pages.selectedPageCount() : 1
+    // 今のページの選択数・ウィジェットの数(「すべて選択」用)と、全ページのウィジェットの数(「全ページを選択」用)
+    readonly property int pageSelCount: area ? area.selection.length : 0
     readonly property int widgetCount: area ? area.count : 0
+    readonly property int allWidgetCount: pages ? pages.widgetTotal() : widgetCount
+    function selectedEntries() {
+        if (pages) return pages.selectedEntries()
+        return area ? area.selection.map(w => ({ area: area, wid: w })) : []
+    }
     // 横幅が足りないときは、補助のボタンの文字を省く(アイコンだけ)
     readonly property bool compact: width < 1100 * unit
 
@@ -95,13 +105,14 @@ Item {
             font.bold: true
             color: Theme.textPrimary
             text: "編集中"
+            visible: !(root.compact && root.selCount > 0)   // 狭くて選択の操作が出ているときは省く
         }
         // ページの切り替え(編集中もページを移れる。ウィジェットの無い所の左右スワイプでも移れる)
         // 右の操作と重なるほど狭いときは出さない(スワイプで移れる)
         Row {
             id: pageSwitch
             visible: root.pages !== null && root.pages.count > 1
-                     && root.width - rightRow.width - 240 * root.unit > implicitWidth
+                     && root.width - fixedButtons.width - (selRow.visible ? selRow.width : 0) - 170 * root.unit > implicitWidth
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4 * root.unit
             BarButton {
@@ -149,6 +160,10 @@ Item {
         }
 
         // 選んだものの操作
+        Row {
+            id: selRow
+            visible: root.selCount > 0
+            spacing: 8 * root.unit
         Text {
             visible: root.selCount > 0
             anchors.verticalCenter: parent.verticalCenter
@@ -156,14 +171,16 @@ Item {
             font.pixelSize: Math.round(root.height * 0.38)
             font.bold: true
             color: Theme.accent
-            text: root.selCount + " 個選択中"
+            // 狭いときは短く(ページ数は省く)
+            text: root.compact ? root.selCount + " 個選択"
+                               : root.selCount + " 個選択中" + (root.selPages > 1 ? "(" + root.selPages + " ページ)" : "")
         }
         BarButton {
             visible: root.selCount > 0
             icon: "tune"
             text: "まとめて設定"
             showText: !root.compact
-            onClicked: { root.confirmDelete = false; root.settingsRequested(root.area.selection.slice()) }
+            onClicked: { root.confirmDelete = false; root.settingsRequested(root.selectedEntries()) }
         }
         BarButton {
             visible: root.selCount > 0
@@ -181,7 +198,8 @@ Item {
                 if (Date.now() - root.confirmAt < 400) return   // 2 度押しの勢いで消さない
                 confirmTimer.stop()
                 root.confirmDelete = false
-                root.area.removeSelected()
+                if (root.pages) root.pages.removeAllSelected()
+                else root.area.removeSelected()
             }
         }
         BarButton {
@@ -189,7 +207,7 @@ Item {
             icon: "deselect"
             text: "選択を解除"
             showText: !root.compact
-            onClicked: root.area.clearSelection()
+            onClicked: root.pages ? root.pages.clearAllSelection() : root.area.clearSelection()
         }
 
         Rectangle {   // 区切り
@@ -199,16 +217,25 @@ Item {
             height: root.height * 0.6
             color: Theme.panelBorder
         }
+        }
 
         Row {
             id: fixedButtons
             spacing: 8 * root.unit
             BarButton {
-                visible: root.widgetCount > 0 && root.selCount < root.widgetCount
+                visible: root.widgetCount > 0 && root.pageSelCount < root.widgetCount
                 icon: "select_all"
-                text: "すべて選択"
+                text: root.pages && root.pages.count > 1 ? "このページを選択" : "すべて選択"
                 showText: !root.compact && root.selCount === 0
                 onClicked: root.area.selectAll()
+            }
+            // 全ページのウィジェットを選ぶ(見た目を全ページでまとめて変えるとき。続けて「まとめて設定」)
+            BarButton {
+                visible: root.pages !== null && root.pages.count > 1 && root.allWidgetCount > 0 && root.selCount < root.allWidgetCount
+                icon: "library_add_check"
+                text: "全ページを選択"
+                showText: !root.compact && root.selCount === 0
+                onClicked: root.pages.selectAllPages()
             }
             BarButton {
                 icon: "add"

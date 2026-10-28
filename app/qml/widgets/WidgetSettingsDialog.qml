@@ -38,12 +38,19 @@ Item {
     }
     // ---- まとめて設定(複数選択) ----
     property bool multi: false
-    property var multiWids: []
+    property var multiEntries: []      // 選んだウィジェット({ area, wid }。ページをまたいでもよい。1 つめを表示する)
+    readonly property var multiWids: multiEntries.map(e => e.wid)
+    // 選んだものがあるページ(エリア)の数
+    readonly property int multiAreaCount: {
+        const seen = []
+        for (const e of multiEntries) if (seen.indexOf(e.area) < 0) seen.push(e.area)
+        return seen.length
+    }
     // 選んだものがすべて同じ種類(設定画面が同じ)か
     readonly property bool multiSameKind: {
         if (!multi || !area) return false
         area.revision
-        for (const w of multiWids) if (!WidgetRegistry.canEditTogether(wtype, area.typeOf(w))) return false
+        for (const e of multiEntries) if (!WidgetRegistry.canEditTogether(wtype, e.area.typeOf(e.wid))) return false
         return true
     }
     // 選んだものの名前(同じ名前は「×2」とまとめる)
@@ -51,8 +58,8 @@ Item {
         if (!multi || !area) return ""
         area.revision
         const counts = {}, order = []
-        for (const w of multiWids) {
-            const d = WidgetRegistry.find(area.typeOf(w))
+        for (const e of multiEntries) {
+            const d = WidgetRegistry.find(e.area.typeOf(e.wid))
             const n = d ? d.name : "?"
             if (counts[n] === undefined) { counts[n] = 0; order.push(n) }
             counts[n]++
@@ -154,7 +161,7 @@ Item {
 
     function show(id) {
         multi = false
-        multiWids = []
+        multiEntries = []
         wid = id
         partners = []
         partnerPickerOpen = false
@@ -163,14 +170,17 @@ Item {
         flick.contentY = 0
         open = true
     }
-    // 複数のウィジェットをまとめて設定する(1 つめの設定を表示し、変えた値を全部に入れる)
-    function showMulti(ids) {
-        if (!ids || ids.length === 0) return
-        if (ids.length === 1) { show(ids[0]); return }
-        wid = ids[0]
-        multiWids = ids.slice()
+    // 複数のウィジェットをまとめて設定する(1 つめの設定を表示し、変えた値を全部に入れる)。
+    // list は ID の配列(今の area のもの)か、{ area, wid } の配列(ページをまたぐとき)
+    function showMulti(list) {
+        if (!list || list.length === 0) return
+        const entries = list.map(x => typeof x === "string" ? ({ area: area, wid: x }) : x)
+        area = entries[0].area
+        if (entries.length === 1) { show(entries[0].wid); return }
+        wid = entries[0].wid
+        multiEntries = entries
         multi = true
-        partners = ids.slice(1).map(w => ({ area: area, wid: w }))
+        partners = entries.slice(1)
         partnerPickerOpen = false
         confirmDelete = false
         tabKey = multiSameKind && lastTabs[wtype] !== undefined ? lastTabs[wtype] : (multiSameKind ? "" : commonKey)
@@ -411,7 +421,9 @@ Item {
                         font.family: Theme.fontFamily
                         font.pixelSize: 20 * root.unit
                         color: Theme.textPrimary
-                        text: "ここで変えた項目が、選んだ " + root.multiWids.length + " 個すべてに入ります(表示しているのは 1 つめの今の設定)。"
+                        text: "ここで変えた項目が、選んだ " + root.multiWids.length + " 個すべてに入ります"
+                              + (root.multiAreaCount > 1 ? "(" + root.multiAreaCount + " ページにまたがっています)" : "")
+                              + "。表示しているのは 1 つめの今の設定です。"
                               + (root.multiSameKind ? "範囲・単位・警告値・注意値・目盛り間隔とタイトル文字は、それぞれのままです。"
                                                     : "種類の違うウィジェットが混ざっているので、共通の項目(枠・上部タイトル)だけを変えられます。")
                     }
@@ -722,9 +734,10 @@ Item {
                         if (Date.now() - root.confirmAt < 400) return   // 2 度押しの勢いで消さない
                         deleteTimer.stop()
                         root.confirmDelete = false
-                        if (root.area) {
-                            const list = root.multi ? root.multiWids : [root.wid]
-                            for (const w of list) root.area.removeWidget(w)
+                        if (root.multi) {
+                            for (const e of root.multiEntries) e.area.removeWidget(e.wid)
+                        } else if (root.area) {
+                            root.area.removeWidget(root.wid)
                         }
                         root.close()
                     }

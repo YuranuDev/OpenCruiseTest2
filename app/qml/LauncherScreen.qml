@@ -29,11 +29,12 @@ Item {
         widgetPages.editMode = on
         if (!on) settingsDialog.close()
     }
-    // 選んだウィジェットの設定を開く(1 つなら普通の設定、2 つ以上ならまとめて設定)
-    function openSettingsFor(wids) {
-        settingsDialog.area = widgetPages.currentArea
-        if (wids.length > 1) settingsDialog.showMulti(wids)
-        else if (wids.length === 1) settingsDialog.show(wids[0])
+    // 選んだウィジェット({ area, wid } の配列。ページをまたいでもよい)の設定を開く(1 つなら普通の設定、2 つ以上ならまとめて設定)
+    function openSettingsFor(entries) {
+        if (entries.length === 0) return
+        settingsDialog.area = entries[0].area
+        if (entries.length > 1) settingsDialog.showMulti(entries)
+        else settingsDialog.show(entries[0].wid)
     }
 
     // ---- 下部: ナビバー(大型ボタン 6 つ。左端はホーム=この画面) ----
@@ -108,7 +109,7 @@ Item {
             area: widgetPages.currentArea
             pages: widgetPages
             onAddRequested: root.openPicker()
-            onSettingsRequested: (wids) => root.openSettingsFor(wids)
+            onSettingsRequested: (entries) => root.openSettingsFor(entries)
             onDoneRequested: root.setEditing(false)
         }
 

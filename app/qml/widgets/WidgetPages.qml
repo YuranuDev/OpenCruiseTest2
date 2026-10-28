@@ -20,10 +20,46 @@ Item {
     // 保存内容(ページ id → widgets の配列。null なら初期配置)
     property var store: ({})
     readonly property Item currentArea: rep.count > current ? rep.itemAt(current) : null
-    // 編集モード(全ページ共通)。選択はページごとで、ページを移ると外す
+    // 編集モード(全ページ共通)。選択はページごとに持つが、ページを移っても外さない(ページをまたいで選べる)
     property bool editMode: false
-    onCurrentChanged: {
+    // どこかのページの選択が変わるたびに増える(全ページの選択数などを束縛で読み直すため)
+    property int selectionRevision: 0
+    function noteSelectionChanged() { selectionRevision++ }
+    // 全ページで選んでいるウィジェット({ area, wid } の配列。今のページのものを先に)
+    function selectedEntries() {
+        selectionRevision
+        const list = []
+        const order = [current]
+        for (let i = 0; i < rep.count; ++i) if (i !== current) order.push(i)
+        for (const i of order) {
+            const a = rep.itemAt(i)
+            if (!a) continue
+            for (const w of a.selection) list.push({ area: a, wid: w })
+        }
+        return list
+    }
+    // 選んでいるウィジェットがあるページの数
+    function selectedPageCount() {
+        selectionRevision
+        let n = 0
+        for (let i = 0; i < rep.count; ++i) { const a = rep.itemAt(i); if (a && a.selection.length > 0) ++n }
+        return n
+    }
+    // 全ページのウィジェットの数
+    function widgetTotal() {
+        selectionRevision
+        let n = 0
+        for (let i = 0; i < rep.count; ++i) { const a = rep.itemAt(i); if (a) n += a.count }
+        return n
+    }
+    function clearAllSelection() {
         for (let i = 0; i < rep.count; ++i) { const a = rep.itemAt(i); if (a) a.clearSelection() }
+    }
+    function selectAllPages() {
+        for (let i = 0; i < rep.count; ++i) { const a = rep.itemAt(i); if (a) a.selectAll() }
+    }
+    function removeAllSelected() {
+        for (let i = 0; i < rep.count; ++i) { const a = rep.itemAt(i); if (a) a.removeSelected() }
     }
 
     signal settingsRequested(Item area, string wid)

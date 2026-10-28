@@ -33,6 +33,8 @@ Item {
     property bool editMode: false
     property var selection: []          // 選んだウィジェットの ID
     onEditModeChanged: if (!editMode) clearSelection()
+    // ページの束(WidgetPages)へ知らせる(ページをまたいだ選択の数を数え直すため。Android Auto 画面では無し)
+    onSelectionChanged: if (pages && pages.noteSelectionChanged) pages.noteSelectionChanged()
     // まとめて移動(選択中のものを動かしているとき): 動かしているもの以外は、動かしている量(groupOffset。px)だけずらして表示する
     property var groupIds: []
     property var groupStart: ({})       // 動かし始めたときの位置(wid → { col, row, w, h })

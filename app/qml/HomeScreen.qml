@@ -32,10 +32,11 @@ Rectangle {
     onShowAaChanged: { menuOpen = false; aaEditing = false }
     // Android Auto 画面のウィジェットの編集モード
     property bool aaEditing: false
-    function openAaSettingsFor(wids) {
+    function openAaSettingsFor(entries) {
+        if (entries.length === 0) return
         aaSettings.area = aaWidgets
-        if (wids.length > 1) aaSettings.showMulti(wids)
-        else if (wids.length === 1) aaSettings.show(wids[0])
+        if (entries.length > 1) aaSettings.showMulti(entries)
+        else aaSettings.show(entries[0].wid)
     }
 
     // Android Auto の映像を置くマス(フルスクリーンでないとき)。0 = 左上 / 1 = 右上 / 2 = 左下 / 3 = 右下
@@ -104,7 +105,7 @@ Rectangle {
             Behavior on opacity { NumberAnimation { duration: 180 } }
             area: aaWidgets
             onAddRequested: aaPicker.show()
-            onSettingsRequested: (wids) => root.openAaSettingsFor(wids)
+            onSettingsRequested: (entries) => root.openAaSettingsFor(entries)
             onDoneRequested: root.aaEditing = false
         }
 
