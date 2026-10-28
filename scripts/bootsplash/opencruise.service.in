@@ -7,6 +7,11 @@
 #  3. 起動後: plymouth quit --retain-splash … 画面はもうアプリのものなので、黒くならない
 # アプリが止まったとき・起動できなかったときは、Plymouth を終わらせてコンソールに戻す。
 #
+# シャットダウン・再起動のとき(終了画面への引き継ぎ):
+#  1. systemd がアプリに SIGTERM を送る。アプリは今の画面を Plymouth の終了画面と同じ画像へ切り替えてから終わる
+#  2. アプリが終わってから(Before= で順番を決めている)、Plymouth の終了画面(plymouth-poweroff など)が始まって同じ画像を出す
+#  (以前は、アプリがいきなり終わって最後の画が止まったまま残り、Plymouth の終了画面もここで終わらせていた)
+#
 # コンソール: アプリを終了すると(メニューの終了、Ctrl+Alt+Backspace、systemctl stop)、tty1 にログイン画面を出す。
 # 落ちて再起動を繰り返したとき(起動の上限に達したとき)も同じ。アプリに戻るときは: sudo systemctl start opencruise
 [Unit]
@@ -15,6 +20,8 @@ Description=OpenCruise
 Wants=user@@UID@.service
 After=systemd-user-sessions.service plymouth-start.service sound.target getty@tty1.service user@@UID@.service
 Conflicts=getty@tty1.service
+# シャットダウン・再起動では、Plymouth の終了画面を始める前にアプリを止める(画面をアプリから Plymouth へ渡すため)
+Before=plymouth-poweroff.service plymouth-reboot.service plymouth-halt.service plymouth-kexec.service
 # 落ち続けて止まったときは、tty1 にログイン画面を出す
 OnFailure=getty@tty1.service
 StartLimitIntervalSec=120
@@ -44,9 +51,12 @@ ExecStartPre=-+/bin/sh -c 'for d in /sys/class/backlight/*; do [ -r "$$d/max_bri
 ExecStartPre=-+/usr/bin/plymouth deactivate
 ExecStart=@APP@
 ExecStartPost=-+/usr/bin/plymouth quit --retain-splash
-ExecStopPost=-+/usr/bin/plymouth quit
+# 止まったとき: シャットダウン・再起動の途中なら何もしない(Plymouth の終了画面を終わらせない・ログイン画面も出さない)
+ExecStopPost=-+/bin/sh -c 'systemctl is-system-running 2>/dev/null | grep -qx stopping || /usr/bin/plymouth quit'
 # 正常に終わったとき(終了の操作・systemctl stop)は、tty1 にログイン画面を出す(落ちたときは再起動するので出さない)
-ExecStopPost=-+/bin/sh -c '[ "$SERVICE_RESULT" = success ] && systemctl --no-block start getty@tty1.service || true'
+ExecStopPost=-+/bin/sh -c 'systemctl is-system-running 2>/dev/null | grep -qx stopping && exit 0; [ "$SERVICE_RESULT" = success ] && systemctl --no-block start getty@tty1.service || true'
+# 終了画面を出して終わるまでの待ち(固まったときは、これを過ぎると強制的に止める。シャットダウンを長く止めないように)
+TimeoutStopSec=10
 Restart=on-failure
 RestartSec=2
 

@@ -573,6 +573,53 @@ ApplicationWindow {
         }
     }
 
+    // ---- 終了の画面(シャットダウン・再起動・サービスの停止のとき) ----
+    // systemd から終了の合図(SIGTERM)を受けた C++(main.cpp)が showShutdownScreen を呼ぶ。今の画面を、Linux の
+    // 起動・終了画面(Plymouth)と同じ画像へ少しずつ切り替え、それを描き終えてから終わる。終わった後は Plymouth が
+    // 同じ画像を出すので、画面が途中で止まったまま(色がおかしくなっていく)にならずに終了画面へ移る。
+    // 画像はインストール済みの Plymouth のテーマのもの(無ければ起動画面の背景色だけ)。回転とは関係なく画面全体を覆う。
+    property bool shutdownShown: false
+    property bool shutdownQuitArmed: false
+    function showShutdownScreen(imageUrl) {
+        if (shutdownShown) return
+        shutdownImage.source = imageUrl || ""
+        shutdownShown = true
+        shutdownFade.start()
+    }
+    Item {
+        id: shutdownCover
+        anchors.fill: parent
+        z: 10000
+        visible: opacity > 0
+        opacity: 0
+        Rectangle { anchors.fill: parent; color: Theme.bootBackground }
+        Image {
+            id: shutdownImage
+            anchors.fill: parent
+            fillMode: Image.Stretch
+            asynchronous: false
+            cache: false
+        }
+        // 終了画面のあいだは、タッチなどを受けない
+        MouseArea { anchors.fill: parent; enabled: window.shutdownShown }
+        NumberAnimation {
+            id: shutdownFade
+            target: shutdownCover
+            property: "opacity"
+            to: 1
+            duration: 300
+            easing.type: Easing.InOutQuad
+            onFinished: window.shutdownQuitArmed = true   // 覆い終えた画面を描いてから終わる(次の frameSwapped)
+        }
+    }
+    Connections {
+        target: window
+        enabled: window.shutdownQuitArmed
+        function onFrameSwapped() { Qt.quit() }
+    }
+    // 覆い終えた後、画面が変わらず描き直しが起きないときのため、1 枚描かせる
+    onShutdownQuitArmedChanged: if (shutdownQuitArmed) window.update()
+
     Component {
         id: homeComponent
         HomeScreen {

@@ -31,8 +31,10 @@
 #include <QQmlError>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QSocketNotifier>
 #include <QTextStream>
 #include <QTimer>
+#include <QUrl>
 
 
 #include <cstdlib>
@@ -92,6 +94,73 @@ static void notifySystemdReady() {
     ::sendto(fd, kMessage, sizeof(kMessage) - 1, 0, reinterpret_cast<const sockaddr *>(&addr),
              static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + path.size()));
     ::close(fd);
+#endif
+}
+
+#ifdef Q_OS_LINUX
+/// 終了の合図(SIGTERM / SIGINT)を、シグナルハンドラからイベントループへ渡すためのソケットの組
+static int g_termFds[2] = {-1, -1};
+/// シグナルハンドラ: ソケットへ 1 バイト書くだけ(ここでは Qt を触れない)
+static void onTermSignal(int) {
+    const char c = 1;
+    const ssize_t written = ::write(g_termFds[1], &c, 1);
+    (void)written;
+}
+#endif
+
+/**
+ * @brief 終了の合図(SIGTERM / SIGINT)を受けたら、終了画面を出してから終わるようにする。
+ *
+ * シャットダウン・再起動・systemctl stop のとき、systemd はアプリに SIGTERM を送る。既定のままだと、描画の途中で
+ * いきなり終わり、画面に最後の画が止まったまま残る(そのまま時間がたつと、パネルの色がおかしくなっていく)。
+ * ここでは合図を受けたら、QML(Main.qml の showShutdownScreen)で今の画面を Linux の終了画面(Plymouth)と同じ画像へ
+ * 切り替え、それを描き終えてから普通に終わる(後片付けもする)。その後は Plymouth が同じ画像を出す
+ * (自動起動のサービスは、Plymouth の終了画面より先に止まるように順番を決めている)。
+ * 2 回目の合図か、3 秒たっても終われないときは、すぐに終わる。
+ */
+static void installTermHandler(QGuiApplication &app, QQmlApplicationEngine &engine) {
+#ifdef Q_OS_LINUX
+    if (::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0, g_termFds) != 0) {
+        opencruise::log::warn("APP", QStringLiteral("終了の合図を受ける準備ができませんでした(終了画面は出しません)"));
+        return;
+    }
+    struct sigaction action {};
+    action.sa_handler = onTermSignal;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = SA_RESTART;
+    ::sigaction(SIGTERM, &action, nullptr);
+    ::sigaction(SIGINT, &action, nullptr);
+
+    auto *notifier = new QSocketNotifier(g_termFds[0], QSocketNotifier::Read, &app);
+    auto stopping = std::make_shared<bool>(false);
+    QObject::connect(notifier, &QSocketNotifier::activated, &app, [&app, &engine, stopping]() {
+        char buffer[16];
+        while (::read(g_termFds[0], buffer, sizeof(buffer)) > 0) {
+        }
+        if (*stopping) {
+            opencruise::log::info("APP", QStringLiteral("もう一度終了の合図を受けたので、すぐに終わります"));
+            app.quit();
+            return;
+        }
+        *stopping = true;
+        // Plymouth のテーマの画像(install.sh が入れる)。Plymouth が終了時に出すのと同じ画像
+        const QString image = QStringLiteral("/usr/share/plymouth/themes/opencruise/background.png");
+        const QString url = QFile::exists(image) ? QUrl::fromLocalFile(image).toString() : QString();
+        QObject *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().first();
+        opencruise::log::info("APP", QStringLiteral("終了の合図(SIGTERM)を受けました。終了画面に切り替えてから終わります%1")
+                                         .arg(url.isEmpty() ? QStringLiteral("(Plymouth の画像が無いので背景色のみ)") : QString()));
+        if (!root || !QMetaObject::invokeMethod(root, "showShutdownScreen", Q_ARG(QVariant, url))) {
+            app.quit();
+            return;
+        }
+        QTimer::singleShot(3000, &app, [&app]() {
+            opencruise::log::warn("APP", QStringLiteral("終了画面を描き終えられなかったので、そのまま終わります"));
+            app.quit();
+        });
+    });
+#else
+    Q_UNUSED(app);
+    Q_UNUSED(engine);
 #endif
 }
 
@@ -387,6 +456,11 @@ int main(int argc, char *argv[]) {
                 },
                 Qt::SingleShotConnection);
         }
+    }
+
+    // シャットダウン・再起動などの終了の合図(SIGTERM)では、終了画面を出してから終わる(書き出しのときは不要)
+    if (!exportingSplash && !engine.rootObjects().isEmpty()) {
+        installTermHandler(app, engine);
     }
 
     // 捕捉されない例外で異常終了する場合も、理由をログに残してから停止する

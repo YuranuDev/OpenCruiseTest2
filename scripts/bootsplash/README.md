@@ -57,6 +57,13 @@ sudo scripts/bootsplash/uninstall.sh
 
   アプリは `OPENCRUISE_SPLASH_HANDOFF=1` で起動され、起動画面の変わらない部分(背景・タイトル・進行バーの溝・警告)を
   フェードせずに最初から出すので、途切れて見えません。
+- シャットダウン・再起動のとき(終了画面への引き継ぎ):
+  1. systemd がアプリに SIGTERM を送ると、アプリは今の画面を Plymouth の画像(`background.png`)へ 0.3 秒で切り替え、
+     描き終えてから終わる(3 秒たっても終われなければ、そのまま終わる。サービスの停止の待ちは 10 秒)
+  2. アプリが止まってから(`Before=plymouth-poweroff.service` など)、Plymouth の終了画面が同じ画像を出す(進行バーは進めない)
+
+  以前は、アプリがいきなり終わって最後の画が止まったまま残り(色がだんだんおかしくなる)、Plymouth の終了画面も
+  サービスが止まったときに終わらせていた。変更を反映するには `install.sh` をもう一度実行する。
 - Plymouth の画面は起動の終わりに自動で消えないようにしています(`plymouth-quit.service` を止める)。消すのは自動起動のサービスです。
 - カーネルの引数に `quiet splash loglevel=3 rd.udev.log_level=3 vt.global_cursor_default=0` などを足して、起動中のメッセージを抑えます。
   重大なエラーは今まで通り画面に出ます。
