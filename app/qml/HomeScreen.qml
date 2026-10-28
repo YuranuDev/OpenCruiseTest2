@@ -6,6 +6,8 @@
 // その角(設定「Android Auto」で角と幅・高さのマス数を選ぶ。widgetStore.aaCorner / aaCols / aaRows)に置き、
 // 残りのマスにウィジェットを置ける(配置は初期画面とは別に widgetStore.aaLayoutJson へ保存)。
 // 映像の描画アイテム(VideoSurfaceItem)は表示切替で破棄しないよう、常に生成しておく。
+// ウィジェットの編集モード(メニューの「編集」): Android Auto 画面では、そこのウィジェットと映像の場所を編集する。
+// 映像は、内側の角のつまみをドラッグで大きさ(マス数)、映像そのものをドラッグで置く角を変えられる(離したときに決まる)。
 import QtQuick
 import OpenCruise
 
@@ -26,8 +28,15 @@ Rectangle {
     property bool immersive: false
     // 下から出るメニュー(シート)が開いているか。フルスクリーンの切り替わりや画面の切り替えでは閉じる
     property bool menuOpen: false
-    onImmersiveChanged: menuOpen = false
-    onShowAaChanged: menuOpen = false
+    onImmersiveChanged: { menuOpen = false; aaEditing = false }
+    onShowAaChanged: { menuOpen = false; aaEditing = false }
+    // Android Auto 画面のウィジェットの編集モード
+    property bool aaEditing: false
+    function openAaSettingsFor(wids) {
+        aaSettings.area = aaWidgets
+        if (wids.length > 1) aaSettings.showMulti(wids)
+        else if (wids.length === 1) aaSettings.show(wids[0])
+    }
 
     // Android Auto の映像を置くマス(フルスクリーンでないとき)。0 = 左上 / 1 = 右上 / 2 = 左下 / 3 = 右下
     readonly property var aaRect: {
@@ -86,13 +95,28 @@ Rectangle {
         opacity: root.aaFade
         visible: root.aaFade > 0 && !root.immersive
 
+        // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
+        WidgetEditBar {
+            anchors.fill: parent
+            z: 2
+            opacity: root.aaEditing ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            area: aaWidgets
+            onAddRequested: aaPicker.show()
+            onSettingsRequested: (wids) => root.openAaSettingsFor(wids)
+            onDoneRequested: root.aaEditing = false
+        }
+
         ConnectionBadge {
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             size: parent.height
+            visible: !root.aaEditing
         }
 
         // 時刻(初期画面のページのタブの位置)
         Rectangle {
+            visible: !root.aaEditing
             anchors.centerIn: parent
             height: parent.height - 4
             width: timeText.implicitWidth + 40
@@ -111,6 +135,7 @@ Rectangle {
         }
 
         Row {
+            visible: !root.aaEditing
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 12
             ActionButton {
@@ -146,6 +171,7 @@ Rectangle {
             pages: aaStore
             blocked: root.aaRect
             showEmptyState: false
+            editMode: root.aaEditing
             onSettingsRequested: (wid) => aaSettings.show(wid)
             onPickerRequested: aaPicker.show()
         }
@@ -221,6 +247,147 @@ Rectangle {
                     font.pixelSize: 16
                 }
             }
+
+            // ---- 編集モード: 映像の大きさ・置く角を変える(映像へのタッチは送らない) ----
+            Item {
+                id: aaEdit
+                anchors.fill: parent
+                visible: root.aaEditing && !root.immersive
+                readonly property real u: Theme.uiScale
+                readonly property int corner: widgetStore.aaCorner
+                readonly property bool atRight: corner === 1 || corner === 3
+                readonly property bool atBottom: corner >= 2
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.45)
+                    border.width: 2
+                    border.color: Theme.accent
+                    radius: aaFrame.radius
+                }
+                // 映像そのものをドラッグ: 離した位置に近い角へ移す
+                MouseArea {
+                    id: aaMove
+                    anchors.fill: parent
+                    preventStealing: true
+                    property point start
+                    property bool active: false
+                    onPressed: (m) => { start = Qt.point(m.x, m.y); active = false }
+                    onPositionChanged: (m) => {
+                        if (!active && Math.hypot(m.x - start.x, m.y - start.y) > 12 * aaEdit.u) active = true
+                        if (!active) return
+                        const p = aaFrame.mapToItem(aaWidgets, m.x - start.x + aaFrame.width / 2, m.y - start.y + aaFrame.height / 2)
+                        aaGhost.show(widgetStore.aaCols, widgetStore.aaRows,
+                                     (p.x > aaWidgets.width / 2 ? 1 : 0) + (p.y > aaWidgets.height / 2 ? 2 : 0))
+                    }
+                    onReleased: { if (active) aaGhost.apply(); active = false }
+                    onCanceled: { aaGhost.hide(); active = false }
+                }
+                // 真ん中の表示: 「Android Auto」と大きさ
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 6 * aaEdit.u
+                    MaterialIcon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        name: "open_with"
+                        size: Math.round(44 * aaEdit.u)
+                        color: Theme.accent
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Math.round(26 * aaEdit.u)
+                        font.bold: true
+                        color: Theme.textPrimary
+                        text: "Android Auto  " + (aaGhost.visible ? aaGhost.cols + " x " + aaGhost.rows
+                                                                    : widgetStore.aaCols + " x " + widgetStore.aaRows)
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Math.round(18 * aaEdit.u)
+                        color: Theme.textSecondary
+                        text: "ドラッグで角を移動 ・ 角のつまみで大きさを変更"
+                    }
+                }
+                // 大きさのつまみ(映像の内側の角。画面の角と反対側)
+                Rectangle {
+                    id: aaHandle
+                    readonly property real s: Math.round(56 * aaEdit.u)
+                    width: s
+                    height: s
+                    radius: s / 2
+                    x: aaEdit.atRight ? 6 * aaEdit.u : parent.width - s - 6 * aaEdit.u
+                    y: aaEdit.atBottom ? 6 * aaEdit.u : parent.height - s - 6 * aaEdit.u
+                    color: Theme.mix(Theme.panel, Theme.accent, aaResize.pressed ? 0.5 : 0.2)
+                    border.width: 2
+                    border.color: Theme.accent
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        name: "open_in_full"
+                        size: Math.round(parent.width * 0.55)
+                        color: Theme.accent
+                        // 引っぱる向き(内側の角の向き)に合わせて回す。アイコンは右上・左下向き
+                        rotation: (aaEdit.atRight === aaEdit.atBottom) ? 90 : 0
+                    }
+                    MouseArea {
+                        id: aaResize
+                        anchors.fill: parent
+                        anchors.margins: -8 * aaEdit.u   // 少し広めに受ける
+                        preventStealing: true
+                        onPositionChanged: (m) => {
+                            if (!pressed) return
+                            const p = aaResize.mapToItem(aaWidgets, m.x, m.y)
+                            const c = Math.round((aaEdit.atRight ? aaWidgets.width - p.x : p.x) / aaWidgets.cellW)
+                            const r = Math.round((aaEdit.atBottom ? aaWidgets.height - p.y : p.y) / aaWidgets.cellH)
+                            aaGhost.show(c, r, aaEdit.corner)
+                        }
+                        onReleased: aaGhost.apply()
+                        onCanceled: aaGhost.hide()
+                    }
+                }
+            }
+        }
+
+        // 編集中に、離したときの映像の場所(大きさ・角)を示す枠
+        Rectangle {
+            id: aaGhost
+            z: 6
+            visible: false
+            property int cols: 9
+            property int rows: 6
+            property int corner: 0
+            // 映像の大きさの範囲(WidgetStore と同じ)
+            readonly property int minCols: 4
+            readonly property int minRows: 2
+            function show(c, r, k) {
+                cols = Math.max(minCols, Math.min(aaWidgets.cols, c))
+                rows = Math.max(minRows, Math.min(aaWidgets.rows, r))
+                corner = k
+                visible = true
+            }
+            function hide() { visible = false }
+            function apply() {
+                if (!visible) return
+                visible = false
+                widgetStore.aaCorner = corner
+                widgetStore.aaCols = cols
+                widgetStore.aaRows = rows
+            }
+            readonly property int col: (corner === 1 || corner === 3) ? aaWidgets.cols - cols : 0
+            readonly property int row: corner >= 2 ? aaWidgets.rows - rows : 0
+            x: aaWidgets.cellW * col + aaWidgets.pad
+            y: aaWidgets.cellH * row + aaWidgets.pad
+            width: aaWidgets.cellW * cols - 2 * aaWidgets.pad
+            height: aaWidgets.cellH * rows - 2 * aaWidgets.pad
+            radius: Theme.radius
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+            border.width: 3
+            border.color: Theme.accent
+            Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+            Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+            Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
         }
 
     }
@@ -384,12 +551,13 @@ Rectangle {
             }
             LauncherTile {
                 x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
-                icon: "widgets"; title: "ウィジェット"
-                // フルスクリーンでない Android Auto 画面なら、その画面のウィジェットを足す。それ以外は初期画面へ
+                icon: "dashboard_customize"; title: "編集"
+                selected: root.showAa ? root.aaEditing : launcher.editing
+                // フルスクリーンでない Android Auto 画面なら、その画面のウィジェットと映像の場所を編集する。それ以外は初期画面で編集
                 onClicked: {
                     root.menuOpen = false
-                    if (root.showAa && !root.immersive) aaPicker.show()
-                    else { root.goHome(); launcher.openPicker() }
+                    if (root.showAa && !root.immersive) root.aaEditing = !root.aaEditing
+                    else { root.goHome(); launcher.setEditing(true) }
                 }
             }
             LauncherTile {

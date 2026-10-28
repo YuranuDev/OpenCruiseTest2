@@ -130,6 +130,7 @@ qt_add_qml_module(opencruise
         qml/widgets/WidgetBase.qml
         qml/widgets/WidgetHost.qml
         qml/widgets/WidgetArea.qml
+        qml/widgets/WidgetEditBar.qml
         qml/widgets/WidgetSettingsBase.qml
         qml/widgets/WidgetSettingsGroup.qml
         qml/widgets/WidgetSettingsDialog.qml

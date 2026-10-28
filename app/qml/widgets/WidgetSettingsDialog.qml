@@ -6,6 +6,9 @@
 // 設定は変更のたびに WidgetArea へ反映・保存される(「完了」で閉じるだけ)。
 // 「一緒に変える」で同じ種類のウィジェット(全ページ)を選ぶと、開いている間に変えた項目がそれらにも同時に入る
 // (計測値ごとに違う範囲・単位・警告値・注意値・目盛り間隔と、タイトル文字は写さない。WidgetRegistry.copiesTogether)。
+// まとめて設定(showMulti。編集モードで複数選んだとき): 選んだウィジェットすべてに同じ値を入れる。
+//  - 同じ種類(設定画面が同じ)だけなら、その種類の設定をすべて出す。違う種類が混ざっていれば、共通の項目(枠・上部タイトル)だけ
+//  - 表示している値・プレビューは 1 つめのもの。タイトル文字・サイズは、まとめては変えない
 import QtQuick
 import OpenCruise
 
@@ -31,8 +34,34 @@ Item {
     // 種類ごとの設定画面のジャンル + 共通の「枠・サイズ」
     readonly property var tabs: {
         const own = settingsLoader.item && settingsLoader.item.tabs ? settingsLoader.item.tabs : []
-        return own.concat([{ key: commonKey, title: "枠・サイズ", icon: "aspect_ratio", active: false }])
+        return own.concat([{ key: commonKey, title: multi ? "枠・タイトル" : "枠・サイズ", icon: "aspect_ratio", active: false }])
     }
+    // ---- まとめて設定(複数選択) ----
+    property bool multi: false
+    property var multiWids: []
+    // 選んだものがすべて同じ種類(設定画面が同じ)か
+    readonly property bool multiSameKind: {
+        if (!multi || !area) return false
+        area.revision
+        for (const w of multiWids) if (!WidgetRegistry.canEditTogether(wtype, area.typeOf(w))) return false
+        return true
+    }
+    // 選んだものの名前(同じ名前は「×2」とまとめる)
+    readonly property string multiSummary: {
+        if (!multi || !area) return ""
+        area.revision
+        const counts = {}, order = []
+        for (const w of multiWids) {
+            const d = WidgetRegistry.find(area.typeOf(w))
+            const n = d ? d.name : "?"
+            if (counts[n] === undefined) { counts[n] = 0; order.push(n) }
+            counts[n]++
+        }
+        return order.map(n => counts[n] > 1 ? n + " ×" + counts[n] : n).join("、")
+    }
+    property bool confirmDelete: false
+    property real confirmAt: 0
+    Timer { id: deleteTimer; interval: 3000; onTriggered: root.confirmDelete = false }
     property string tabKey: ""                 // 選んだタブ
     property var lastTabs: ({})                // 種類ごとに最後に選んだタブ(アプリを閉じるまで)
     // 実際に表示するタブ(選んだタブが今は出せないときは先頭)。束縛にはせず、ここで書き換える
@@ -124,10 +153,27 @@ Item {
     }
 
     function show(id) {
+        multi = false
+        multiWids = []
         wid = id
         partners = []
         partnerPickerOpen = false
+        confirmDelete = false
         tabKey = lastTabs[wtype] !== undefined ? lastTabs[wtype] : ""
+        flick.contentY = 0
+        open = true
+    }
+    // 複数のウィジェットをまとめて設定する(1 つめの設定を表示し、変えた値を全部に入れる)
+    function showMulti(ids) {
+        if (!ids || ids.length === 0) return
+        if (ids.length === 1) { show(ids[0]); return }
+        wid = ids[0]
+        multiWids = ids.slice()
+        multi = true
+        partners = ids.slice(1).map(w => ({ area: area, wid: w }))
+        partnerPickerOpen = false
+        confirmDelete = false
+        tabKey = multiSameKind && lastTabs[wtype] !== undefined ? lastTabs[wtype] : (multiSameKind ? "" : commonKey)
         flick.contentY = 0
         open = true
     }
@@ -175,7 +221,7 @@ Item {
                 spacing: 14 * root.unit
                 MaterialIcon {
                     anchors.verticalCenter: parent.verticalCenter
-                    name: root.def ? root.def.icon : "widgets"
+                    name: root.multi && !root.multiSameKind ? "select_all" : (root.def ? root.def.icon : "widgets")
                     size: 34 * root.unit
                     color: Theme.accent
                 }
@@ -185,11 +231,27 @@ Item {
                     font.bold: true
                     font.pixelSize: 26 * root.unit
                     color: Theme.textPrimary
-                    text: root.def ? root.def.name + " の設定" : "ウィジェットの設定"
+                    // 同じ種類だけ(例: ターボ圧計 2 個)なら名前、ほかは個数だけ(名前の一覧は右に出す)
+                    text: root.multi ? (root.multiSummary.indexOf("、") < 0 && root.def ? root.def.name + " " + root.multiWids.length + " 個をまとめて設定"
+                                                                       : root.multiWids.length + " 個のウィジェットをまとめて設定")
+                                     : (root.def ? root.def.name + " の設定" : "ウィジェットの設定")
                 }
             }
-            // 一緒に変えるウィジェットを選ぶ
+            // まとめて設定: 選んだものの一覧
+            Text {
+                visible: root.multi
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                width: Math.min(implicitWidth, parent.width * 0.45)
+                horizontalAlignment: Text.AlignRight
+                elide: Text.ElideRight
+                font.family: Theme.fontFamily
+                font.pixelSize: 19 * root.unit
+                color: Theme.textSecondary
+                text: root.multiSummary
+            }
+            // 一緒に変えるウィジェットを選ぶ(まとめて設定のときは、もう選んであるので出さない)
             Row {
+                visible: !root.multi
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 spacing: 12 * root.unit
                 Text {
@@ -326,11 +388,41 @@ Item {
                 scale: root.contentScale
                 transformOrigin: Item.TopLeft
 
+                // まとめて設定の案内
+                Rectangle {
+                    visible: root.multi
+                    width: parent.width
+                    height: multiNote.implicitHeight + 24 * root.unit
+                    radius: Theme.radius
+                    color: Theme.mix(Theme.panel, Theme.accent, 0.1)
+                    border.color: Theme.mix(Theme.panelBorder, Theme.accent, 0.5)
+                    MaterialIcon {
+                        id: multiIcon
+                        anchors { left: parent.left; leftMargin: 14 * root.unit; top: parent.top; topMargin: 12 * root.unit }
+                        name: "info"
+                        size: 28 * root.unit
+                        color: Theme.accent
+                    }
+                    Text {
+                        id: multiNote
+                        anchors { left: multiIcon.right; leftMargin: 10 * root.unit; right: parent.right; rightMargin: 14 * root.unit
+                                  top: parent.top; topMargin: 12 * root.unit }
+                        wrapMode: Text.WordWrap
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 20 * root.unit
+                        color: Theme.textPrimary
+                        text: "ここで変えた項目が、選んだ " + root.multiWids.length + " 個すべてに入ります(表示しているのは 1 つめの今の設定)。"
+                              + (root.multiSameKind ? "範囲・単位・警告値・注意値・目盛り間隔とタイトル文字は、それぞれのままです。"
+                                                    : "種類の違うウィジェットが混ざっているので、共通の項目(枠・上部タイトル)だけを変えられます。")
+                    }
+                }
+                Item { visible: root.multi; width: 1; height: 10 * root.unit }
+
                 Loader {
                     id: settingsLoader
                     width: parent.width
                     visible: root.currentTab !== root.commonKey
-                    active: !root.shuttingDown
+                    active: !root.shuttingDown && (!root.multi || root.multiSameKind)
                     sourceComponent: root.def ? root.def.settings : null
                 }
                 Binding { target: settingsLoader.item; property: "config"; value: root.cfg; when: settingsLoader.item !== null }
@@ -370,6 +462,7 @@ Item {
                                 }
                             }
                             SettingsRow {
+                                visible: !root.multi   // タイトル文字は 1 つずつ
                                 label: "タイトル文字"
                                 description: "空欄ならウィジェット標準の名前を表示します"
                                 stacked: true
@@ -386,6 +479,7 @@ Item {
 
                             // ---- 共通: サイズ ----
                             SettingsRow {
+                                visible: !root.multi   // サイズは 1 つずつ(編集画面のマス数を見ながら)
                                 label: "サイズ(横)"
                                 description: "グリッドのマス数です。隣のウィジェットと重なる大きさにはできません"
                                 WSStepper {
@@ -398,6 +492,7 @@ Item {
                                 }
                             }
                             SettingsRow {
+                                visible: !root.multi
                                 label: "サイズ(縦)"
                                 WSStepper {
                                     value: root.size.h
@@ -444,7 +539,7 @@ Item {
                     font.pixelSize: 20 * root.unit
                     font.bold: true
                     color: Theme.textSecondary
-                    text: "プレビュー"
+                    text: root.multi ? "プレビュー(1 つめ)" : "プレビュー"
                 }
                 Text {
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
@@ -612,10 +707,25 @@ Item {
             }
             Row {
                 anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                // 削除は 2 回押し(1 回目で確認の文に変わる。3 秒で元に戻る)
                 ActionButton {
-                    text: "このウィジェットを削除"
+                    color: root.confirmDelete ? Theme.error : Theme.panel
+                    text: root.confirmDelete ? (root.multi ? "もう一度押すと " + root.multiWids.length + " 個を削除" : "もう一度押すと削除")
+                                             : (root.multi ? "選んだ " + root.multiWids.length + " 個を削除" : "このウィジェットを削除")
                     onClicked: {
-                        if (root.area) root.area.removeWidget(root.wid)
+                        if (!root.confirmDelete) {
+                            root.confirmDelete = true
+                            root.confirmAt = Date.now()
+                            deleteTimer.restart()
+                            return
+                        }
+                        if (Date.now() - root.confirmAt < 400) return   // 2 度押しの勢いで消さない
+                        deleteTimer.stop()
+                        root.confirmDelete = false
+                        if (root.area) {
+                            const list = root.multi ? root.multiWids : [root.wid]
+                            for (const w of list) root.area.removeWidget(w)
+                        }
                         root.close()
                     }
                 }

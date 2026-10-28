@@ -5,6 +5,12 @@
 //    動かしている間は押しのけた先へ仮に動かして見せ、離すと確定する)。押しのけられないときは、重ならない最寄りのマスへ寄せる
 // 外部(設定ダイアログ・追加パネル)からは、下の関数群(addWidget / removeWidget / setConfigValue /
 // resizeWidget / resetLayout / configOf)と settingsRequested シグナルを使う。
+//
+// 編集モード(editMode。初期画面・Android Auto 画面の「編集」で入る):
+//  - グリッドを常に出し、各ウィジェットに名前・大きさ(「3 x 2」)・設定と削除の丸いボタンを重ねる(WidgetHost)
+//  - ウィジェットの中身は操作できない。タップで選択/解除(selection)、ドラッグですぐ移動(長押しは要らない)
+//  - 選んだウィジェットをドラッグすると、選択中のものが並びを保ってまとめて動く(入らない・重なる場所には置けない)
+// 編集モードでないときの操作(ダブルタップで設定、長押しで移動)は今まで通り。
 import QtQuick
 import OpenCruise
 
@@ -23,6 +29,16 @@ Item {
     property bool animReady: false     // false の間は位置・大きさの変化をアニメーションしない(起動直後・リサイズ中)
     property string dragId: ""
     readonly property bool dragging: dragId !== ""
+    // ---- 編集モード・選択 ----
+    property bool editMode: false
+    property var selection: []          // 選んだウィジェットの ID
+    onEditModeChanged: if (!editMode) clearSelection()
+    // まとめて移動(選択中のものを動かしているとき): 動かしているもの以外は、動かしている量(groupOffset。px)だけずらして表示する
+    property var groupIds: []
+    property var groupStart: ({})       // 動かし始めたときの位置(wid → { col, row, w, h })
+    property var groupOffset: ({ x: 0, y: 0 })
+    property var groupPreview: []       // 離したときに入るマス(選択中のものすべて)
+    readonly property bool groupDragging: dragging && groupIds.length > 1
     property var preview: ({ col: 0, row: 0, w: 1, h: 1, ok: true })
     // ドラッグ中に押しのけたウィジェットの仮の位置(wid → { col, row })。WidgetHost がこちらを優先して表示する
     property var tempPos: ({})
@@ -173,13 +189,84 @@ Item {
         return "w" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36)
     }
 
+    // ---------------------------------------------------------------- 選択(編集モード)
+    function isSelected(wid) { return selection.indexOf(wid) >= 0 }
+    function toggleSelect(wid) {
+        selection = isSelected(wid) ? selection.filter(w => w !== wid) : selection.concat([wid])
+    }
+    function clearSelection() { if (selection.length > 0) selection = [] }
+    function selectAll() {
+        const list = []
+        for (let i = 0; i < layout.count; ++i) list.push(layout.get(i).wid)
+        selection = list
+    }
+    // 選んだウィジェットをまとめて消す
+    function removeSelected() {
+        const list = selection
+        selection = []
+        for (const wid of list) removeWidget(wid)
+    }
+
     // ---------------------------------------------------------------- ドラッグ(WidgetHost から呼ばれる)
     function dragBegin(wid) {
         const i = indexOfId(wid)
         if (i < 0) return
         const it = layout.get(i)
         preview = { col: it.col, row: it.row, w: it.w, h: it.h, ok: true }
+        // 編集モードで、選んだものを 2 つ以上選んでいて、その 1 つを動かしたときは、まとめて動かす
+        if (editMode && selection.length > 1 && isSelected(wid)) {
+            const start = {}
+            const ids = []
+            for (const s of selection) {
+                const j = indexOfId(s)
+                if (j < 0) continue
+                const o = layout.get(j)
+                start[s] = { col: o.col, row: o.row, w: o.w, h: o.h }
+                ids.push(s)
+            }
+            groupStart = start
+            groupIds = ids
+            groupOffset = { x: 0, y: 0 }
+            groupPreview = ids.map(s => Object.assign({ ok: true }, start[s]))
+        }
         dragId = wid
+    }
+
+    // ドラッグ中の位置(左上の px)を、エリアの中に収める。まとめて動かすときは、全体がエリアから出ないようにする
+    function clampDrag(wid, x, y, w, h) {
+        if (groupIds.length > 1 && dragId === wid && groupStart[wid]) {
+            const a = groupStart[wid]
+            let minC = 0, minR = 0, maxC = cols, maxR = rows
+            for (const s of groupIds) {
+                const g = groupStart[s]
+                minC = Math.max(minC, a.col - g.col)                  // 一番左のものが 0 より左へ出ない
+                minR = Math.max(minR, a.row - g.row)
+                maxC = Math.min(maxC, cols - (g.col + g.w - a.col))   // 一番右のものが右端から出ない
+                maxR = Math.min(maxR, rows - (g.row + g.h - a.row))
+            }
+            return { x: Math.max(minC * cellW + pad, Math.min(maxC * cellW + pad, x)),
+                     y: Math.max(minR * cellH + pad, Math.min(maxR * cellH + pad, y)) }
+        }
+        return { x: Math.max(0, Math.min(width - w, x)), y: Math.max(0, Math.min(height - h, y)) }
+    }
+
+    // まとめて動かすとき: 動かしているもののマスのずれ(dc, dr)を全員に足した配置が置けるか
+    function planGroup(dc, dr) {
+        const rects = []
+        let ok = true
+        for (const s of groupIds) {
+            const g = groupStart[s]
+            const rect = { col: g.col + dc, row: g.row + dr, w: g.w, h: g.h }
+            if (rect.col < 0 || rect.row < 0 || rect.col + rect.w > cols || rect.row + rect.h > rows
+                    || overlapsBlocked(rect.col, rect.row, rect.w, rect.h)) ok = false
+            for (let i = 0; i < layout.count && ok; ++i) {
+                const it = layout.get(i)
+                if (groupIds.indexOf(it.wid) >= 0) continue   // 一緒に動くもの同士は重ならない(並びを保つ)
+                if (rectsOverlap(rect, it)) ok = false
+            }
+            rects.push(rect)
+        }
+        return { ok: ok, rects: rects }
     }
 
     function dragUpdate(wid, x, y) {
@@ -187,6 +274,14 @@ Item {
         if (i < 0) return
         const it = layout.get(i)
         const c = Math.round((x - pad) / cellW), r = Math.round((y - pad) / cellH)
+        if (groupIds.length > 1) {
+            const a = groupStart[wid]
+            groupOffset = { x: x - (a.col * cellW + pad), y: y - (a.row * cellH + pad) }
+            const plan = planGroup(c - a.col, r - a.row)
+            groupPreview = plan.rects.map(rc => Object.assign({ ok: plan.ok }, rc))
+            preview = { col: c, row: r, w: it.w, h: it.h, ok: plan.ok }
+            return
+        }
         // まず押しのけを試し、だめなら重ならない最寄りのマスへ寄せる(従来どおり)
         const plan = planDrop(wid, c, r, it.w, it.h)
         if (plan.ok) {
@@ -203,6 +298,28 @@ Item {
     function dragEnd(wid) {
         const i = indexOfId(wid)
         let changed = false
+        if (groupIds.length > 1) {
+            // まとめて動かしたとき: 全員が置ければ確定、置けなければ元の位置へ戻す
+            const a = groupStart[wid]
+            const plan = a ? planGroup(preview.col - a.col, preview.row - a.row) : { ok: false }
+            if (a && plan.ok && (preview.col !== a.col || preview.row !== a.row)) {
+                for (let k = 0; k < groupIds.length; ++k) {
+                    const j = indexOfId(groupIds[k])
+                    if (j < 0) continue
+                    layout.setProperty(j, "col", plan.rects[k].col)
+                    layout.setProperty(j, "row", plan.rects[k].row)
+                }
+                changed = true
+            }
+            groupIds = []
+            groupStart = ({})
+            groupPreview = []
+            groupOffset = { x: 0, y: 0 }
+            tempPos = ({})
+            if (changed) saveLayout()
+            dragId = ""
+            return
+        }
         if (i >= 0 && preview.ok) {
             // 押しのけたウィジェットを確定する
             for (const other in tempPos) {
@@ -270,6 +387,7 @@ Item {
     }
     function finishRemove(wid) {
         const i = indexOfId(wid)
+        if (isSelected(wid)) selection = selection.filter(w => w !== wid)
         if (i >= 0) {
             layout.remove(i)
             unpark()          // 空きができたので、よけておいたウィジェットを戻せるか試す
@@ -486,7 +604,7 @@ Item {
         id: gridLayer
         anchors.fill: parent
         z: 0
-        opacity: widgetArea.dragging ? 1 : 0
+        opacity: widgetArea.dragging || widgetArea.editMode ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.InOutQuad } }
 
@@ -525,8 +643,26 @@ Item {
             border.color: Theme.panelBorder
         }
 
+        // まとめて動かしているとき: 離したときに入るマス(選択中のものすべて。置けないときは赤)
+        Repeater {
+            model: widgetArea.groupPreview
+            Rectangle {
+                required property var modelData
+                x: modelData.col * widgetArea.cellW + widgetArea.pad
+                y: modelData.row * widgetArea.cellH + widgetArea.pad
+                width: modelData.w * widgetArea.cellW - 2 * widgetArea.pad
+                height: modelData.h * widgetArea.cellH - 2 * widgetArea.pad
+                radius: Theme.radius + 6
+                color: modelData.ok ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
+                                    : Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.14)
+                border.width: 2
+                border.color: modelData.ok ? Theme.accent : Theme.error
+            }
+        }
+
         // 離したときに入るマス(スナップ先)
         Rectangle {
+            visible: !widgetArea.groupDragging && widgetArea.dragging
             x: widgetArea.preview.col * widgetArea.cellW + widgetArea.pad
             y: widgetArea.preview.row * widgetArea.cellH + widgetArea.pad
             width: widgetArea.preview.w * widgetArea.cellW - 2 * widgetArea.pad

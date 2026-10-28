@@ -20,6 +20,11 @@ Item {
     // 保存内容(ページ id → widgets の配列。null なら初期配置)
     property var store: ({})
     readonly property Item currentArea: rep.count > current ? rep.itemAt(current) : null
+    // 編集モード(全ページ共通)。選択はページごとで、ページを移ると外す
+    property bool editMode: false
+    onCurrentChanged: {
+        for (let i = 0; i < rep.count; ++i) { const a = rep.itemAt(i); if (a) a.clearSelection() }
+    }
 
     signal settingsRequested(Item area, string wid)
     signal pickerRequested()
@@ -190,6 +195,7 @@ Item {
                 height: root.height
                 pages: root
                 pageIndex: index
+                editMode: root.editMode
                 // 隠れているページは描画しない(切り替えのアニメーション中は、両隣も描く)
                 visible: index === root.current || (slideAnim.running && Math.abs(index - root.current) <= 1)
                 onSettingsRequested: (wid) => root.settingsRequested(pageArea, wid)

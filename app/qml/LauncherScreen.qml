@@ -21,8 +21,20 @@ Item {
         notifications.show(name, "この機能はモックです(未実装)", 0, "construction")
     }
 
-    // ウィジェットの追加パネルを開く(ナビバーのボタン、フルスクリーン中の下メニューから)
+    // ウィジェットの追加パネルを開く
     function openPicker() { picker.show() }
+    // ウィジェットの編集モード(ナビバーの「編集」で入る・出る。上に編集用のバーが出る)
+    readonly property bool editing: widgetPages.editMode
+    function setEditing(on) {
+        widgetPages.editMode = on
+        if (!on) settingsDialog.close()
+    }
+    // 選んだウィジェットの設定を開く(1 つなら普通の設定、2 つ以上ならまとめて設定)
+    function openSettingsFor(wids) {
+        settingsDialog.area = widgetPages.currentArea
+        if (wids.length > 1) settingsDialog.showMulti(wids)
+        else if (wids.length === 1) settingsDialog.show(wids[0])
+    }
 
     // ---- 下部: ナビバー(大型ボタン 6 つ。左端はホーム=この画面) ----
     Item {
@@ -35,17 +47,23 @@ Item {
         readonly property real cellW: (width - 5 * root.gap) / 6
 
         LauncherTile {
-            x: 0; width: bar.cellW; height: bar.height; unit: root.unit ; selected: true
+            x: 0; width: bar.cellW; height: bar.height; unit: root.unit ; selected: !root.editing
             icon: "home"; title: "ホーム"
-            onClicked: {}
+            onClicked: root.setEditing(false)
         }
         // Android Auto 画面へ(映像が出ている間だけ。出ていないときは薄く表示し、押すと理由を知らせる)
         LauncherTile {
             x: 1 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             icon: "mdi:android"; title: "Android Auto"
             dimmed: !root.aaAvailable
-            onClicked: root.aaAvailable ? root.openAndroidAuto()
-                                        : notifications.show("Android Auto", "スマートフォンが接続されていません", 0, "mdi:android")
+            onClicked: {
+                if (!root.aaAvailable) {
+                    notifications.show("Android Auto", "スマートフォンが接続されていません", 0, "mdi:android")
+                    return
+                }
+                root.setEditing(false)
+                root.openAndroidAuto()
+            }
         }
         LauncherTile {
             x: 2 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
@@ -54,8 +72,10 @@ Item {
         }
         LauncherTile {
             x: 3 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
-            icon: "widgets"; title: "ウィジェット"
-            onClicked: root.openPicker()
+            // ウィジェットの編集モードに入る・出る(編集中は上に編集用のバー。追加もそこから)
+            icon: "dashboard_customize"; title: root.editing ? "編集を終了" : "編集"
+            selected: root.editing
+            onClicked: root.setEditing(!root.editing)
         }
         LauncherTile {
             x: 4 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
@@ -65,7 +85,7 @@ Item {
         LauncherTile {
             x: 5 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             icon: "settings"; title: "設定"
-            onClicked: root.openSettings()
+            onClicked: { root.setEditing(false); root.openSettings() }
         }
     }
 
@@ -78,10 +98,25 @@ Item {
         }
         height: 52
 
+        // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
+        WidgetEditBar {
+            anchors.fill: parent
+            z: 2
+            opacity: root.editing ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            area: widgetPages.currentArea
+            pages: widgetPages
+            onAddRequested: root.openPicker()
+            onSettingsRequested: (wids) => root.openSettingsFor(wids)
+            onDoneRequested: root.setEditing(false)
+        }
+
         // Android Auto の接続状態(アイコン)
         ConnectionBadge {
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             size: parent.height
+            visible: !root.editing
         }
 
         // ウィジェットのページのタブ(画面の中央。右のボタンと同じ幅を左にも空けて、中央にそろえる)
@@ -90,6 +125,7 @@ Item {
                       leftMargin: rightButtons.width + Theme.margin; rightMargin: Theme.margin }
             height: parent.height - 4
             pages: widgetPages
+            visible: !root.editing
             onMenuRequested: (index) => pageMenu.show(index)
         }
 
@@ -98,6 +134,7 @@ Item {
             id: rightButtons
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 12
+            visible: !root.editing
             NotificationBell { }
             AlarmClearButton { }   // 鳴っている警告をまとめて解除(右端)
         }
