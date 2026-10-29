@@ -38,16 +38,15 @@ WidgetBase {
         spacing: 0
 
         // 本体の高さいっぱいを使う(横幅で決まる大きさを超える分は取らない)
-        Text {
+        NumberText {
             width: parent.width
             height: Math.min(body.height * (root.dateShown ? 0.72 : 0.95), parent.width * 0.48)
             horizontalAlignment: root.hAlign
             verticalAlignment: Text.AlignVCenter
-            font.family: Theme.numberFontFamily
-            font.bold: true
-            font.pixelSize: 200
+            bold: true
+            pixelSize: 200
             minimumPixelSize: 12
-            fontSizeMode: Text.Fit
+            fit: true
             text: clock.timeText
             color: Theme.textPrimary
         }

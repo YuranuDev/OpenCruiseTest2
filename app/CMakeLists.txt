@@ -163,6 +163,7 @@ qt_add_qml_module(opencruise
         qml/widgets/NowPlayingWidget.qml
         qml/widgets/NowPlayingSettings.qml
         qml/widgets/MarqueeText.qml
+        qml/NumberText.qml
         qml/widgets/NavigationWidget.qml
         qml/widgets/NavigationSettings.qml
     RESOURCES

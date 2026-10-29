@@ -382,14 +382,13 @@ WidgetBase {
                     color: pl.textColor
                 }
             }
-            Text {
+            NumberText {
                 anchors.horizontalCenter: parent.horizontalCenter
                 height: Math.round(pl.px * 1.2)
                 verticalAlignment: Text.AlignVCenter
-                font.family: Theme.numberFontFamily
-                font.bold: true
-                font.italic: Theme.numberItalic
-                font.pixelSize: Math.round(pl.px)
+                bold: true
+                italic: Theme.numberItalic
+                pixelSize: Math.round(pl.px)
                 color: root.zoneColorAt(root.peak, pl.textColor)
                 text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
             }
@@ -409,12 +408,11 @@ WidgetBase {
                 color: pl.textColor
                 text: root.peakMode === "min" ? "MIN" : "MAX"
             }
-            Text {
+            NumberText {
                 id: plValue
-                font.family: Theme.numberFontFamily
-                font.bold: true
-                font.italic: Theme.numberItalic
-                font.pixelSize: Math.round(pl.px)
+                bold: true
+                italic: Theme.numberItalic
+                pixelSize: Math.round(pl.px)
                 color: root.zoneColorAt(root.peak, pl.textColor)
                 text: isNaN(root.peak) ? "" : root.fmt(root.peak, root.decimals)
             }
@@ -1307,18 +1305,17 @@ WidgetBase {
                     px: Math.max(10, Math.round(dial.rpx * 0.085))
                     textColor: root.dialFgDim
                 }
-                Text {
+                NumberText {
                     id: dialValue
                     width: parent.width
                     height: (parent.height - dial.peakH * dial.rpx) * 0.7
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignBottom   // 単位との間を詰めるため、枠の下端に寄せる
-                    font.family: Theme.numberFontFamily
-                    font.bold: true
-                    font.italic: Theme.numberItalic   // 数値は全種類で太字(斜体は設定の「数値を斜体にする」)
-                    font.pixelSize: 300
+                    bold: true
+                    italic: Theme.numberItalic   // 数値は全種類で太字(斜体は設定の「数値を斜体にする」)
+                    pixelSize: 300
                     minimumPixelSize: 12
-                    fontSizeMode: Text.Fit
+                    fit: true
                     text: root.hasData ? root.fmt(root.shown, root.decimals) : "--"
                     color: root.dialValueColor
                 }
@@ -1406,18 +1403,17 @@ WidgetBase {
                     align: Text.AlignRight
                     px: Math.max(11, Math.min(valueBox.height * 0.13, 20))
                 }
-                Text {
+                NumberText {
                     id: valueText
                     anchors { left: parent.left; right: unitLabel.left; top: root.peakShown ? digitalPeak.bottom : parent.top
                               bottom: parent.bottom; rightMargin: 6 }
                     horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter
-                    font.family: Theme.numberFontFamily
-                    font.bold: true
-                    font.italic: Theme.numberItalic
-                    font.pixelSize: 300
+                    bold: true
+                    italic: Theme.numberItalic
+                    pixelSize: 300
                     minimumPixelSize: 14
-                    fontSizeMode: Text.Fit
+                    fit: true
                     text: root.hasData ? root.fmt(root.shown, root.decimals) : "--"
                     color: root.valueColor
                 }

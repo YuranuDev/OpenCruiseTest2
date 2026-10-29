@@ -95,16 +95,15 @@ SettingsPage {
         }
 
         // 数値の見本(メーターの値と同じ太字)
-        Text {
+        NumberText {
             width: parent.width
-            topPadding: 8 * Theme.uiScale
-            bottomPadding: 6 * Theme.uiScale
-            font.family: Theme.numberFontFamily
-            font.bold: true
-            font.italic: Theme.numberItalic
-            font.pixelSize: 34 * Theme.uiScale
+            height: Math.round(34 * Theme.uiScale * 1.6)   // 長いときは、幅に収まるまで小さくする(折り返さない)
+            bold: true
+            italic: Theme.numberItalic
+            pixelSize: Math.round(34 * Theme.uiScale)
+            minimumPixelSize: 10
+            fit: true
             color: Theme.textPrimary
-            wrapMode: Text.WordWrap
             text: "数値の見本: 0.50  88  3000  123.4  -1.0  12:34"
         }
     }

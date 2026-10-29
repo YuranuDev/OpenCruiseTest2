@@ -162,19 +162,18 @@ WidgetBase {
         Row {
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 4
-            Text {
+            NumberText {
                 id: valueText
-                font.family: Theme.numberFontFamily
-                font.bold: true
-                font.italic: Theme.numberItalic
-                font.pixelSize: Math.round(Math.max(18, Math.min(root.height * 0.16, 44)))
+                bold: true
+                italic: Theme.numberItalic
+                pixelSize: Math.round(Math.max(18, Math.min(root.height * 0.16, 44)))
                 color: root.inZone ? Theme.error : Theme.textPrimary
                 text: isNaN(root.current) || !root.hasData ? "--" : root.fmt(root.current, root.decimals)
             }
             Text {
                 anchors.baseline: valueText.baseline
                 font.family: Theme.fontFamily
-                font.pixelSize: Math.round(valueText.font.pixelSize * 0.45)
+                font.pixelSize: Math.round(valueText.effectivePixelSize * 0.45)
                 color: Theme.textSecondary
                 text: root.unitText
             }
@@ -197,16 +196,15 @@ WidgetBase {
                     anchors.baseline: statVal.baseline
                     font.family: Theme.fontFamily
                     font.bold: true
-                    font.pixelSize: Math.round(statVal.font.pixelSize * 0.7)
+                    font.pixelSize: Math.round(statVal.effectivePixelSize * 0.7)
                     color: Theme.textSecondary
                     text: modelData.k
                 }
-                Text {
+                NumberText {
                     id: statVal
-                    font.family: Theme.numberFontFamily
-                    font.bold: true
-                    font.italic: Theme.numberItalic
-                    font.pixelSize: Math.round(Math.max(12, Math.min(root.titleFontSize, 18)))
+                    bold: true
+                    italic: Theme.numberItalic
+                    pixelSize: Math.round(Math.max(12, Math.min(root.titleFontSize, 18)))
                     color: root.warnOn && !isNaN(modelData.v) && (root.warnBelow ? modelData.v <= root.warnV : modelData.v >= root.warnV)
                            ? Theme.error : Theme.textPrimary
                     text: isNaN(modelData.v) ? "--" : root.fmt(modelData.v, root.decimals)
