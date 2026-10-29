@@ -84,6 +84,21 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(QString nextNavigationRoad READ nextNavigationRoad NOTIFY navigationChanged)
     Q_PROPERTY(int nextNavigationManeuver READ nextNavigationManeuver NOTIFY navigationChanged)
     Q_PROPERTY(int nextNavigationSide READ nextNavigationSide NOTIFY navigationChanged)
+    /** 次の操作までの距離の単位(0=不明 1=m 2=km 3=km(小数1桁) 4=mile 5=mile(小数1桁) 6=ft 7=yd) */
+    Q_PROPERTY(int navigationDistanceUnit READ navigationDistanceUnit NOTIFY navigationChanged)
+    /** 次の操作までの秒数。不明なら -1 */
+    Q_PROPERTY(int navigationTimeToStepSeconds READ navigationTimeToStepSeconds NOTIFY navigationChanged)
+    /** 今走っている道路名。不明なら空 */
+    Q_PROPERTY(QString navigationCurrentRoad READ navigationCurrentRoad NOTIFY navigationChanged)
+    /** 次の操作がロータリーのときの出口番号と角度。無ければ 0 */
+    Q_PROPERTY(int navigationRoundaboutExitNumber READ navigationRoundaboutExitNumber NOTIFY navigationChanged)
+    Q_PROPERTY(int navigationRoundaboutExitAngle READ navigationRoundaboutExitAngle NOTIFY navigationChanged)
+    /** 次の操作の読み上げ用テキスト。無ければ空 */
+    Q_PROPERTY(QString navigationCue READ navigationCue NOTIFY navigationChanged)
+    /** 車線案内。[[{shape, highlighted}, ...], ...](外側が車線、内側がその車線の方向)。無ければ空 */
+    Q_PROPERTY(QVariantList navigationLanes READ navigationLanes NOTIFY navigationChanged)
+    /** 目的地(経由地を含む)。[{address, meters, distanceLabel, distanceUnit, eta, secondsToArrival}, ...]。無ければ空 */
+    Q_PROPERTY(QVariantList navigationDestinations READ navigationDestinations NOTIFY navigationChanged)
 
 public:
     /**
@@ -142,6 +157,14 @@ public:
     QString nextNavigationRoad() const { return nextNavigationRoad_; }
     int nextNavigationManeuver() const { return nextNavigationManeuver_; }
     int nextNavigationSide() const { return nextNavigationSide_; }
+    int navigationDistanceUnit() const { return navigationDistanceUnit_; }
+    int navigationTimeToStepSeconds() const { return navigationTimeToStepSeconds_; }
+    QString navigationCurrentRoad() const { return navigationCurrentRoad_; }
+    int navigationRoundaboutExitNumber() const { return navigationRoundaboutExitNumber_; }
+    int navigationRoundaboutExitAngle() const { return navigationRoundaboutExitAngle_; }
+    QString navigationCue() const { return navigationCue_; }
+    QVariantList navigationLanes() const { return navigationLanes_; }
+    QVariantList navigationDestinations() const { return navigationDestinations_; }
 
     /**
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
@@ -282,6 +305,14 @@ private:
     QString nextNavigationRoad_;
     int nextNavigationManeuver_ = 0;
     int nextNavigationSide_ = 0;
+    int navigationDistanceUnit_ = 0;
+    int navigationTimeToStepSeconds_ = -1;
+    QString navigationCurrentRoad_;
+    int navigationRoundaboutExitNumber_ = 0;
+    int navigationRoundaboutExitAngle_ = 0;
+    QString navigationCue_;
+    QVariantList navigationLanes_;
+    QVariantList navigationDestinations_;
     QString videoInfo_ = QStringLiteral("-");
     std::atomic<qulonglong> frameCount_{0};
     std::atomic<bool> decoderErrorReported_{false};

@@ -26,6 +26,47 @@ namespace opencruise {
 
 namespace {
 
+/// 秒数を int に収める(負は「不明」として -1)
+int clampSeconds(long long seconds) {
+    if (seconds < 0) return -1;
+    return seconds > 2147483647LL ? 2147483647 : static_cast<int>(seconds);
+}
+
+/// 車線案内を QML 向け([[{shape, highlighted}, ...], ...])へ変換する
+QVariantList lanesToVariant(const std::vector<aa::NavigationLaneInfo> &lanes) {
+    QVariantList result;
+    result.reserve(static_cast<int>(lanes.size()));
+    for (const auto &lane : lanes) {
+        QVariantList directions;
+        directions.reserve(static_cast<int>(lane.directions.size()));
+        for (const auto &direction : lane.directions) {
+            QVariantMap map;
+            map.insert(QStringLiteral("shape"), direction.shape);
+            map.insert(QStringLiteral("highlighted"), direction.highlighted);
+            directions.append(map);
+        }
+        result.append(QVariant(directions));
+    }
+    return result;
+}
+
+/// 目的地一覧を QML 向け([{address, meters, distanceLabel, distanceUnit, eta, secondsToArrival}, ...])へ変換する
+QVariantList destinationsToVariant(const std::vector<aa::NavigationDestinationInfo> &destinations) {
+    QVariantList result;
+    result.reserve(static_cast<int>(destinations.size()));
+    for (const auto &destination : destinations) {
+        QVariantMap map;
+        map.insert(QStringLiteral("address"), QString::fromStdString(destination.address));
+        map.insert(QStringLiteral("meters"), destination.distanceMeters);
+        map.insert(QStringLiteral("distanceLabel"), QString::fromStdString(destination.distanceLabel));
+        map.insert(QStringLiteral("distanceUnit"), destination.distanceUnit);
+        map.insert(QStringLiteral("eta"), QString::fromStdString(destination.eta));
+        map.insert(QStringLiteral("secondsToArrival"), clampSeconds(destination.secondsToArrival));
+        result.append(map);
+    }
+    return result;
+}
+
 /**
  * @brief 状態を QML 用のキー文字列へ変換する。
  */
@@ -325,7 +366,16 @@ void AndroidAutoController::start() {
         const int distance = navigation.distanceMeters;
         const QString distanceLabel = QString::fromStdString(navigation.distanceLabel);
         const bool active = navigation.status == 1;
-        QMetaObject::invokeMethod(this, [this, road, nextRoad, maneuver, side, nextManeuver, nextSide, distance, distanceLabel, active]() {
+        const int distanceUnit = navigation.distanceUnit;
+        const int timeToStep = clampSeconds(navigation.timeToStepSeconds);
+        const QString currentRoad = QString::fromStdString(navigation.currentRoad);
+        const int exitNumber = navigation.roundaboutExitNumber;
+        const int exitAngle = navigation.roundaboutExitAngle;
+        const QString cue = QString::fromStdString(navigation.cue);
+        const QVariantList lanes = lanesToVariant(navigation.lanes);
+        const QVariantList destinations = destinationsToVariant(navigation.destinations);
+        QMetaObject::invokeMethod(this, [this, road, nextRoad, maneuver, side, nextManeuver, nextSide, distance, distanceLabel, active,
+                                         distanceUnit, timeToStep, currentRoad, exitNumber, exitAngle, cue, lanes, destinations]() {
             navigationRoad_ = road;
             navigationManeuver_ = maneuver;
             navigationSide_ = side;
@@ -335,6 +385,14 @@ void AndroidAutoController::start() {
             navigationDistanceMeters_ = distance;
             navigationDistanceLabel_ = distanceLabel;
             navigationActive_ = active;
+            navigationDistanceUnit_ = distanceUnit;
+            navigationTimeToStepSeconds_ = timeToStep;
+            navigationCurrentRoad_ = currentRoad;
+            navigationRoundaboutExitNumber_ = exitNumber;
+            navigationRoundaboutExitAngle_ = exitAngle;
+            navigationCue_ = cue;
+            navigationLanes_ = lanes;
+            navigationDestinations_ = destinations;
             emit navigationChanged();
         }, Qt::QueuedConnection);
     };
@@ -702,6 +760,14 @@ void AndroidAutoController::applyState(int state, const QString &detail) {
         nextNavigationSide_ = 0;
         navigationDistanceMeters_ = -1;
         navigationDistanceLabel_.clear();
+        navigationDistanceUnit_ = 0;
+        navigationTimeToStepSeconds_ = -1;
+        navigationCurrentRoad_.clear();
+        navigationRoundaboutExitNumber_ = 0;
+        navigationRoundaboutExitAngle_ = 0;
+        navigationCue_.clear();
+        navigationLanes_.clear();
+        navigationDestinations_.clear();
         emit navigationChanged();
     }
 

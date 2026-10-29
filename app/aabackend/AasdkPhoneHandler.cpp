@@ -61,6 +61,46 @@ void normalizeManeuver(int type, int &maneuver, int &side) {
     else maneuver = 0;
 }
 
+/// 「次の操作」に紐づく詳細(ロータリー・車線・読み上げ文・所要時間)を消す
+void clearStepDetail(NavigationInfo &info) {
+    info.roundaboutExitNumber = 0;
+    info.roundaboutExitAngle = 0;
+    info.cue.clear();
+    info.lanes.clear();
+    info.timeToStepSeconds = -1;
+}
+
+/// 次の操作(steps[0])の詳細を NavigationInfo に写す
+void fillStepDetail(const proto::service::navigationstatus::message::NavigationStep &step, NavigationInfo &info) {
+    // 次の操作までの秒数は NavigationCurrentPosition で更新されるので、ここでは消さずに残す
+    const long long timeToStep = info.timeToStepSeconds;
+    clearStepDetail(info);
+    info.timeToStepSeconds = timeToStep;
+    if (step.has_maneuver()) {
+        const auto &maneuver = step.maneuver();
+        info.roundaboutExitNumber = maneuver.has_roundabout_exit_number() ? maneuver.roundabout_exit_number() : 0;
+        info.roundaboutExitAngle = maneuver.has_roundabout_exit_angle() ? maneuver.roundabout_exit_angle() : 0;
+    }
+    for (const auto &text : step.cue().alternate_text()) {
+        if (!text.empty()) {
+            info.cue = text;
+            break;
+        }
+    }
+    info.lanes.reserve(static_cast<std::size_t>(step.lanes_size()));
+    for (const auto &lane : step.lanes()) {
+        NavigationLaneInfo laneInfo;
+        laneInfo.directions.reserve(static_cast<std::size_t>(lane.lane_directions_size()));
+        for (const auto &direction : lane.lane_directions()) {
+            NavigationLaneDirectionInfo directionInfo;
+            directionInfo.shape = direction.has_shape() ? static_cast<int>(direction.shape()) : 0;
+            directionInfo.highlighted = direction.has_is_highlighted() && direction.is_highlighted();
+            laneInfo.directions.push_back(directionInfo);
+        }
+        info.lanes.push_back(std::move(laneInfo));
+    }
+}
+
 /// 送信完了を待つ Promise。失敗してもセッションは終了せず、ログに残すだけにする
 aasdk::channel::SendPromise::Pointer makeLoggingPromise(boost::asio::io_service::strand &strand,
                                                         const PhoneInfoCallbacks &callbacks, const char *tag,
@@ -303,12 +343,16 @@ void AasdkNavigationHandler::onStatusUpdate(const proto::service::navigationstat
     if (info_.status != 1) {
         info_.distanceMeters = -1;
         info_.distanceLabel.clear();
+        info_.distanceUnit = 0;
         info_.road.clear();
+        info_.currentRoad.clear();
         info_.nextRoad.clear();
         info_.maneuver = 0;
         info_.side = 0;
         info_.nextManeuver = 0;
         info_.nextSide = 0;
+        clearStepDetail(info_);
+        info_.destinations.clear();
     }
     publish();
     channel_->receive(shared_from_this());
@@ -321,9 +365,11 @@ void AasdkNavigationHandler::onTurnEvent(const proto::service::navigationstatus:
     info_.side = turn.has_turn_side() ? static_cast<int>(turn.turn_side()) : 0;
     info_.distanceMeters = -1;
     info_.distanceLabel.clear();
+    info_.distanceUnit = 0;
     info_.nextManeuver = 0;
     info_.nextSide = 0;
     info_.nextRoad.clear();
+    clearStepDetail(info_);
     publish();
     channel_->receive(shared_from_this());
 }
@@ -347,10 +393,12 @@ void AasdkNavigationHandler::onStateUpdate(const proto::service::navigationstatu
             info_.maneuver = 0;
             info_.side = 0;
         }
+        fillStepDetail(step, info_);
     } else {
         info_.road.clear();
         info_.maneuver = 0;
         info_.side = 0;
+        clearStepDetail(info_);
     }
     if (state.steps_size() > 1) {
         const auto &step = state.steps(1);
@@ -366,20 +414,75 @@ void AasdkNavigationHandler::onStateUpdate(const proto::service::navigationstatu
         info_.nextManeuver = 0;
         info_.nextSide = 0;
     }
+
+    // 目的地の住所。距離・時刻は NavigationCurrentPosition 側の値を、同じ並び順のまま残す
+    info_.destinations.resize(static_cast<std::size_t>(state.destinations_size()));
+    for (int i = 0; i < state.destinations_size(); ++i) {
+        const auto &destination = state.destinations(i);
+        info_.destinations[static_cast<std::size_t>(i)].address =
+            destination.has_address() ? destination.address() : std::string();
+    }
     publish();
     channel_->receive(shared_from_this());
 }
 
 void AasdkNavigationHandler::onCurrentPosition(
     const proto::service::navigationstatus::message::NavigationCurrentPosition &position) {
-    if (position.has_step_distance() && position.step_distance().has_distance()) {
-        const auto &distance = position.step_distance().distance();
-        info_.distanceMeters = distance.has_meters() ? distance.meters() : -1;
-        info_.distanceLabel = distance.has_display_value() ? distance.display_value() : std::string();
+    // 次の操作までの距離と時間
+    if (position.has_step_distance()) {
+        const auto &stepDistance = position.step_distance();
+        info_.timeToStepSeconds = stepDistance.has_time_to_step_seconds() ? stepDistance.time_to_step_seconds() : -1;
+        if (stepDistance.has_distance()) {
+            const auto &distance = stepDistance.distance();
+            info_.distanceMeters = distance.has_meters() ? distance.meters() : -1;
+            info_.distanceLabel = distance.has_display_value() ? distance.display_value() : std::string();
+            info_.distanceUnit = distance.has_display_units() ? static_cast<int>(distance.display_units()) : 0;
+        } else {
+            info_.distanceMeters = -1;
+            info_.distanceLabel.clear();
+            info_.distanceUnit = 0;
+        }
     } else {
         info_.distanceMeters = -1;
         info_.distanceLabel.clear();
+        info_.distanceUnit = 0;
+        info_.timeToStepSeconds = -1;
     }
+
+    // 目的地ごとの残り距離・到着予定時刻・到着までの秒数(住所は NavigationState で入れた並び順に合わせる)
+    const auto count = static_cast<std::size_t>(position.destination_distances_size());
+    if (info_.destinations.size() < count) info_.destinations.resize(count);
+    else if (info_.destinations.size() > count) {
+        // 距離が届かない目的地は、古い値を残さない(住所だけ残す)
+        for (std::size_t i = count; i < info_.destinations.size(); ++i) {
+            auto &d = info_.destinations[i];
+            d.distanceMeters = -1;
+            d.distanceLabel.clear();
+            d.distanceUnit = 0;
+            d.eta.clear();
+            d.secondsToArrival = -1;
+        }
+    }
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto &source = position.destination_distances(static_cast<int>(i));
+        auto &d = info_.destinations[i];
+        if (source.has_distance()) {
+            const auto &distance = source.distance();
+            d.distanceMeters = distance.has_meters() ? distance.meters() : -1;
+            d.distanceLabel = distance.has_display_value() ? distance.display_value() : std::string();
+            d.distanceUnit = distance.has_display_units() ? static_cast<int>(distance.display_units()) : 0;
+        } else {
+            d.distanceMeters = -1;
+            d.distanceLabel.clear();
+            d.distanceUnit = 0;
+        }
+        d.eta = source.has_estimated_time_at_arrival() ? source.estimated_time_at_arrival() : std::string();
+        d.secondsToArrival = source.has_time_to_arrival_seconds() ? source.time_to_arrival_seconds() : -1;
+    }
+
+    // 現在走っている道路
+    info_.currentRoad = position.has_current_road() && position.current_road().has_name()
+                            ? position.current_road().name() : std::string();
     publish();
     channel_->receive(shared_from_this());
 }
