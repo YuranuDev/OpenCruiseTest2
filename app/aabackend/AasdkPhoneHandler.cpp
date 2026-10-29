@@ -344,6 +344,7 @@ void AasdkNavigationHandler::onChannelOpenRequest(const proto::service::control:
 void AasdkNavigationHandler::onStatusUpdate(const proto::service::navigationstatus::message::NavigationStatus &status) {
     info_.status = static_cast<int>(status.status());
     if (info_.status != 1) {
+        stateReceived_ = false;
         info_.distanceMeters = -1;
         info_.distanceLabel.clear();
         info_.distanceUnit = 0;
@@ -362,6 +363,13 @@ void AasdkNavigationHandler::onStatusUpdate(const proto::service::navigationstat
 }
 
 void AasdkNavigationHandler::onTurnEvent(const proto::service::navigationstatus::message::NavigationNextTurnEvent &turn) {
+    // 旧形式(deprecated)の通知は「その次」・車線・案内文を持たない。NavigationState が届いている間は
+    // そちらが正なので、ここで上書きして「その次」などを消さない(スマホが両方を送る場合の対策)
+    if (stateReceived_) {
+        log("[navigation] turn event ignored (NavigationState is in use)");
+        channel_->receive(shared_from_this());
+        return;
+    }
     info_.status = 1;
     info_.road = turn.road();
     info_.maneuver = turn.has_event() ? static_cast<int>(turn.event()) : 0;
@@ -373,8 +381,7 @@ void AasdkNavigationHandler::onTurnEvent(const proto::service::navigationstatus:
     info_.nextSide = 0;
     info_.nextRoad.clear();
     clearStepDetail(info_);
-    // この形式の通知は「その次」を持たないので、直前の NavigationState 由来の値はここで消える(切り分け用のログ)
-    log("[navigation] turn event received: next step info cleared");
+    log("[navigation] turn event received (no NavigationState yet): next step info cleared");
     publish();
     channel_->receive(shared_from_this());
 }
@@ -389,6 +396,7 @@ void AasdkNavigationHandler::onDistanceEvent(const proto::service::navigationsta
 
 void AasdkNavigationHandler::onStateUpdate(const proto::service::navigationstatus::message::NavigationState &state) {
     info_.status = state.steps_size() > 0 ? 1 : 2;
+    stateReceived_ = state.steps_size() > 0;
     if (state.steps_size() > 0) {
         const auto &step = state.steps(0);
         info_.road = step.has_road() && step.road().has_name() ? step.road().name() : std::string();
