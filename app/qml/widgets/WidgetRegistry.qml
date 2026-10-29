@@ -262,11 +262,11 @@ QtObject {
         },
         {
             type: "navigation", genre: "androidauto", name: "ナビ案内", icon: "navigation",
-            description: "Android Auto の次の曲がり角までの距離・方向・道路名と、その次の案内",
+            description: "Android Auto の次の曲がり角までの距離・方向・道路名、車線案内、ロータリーの出口、その次の案内、到着予定時刻・残り距離",
             component: navigationComp, settings: navigationSettings,
             defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 4 },
             defaultConfig: { frame: "card", layout: "standard", distanceUnit: "auto",
-                             showRoad: true, showNext: true, nearHighlight: 100,
+                             showRoad: true, showNext: true, showLanes: true, showTrip: true, nearHighlight: 100,
                              mockEnabled: false, mockScenario: 0, mockAuto: true, mockDistance: 300 },
             dragStart: "hold", mock: true
         },

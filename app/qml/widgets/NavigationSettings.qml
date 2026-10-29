@@ -7,7 +7,7 @@ WidgetSettingsBase {
 
     SettingsRow {
         label: "レイアウト"
-        description: "コンパクトは「その次」を出さず、主案内だけを大きく表示します"
+        description: "コンパクトは「その次」・車線案内・到着情報を出さず、主案内だけを大きく表示します"
         SettingsChoice {
             model: ["標準", "コンパクト"]
             currentIndex: root.config.layout === "compact" ? 1 : 0
@@ -25,7 +25,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "道路名を表示"
-        description: "オフ、または道路名が無いときは「右折」などの方向名を表示します"
+        description: "道路名が無いときは、スマホの案内文があればそれを、無ければ「右折」などの方向名を表示します。オフにすると方向名だけを表示します"
         SettingsSwitch {
             checked: root.config.showRoad !== false
             onToggled: (v) => root.edit("showRoad", v)
@@ -37,6 +37,24 @@ WidgetSettingsBase {
         SettingsSwitch {
             checked: root.config.showNext !== false
             onToggled: (v) => root.edit("showNext", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.layout !== "compact"
+        label: "車線案内を表示"
+        description: "進むべき車線を強調して、案内カードの下に出します(スマホが車線情報を送ってきたときだけ)"
+        SettingsSwitch {
+            checked: root.config.showLanes !== false
+            onToggled: (v) => root.edit("showLanes", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.layout !== "compact"
+        label: "到着情報を表示"
+        description: "最終目的地の到着予定時刻・残り距離・所要時間と、今走っている道路名を、いちばん下に出します"
+        SettingsSwitch {
+            checked: root.config.showTrip !== false
+            onToggled: (v) => root.edit("showTrip", v)
         }
     }
     SettingsRow {
@@ -62,7 +80,7 @@ WidgetSettingsBase {
     SettingsRow {
         visible: root.config.mockEnabled === true
         label: "モックの内容"
-        description: "右折(道路名あり)/ 出口(長い距離・km 表示)/ ロータリー(道路名なし)/ 目的地(「その次」なし)"
+        description: "右折(道路名・車線案内あり)/ 出口(長い距離・km 表示)/ ロータリー(出口の番号あり・道路名なし)/ 目的地(「その次」なし)"
         SettingsChoice {
             model: ["右折", "出口", "ロータリー", "目的地"]
             currentIndex: root.config.mockScenario === undefined ? 0 : root.config.mockScenario
@@ -91,6 +109,6 @@ WidgetSettingsBase {
         }
     }
     SettingsNote {
-        text: "「その次」は Android Auto が送る 2 件目のステップ(方向・道路名)です。2 件目までの距離はプロトコルから提供されないため表示しません。"
+        text: "「その次」は Android Auto が送る 2 件目のステップ(方向・道路名)です。2 件目までの距離はプロトコルから提供されないため表示しません。車線案内・ロータリーの出口番号・到着情報は、スマホ側のナビが送ってきた分だけ表示します(送られない場合は出ません)。縦の余裕が足りないときは、到着情報 → 車線案内 → 「その次」の順に優先して表示します。"
     }
 }
