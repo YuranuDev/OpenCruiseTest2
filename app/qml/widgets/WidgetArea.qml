@@ -29,6 +29,10 @@ Item {
     property bool animReady: false     // false の間は位置・大きさの変化をアニメーションしない(起動直後・リサイズ中)
     property string dragId: ""
     readonly property bool dragging: dragId !== ""
+    // 右下のつまみでサイズを変えている間のウィジェット(編集モード)
+    property string resizeId: ""
+    readonly property bool resizing: resizeId !== ""
+    property var resizeStart: ({ w: 0, h: 0 })
     // ---- 編集モード・選択 ----
     property bool editMode: false
     property var selection: []          // 選んだウィジェットの ID
@@ -437,6 +441,52 @@ Item {
         }
         parked = rest
         return any
+    }
+
+    // ---- つまみ(右下)でのサイズ変更。WidgetHost から呼ばれる ----
+    // 左上のマスは動かさず、右下の角だけを動かす。指の位置はマスに丸めて、そのつど大きさに反映する
+    // (保存は離したとき)。最小・最大サイズの範囲で、隣のウィジェットや使えないマスに重なる分は広げない
+    function resizeBegin(wid) {
+        const i = indexOfId(wid)
+        if (i < 0) return
+        const it = layout.get(i)
+        resizeStart = { w: it.w, h: it.h }
+        resizeId = wid
+    }
+    // cornerX / cornerY: ウィジェットの右下の角にしたい位置(この配置エリアの中の px)
+    function resizeUpdate(wid, cornerX, cornerY) {
+        if (resizeId !== wid) return
+        const i = indexOfId(wid)
+        if (i < 0) return
+        const it = layout.get(i)
+        const def = WidgetRegistry.find(it.wtype)
+        if (!def) return
+        const minW = def.minSize.w, minH = def.minSize.h
+        const maxW = Math.max(minW, Math.min(def.maxSize.w, cols - it.col))
+        const maxH = Math.max(minH, Math.min(def.maxSize.h, rows - it.row))
+        // 角の位置(右端 = cellW * (col + w) - pad)から、ほしいマス数を出す
+        const wantW = Math.max(minW, Math.min(maxW, Math.round((cornerX + pad) / cellW) - it.col))
+        const wantH = Math.max(minH, Math.min(maxH, Math.round((cornerY + pad) / cellH) - it.row))
+        // ほしい大きさに一番近い、重ならない大きさを選ぶ
+        let bestW = it.w, bestH = it.h, bestD = 1e9
+        for (let ww = minW; ww <= maxW; ++ww) {
+            for (let hh = minH; hh <= maxH; ++hh) {
+                const d = (ww - wantW) * (ww - wantW) + (hh - wantH) * (hh - wantH)
+                if (d >= bestD) continue
+                if (overlaps(it.col, it.row, ww, hh, wid)) continue
+                bestD = d; bestW = ww; bestH = hh
+            }
+        }
+        if (bestW !== it.w) layout.setProperty(i, "w", bestW)
+        if (bestH !== it.h) layout.setProperty(i, "h", bestH)
+    }
+    function resizeEnd(wid) {
+        if (resizeId !== wid) return
+        resizeId = ""
+        const i = indexOfId(wid)
+        if (i < 0) return
+        const it = layout.get(i)
+        if (it.w !== resizeStart.w || it.h !== resizeStart.h) saveLayout()
     }
 
     // サイズ(マス数)を変える。隣のウィジェットと重なる・範囲外になる場合は、できる範囲(重ならない最大)に収める。変えられたら true

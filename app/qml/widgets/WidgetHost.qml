@@ -6,7 +6,9 @@
 // 持ち上がる。移動中は WidgetArea が配置エリアを表示し、離すと最寄りの空きマスへスナップする。
 //
 // 編集モード(area.editMode)のとき: 中身の操作は受けず、上に編集用の表示(editLayer)を重ねる。
-//  - 名前(左下)と大きさ「3 x 2」(右下)、設定(左上)と削除(右上)の丸いボタン
+//  - 名前(左下)と大きさ「3 x 2」(右下のつまみの左)、設定(左上)と削除(右上)の丸いボタン
+//  - 右下のつまみをつかんで動かすと、マス単位で大きさを変える(最小・最大サイズの範囲で、隣のウィジェットには重ならない。
+//    離したときに保存)。つまんでいる間は、ほかのボタンを隠す
 //  - タップで選択/解除、少し動かすとすぐドラッグ(選択中の 1 つなら、選択中のものをまとめて動かす)
 //  - 押し間違えを防ぐため: 2 つのボタンは反対の角に離して置き、ドラッグ中は出さない。
 //    削除は 2 回押し(1 回目で赤い「削除」に広がり、0.4〜3 秒の間にもう一度押すと消す。押さなければ元に戻る)
@@ -276,7 +278,7 @@ Item {
                 visible: editLayer.roomForLabels
                 anchors { left: parent.left; bottom: parent.bottom; margins: editLayer.inset }
                 height: editLayer.labelH
-                width: Math.min(nameRow.implicitWidth + height * 0.7, parent.width - sizeTag.width - 3 * editLayer.inset)
+                width: Math.min(nameRow.implicitWidth + height * 0.7, parent.width - sizeTag.width - resizeHandle.width - 4 * editLayer.inset)
                 radius: height / 2
                 color: host.selected ? Theme.accent : Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, 0.92)
                 border.color: host.selected ? Theme.accent : Theme.panelBorder
@@ -306,19 +308,19 @@ Item {
             Rectangle {
                 id: sizeTag
                 visible: editLayer.roomForLabels
-                anchors { right: parent.right; bottom: parent.bottom; margins: editLayer.inset }
+                anchors { right: resizeHandle.left; bottom: parent.bottom; margins: editLayer.inset }
                 height: editLayer.labelH
                 width: sizeText.implicitWidth + height * 0.7
                 radius: height / 2
-                color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, 0.92)
-                border.color: Theme.panelBorder
+                color: host.area.resizeId === host.wid ? Theme.accent : Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, 0.92)
+                border.color: host.area.resizeId === host.wid ? Theme.accent : Theme.panelBorder
                 Text {
                     id: sizeText
                     anchors.centerIn: parent
                     font.family: Theme.numberFontFamily
                     font.pixelSize: Math.round(sizeTag.height * 0.62)
                     font.bold: true
-                    color: Theme.textPrimary
+                    color: host.area.resizeId === host.wid ? Theme.textOnAccent : Theme.textPrimary
                     text: host.w + " x " + host.h
                 }
             }
@@ -326,7 +328,7 @@ Item {
             // 設定(左上)。設定画面の無いウィジェットには出さない
             Rectangle {
                 id: settingsBtn
-                visible: host.def && host.def.settings && !host.lifting && !host.area.dragging
+                visible: host.def && host.def.settings && !host.lifting && !host.area.dragging && !host.area.resizing
                 anchors { left: parent.left; top: parent.top; margins: editLayer.inset }
                 width: editLayer.btn
                 height: width
@@ -351,7 +353,7 @@ Item {
             // 削除(右上)。2 回押しで消す(1 回目は赤い「削除」に広がる)
             Rectangle {
                 id: deleteBtn
-                visible: !host.lifting && !host.area.dragging
+                visible: !host.lifting && !host.area.dragging && !host.area.resizing
                 anchors { right: parent.right; top: parent.top; margins: editLayer.inset }
                 height: editLayer.btn
                 width: editLayer.confirmDelete ? Math.min(parent.width - 2 * editLayer.inset, deleteRow.implicitWidth + height * 0.8) : height
@@ -397,6 +399,76 @@ Item {
                             confirmTimer.restart()
                         }
                     }
+                }
+            }
+
+            // サイズ変更のつまみ(右下)。つかんで動かすと、マス単位で大きさが変わる
+            Rectangle {
+                id: resizeHandle
+                // サイズを変えられない(最小 = 最大)ウィジェットには出さない
+                visible: host.def && (host.def.maxSize.w > host.def.minSize.w || host.def.maxSize.h > host.def.minSize.h)
+                         && !host.lifting && !host.area.dragging
+                         && (!host.area.resizing || host.area.resizeId === host.wid)
+                anchors { right: parent.right; bottom: parent.bottom; margins: editLayer.inset }
+                // 低いウィジェットでも、右上の削除ボタンと重ならない大きさ
+                width: Math.max(26, 30 * editLayer.u)
+                height: width
+                radius: width * 0.3
+                readonly property bool grabbed: host.area.resizeId === host.wid
+                color: grabbed ? Theme.accent : Theme.mix(Theme.panel, Theme.accent, handleMouse.pressed ? 0.45 : 0.12)
+                border.width: 2
+                border.color: Theme.accent
+                scale: grabbed || handleMouse.pressed ? 1.08 : 1
+                Behavior on scale { NumberAnimation { duration: 120 } }
+
+                // 右下向きの斜めの線 3 本(つかめることを示す)
+                Canvas {
+                    id: grip
+                    anchors.centerIn: parent
+                    width: Math.round(parent.width * 0.5)
+                    height: width
+                    property color stroke: resizeHandle.grabbed ? Theme.textOnAccent : Theme.accent
+                    onStrokeChanged: requestPaint()
+                    onWidthChanged: requestPaint()
+                    onPaint: {
+                        const c = getContext("2d")
+                        c.clearRect(0, 0, width, height)
+                        c.strokeStyle = stroke
+                        c.lineWidth = Math.max(2, width * 0.14)
+                        c.lineCap = "round"
+                        for (let k = 0; k < 3; ++k) {
+                            const o = width * (0.28 + 0.31 * k)
+                            c.beginPath()
+                            c.moveTo(width - 1, o)
+                            c.lineTo(o, height - 1)
+                            c.stroke()
+                        }
+                    }
+                }
+
+                // つかみやすいように、見た目より少し外側まで受ける(上の削除ボタンには重ならない範囲)
+                MouseArea {
+                    id: handleMouse
+                    anchors.fill: parent
+                    anchors.margins: -Math.round(4 * editLayer.u)
+                    preventStealing: true
+                    property real offX: 0   // 押したとき、指から右下の角までのずれ(つかんだ位置で大きさが飛ばないように)
+                    property real offY: 0
+                    function pointer(mouse) { return handleMouse.mapToItem(host.area, mouse.x, mouse.y) }
+                    onPressed: (mouse) => {
+                        editLayer.confirmDelete = false
+                        const p = pointer(mouse)
+                        offX = (host.x + host.width) - p.x
+                        offY = (host.y + host.height) - p.y
+                        host.area.resizeBegin(host.wid)
+                    }
+                    onPositionChanged: (mouse) => {
+                        if (!pressed) return
+                        const p = pointer(mouse)
+                        host.area.resizeUpdate(host.wid, p.x + offX, p.y + offY)
+                    }
+                    onReleased: host.area.resizeEnd(host.wid)
+                    onCanceled: host.area.resizeEnd(host.wid)
                 }
             }
         }
