@@ -55,7 +55,10 @@ void normalizeManeuver(int type, int &maneuver, int &side) {
     else if (type == Maneuver::FORK_LEFT || type == Maneuver::FORK_RIGHT) maneuver = 9;
     else if (type >= Maneuver::MERGE_LEFT && type <= Maneuver::MERGE_SIDE_UNSPECIFIED) maneuver = 10;
     else if (type >= Maneuver::ROUNDABOUT_ENTER && type <= Maneuver::ROUNDABOUT_ENTER_AND_EXIT_CCW_WITH_ANGLE) maneuver = 11;
-    else if (type == Maneuver::STRAIGHT) maneuver = 14;
+    // 左(右)寄りを維持: 方向は上の switch で決まっている。分岐(9)と同じ表示にする
+    else if (type == Maneuver::KEEP_LEFT || type == Maneuver::KEEP_RIGHT) maneuver = 9;
+    // 出発・道路名の変更は曲がらない案内なので直進(14)として扱う。0 にすると「その次」が丸ごと消える
+    else if (type == Maneuver::STRAIGHT || type == Maneuver::DEPART || type == Maneuver::NAME_CHANGE) maneuver = 14;
     else if (type == Maneuver::DESTINATION || type == Maneuver::DESTINATION_STRAIGHT ||
              type == Maneuver::DESTINATION_LEFT || type == Maneuver::DESTINATION_RIGHT) maneuver = 19;
     else maneuver = 0;
@@ -370,6 +373,8 @@ void AasdkNavigationHandler::onTurnEvent(const proto::service::navigationstatus:
     info_.nextSide = 0;
     info_.nextRoad.clear();
     clearStepDetail(info_);
+    // この形式の通知は「その次」を持たないので、直前の NavigationState 由来の値はここで消える(切り分け用のログ)
+    log("[navigation] turn event received: next step info cleared");
     publish();
     channel_->receive(shared_from_this());
 }
@@ -414,6 +419,12 @@ void AasdkNavigationHandler::onStateUpdate(const proto::service::navigationstatu
         info_.nextManeuver = 0;
         info_.nextSide = 0;
     }
+    // 「その次」が出ないときの切り分け用: 届いた steps の数と、2 件目の元の種類・変換後の値
+    log("[navigation] state: steps=" + std::to_string(state.steps_size()) + " next=" + std::to_string(info_.nextManeuver) +
+        "/" + std::to_string(info_.nextSide) +
+        (state.steps_size() > 1 && state.steps(1).has_maneuver() && state.steps(1).maneuver().has_type()
+             ? " rawType=" + std::to_string(static_cast<int>(state.steps(1).maneuver().type()))
+             : std::string()));
 
     // 目的地の住所。距離・時刻は NavigationCurrentPosition 側の値を、同じ並び順のまま残す
     info_.destinations.resize(static_cast<std::size_t>(state.destinations_size()));
