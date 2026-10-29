@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include <QColor>
 #include <QDateTime>
 #include <QDebug>
 #include <QImage>
@@ -79,6 +80,8 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
         fullscreenOnStream_ = store.value(QStringLiteral("ui/fullscreenOnStream"), false).toBool();
         themeMode_ = qBound(0, store.value(QStringLiteral("ui/themeMode"), 2).toInt(), 2);
         accentIndex_ = qMax(0, store.value(QStringLiteral("ui/accentIndex"), 0).toInt());
+        const QColor custom(store.value(QStringLiteral("ui/accentCustom")).toString());
+        accentCustom_ = custom.isValid() ? custom.name() : QString();
         aaFollowsTheme_ = store.value(QStringLiteral("ui/aaFollowsTheme"), true).toBool();
         mockVehicleData_ = store.value(QStringLiteral("mock/vehicleData"), false).toBool();
     }
@@ -86,6 +89,9 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
     themeTimer_.setInterval(60 * 1000);
     connect(&themeTimer_, &QTimer::timeout, this, [this]() { updateNight(); });
     themeTimer_.start();
+    accentSaveTimer_.setSingleShot(true);
+    accentSaveTimer_.setInterval(500);
+    connect(&accentSaveTimer_, &QTimer::timeout, this, [this]() { saveAccentCustom(); });
     vehicleTimer_.setInterval(500);
     connect(&vehicleTimer_, &QTimer::timeout, this, [this]() { pushVehicleData(); });
     vehicleTimer_.start();
@@ -122,6 +128,10 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
  * @brief 停止してから破棄する。
  */
 AndroidAutoController::~AndroidAutoController() {
+    if (accentSaveTimer_.isActive()) {
+        accentSaveTimer_.stop();
+        saveAccentCustom();
+    }
     // 描画アイテムが先に破棄されていなければ、this を指すタッチの送り先を外しておく
     VideoSurfaceItem *surface = nullptr;
     {
@@ -497,6 +507,37 @@ void AndroidAutoController::setAccentIndex(int index) {
     QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
         .setValue(QStringLiteral("ui/accentIndex"), accentIndex_);
     emit themeChanged();
+}
+
+/**
+ * @brief 自由に決めたアクセント色を変更する。空なら解除(プリセットに戻す)。
+ *        色をなぞっている間は何度も呼ばれるので、反映はすぐ、保存は止まって少し経ってから行う。
+ */
+void AndroidAutoController::setAccentCustom(const QString &color) {
+    QString value;
+    if (!color.trimmed().isEmpty()) {
+        const QColor parsed(color.trimmed());
+        if (!parsed.isValid()) {
+            return;
+        }
+        value = parsed.name();   // "#rrggbb"(小文字)にそろえる
+    }
+    if (value == accentCustom_) {
+        return;
+    }
+    accentCustom_ = value;
+    emit themeChanged();
+    accentSaveTimer_.start();
+}
+
+void AndroidAutoController::saveAccentCustom() {
+    QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                    QStringLiteral("OpenCruise"));
+    if (accentCustom_.isEmpty()) {
+        store.remove(QStringLiteral("ui/accentCustom"));
+    } else {
+        store.setValue(QStringLiteral("ui/accentCustom"), accentCustom_);
+    }
 }
 
 /**

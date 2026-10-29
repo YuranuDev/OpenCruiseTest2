@@ -6,6 +6,10 @@ Item {
     id: root
     property var options: []
     property string selectedValue: ""
+    // true なら、選択中の色にチェックマークも出す(色だけに頼らない)
+    property bool showCheck: false
+    // 見本の丸の直径(基準値。uiScale を掛ける)
+    property real swatchSize: 52
     signal picked(string value)
 
     readonly property real unit: Theme.uiScale
@@ -22,13 +26,13 @@ Item {
 
             delegate: Item {
                 required property var modelData
-                width: 68 * root.unit
-                height: 78 * root.unit
+                width: (root.swatchSize + 16) * root.unit
+                height: (root.swatchSize + 26) * root.unit
 
                 Rectangle {
                     id: swatch
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: 52 * root.unit
+                    width: root.swatchSize * root.unit
                     height: width
                     radius: width / 2
                     // swatch があれば見本にその色を使う(「針と同じ」など、値が色そのものでない選択肢)
@@ -38,6 +42,13 @@ Item {
                     border.width: root.selectedValue === modelData.value ? 3 * root.unit : 1
                     border.color: root.selectedValue === modelData.value ? Theme.textPrimary : Theme.panelBorder
 
+                    MaterialIcon {
+                        visible: root.showCheck && root.selectedValue === modelData.value
+                        anchors.centerIn: parent
+                        name: "check"
+                        size: Math.round(parent.width * 0.6)
+                        color: "#0d1015"
+                    }
                     MouseArea {
                         anchors.fill: parent
                         onClicked: root.picked(modelData.value)

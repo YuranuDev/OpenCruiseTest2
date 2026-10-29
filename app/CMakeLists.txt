@@ -97,6 +97,8 @@ qt_add_qml_module(opencruise
         qml/SettingsPagePower.qml
         qml/SettingsPageAudio.qml
         qml/SettingsSlider.qml
+        qml/SettingsColorBar.qml
+        qml/SettingsColorPicker.qml
         qml/SettingsDeviceList.qml
         qml/SettingsPageAndroidAuto.qml
         qml/SettingsPageNotifications.qml

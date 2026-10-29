@@ -63,6 +63,8 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(bool nightActive READ nightActive NOTIFY themeChanged)
     /** アクセント色のプリセット番号（色の実体は QML の Theme が持つ） */
     Q_PROPERTY(int accentIndex READ accentIndex WRITE setAccentIndex NOTIFY themeChanged)
+    /** 自由に決めたアクセント色("#rrggbb")。空なら使わず、accentIndex のプリセットを使う */
+    Q_PROPERTY(QString accentCustom READ accentCustom WRITE setAccentCustom NOTIFY themeChanged)
     /** Android Auto の昼夜モードをアプリのテーマに連動させるか（OFF なら常に昼） */
     Q_PROPERTY(bool aaFollowsTheme READ aaFollowsTheme WRITE setAaFollowsTheme NOTIFY themeChanged)
     /** 映像表示中にウィンドウ全体を映像にする */
@@ -112,9 +114,11 @@ public:
     int themeMode() const { return themeMode_; }
     bool nightActive() const { return nightActive_; }
     int accentIndex() const { return accentIndex_; }
+    QString accentCustom() const { return accentCustom_; }
     bool aaFollowsTheme() const { return aaFollowsTheme_; }
     void setThemeMode(int mode);
     void setAccentIndex(int index);
+    void setAccentCustom(const QString &color);
     void setAaFollowsTheme(bool enabled);
 
     /** @brief モックの車両データ送信を切り替えて保存する。ON のとき、接続中の Android Auto へ約 0.5 秒ごとに送る。 */
@@ -255,6 +259,9 @@ private:
 
     int themeMode_ = 2;
     int accentIndex_ = 0;
+    QString accentCustom_;      ///< 自由に決めたアクセント色("#rrggbb"。空ならプリセット)
+    QTimer accentSaveTimer_;    ///< 色をなぞっている間に何度も保存しないよう、止まってから保存する
+    void saveAccentCustom();
     bool aaFollowsTheme_ = true;
     bool nightActive_ = false;
     QTimer themeTimer_; ///< 自動モードの昼夜判定を定期的に見直す

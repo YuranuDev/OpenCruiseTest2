@@ -1,4 +1,4 @@
-// 設定ジャンル「表示」: テーマ(シンプル / クラシック)と背景(themeSettings)・昼夜テーマ・Android Auto との連動・アクセント色・画面の明るさ・
+// 設定ジャンル「表示」: テーマ(シンプル / クラシック)と背景(themeSettings)・昼夜テーマ・Android Auto との連動・アクセント色(プリセット・自由に決めたカスタム色)・画面の明るさ・
 //   表示する画面と回転・描画方式(垂直同期・フレームレート)は displaySettings(core/DisplaySettings)、
 //   eglfs での操作する画面と外部モニターへのミラーは drmDisplay(core/DrmDisplay)。
 import QtQuick
@@ -45,41 +45,44 @@ SettingsPage {
         }
 
         SettingsRow {
+            id: accentRow
             label: "アクセント色"
+            description: "ボタンや強調の色です。テーマ(シンプル / クラシック)ごとに、色の候補が変わります"
             stacked: true
 
-            Row {
-                spacing: 16 * Theme.uiScale
-
-                Repeater {
-                    model: Theme.accentPresets
-
-                    Rectangle {
-                        readonly property bool selected: androidAuto.accentIndex === index
-                        width: 64 * Theme.uiScale
-                        height: width
-                        radius: width / 2
-                        color: modelData
-                        border.width: selected ? 4 : 1
-                        border.color: selected ? Theme.textPrimary : Theme.panelBorder
-                        scale: swatchMouse.pressed ? 0.94 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
-
-                        // 色だけに頼らず、選択中はチェックマークも出す
-                        MaterialIcon {
-                            visible: parent.selected
-                            anchors.centerIn: parent
-                            name: "check"
-                            size: 36 * Theme.uiScale
-                            color: "#0d1015"
-                        }
-                        MouseArea {
-                            id: swatchMouse
-                            anchors.fill: parent
-                            onClicked: { androidAuto.accentIndex = index }
-                        }
+            SettingsColorPalette {
+                width: Math.min(accentRow.width, 760 * Theme.uiScale)
+                swatchSize: 56
+                showCheck: true
+                // プリセット + 末尾に「カスタム」(自由に決めた色。まだ決めていなければ灰色の見本)
+                options: Theme.accentPresets.map((c, i) => ({ label: Theme.accentNames[i], value: String(i), swatch: c }))
+                         .concat([{ label: "カスタム", value: "custom",
+                                    swatch: androidAuto.accentCustom !== "" ? androidAuto.accentCustom : Theme.textSecondary }])
+                selectedValue: androidAuto.accentCustom !== ""
+                               ? "custom" : String(Math.min(androidAuto.accentIndex, Theme.accentPresets.length - 1))
+                onPicked: (v) => {
+                    if (v === "custom") {
+                        // 今のアクセント色を出発点にして、自由に変えられるようにする
+                        if (androidAuto.accentCustom === "") androidAuto.accentCustom = String(Theme.accentBase)
+                    } else {
+                        androidAuto.accentCustom = ""
+                        androidAuto.accentIndex = parseInt(v)
                     }
                 }
+            }
+        }
+
+        SettingsRow {
+            id: customRow
+            visible: androidAuto.accentCustom !== ""
+            label: "カスタム色"
+            description: "色相・鮮やかさ・明るさで自由に決めます(「#rrggbb」も入力できます)。文字が読めなくなるので、暗すぎる色にはできません"
+            stacked: true
+
+            SettingsColorPicker {
+                width: Math.min(customRow.width, 640 * Theme.uiScale)
+                color: androidAuto.accentCustom !== "" ? androidAuto.accentCustom : "#4da3ff"
+                onPicked: (c) => androidAuto.accentCustom = c
             }
         }
     }
