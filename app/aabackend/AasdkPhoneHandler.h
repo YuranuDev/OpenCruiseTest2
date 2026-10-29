@@ -156,6 +156,7 @@ private:
     std::shared_ptr<aasdk::channel::navigationstatus::NavigationStatusService> channel_;
     PhoneInfoCallbacks callbacks_;
     NavigationInfo info_;
+    bool stateReceived_ = false; ///< NavigationState(steps)が届いている間は true。旧形式の通知で上書きしないために使う
 };
 
 } // namespace opencruise::aa
