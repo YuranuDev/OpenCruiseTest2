@@ -8,6 +8,8 @@
 //                  2 件目の距離はプロトコルから来ないので、方向と道路名だけ
 //   ・コンパクト … 「その次」を出さず、案内カードだけを大きく表示する
 // 設定(config): layout / distanceUnit / showRoad / showNext / nearHighlight(「設定」参照)。枠と見出しは全ウィジェット共通
+// モック(表示テスト): mockEnabled / mockScenario / mockAuto / mockDistance。Android Auto のナビが動いていない間だけ、
+//                    仮の案内を表示する(実際の案内が始まったらそちらを優先)。出所は「モック」の札で分かる
 //
 // 距離は必ず単位つきで表示する。数値(メートル)がある場合は常にそれを整形し、スマホ側の表示文字列は
 // 数値が取れないときの代わりとしてだけ使う(単位が欠けた文字列は補う)。
@@ -24,18 +26,59 @@ WidgetBase {
     readonly property bool showRoad: config.showRoad !== false
     readonly property int nearMeters: config.nearHighlight === undefined ? 100 : Math.max(0, config.nearHighlight)
 
-    // ---- 状態 ----
-    readonly property bool active: androidAuto.navigationActive
-    readonly property real meters: androidAuto.navigationDistanceMeters
-    readonly property bool hasNext: androidAuto.nextNavigationManeuver > 0
+    // ---- モック(表示テスト) ----
+    // シナリオ: start = 開始距離(m)、maneuver / side = 主案内、road = 道路名、next* = その次(maneuver 0 で無し)
+    readonly property var mockScenarios: [
+        { start: 450,  maneuver: 3,  side: 2, road: "国道16号",              nextManeuver: 3,  nextSide: 1, nextRoad: "県道12号" },
+        { start: 2400, maneuver: 7,  side: 2, road: "横浜横須賀道路 出口",   nextManeuver: 10, nextSide: 0, nextRoad: "首都高速湾岸線" },
+        { start: 300,  maneuver: 11, side: 1, road: "",                      nextManeuver: 3,  nextSide: 2, nextRoad: "" },
+        { start: 180,  maneuver: 19, side: 0, road: "目的地周辺",            nextManeuver: 0,  nextSide: 0, nextRoad: "" }
+    ]
+    readonly property bool mockWanted: config.mockEnabled === true
+    // 実際のナビが動いていない間だけモックを出す
+    readonly property bool isMock: mockWanted && !androidAuto.navigationActive
+    readonly property var mockScene: mockScenarios[Math.max(0, Math.min(mockScenarios.length - 1, config.mockScenario === undefined ? 0 : config.mockScenario))]
+    readonly property bool mockAuto: config.mockAuto !== false
+    readonly property real mockFixed: config.mockDistance === undefined ? 300 : Math.max(0, config.mockDistance)
+    property real mockMeters: mockScene.start
+
+    // シナリオや自動/固定の切り替えで、距離を最初に戻す
+    onMockSceneChanged: mockMeters = mockScene.start
+    onMockAutoChanged: mockMeters = mockScene.start
+    onIsMockChanged: mockMeters = mockScene.start
+
+    // 自動のとき、距離を縮めて、0 になったら最初から繰り返す(画面に出ている間だけ動かす)
+    Timer {
+        interval: 500
+        repeat: true
+        running: root.isMock && root.mockAuto && root.onScreen
+        onTriggered: {
+            const step = Math.max(5, Math.round(root.mockScene.start / 40))
+            const next = root.mockMeters - step
+            root.mockMeters = next > 0 ? next : root.mockScene.start
+        }
+    }
+
+    // ---- 状態(実際の値。モックが有効なときはモックの値) ----
+    readonly property bool active: isMock || androidAuto.navigationActive
+    readonly property real meters: isMock ? (mockAuto ? mockMeters : mockFixed) : androidAuto.navigationDistanceMeters
+    readonly property string distanceLabel: isMock ? "" : androidAuto.navigationDistanceLabel
+    readonly property int maneuver: isMock ? mockScene.maneuver : androidAuto.navigationManeuver
+    readonly property int maneuverSide: isMock ? mockScene.side : androidAuto.navigationSide
+    readonly property string roadName: isMock ? mockScene.road : androidAuto.navigationRoad
+    readonly property int nextManeuver: isMock ? mockScene.nextManeuver : androidAuto.nextNavigationManeuver
+    readonly property int nextSide: isMock ? mockScene.nextSide : androidAuto.nextNavigationSide
+    readonly property string nextRoadName: isMock ? mockScene.nextRoad : androidAuto.nextNavigationRoad
+
+    readonly property bool hasNext: nextManeuver > 0
     readonly property bool showNext: active && hasNext && !compact && config.showNext !== false
     readonly property bool near: active && nearMeters > 0 && meters >= 0 && meters <= nearMeters
-    readonly property string distanceString: formatDistance(meters, androidAuto.navigationDistanceLabel)
-    readonly property string mainRoad: showRoad ? androidAuto.navigationRoad : ""
-    readonly property string mainSub: mainRoad !== "" ? mainRoad : maneuverName(androidAuto.navigationManeuver, androidAuto.navigationSide)
-    readonly property string nextSub: (showRoad && androidAuto.nextNavigationRoad !== "")
-                                      ? androidAuto.nextNavigationRoad
-                                      : maneuverName(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+    readonly property string distanceString: formatDistance(meters, distanceLabel)
+    readonly property string mainRoad: showRoad ? roadName : ""
+    readonly property string mainSub: mainRoad !== "" ? mainRoad : maneuverName(maneuver, maneuverSide)
+    readonly property string nextSub: (showRoad && nextRoadName !== "")
+                                      ? nextRoadName
+                                      : maneuverName(nextManeuver, nextSide)
 
     readonly property real m: innerMargin
     // 距離を数値と単位に分ける("1.2 km" → "1.2" / "km")。分けられなければ全体を数値側に出す
@@ -241,7 +284,7 @@ WidgetBase {
                     Behavior on color { ColorAnimation { duration: 200 } }
                     MaterialIcon {
                         anchors.centerIn: parent
-                        name: root.maneuverIcon(androidAuto.navigationManeuver, androidAuto.navigationSide)
+                        name: root.maneuverIcon(root.maneuver, root.maneuverSide)
                         size: Math.round(parent.width * 0.74)
                         color: Theme.textOnAccent
                     }
@@ -340,7 +383,7 @@ WidgetBase {
                     }
                     MaterialIcon {
                         anchors.verticalCenter: parent.verticalCenter
-                        name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+                        name: root.maneuverIcon(root.nextManeuver, root.nextSide)
                         size: Math.round(guide.fontN * 1.3)
                         color: Theme.textPrimary
                     }
@@ -385,7 +428,7 @@ WidgetBase {
                         MaterialIcon {
                             id: nextIconR
                             anchors.verticalCenter: parent.verticalCenter
-                            name: root.maneuverIcon(androidAuto.nextNavigationManeuver, androidAuto.nextNavigationSide)
+                            name: root.maneuverIcon(root.nextManeuver, root.nextSide)
                             size: Math.round(guide.fontN * 1.6)
                             color: Theme.textPrimary
                         }
@@ -403,6 +446,26 @@ WidgetBase {
                     }
                 }
             }
+        }
+    }
+
+    // ---- モックの札(モックの案内を出している間) ----
+    Rectangle {
+        visible: root.isMock
+        z: 10
+        anchors { top: parent.top; right: parent.right; topMargin: root.m * 0.6; rightMargin: root.m }
+        width: mockTag.implicitWidth + 14
+        height: mockTag.implicitHeight + 6
+        radius: height / 2
+        color: "transparent"
+        border.color: Theme.warn
+        Text {
+            id: mockTag
+            anchors.centerIn: parent
+            font.family: Theme.fontFamily
+            text: "モック"
+            color: Theme.warn
+            font.pixelSize: root.detailFontSize
         }
     }
 }

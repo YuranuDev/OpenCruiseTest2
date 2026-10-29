@@ -1,4 +1,4 @@
-// ナビ案内ウィジェットの設定(枠は全ウィジェット共通): レイアウト・距離の単位・道路名・「その次」・接近の強調。
+// ナビ案内ウィジェットの設定(枠は全ウィジェット共通): レイアウト・距離の単位・道路名・「その次」・接近の強調・モック表示(表示テスト)。
 import QtQuick
 import OpenCruise
 
@@ -49,6 +49,45 @@ WidgetSettingsBase {
             step: 50
             suffix: " m"
             onMoved: (v) => root.edit("nearHighlight", v)
+        }
+    }
+    SettingsRow {
+        label: "モック表示(テスト)"
+        description: "仮の案内を表示して、見た目を確かめます。Android Auto のナビが動いている間は、実際の案内を優先します"
+        SettingsSwitch {
+            checked: root.config.mockEnabled === true
+            onToggled: (v) => root.edit("mockEnabled", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.mockEnabled === true
+        label: "モックの内容"
+        description: "右折(道路名あり)/ 出口(長い距離・km 表示)/ ロータリー(道路名なし)/ 目的地(「その次」なし)"
+        SettingsChoice {
+            model: ["右折", "出口", "ロータリー", "目的地"]
+            currentIndex: root.config.mockScenario === undefined ? 0 : root.config.mockScenario
+            onPicked: (i) => root.edit("mockScenario", i)
+        }
+    }
+    SettingsRow {
+        visible: root.config.mockEnabled === true
+        label: "距離を自動で縮める"
+        description: "オンで、距離が減って 0 になると最初から繰り返します(接近の強調も確認できます)。オフで、下の距離に固定します"
+        SettingsSwitch {
+            checked: root.config.mockAuto !== false
+            onToggled: (v) => root.edit("mockAuto", v)
+        }
+    }
+    SettingsRow {
+        visible: root.config.mockEnabled === true && root.config.mockAuto === false
+        label: "固定する距離"
+        WSStepper {
+            value: root.config.mockDistance === undefined ? 300 : root.config.mockDistance
+            from: 0
+            to: 5000
+            step: 50
+            suffix: " m"
+            onMoved: (v) => root.edit("mockDistance", v)
         }
     }
     SettingsNote {

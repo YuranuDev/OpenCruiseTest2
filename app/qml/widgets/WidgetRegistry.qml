@@ -266,8 +266,9 @@ QtObject {
             component: navigationComp, settings: navigationSettings,
             defaultSize: { w: 4, h: 2 }, minSize: { w: 3, h: 2 }, maxSize: { w: 8, h: 4 },
             defaultConfig: { frame: "card", layout: "standard", distanceUnit: "auto",
-                             showRoad: true, showNext: true, nearHighlight: 100 },
-            dragStart: "hold", mock: false
+                             showRoad: true, showNext: true, nearHighlight: 100,
+                             mockEnabled: false, mockScenario: 0, mockAuto: true, mockDistance: 300 },
+            dragStart: "hold", mock: true
         },
         {
             type: "phone", genre: "androidauto", name: "スマホ状態", icon: "smartphone",
