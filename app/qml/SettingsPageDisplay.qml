@@ -2,6 +2,7 @@
 //   表示する画面と回転・描画方式(垂直同期・フレームレート)は displaySettings(core/DisplaySettings)、
 //   eglfs での操作する画面と外部モニターへのミラーは drmDisplay(core/DrmDisplay)。
 import QtQuick
+import OpenCruise
 
 SettingsPage {
     // 設定画面を開いたときに、背景の画像フォルダを読み直す(置いた画像がすぐ選べるように)
