@@ -170,11 +170,7 @@ qt_add_qml_module(opencruise
         qml/widgets/NavigationSettings.qml
     RESOURCES
         fonts/MaterialIcons-Regular.ttf
-        fonts/materialdesignicons-webfont.ttf
-        sounds/click/Click.wav
-        sounds/start/Start.wav
-        sounds/alert/Beep.wav
-        sounds/caution/Caution.wav)
+        fonts/materialdesignicons-webfont.ttf)
 
 target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
