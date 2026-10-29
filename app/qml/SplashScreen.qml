@@ -225,7 +225,8 @@ Rectangle {
                             : stepRow.stateKey === "failed" ? "error"
                             : stepRow.stateKey === "skipped" ? "remove_circle_outline" : "radio_button_unchecked"
                         // 読み込み中は回す
-                        RotationAnimation on rotation {
+                        // (RotationAnimator は描画スレッドで回るので、画面を作っていて UI スレッドが忙しい間も止まらない)
+                        RotationAnimator on rotation {
                             running: stepRow.stateKey === "running" && root.visible
                             from: 0; to: 360; duration: 1200; loops: Animation.Infinite
                         }

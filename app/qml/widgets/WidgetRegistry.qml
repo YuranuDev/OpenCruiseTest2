@@ -38,6 +38,35 @@ QtObject {
     property int widgetsLoading: 0
     property int widgetsLoaded: 0
 
+    // ---- Canvas の描画を 1 枚ずつに分ける(メイン画面を起動画面の裏で作っている間だけ) ----
+    // メイン画面が画面に入ると、メーターの目盛りなどたくさんの Canvas が同じフレームでいっせいに描かれ、
+    // その JavaScript の描画が終わるまで画面(起動画面の回転・時計)が数秒止まっていた。
+    // 起動の間(WidgetBase.released になるまで)は、描画の依頼をここにためて、間をあけて 1 枚ずつ描く。
+    property var paintQueue: []
+    function queuePaint(canvas) {
+        if (paintQueue.indexOf(canvas) < 0) paintQueue.push(canvas)
+        if (!paintTimer.running) paintTimer.start()
+    }
+    function paintNext() {
+        while (paintQueue.length > 0) {
+            const c = paintQueue.shift()
+            try {
+                if (c && c.visible) { c.requestPaint(); return }
+            } catch (e) { /* もう無い Canvas は読み飛ばす */ }
+        }
+        paintTimer.stop()
+    }
+    // 起動が終わったら、残りをまとめて描く(メイン画面へ移ったときに、描かれていない Canvas を見せない)
+    function flushPaints() {
+        const list = paintQueue
+        paintQueue = []
+        paintTimer.stop()
+        for (let i = 0; i < list.length; ++i) {
+            try { if (list[i] && list[i].visible) list[i].requestPaint() } catch (e) { }
+        }
+    }
+    property Timer paintTimer: Timer { interval: 40; repeat: true; onTriggered: registry.paintNext() }
+
     property Component clockComp: Component { ClockWidget {} }
     property Component clockSettings: Component { ClockSettings {} }
     property Component greetingComp: Component { GreetingWidget {} }

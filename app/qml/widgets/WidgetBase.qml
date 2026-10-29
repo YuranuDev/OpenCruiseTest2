@@ -42,6 +42,12 @@ Item {
     /// 起動画面と注意事項が終わって、メイン画面の動きを始めてよいか(メイン画面は注意事項の前に作っておくが、動きは終わってから)
     readonly property bool released: typeof boot === "undefined" || boot.released
     readonly property bool onScreen: visible && released
+    onReleasedChanged: if (released) WidgetRegistry.flushPaints()
+    /// Canvas を描き直す。起動中は 1 枚ずつ間をあけて描く(WidgetRegistry.queuePaint)。終わったらすぐ描く
+    function paintCanvas(canvas) {
+        if (released) canvas.requestPaint()
+        else WidgetRegistry.queuePaint(canvas)
+    }
 
     function titleText(fallback) {
         const custom = String(config.titleText || "").trim()

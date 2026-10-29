@@ -414,9 +414,12 @@ ApplicationWindow {
                 startedAt = Date.now()
                 boot.report("home", 1, "作成中", "creating")                         // 1 = Running
                 boot.report("widgets", 1, "メイン画面の作成を待っています", "waiting for the main screen")
+                stallWatch.mark = "main screen creation started"
                 const inc = homeComponent.incubateObject(stack, {}, Qt.Asynchronous)
                 const done = () => {
                     if (inc.status === Component.Ready) {
+                        stallWatch.mark = "main screen added"
+                        stallWatch.pushedAt = Date.now()
                         stack.push(inc.object, {}, StackView.Immediate)
                         homeLoader.ready = true
                         const ms = Date.now() - startedAt
@@ -434,6 +437,32 @@ ApplicationWindow {
                 if (inc.status !== Component.Loading) done()
                 else inc.onStatusChanged = (status) => done()
                 incubator = inc
+            }
+        }
+        // 画面が止まったときの記録(原因調べ用)。50 ms ごとの Timer が大きく遅れたら、止まった長さと直前の出来事をログに残す。
+        // pushedAt: メイン画面を入れた直後の最初のフレームにかかった時間も記録する
+        QtObject {
+            id: stallWatch
+            property double last: Date.now()
+            property string mark: "start"
+            property double pushedAt: 0
+        }
+        Timer {
+            interval: 50; repeat: true; running: true
+            onTriggered: {
+                const now = Date.now()
+                const gap = now - stallWatch.last - interval
+                stallWatch.last = now
+                if (gap > 150) console.warn("[perf] UI thread stalled " + gap + " ms (after: " + stallWatch.mark + ")")
+            }
+        }
+        Connections {
+            target: window
+            enabled: stallWatch.pushedAt > 0
+            function onFrameSwapped() {
+                console.info("[perf] first frame after the main screen was added: " + (Date.now() - stallWatch.pushedAt) + " ms")
+                stallWatch.pushedAt = 0
+                stallWatch.mark = "first frame done"
             }
         }
         // 起動画面の「ウィジェット」の段階: 作っている途中の数を見て、すべて作り終えたら完了にする(起動時の 1 回だけ)

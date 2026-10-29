@@ -775,8 +775,8 @@ WidgetBase {
                                                root.negFont, root.negFontEnd,
                                                root.posFont, root.posFontEnd, root.cautionV, root.hasCautionZone,
                                                Theme.warn].join("|")
-                onKeyChanged: if (visible) requestPaint()
-                onVisibleChanged: if (visible) requestPaint()
+                onKeyChanged: if (visible) root.paintCanvas(face)
+                onVisibleChanged: if (visible) root.paintCanvas(face)
 
                 // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
                 function niceStep(range, maxMajors) {
@@ -995,7 +995,7 @@ WidgetBase {
                 readonly property string key: !visible ? "" :
                     [width, height, dial.cx, dial.cy, dial.rpx, root.cZoneLo, root.cZoneHi, root.dialStyle,
                      root.startAngle, root.endAngle, root.splitScale, root.zeroAngle, Theme.warn].join("|")
-                onKeyChanged: if (visible) requestPaint()
+                onKeyChanged: if (visible) root.paintCanvas(cautionGlow)
                 onPaint: {
                     const ctx = getContext("2d")
                     ctx.reset()
@@ -1029,8 +1029,8 @@ WidgetBase {
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
                      Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor, root.markerLineColor,
                      root.needleOutline, root.lineOutline, root.outlineColor].join("|")
-                onKeyChanged: if (visible) requestPaint()
-                onVisibleChanged: if (visible) requestPaint()
+                onKeyChanged: if (visible) root.paintCanvas(progress)
+                onVisibleChanged: if (visible) root.paintCanvas(progress)
 
                 onPaint: {
                     const ctx = getContext("2d")
@@ -1188,8 +1188,8 @@ WidgetBase {
                     renderStrategy: Canvas.Cooperative
                     readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill,
                                                    needleEdge, tailEdge, edgeColor, tailEdgeColor, root.warning].join("|")
-                    onKeyChanged: if (visible) requestPaint()
-                    onVisibleChanged: if (visible) requestPaint()
+                    onKeyChanged: if (visible) root.paintCanvas(needleShape)
+                    onVisibleChanged: if (visible) root.paintCanvas(needleShape)
 
                     onPaint: {
                         const ctx = getContext("2d")

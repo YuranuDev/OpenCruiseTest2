@@ -58,7 +58,7 @@ WidgetBase {
             statMin = NaN
             statMax = NaN
             statAvg = NaN
-            chart.requestPaint()
+            root.paintCanvas(chart)
             return
         }
         const s = VehicleHistory.series(metric)
@@ -79,7 +79,7 @@ WidgetBase {
         statMin = n > 0 ? mn : NaN
         statMax = n > 0 ? mx : NaN
         statAvg = n > 0 ? sum / n : NaN
-        chart.requestPaint()
+        root.paintCanvas(chart)
     }
     Connections {
         target: VehicleHistory
@@ -238,12 +238,12 @@ WidgetBase {
         anchors { top: head.bottom; bottom: stats.visible ? stats.top : parent.bottom; left: parent.left; right: parent.right
                   topMargin: root.m * 0.6; bottomMargin: root.m * 0.6; leftMargin: root.m; rightMargin: root.m }
         renderTarget: Canvas.Image
-        onWidthChanged: if (visible) requestPaint()
-        onHeightChanged: if (visible) requestPaint()
+        onWidthChanged: if (visible) root.paintCanvas(chart)
+        onHeightChanged: if (visible) root.paintCanvas(chart)
         readonly property color lineColor: root.inZone ? Theme.error : Theme.accent
         readonly property string key: [Theme.accent, Theme.error, Theme.panelBorder, Theme.textSecondary, root.fillOn,
                                        root.warnOn, root.warnV, root.range.lo, root.range.hi, Theme.numberFontFamily].join("|")
-        onKeyChanged: if (visible) requestPaint()
+        onKeyChanged: if (visible) root.paintCanvas(chart)
 
         onPaint: {
             const ctx = getContext("2d")

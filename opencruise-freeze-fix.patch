@@ -1,0 +1,205 @@
+diff --git a/app/qml/Main.qml b/app/qml/Main.qml
+index 50b2c5f..29ae529 100644
+--- a/app/qml/Main.qml
++++ b/app/qml/Main.qml
+@@ -414,9 +414,12 @@ ApplicationWindow {
+                 startedAt = Date.now()
+                 boot.report("home", 1, "作成中", "creating")                         // 1 = Running
+                 boot.report("widgets", 1, "メイン画面の作成を待っています", "waiting for the main screen")
++                stallWatch.mark = "main screen creation started"
+                 const inc = homeComponent.incubateObject(stack, {}, Qt.Asynchronous)
+                 const done = () => {
+                     if (inc.status === Component.Ready) {
++                        stallWatch.mark = "main screen added"
++                        stallWatch.pushedAt = Date.now()
+                         stack.push(inc.object, {}, StackView.Immediate)
+                         homeLoader.ready = true
+                         const ms = Date.now() - startedAt
+@@ -436,6 +439,32 @@ ApplicationWindow {
+                 incubator = inc
+             }
+         }
++        // 画面が止まったときの記録(原因調べ用)。50 ms ごとの Timer が大きく遅れたら、止まった長さと直前の出来事をログに残す。
++        // pushedAt: メイン画面を入れた直後の最初のフレームにかかった時間も記録する
++        QtObject {
++            id: stallWatch
++            property double last: Date.now()
++            property string mark: "start"
++            property double pushedAt: 0
++        }
++        Timer {
++            interval: 50; repeat: true; running: true
++            onTriggered: {
++                const now = Date.now()
++                const gap = now - stallWatch.last - interval
++                stallWatch.last = now
++                if (gap > 150) console.warn("[perf] UI thread stalled " + gap + " ms (after: " + stallWatch.mark + ")")
++            }
++        }
++        Connections {
++            target: window
++            enabled: stallWatch.pushedAt > 0
++            function onFrameSwapped() {
++                console.info("[perf] first frame after the main screen was added: " + (Date.now() - stallWatch.pushedAt) + " ms")
++                stallWatch.pushedAt = 0
++                stallWatch.mark = "first frame done"
++            }
++        }
+         // 起動画面の「ウィジェット」の段階: 作っている途中の数を見て、すべて作り終えたら完了にする(起動時の 1 回だけ)
+         QtObject {
+             id: widgetWatch
+diff --git a/app/qml/SplashScreen.qml b/app/qml/SplashScreen.qml
+index 5f7325c..4a6a386 100644
+--- a/app/qml/SplashScreen.qml
++++ b/app/qml/SplashScreen.qml
+@@ -225,7 +225,8 @@ Rectangle {
+                             : stepRow.stateKey === "failed" ? "error"
+                             : stepRow.stateKey === "skipped" ? "remove_circle_outline" : "radio_button_unchecked"
+                         // 読み込み中は回す
+-                        RotationAnimation on rotation {
++                        // (RotationAnimator は描画スレッドで回るので、画面を作っていて UI スレッドが忙しい間も止まらない)
++                        RotationAnimator on rotation {
+                             running: stepRow.stateKey === "running" && root.visible
+                             from: 0; to: 360; duration: 1200; loops: Animation.Infinite
+                         }
+diff --git a/app/qml/widgets/GaugeWidget.qml b/app/qml/widgets/GaugeWidget.qml
+index 8ae1af7..cb5a9dc 100644
+--- a/app/qml/widgets/GaugeWidget.qml
++++ b/app/qml/widgets/GaugeWidget.qml
+@@ -775,8 +775,8 @@ WidgetBase {
+                                                root.negFont, root.negFontEnd,
+                                                root.posFont, root.posFontEnd, root.cautionV, root.hasCautionZone,
+                                                Theme.warn].join("|")
+-                onKeyChanged: if (visible) requestPaint()
+-                onVisibleChanged: if (visible) requestPaint()
++                onKeyChanged: if (visible) root.paintCanvas(face)
++                onVisibleChanged: if (visible) root.paintCanvas(face)
+ 
+                 // 大目盛りの間隔。1 / 2 / 5 × 10^n(と 0.25)から、数字が詰まりすぎない最小のものを選ぶ
+                 function niceStep(range, maxMajors) {
+@@ -995,7 +995,7 @@ WidgetBase {
+                 readonly property string key: !visible ? "" :
+                     [width, height, dial.cx, dial.cy, dial.rpx, root.cZoneLo, root.cZoneHi, root.dialStyle,
+                      root.startAngle, root.endAngle, root.splitScale, root.zeroAngle, Theme.warn].join("|")
+-                onKeyChanged: if (visible) requestPaint()
++                onKeyChanged: if (visible) root.paintCanvas(cautionGlow)
+                 onPaint: {
+                     const ctx = getContext("2d")
+                     ctx.reset()
+@@ -1029,8 +1029,8 @@ WidgetBase {
+                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
+                      Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor, root.markerLineColor,
+                      root.needleOutline, root.lineOutline, root.outlineColor].join("|")
+-                onKeyChanged: if (visible) requestPaint()
+-                onVisibleChanged: if (visible) requestPaint()
++                onKeyChanged: if (visible) root.paintCanvas(progress)
++                onVisibleChanged: if (visible) root.paintCanvas(progress)
+ 
+                 onPaint: {
+                     const ctx = getContext("2d")
+@@ -1188,8 +1188,8 @@ WidgetBase {
+                     renderStrategy: Canvas.Cooperative
+                     readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill,
+                                                    needleEdge, tailEdge, edgeColor, tailEdgeColor, root.warning].join("|")
+-                    onKeyChanged: if (visible) requestPaint()
+-                    onVisibleChanged: if (visible) requestPaint()
++                    onKeyChanged: if (visible) root.paintCanvas(needleShape)
++                    onVisibleChanged: if (visible) root.paintCanvas(needleShape)
+ 
+                     onPaint: {
+                         const ctx = getContext("2d")
+diff --git a/app/qml/widgets/GraphWidget.qml b/app/qml/widgets/GraphWidget.qml
+index 9263ed0..7fdddff 100644
+--- a/app/qml/widgets/GraphWidget.qml
++++ b/app/qml/widgets/GraphWidget.qml
+@@ -58,7 +58,7 @@ WidgetBase {
+             statMin = NaN
+             statMax = NaN
+             statAvg = NaN
+-            chart.requestPaint()
++            root.paintCanvas(chart)
+             return
+         }
+         const s = VehicleHistory.series(metric)
+@@ -79,7 +79,7 @@ WidgetBase {
+         statMin = n > 0 ? mn : NaN
+         statMax = n > 0 ? mx : NaN
+         statAvg = n > 0 ? sum / n : NaN
+-        chart.requestPaint()
++        root.paintCanvas(chart)
+     }
+     Connections {
+         target: VehicleHistory
+@@ -238,12 +238,12 @@ WidgetBase {
+         anchors { top: head.bottom; bottom: stats.visible ? stats.top : parent.bottom; left: parent.left; right: parent.right
+                   topMargin: root.m * 0.6; bottomMargin: root.m * 0.6; leftMargin: root.m; rightMargin: root.m }
+         renderTarget: Canvas.Image
+-        onWidthChanged: if (visible) requestPaint()
+-        onHeightChanged: if (visible) requestPaint()
++        onWidthChanged: if (visible) root.paintCanvas(chart)
++        onHeightChanged: if (visible) root.paintCanvas(chart)
+         readonly property color lineColor: root.inZone ? Theme.error : Theme.accent
+         readonly property string key: [Theme.accent, Theme.error, Theme.panelBorder, Theme.textSecondary, root.fillOn,
+                                        root.warnOn, root.warnV, root.range.lo, root.range.hi, Theme.numberFontFamily].join("|")
+-        onKeyChanged: if (visible) requestPaint()
++        onKeyChanged: if (visible) root.paintCanvas(chart)
+ 
+         onPaint: {
+             const ctx = getContext("2d")
+diff --git a/app/qml/widgets/WidgetBase.qml b/app/qml/widgets/WidgetBase.qml
+index 854fb97..b22819b 100644
+--- a/app/qml/widgets/WidgetBase.qml
++++ b/app/qml/widgets/WidgetBase.qml
+@@ -42,6 +42,12 @@ Item {
+     /// 起動画面と注意事項が終わって、メイン画面の動きを始めてよいか(メイン画面は注意事項の前に作っておくが、動きは終わってから)
+     readonly property bool released: typeof boot === "undefined" || boot.released
+     readonly property bool onScreen: visible && released
++    onReleasedChanged: if (released) WidgetRegistry.flushPaints()
++    /// Canvas を描き直す。起動中は 1 枚ずつ間をあけて描く(WidgetRegistry.queuePaint)。終わったらすぐ描く
++    function paintCanvas(canvas) {
++        if (released) canvas.requestPaint()
++        else WidgetRegistry.queuePaint(canvas)
++    }
+ 
+     function titleText(fallback) {
+         const custom = String(config.titleText || "").trim()
+diff --git a/app/qml/widgets/WidgetRegistry.qml b/app/qml/widgets/WidgetRegistry.qml
+index 1cc69db..966d5e3 100644
+--- a/app/qml/widgets/WidgetRegistry.qml
++++ b/app/qml/widgets/WidgetRegistry.qml
+@@ -38,6 +38,35 @@ QtObject {
+     property int widgetsLoading: 0
+     property int widgetsLoaded: 0
+ 
++    // ---- Canvas の描画を 1 枚ずつに分ける(メイン画面を起動画面の裏で作っている間だけ) ----
++    // メイン画面が画面に入ると、メーターの目盛りなどたくさんの Canvas が同じフレームでいっせいに描かれ、
++    // その JavaScript の描画が終わるまで画面(起動画面の回転・時計)が数秒止まっていた。
++    // 起動の間(WidgetBase.released になるまで)は、描画の依頼をここにためて、間をあけて 1 枚ずつ描く。
++    property var paintQueue: []
++    function queuePaint(canvas) {
++        if (paintQueue.indexOf(canvas) < 0) paintQueue.push(canvas)
++        if (!paintTimer.running) paintTimer.start()
++    }
++    function paintNext() {
++        while (paintQueue.length > 0) {
++            const c = paintQueue.shift()
++            try {
++                if (c && c.visible) { c.requestPaint(); return }
++            } catch (e) { /* もう無い Canvas は読み飛ばす */ }
++        }
++        paintTimer.stop()
++    }
++    // 起動が終わったら、残りをまとめて描く(メイン画面へ移ったときに、描かれていない Canvas を見せない)
++    function flushPaints() {
++        const list = paintQueue
++        paintQueue = []
++        paintTimer.stop()
++        for (let i = 0; i < list.length; ++i) {
++            try { if (list[i] && list[i].visible) list[i].requestPaint() } catch (e) { }
++        }
++    }
++    property Timer paintTimer: Timer { interval: 40; repeat: true; onTriggered: registry.paintNext() }
++
+     property Component clockComp: Component { ClockWidget {} }
+     property Component clockSettings: Component { ClockSettings {} }
+     property Component greetingComp: Component { GreetingWidget {} }
