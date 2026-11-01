@@ -1,6 +1,7 @@
 // バックカメラの画面。バック信号が入ると(reverseCamera.shown)、ほかの画面の上に全面で出す。
 //  - 映像(ReverseCameraVideo)の上に、距離の目安のガイド線(設定でオン/オフ)と、「バック」の表示を重ねる
-//  - 右上の「閉じる」で、今のバックの間だけ閉じられる(次にバックへ入れたらまた出る)。設定画面の「映像を確認」もこれで閉じる
+//  - 上の中央に、警告マークつきで「周囲の安全を直接確認してください」を出す。左上はギアの表示(R・バック)
+//  - バック中は閉じるボタンを出さない(バック信号が切れたら戻る)。設定画面の「映像を確認」のときだけ、右上に「確認を終わる」を出す
 //  - カメラが無い・準備中・エラーのときは、その旨を真ん中に出す
 //  - 出すときはすぐ(短いフェード)、戻すときはゆっくり消す。出ている間は下の画面へタッチを通さない
 import QtQuick
@@ -114,58 +115,145 @@ Item {
         }
     }
 
-    // ---- 左上: バックの表示(目視の注意) ----
-    Row {
-        anchors { left: parent.left; top: parent.top; margins: Theme.margin * 1.5 }
-        spacing: 12 * root.unit
-        Rectangle {
-            height: Math.round(52 * root.unit)
-            width: height
-            radius: height / 2
-            color: reverseCamera.previewing && !reverseCamera.reverse ? "#555555" : "#ff3b30"
-            Text {
-                anchors.centerIn: parent
-                font.family: Theme.numberFontFamily
-                font.pixelSize: Math.round(parent.height * 0.55)
-                font.bold: true
-                color: "#ffffff"
-                text: "R"
-            }
+    // ---- 上の帯(映像の上で文字が読めるよう、上から下へ薄くなる暗い影) ----
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: Math.round(130 * root.unit)
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.6) }
+            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0) }
         }
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            height: Math.round(40 * root.unit)
-            width: noteText.implicitWidth + 28 * root.unit
-            radius: height / 2
-            color: Qt.rgba(0, 0, 0, 0.55)
-            Text {
-                id: noteText
-                anchors.centerIn: parent
-                font.family: Theme.fontFamily
-                font.pixelSize: Math.round(19 * root.unit)
-                color: "#ffffff"
-                text: reverseCamera.previewing && !reverseCamera.reverse ? "映像の確認中" : "周囲の安全を直接確認してください"
+    }
+
+    readonly property bool previewOnly: reverseCamera.previewing && !reverseCamera.reverse
+    readonly property real barH: Math.round(60 * root.unit)
+
+    // ---- 左上: ギアの表示(R の札と「バック」) ----
+    Rectangle {
+        id: gearBadge
+        anchors { left: parent.left; top: parent.top; leftMargin: Theme.margin * 1.5; topMargin: Theme.margin * 1.5 }
+        height: root.barH
+        width: gearRow.implicitWidth + 2 * Math.round(8 * root.unit) + Math.round(14 * root.unit)
+        radius: Math.round(14 * root.unit)
+        color: Qt.rgba(0.07, 0.08, 0.1, 0.78)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.16)
+        Row {
+            id: gearRow
+            anchors { left: parent.left; leftMargin: Math.round(8 * root.unit); verticalCenter: parent.verticalCenter }
+            spacing: Math.round(12 * root.unit)
+            // R の札(シフトの表示のような角丸の四角)
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                height: root.barH - Math.round(16 * root.unit)
+                width: height
+                radius: Math.round(9 * root.unit)
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: root.previewOnly ? "#6b6f76" : "#ff5a4e" }
+                    GradientStop { position: 1.0; color: root.previewOnly ? "#4a4e55" : "#d42a1f" }
+                }
+                Rectangle {   // 上側の細いハイライト(立体感)
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 2 }
+                    height: 1
+                    color: Qt.rgba(1, 1, 1, 0.35)
+                }
+                Text {
+                    anchors.centerIn: parent
+                    font.family: Theme.numberFontFamily
+                    font.pixelSize: Math.round(parent.height * 0.62)
+                    font.bold: true
+                    color: "#ffffff"
+                    text: "R"
+                }
+            }
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Math.round(1 * root.unit)
+                Text {
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Math.round(22 * root.unit)
+                    font.bold: true
+                    color: "#ffffff"
+                    text: root.previewOnly ? "映像の確認中" : "バック"
+                }
+                Row {
+                    spacing: Math.round(4 * root.unit)
+                    MaterialIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "videocam"
+                        size: Math.round(15 * root.unit)
+                        color: "#b8bcc4"
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Math.round(14 * root.unit)
+                        color: "#b8bcc4"
+                        text: "リアカメラ"
+                    }
+                }
             }
         }
     }
 
-    // ---- 右上: 閉じる ----
+    // ---- 上の中央: 周囲の安全の確認(警告マークつき) ----
     Rectangle {
-        anchors { right: parent.right; top: parent.top; margins: Theme.margin * 1.5 }
-        height: Math.round(52 * root.unit)
-        width: closeRow.implicitWidth + 32 * root.unit
+        id: safety
+        // 左上の表示・右上のボタンと重ならない範囲で、なるべく画面の中央に置く。
+        // 入りきらない(狭い画面)ときは、左上の表示の下の段に、画面の中央にそろえて置く
+        readonly property real leftLimit: gearBadge.x + gearBadge.width + Theme.margin
+        readonly property real rightLimit: endPreview.visible ? endPreview.x - Theme.margin : parent.width - Theme.margin * 1.5
+        readonly property real wantW: safetyRow.implicitWidth + Math.round(40 * root.unit)
+        readonly property bool fitsTop: wantW <= rightLimit - leftLimit
+        y: fitsTop ? Theme.margin * 1.5 : gearBadge.y + gearBadge.height + Theme.margin * 0.6
+        x: fitsTop ? Math.max(leftLimit, Math.min(rightLimit - width, (parent.width - width) / 2)) : (parent.width - width) / 2
+        height: root.barH
+        width: Math.min(wantW, parent.width - Theme.margin * 3)
         radius: height / 2
-        color: closeMouse.pressed ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(0, 0, 0, 0.55)
+        color: Qt.rgba(0.07, 0.08, 0.1, 0.78)
         border.width: 1.5
-        border.color: Qt.rgba(1, 1, 1, 0.5)
+        border.color: Qt.rgba(1.0, 0.8, 0.0, 0.7)
+        clip: true
         Row {
-            id: closeRow
+            id: safetyRow
+            anchors.centerIn: parent
+            spacing: Math.round(10 * root.unit)
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "warning"
+                size: Math.round(32 * root.unit)
+                color: "#ffcc00"
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                font.family: Theme.fontFamily
+                font.pixelSize: Math.round(22 * root.unit)
+                font.bold: true
+                color: "#ffffff"
+                text: "周囲の安全を直接確認してください"
+            }
+        }
+    }
+
+    // ---- 右上: 映像の確認(設定画面から)のときだけ、終わるボタン ----
+    Rectangle {
+        id: endPreview
+        visible: reverseCamera.previewing
+        anchors { right: parent.right; top: parent.top; margins: Theme.margin * 1.5 }
+        height: root.barH
+        width: endRow.implicitWidth + 32 * root.unit
+        radius: height / 2
+        color: endMouse.pressed ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(0.07, 0.08, 0.1, 0.78)
+        border.width: 1.5
+        border.color: Qt.rgba(1, 1, 1, 0.4)
+        Row {
+            id: endRow
             anchors.centerIn: parent
             spacing: 6 * root.unit
             MaterialIcon {
                 anchors.verticalCenter: parent.verticalCenter
-                name: "close"
-                size: Math.round(28 * root.unit)
+                name: "check"
+                size: Math.round(26 * root.unit)
                 color: "#ffffff"
             }
             Text {
@@ -174,9 +262,9 @@ Item {
                 font.pixelSize: Math.round(20 * root.unit)
                 font.bold: true
                 color: "#ffffff"
-                text: "閉じる"
+                text: "確認を終わる"
             }
         }
-        MouseArea { id: closeMouse; anchors.fill: parent; anchors.margins: -8; onClicked: reverseCamera.dismiss() }
+        MouseArea { id: endMouse; anchors.fill: parent; anchors.margins: -8; onClicked: reverseCamera.setPreview(false) }
     }
 }

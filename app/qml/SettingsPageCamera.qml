@@ -29,7 +29,7 @@ SettingsPage {
         }
         SettingsRow {
             label: "映像を確認"
-            description: "バック信号に関係なく、今の設定でカメラの映像を出します(右上の「閉じる」で戻ります)"
+            description: "バック信号に関係なく、今の設定でカメラの映像を出します(右上の「確認を終わる」で戻ります)"
             ActionButton {
                 text: "映像を確認"
                 onClicked: reverseCamera.setPreview(true)
