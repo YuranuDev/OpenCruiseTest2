@@ -36,7 +36,7 @@ sudo apt install build-essential cmake ninja-build pkg-config \
   qt6-base-dev qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls \
   qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates \
   qml6-module-qtqml qml6-module-qtqml-workerscript \
-  qt6-multimedia-dev qml6-module-qtmultimedia \
+  qt6-multimedia-dev qml6-module-qtmultimedia pulseaudio-utils \
   libavcodec-dev libavutil-dev libswscale-dev \
   libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev
 # 日本語表示用フォント（例）
@@ -88,6 +88,15 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
     どちらか一方だけを使うので、二重に暗くはならない。
   - バックライトを制御するには、そのファイルへ書き込める権限が必要(例: udev ルールでグループ書き込みを許可)。
   - バックライトは、保存された設定がある場合だけ起動時に値を反映する。終了時に元の値へは戻さない。
+
+
+### 出力先・マイクの選び方
+
+PulseAudio(PipeWire の pipewire-pulse も同じ)が動いていて `pactl`(pulseaudio-utils)があれば、出力先・マイクの一覧は
+機器の「端子」の単位で出る(例「Built-in Audio Analog Stereo ・ Headphones」、HDMI などのプロファイル)。音は PulseAudio を通すので
+機器を占有しない。選ぶと `pactl set-sink-port` / `set-source-port` / `set-card-profile` で切り替える(`core/PulseAudioControl`)。
+端子は機器ごとに 1 つなので、同じ機器を選んだ音(マップ・音楽・システム)は同じ端子から出る。ヘッドホンなどの抜き差しは
+`pactl subscribe` で見て、一覧を読み直す。`pactl` が無いときは、これまでどおり Qt の機器一覧を使う。ログは `[AUDIO]`。
 
 ## テーマと背景
 

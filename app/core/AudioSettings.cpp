@@ -30,14 +30,6 @@ QString keyName(AudioSettings::Group group) {
     }
 }
 
-QString displayName(AudioSettings::Group group) {
-    switch (group) {
-    case AudioSettings::Map: return QStringLiteral("マップ音声");
-    case AudioSettings::Music: return QStringLiteral("音楽音声");
-    default: return QStringLiteral("システム");
-    }
-}
-
 } // namespace
 
 AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
@@ -46,30 +38,113 @@ AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
     for (int i = 0; i < GroupCount; ++i) {
         const Group group = static_cast<Group>(i);
         volumes_[i] = std::clamp(store.value(QStringLiteral("audio/%1Volume").arg(keyName(group)), 100).toInt(), 0, 100);
-        // 機器の id は任意のバイト列のため、Base64 で保存する
-        selectedIds_[i] = QByteArray::fromBase64(
-            store.value(QStringLiteral("audio/%1Device").arg(keyName(group)), QString()).toString().toLatin1());
+        // 選んだ出力先の識別子。以前の保存(機器の id の Base64)は "qt:" を付けて読み替える
+        const QString key = store.value(QStringLiteral("audio/%1Output").arg(keyName(group))).toString();
+        const QString old = store.value(QStringLiteral("audio/%1Device").arg(keyName(group))).toString();
+        selectedKeys_[i] = !key.isEmpty() ? key : (old.isEmpty() ? QString() : QStringLiteral("qt:") + old);
     }
-
-    outputs_ = QMediaDevices::audioOutputs();
-    outputNames_ << QStringLiteral("システム既定");
-    for (const QAudioDevice &dev : std::as_const(outputs_)) {
-        outputNames_ << dev.description();
-    }
-    log::info("AUDIO", QStringLiteral("found %1 output devices").arg(outputs_.size()));
-
-    connect(&mediaDevices_, &QMediaDevices::audioOutputsChanged, this, [this]() { refreshOutputs(); });
 
     micEnabled_ = store.value(QStringLiteral("audio/micEnabled"), true).toBool();
-    selectedMicId_ = QByteArray::fromBase64(store.value(QStringLiteral("audio/micDevice"), QString()).toString().toLatin1());
-    inputs_ = QMediaDevices::audioInputs();
-    inputNames_ << QStringLiteral("システム既定");
-    for (const QAudioDevice &dev : std::as_const(inputs_)) {
-        inputNames_ << dev.description();
+    {
+        const QString key = store.value(QStringLiteral("audio/micInput")).toString();
+        const QString old = store.value(QStringLiteral("audio/micDevice")).toString();
+        selectedMicKey_ = !key.isEmpty() ? key : (old.isEmpty() ? QString() : QStringLiteral("qt:") + old);
     }
-    log::info("AUDIO", QStringLiteral("found %1 input devices").arg(inputs_.size()));
+
+    outputs_ = buildChoices(true);
+    outputNames_ << QStringLiteral("システム既定");
+    for (const Choice &c : std::as_const(outputs_)) outputNames_ << c.name;
+    inputs_ = buildChoices(false);
+    inputNames_ << QStringLiteral("システム既定");
+    for (const Choice &c : std::as_const(inputs_)) inputNames_ << c.name;
+    log::info("AUDIO", QStringLiteral("found %1 outputs / %2 inputs (%3)")
+                           .arg(outputs_.size()).arg(inputs_.size())
+                           .arg(pulse_.available() ? QStringLiteral("PulseAudio ports, shared") : QStringLiteral("Qt devices")));
+
+    connect(&mediaDevices_, &QMediaDevices::audioOutputsChanged, this, [this]() { refreshOutputs(); });
     connect(&mediaDevices_, &QMediaDevices::audioInputsChanged, this, [this]() { refreshInputs(); });
+    // 端子の切り替え・ヘッドホンの抜き差し・プロファイルの切り替え
+    connect(&pulse_, &PulseAudioControl::changed, this, [this]() {
+        refreshOutputs();
+        refreshInputs();
+    });
 }
+
+QList<AudioSettings::Choice> AudioSettings::buildChoices(bool output) const {
+    QList<Choice> list;
+    if (pulse_.available()) {
+        for (const PulseAudioControl::Entry &e : output ? pulse_.outputs() : pulse_.inputs()) {
+            Choice c;
+            c.key = e.key;
+            c.name = e.name;
+            c.qtId = e.node.toUtf8();
+            c.pulse = true;
+            c.entry = e;
+            list << c;
+        }
+        return list;
+    }
+    for (const QAudioDevice &dev : output ? QMediaDevices::audioOutputs() : QMediaDevices::audioInputs()) {
+        Choice c;
+        c.key = QStringLiteral("qt:") + QString::fromLatin1(dev.id().toBase64());
+        c.name = dev.description();
+        c.qtId = dev.id();
+        list << c;
+    }
+    return list;
+}
+
+int AudioSettings::indexForKey(const QString &key, const QList<Choice> &choices) const {
+    if (key.isEmpty()) return 0;
+    // 機器(シンク/ソース)の今の端子の項目を探す
+    auto nodeIndex = [&](const QString &node) {
+        int any = 0;
+        for (int i = 0; i < choices.size(); ++i) {
+            if (choices[i].entry.node != node) continue;
+            if (choices[i].entry.port == pulse_.activePort(node)) return i + 1;
+            if (any == 0) any = i + 1;
+        }
+        return any;
+    };
+    if (key.startsWith(QStringLiteral("qt:"))) {
+        const QByteArray id = QByteArray::fromBase64(key.mid(3).toLatin1());
+        if (pulse_.available()) return nodeIndex(QString::fromUtf8(id));   // 以前の保存(シンクの名前)
+        for (int i = 0; i < choices.size(); ++i) {
+            if (choices[i].qtId == id) return i + 1;
+        }
+        return 0;
+    }
+    if (key.startsWith(QStringLiteral("port:"))) {
+        const QString node = key.mid(5).section(QLatin1Char('|'), 0, 0);
+        return nodeIndex(node);   // 端子はほかの音・ほかのアプリと共通なので、今の端子で見せる
+    }
+    if (key.startsWith(QStringLiteral("profile:"))) {
+        const QString card = key.mid(8).section(QLatin1Char('|'), 0, 0);
+        const QString profile = key.mid(8).section(QLatin1Char('|'), 1);
+        if (pulse_.activeProfile(card) == profile) {
+            // 切り替わった後: そのカードのシンク(の今の端子)
+            for (int i = 0; i < choices.size(); ++i) {
+                if (!choices[i].entry.node.isEmpty() && choices[i].entry.card == card) return nodeIndex(choices[i].entry.node);
+            }
+        }
+        for (int i = 0; i < choices.size(); ++i) {
+            if (choices[i].key == key) return i + 1;
+        }
+    }
+    return 0;
+}
+
+QAudioDevice AudioSettings::deviceFor(int index, const QList<Choice> &choices, bool output) const {
+    const QAudioDevice fallback = output ? QMediaDevices::defaultAudioOutput() : QMediaDevices::defaultAudioInput();
+    if (index <= 0 || index > choices.size()) return fallback;
+    const QByteArray id = choices[index - 1].qtId;
+    if (id.isEmpty()) return fallback;   // プロファイルの切り替え待ち
+    for (const QAudioDevice &dev : output ? QMediaDevices::audioOutputs() : QMediaDevices::audioInputs()) {
+        if (dev.id() == id) return dev;
+    }
+    return fallback;   // Qt からはまだ見えない(切り替えの直後など)
+}
+
 
 AudioSettings::Group AudioSettings::groupForKind(int kind) {
     switch (kind) {
@@ -123,71 +198,55 @@ void AudioSettings::setVolume(Group group, int volume) {
     emit volumeChangedFor(static_cast<int>(group));
 }
 
-QByteArray AudioSettings::resolvedId(Group group) const {
-    if (!selectedIds_[group].isEmpty()) {
-        for (const QAudioDevice &dev : outputs_) {
-            if (dev.id() == selectedIds_[group]) {
-                return dev.id();
-            }
-        }
-    }
-    return QMediaDevices::defaultAudioOutput().id();
-}
-
 int AudioSettings::deviceIndex(Group group) const {
-    if (selectedIds_[group].isEmpty()) {
-        return 0;
-    }
-    for (int i = 0; i < outputs_.size(); ++i) {
-        if (outputs_[i].id() == selectedIds_[group]) {
-            return i + 1;
-        }
-    }
-    return 0; // 保存した機器が未接続の間はシステム既定で鳴らす(選択は保持し、再接続で戻る)
+    // 保存した機器が未接続の間は 0(システム既定で鳴らす)。選択は保持し、再接続で戻る
+    return indexForKey(selectedKeys_[group], outputs_);
 }
 
 QAudioDevice AudioSettings::device(Group group) const {
-    const int index = deviceIndex(group);
-    if (index > 0) {
-        return outputs_[index - 1];
-    }
-    return QMediaDevices::defaultAudioOutput();
+    return deviceFor(deviceIndex(group), outputs_, true);
 }
 
 void AudioSettings::setDeviceIndex(Group group, int index) {
     if (index < 0 || index > outputs_.size()) {
         return;
     }
-    const QByteArray id = index == 0 ? QByteArray() : outputs_[index - 1].id();
-    if (id == selectedIds_[group]) {
+    const QString key = index == 0 ? QString() : outputs_[index - 1].key;
+    if (index > 0 && outputs_[index - 1].pulse) {
+        pulse_.activate(outputs_[index - 1].entry);   // 端子・プロファイルを切り替える(同じ項目でも、端子がずれていれば戻す)
+    }
+    if (key == selectedKeys_[group]) {
         return;
     }
-    selectedIds_[group] = id;
-    openStore().setValue(QStringLiteral("audio/%1Device").arg(keyName(group)), QString::fromLatin1(id.toBase64()));
+    const QByteArray before = device(group).id();
+    selectedKeys_[group] = key;
+    openStore().setValue(QStringLiteral("audio/%1Output").arg(keyName(group)), key);
     log::info("AUDIO", QStringLiteral("%1 output: %2")
                            .arg(keyName(group), index == 0 ? QStringLiteral("system default") : outputNames_.value(index)));
     emit devicesChanged();
-    emit deviceChangedFor(static_cast<int>(group));
+    if (device(group).id() != before) {
+        emit deviceChangedFor(static_cast<int>(group));
+    }
 }
 
 void AudioSettings::refreshOutputs() {
     QByteArray before[GroupCount];
     for (int i = 0; i < GroupCount; ++i) {
-        before[i] = resolvedId(static_cast<Group>(i));
+        before[i] = device(static_cast<Group>(i)).id();
     }
 
-    outputs_ = QMediaDevices::audioOutputs();
-    outputNames_.clear();
-    outputNames_ << QStringLiteral("システム既定");
-    for (const QAudioDevice &dev : std::as_const(outputs_)) {
-        outputNames_ << dev.description();
+    outputs_ = buildChoices(true);
+    QStringList names{QStringLiteral("システム既定")};
+    for (const Choice &c : std::as_const(outputs_)) names << c.name;
+    if (names != outputNames_) {
+        outputNames_ = names;
+        log::info("AUDIO", QStringLiteral("output devices changed (%1)").arg(outputs_.size()));
+        emit outputsChanged();
     }
-    log::info("AUDIO", QStringLiteral("output devices changed (%1)").arg(outputs_.size()));
-    emit outputsChanged();
-    emit devicesChanged(); // 番号が指す機器がずれた可能性があるので、選択表示も更新させる
+    emit devicesChanged(); // 番号が指す機器・今の端子が変わった可能性があるので、選択表示も更新させる
 
     for (int i = 0; i < GroupCount; ++i) {
-        if (resolvedId(static_cast<Group>(i)) != before[i]) {
+        if (device(static_cast<Group>(i)).id() != before[i]) {
             emit deviceChangedFor(i);
         }
     }
@@ -204,48 +263,40 @@ void AudioSettings::setMicEnabled(bool enabled) {
 }
 
 int AudioSettings::micDeviceIndex() const {
-    if (selectedMicId_.isEmpty()) {
-        return 0;
-    }
-    for (int i = 0; i < inputs_.size(); ++i) {
-        if (inputs_[i].id() == selectedMicId_) {
-            return i + 1;
-        }
-    }
-    return 0; // 保存した機器が未接続の間はシステム既定を使う(選択は保持し、再接続で戻る)
+    // 保存した機器が未接続の間は 0(システム既定を使う)。選択は保持し、再接続で戻る
+    return indexForKey(selectedMicKey_, inputs_);
 }
 
 QAudioDevice AudioSettings::micDevice() const {
-    const int index = micDeviceIndex();
-    if (index > 0) {
-        return inputs_[index - 1];
-    }
-    return QMediaDevices::defaultAudioInput();
+    return deviceFor(micDeviceIndex(), inputs_, false);
 }
 
 void AudioSettings::setMicDeviceIndex(int index) {
     if (index < 0 || index > inputs_.size()) {
         return;
     }
-    const QByteArray id = index == 0 ? QByteArray() : inputs_[index - 1].id();
-    if (id == selectedMicId_) {
+    const QString key = index == 0 ? QString() : inputs_[index - 1].key;
+    if (index > 0 && inputs_[index - 1].pulse) {
+        pulse_.activate(inputs_[index - 1].entry);
+    }
+    if (key == selectedMicKey_) {
         return;
     }
-    selectedMicId_ = id;
-    openStore().setValue(QStringLiteral("audio/micDevice"), QString::fromLatin1(id.toBase64()));
+    selectedMicKey_ = key;
+    openStore().setValue(QStringLiteral("audio/micInput"), key);
     log::info("AUDIO", QStringLiteral("microphone input: %1").arg(index == 0 ? QStringLiteral("system default") : inputNames_.value(index)));
     emit micChanged();
 }
 
 void AudioSettings::refreshInputs() {
-    inputs_ = QMediaDevices::audioInputs();
-    inputNames_.clear();
-    inputNames_ << QStringLiteral("システム既定");
-    for (const QAudioDevice &dev : std::as_const(inputs_)) {
-        inputNames_ << dev.description();
+    inputs_ = buildChoices(false);
+    QStringList names{QStringLiteral("システム既定")};
+    for (const Choice &c : std::as_const(inputs_)) names << c.name;
+    if (names != inputNames_) {
+        inputNames_ = names;
+        log::info("AUDIO", QStringLiteral("input devices changed (%1)").arg(inputs_.size()));
+        emit inputsChanged();
     }
-    log::info("AUDIO", QStringLiteral("input devices changed (%1)").arg(inputs_.size()));
-    emit inputsChanged();
     emit micChanged(); // 番号が指す機器がずれた/選んだ機器が現れた・消えた可能性があるので、録音側にも見直させる
 }
 

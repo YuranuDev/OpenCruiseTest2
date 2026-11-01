@@ -49,6 +49,7 @@ qt_add_executable(opencruise
     core/ThemeSettings.cpp
     core/ReverseCamera.cpp
     core/AudioSettings.cpp
+    core/PulseAudioControl.cpp
     core/BrightnessController.cpp
     core/BootManager.cpp
     core/ClockModel.cpp

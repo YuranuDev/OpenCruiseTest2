@@ -9,6 +9,8 @@
 #include <QCameraFormat>
 #include <QSettings>
 #include <QVariant>
+#include <QVideoFrame>
+#include <QVideoSink>
 
 #include <algorithm>
 
@@ -275,6 +277,24 @@ void ReverseCamera::setKeepWarm(bool on) {
 void ReverseCamera::setVideoOutput(QObject *output) {
     output_ = output;
     session_.setVideoOutput(output);
+    // 最初のフレームが届いたことを知るため、出し先(VideoOutput)の videoSink を見る
+    QObject::disconnect(frameConnection_);
+    QVideoSink *sink = output ? output->property("videoSink").value<QVideoSink *>() : nullptr;
+    if (sink == nullptr) sink = session_.videoSink();
+    if (sink != nullptr) {
+        frameConnection_ = connect(sink, &QVideoSink::videoFrameChanged, this, [this](const QVideoFrame &frame) {
+            if (!receiving_ && camera_ != nullptr && frame.isValid()) setReceiving(true);
+        });
+    } else {
+        log::warn("CAMERA", QStringLiteral("no video sink on the output; the view is shown when the camera becomes active"));
+    }
+}
+
+void ReverseCamera::setReceiving(bool on) {
+    if (on == receiving_) return;
+    receiving_ = on;
+    if (on) log::info("CAMERA", QStringLiteral("first video frame received"));
+    emit receivingChanged();
 }
 
 void ReverseCamera::setCameraState(const QString &state, const QString &error) {
@@ -311,6 +331,8 @@ void ReverseCamera::startCamera(const QCameraDevice &device) {
         if (active) {
             log::info("CAMERA", QStringLiteral("camera started: %1").arg(activeDescription_));
             setCameraState(QStringLiteral("active"));
+            // フレームを見られない(出し先が未登録・videoSink が無い)ときは、動き始めた時点で映す
+            if (!frameConnection_) setReceiving(true);
         } else if (cameraState_ != QStringLiteral("error")) {
             setCameraState(QStringLiteral("off"));
         }
@@ -321,6 +343,7 @@ void ReverseCamera::startCamera(const QCameraDevice &device) {
         setCameraState(QStringLiteral("error"), text);
     });
     session_.setCamera(camera_);
+    setReceiving(false);
     setCameraState(QStringLiteral("starting"));
     log::info("CAMERA", QStringLiteral("starting camera: %1 (%2)").arg(activeDescription_, idOf(device)));
     camera_->start();
@@ -338,6 +361,7 @@ void ReverseCamera::stopCamera() {
     cam->stop();
     session_.setCamera(nullptr);
     cam->deleteLater();
+    setReceiving(false);
     log::info("CAMERA", QStringLiteral("camera stopped"));
     setCameraState(QStringLiteral("off"));
 }

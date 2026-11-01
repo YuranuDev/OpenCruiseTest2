@@ -21,6 +21,7 @@
  *    設定は機器の id で保存し、抜き差しで番号が変わっても同じ機器を選ぶ。「自動」は最初に見つかった機器
  *  - 映すときだけカメラを動かす。「すぐに映す」(keepWarm)がオンなら常に動かしておき、切り替えを速くする
  *  - 解像度・フレームレートは、1280x720 以下でいちばん大きく、その中でフレームレートが高いものを選ぶ
+ *  - 映像が実際に届き始めたら receiving を true にする(QML はそれまで画面を黒くしておく)
  * 設定は他の設定と同じ QSettings(IniFormat, UserScope, "OpenCruise"/"OpenCruise")の camera/ に保存する。
  * ログは [CAMERA] に英語で出す(画面の文言は QML 側で日本語にする)。
  */
@@ -73,6 +74,8 @@ class ReverseCamera : public QObject {
     Q_PROPERTY(QString cameraState READ cameraState NOTIFY cameraStateChanged)
     /** エラーの内容(英語。ログと同じ) */
     Q_PROPERTY(QString cameraError READ cameraError NOTIFY cameraStateChanged)
+    /** カメラの映像(フレーム)が届いているか。カメラを動かし始めてから、最初のフレームが来たら true */
+    Q_PROPERTY(bool receiving READ receiving NOTIFY receivingChanged)
     /** 使っているカメラの名前と形式(例 "USB Video: 1280x720 30fps") */
     Q_PROPERTY(QString activeDescription READ activeDescription NOTIFY cameraStateChanged)
 
@@ -106,6 +109,7 @@ public:
     QString cameraState() const { return cameraState_; }
     QString cameraError() const { return cameraError_; }
     QString activeDescription() const { return activeDescription_; }
+    bool receiving() const { return receiving_; }
 
     /** @brief 映像の出し先(QML の VideoOutput)を登録する。 */
     Q_INVOKABLE void setVideoOutput(QObject *output);
@@ -128,6 +132,7 @@ signals:
     void shownChanged();
     void devicesChanged();
     void cameraStateChanged();
+    void receivingChanged();
 
 private:
     void save(const QString &key, const QVariant &value);
@@ -137,6 +142,7 @@ private:
     void startCamera(const QCameraDevice &device);
     void stopCamera();
     void setCameraState(const QString &state, const QString &error = QString());
+    void setReceiving(bool on);
     QCameraDevice selectedDevice() const;
 
     bool reverse_ = false;
@@ -166,6 +172,8 @@ private:
     QString cameraState_ = QStringLiteral("off");
     QString cameraError_;
     QString activeDescription_;
+    bool receiving_ = false;
+    QMetaObject::Connection frameConnection_;
 };
 
 } // namespace opencruise

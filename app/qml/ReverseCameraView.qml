@@ -1,9 +1,11 @@
 // バックカメラの画面。バック信号が入ると(reverseCamera.shown)、ほかの画面の上に全面で出す。
-//  - 映像(ReverseCameraVideo)の上に、距離の目安のガイド線(設定でオン/オフ)と、「バック」の表示を重ねる
-//  - 上の中央に、警告マークつきで「周囲の安全を直接確認してください」を出す。左上はギアの表示(R・バック)
+//  - 映像(ReverseCameraVideo)の上に、距離の目安のガイド線(設定でオン/オフ)を重ねる
+//  - 文字は 2 つだけ: 左上の「R」の札と「リアカメラ」、上の中央の警告マークつき「周囲の安全を直接確認してください」
 //  - バック中は閉じるボタンを出さない(バック信号が切れたら戻る)。設定画面の「映像を確認」のときだけ、右上に「確認を終わる」を出す
 //  - カメラが無い・準備中・エラーのときは、その旨を真ん中に出す
 //  - 出すときはすぐ(短いフェード)、戻すときはゆっくり消す。出ている間は下の画面へタッチを通さない
+//  - カメラの映像が実際に届き始める(reverseCamera.receiving)までは真っ黒にしておき、届いたら映像と表示をまとめて出す
+//    (カメラが見つからない・エラーのときだけ、真ん中にその旨を出す)
 import QtQuick
 
 Item {
@@ -23,15 +25,18 @@ Item {
         anchors.fill: parent
         mirror: reverseCamera.mirror
         fill: reverseCamera.fill
-        opacity: reverseCamera.cameraState === "active" ? 1 : 0
+        opacity: reverseCamera.receiving ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 150 } }
     }
+
+    // 映像の上の表示(ガイド線・左上・上の警告)。映像が届くまでは出さない(画面は黒のまま)
+    readonly property real chromeOpacity: reverseCamera.receiving ? 1 : 0
 
     // ---- ガイド線(距離の目安。手前から 赤・黄・緑) ----
     Canvas {
         id: guides
         anchors.fill: parent
-        visible: reverseCamera.guides && reverseCamera.cameraState === "active"
+        visible: reverseCamera.guides && reverseCamera.receiving
         renderStrategy: Canvas.Cooperative
         readonly property string key: [width, height, visible].join("|")
         onKeyChanged: if (visible) requestPaint()
@@ -79,7 +84,9 @@ Item {
         anchors.centerIn: parent
         width: parent.width * 0.8
         spacing: 14 * root.unit
-        visible: reverseCamera.cameraState !== "active"
+        // 準備中は何も出さない(黒のまま)。見つからない・エラーのときだけ出す
+        visible: !reverseCamera.receiving && (reverseCamera.cameraState === "none" || reverseCamera.cameraState === "error"
+                                              || reverseCamera.missingDevice !== "")
         MaterialIcon {
             anchors.horizontalCenter: parent.horizontalCenter
             name: reverseCamera.cameraState === "starting" ? "videocam" : "videocam_off"
@@ -118,6 +125,8 @@ Item {
     // ---- 上の帯(映像の上で文字が読めるよう、上から下へ薄くなる暗い影) ----
     Rectangle {
         anchors { left: parent.left; right: parent.right; top: parent.top }
+        opacity: root.chromeOpacity
+        Behavior on opacity { NumberAnimation { duration: 150 } }
         height: Math.round(130 * root.unit)
         gradient: Gradient {
             GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.6) }
@@ -128,12 +137,14 @@ Item {
     readonly property bool previewOnly: reverseCamera.previewing && !reverseCamera.reverse
     readonly property real barH: Math.round(60 * root.unit)
 
-    // ---- 左上: ギアの表示(R の札と「バック」) ----
+    // ---- 左上: R の札と「リアカメラ」 ----
     Rectangle {
         id: gearBadge
+        opacity: root.chromeOpacity
+        Behavior on opacity { NumberAnimation { duration: 150 } }
         anchors { left: parent.left; top: parent.top; leftMargin: Theme.margin * 1.5; topMargin: Theme.margin * 1.5 }
         height: root.barH
-        width: gearRow.implicitWidth + 2 * Math.round(8 * root.unit) + Math.round(14 * root.unit)
+        width: gearRow.implicitWidth + Math.round(8 * root.unit) + Math.round(18 * root.unit)
         radius: Math.round(14 * root.unit)
         color: Qt.rgba(0.07, 0.08, 0.1, 0.78)
         border.width: 1
@@ -166,32 +177,13 @@ Item {
                     text: "R"
                 }
             }
-            Column {
+            Text {
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Math.round(1 * root.unit)
-                Text {
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.round(22 * root.unit)
-                    font.bold: true
-                    color: "#ffffff"
-                    text: root.previewOnly ? "映像の確認中" : "バック"
-                }
-                Row {
-                    spacing: Math.round(4 * root.unit)
-                    MaterialIcon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        name: "videocam"
-                        size: Math.round(15 * root.unit)
-                        color: "#b8bcc4"
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Math.round(14 * root.unit)
-                        color: "#b8bcc4"
-                        text: "リアカメラ"
-                    }
-                }
+                font.family: Theme.fontFamily
+                font.pixelSize: Math.round(21 * root.unit)
+                font.bold: true
+                color: "#ffffff"
+                text: "リアカメラ"
             }
         }
     }
@@ -199,6 +191,8 @@ Item {
     // ---- 上の中央: 周囲の安全の確認(警告マークつき) ----
     Rectangle {
         id: safety
+        opacity: root.chromeOpacity
+        Behavior on opacity { NumberAnimation { duration: 150 } }
         // 左上の表示・右上のボタンと重ならない範囲で、なるべく画面の中央に置く。
         // 入りきらない(狭い画面)ときは、左上の表示の下の段に、画面の中央にそろえて置く
         readonly property real leftLimit: gearBadge.x + gearBadge.width + Theme.margin
