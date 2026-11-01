@@ -139,6 +139,14 @@ ApplicationWindow {
         onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
     }
 
+    // ---- バックカメラ: ダミーのバック信号の入/切(外部マイコンからの入力ができるまでの確認用) ----
+    //   Ctrl+Shift+R   バック信号を入れる / 切る(R = Reverse)。入れると、どの画面でもカメラの映像に切り替わる
+    Shortcut {
+        sequence: "Ctrl+Shift+R"
+        autoRepeat: false
+        onActivated: reverseCamera.toggleMockReverse()
+    }
+
     // ---- コンソールへ(eglfs のときだけ) ----
     // eglfs ではアプリが画面とキーボードを使っているので、Ctrl+Alt+F2 などで画面(VT)を切り替えられない。
     // 代わりに、これらのキーでアプリを終了する。自動起動のサービス(scripts/bootsplash)は、終了すると tty1 に
@@ -526,6 +534,12 @@ ApplicationWindow {
             opacity: splash.canClose ? 0 : 1
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
+        }
+
+        // バックカメラの映像(バック信号が入ったら、各画面・通知・起動画面より手前に全面で出す。明るさの幕よりは奥)
+        ReverseCameraView {
+            anchors.fill: parent
+            z: 200
         }
 
         // 画面の明るさ(ソフトウェア方式のときだけ不透明度が 0 より大きくなる黒い幕)。

@@ -36,6 +36,7 @@ sudo apt install build-essential cmake ninja-build pkg-config \
   qt6-base-dev qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls \
   qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates \
   qml6-module-qtqml qml6-module-qtqml-workerscript \
+  qt6-multimedia-dev qml6-module-qtmultimedia \
   libavcodec-dev libavutil-dev libswscale-dev \
   libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev
 # 日本語表示用フォント（例）
@@ -126,6 +127,20 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 実装: `qml/widgets/DecorationStore.qml`(今のページの一覧・元に戻す)/ `DecorationLayer.qml`(奥・手前の表示)/
 `DecorationPanelLayer.qml`(パネルの層。WidgetBase の中)/ `DecorationEditor.qml`・`DecorationPanel.qml`(置き直す操作)/
 `DecorationPicker.qml`(追加パネル)。
+
+## バックカメラ
+
+バック信号が入ると、どの画面でもカメラの映像(全面)に切り替わり、切れると設定の秒数のあとで元の画面に戻る(`core/ReverseCamera`、
+QML では `reverseCamera`。画面は `qml/ReverseCameraView.qml`、設定は「設定 > カメラ」)。
+
+- バック信号: 今はダミーだけ。**Ctrl+Shift+R** か、設定の「ダミーのバック信号」で入/切する。
+  将来の外部マイコン(バックランプの線を読む)からの入力は `ReverseCamera::setExternalReverse()` で受け、入力元を「外部」にする(通信は未実装)
+- カメラ: Qt Multimedia の映像入力(Linux では V4L2)。UVC で認識されるキャプチャーボード・USB カメラを設定から選ぶ
+  (機器の id で保存。「自動」は最初に見つかったもの。選んだ機器が抜けているときは、ほかのカメラに替えず「見つかりません」と出す)。
+  形式は 1280x720 以下でいちばん大きく、フレームレートの高いものを選ぶ
+- 映し方: 左右反転・ガイド線(距離の目安)・全体を表示 / 画面を埋める・すぐに映す(常にカメラを動かしておく)
+- 映像の右上の「閉じる」で、今のバックの間だけ閉じられる。設定の「映像を確認」で、バック信号なしで映像を確かめられる
+- 実行には `qml6-module-qtmultimedia` が要る。ログは `[CAMERA]`
 
 ## ウィジェット
 

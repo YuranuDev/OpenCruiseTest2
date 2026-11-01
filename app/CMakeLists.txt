@@ -47,6 +47,7 @@ qt_add_executable(opencruise
     core/AppInfo.cpp
     core/AppSettings.cpp
     core/ThemeSettings.cpp
+    core/ReverseCamera.cpp
     core/AudioSettings.cpp
     core/BrightnessController.cpp
     core/BootManager.cpp
@@ -103,6 +104,9 @@ qt_add_qml_module(opencruise
         qml/SettingsPageAndroidAuto.qml
         qml/SettingsPageNotifications.qml
         qml/SettingsPageVehicle.qml
+        qml/SettingsPageCamera.qml
+        qml/ReverseCameraView.qml
+        qml/ReverseCameraVideo.qml
         qml/SettingsPageSystem.qml
         qml/SettingsPageAbout.qml
         qml/CanPanel.qml
