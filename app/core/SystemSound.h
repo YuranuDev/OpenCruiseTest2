@@ -43,6 +43,9 @@
 #include <QObject>
 #include <QPointer>
 #include <QSoundEffect>
+#ifdef OPENCRUISE_WITH_ALSA
+#include "AlsaSoundEffect.h"
+#endif
 #include <QString>
 #include <QThread>
 #include <QStringList>
@@ -52,6 +55,14 @@
 #include <QVariantMap>
 
 namespace opencruise {
+
+// 効果音の再生器。ALSA で直接鳴らすビルドでは AlsaSoundEffect(アプリ内で混ぜて、選んだ ALSA の機器へ出す)、
+// それ以外は QSoundEffect(Qt の音声出力)
+#ifdef OPENCRUISE_WITH_ALSA
+using SoundEffect = AlsaSoundEffect;
+#else
+using SoundEffect = QSoundEffect;
+#endif
 
 class AudioSettings;
 
@@ -156,13 +167,13 @@ private:
     /** @brief 設定の音量・出力先を、すべての再生器へ反映する。 */
     void applySettings();
     /** @brief 再生器の読み込み完了・失敗の通知をつなぐ。読み込み中に play() されたときは、読み込み完了後に鳴らす。 */
-    void setupEffect(QSoundEffect *effect, bool &pending);
+    void setupEffect(SoundEffect *effect, bool &pending);
     /** @brief 再生する。読み込み中なら完了後に回し、読み込みに失敗していれば何もしない(再生用のスレッドで呼ぶ)。 */
-    void playEffect(QSoundEffect *effect, bool &pending);
+    void playEffect(SoundEffect *effect, bool &pending);
     /** @brief 再生用のスレッドで f を実行する(呼んだ順に実行される。待たない)。 */
     template <typename F> void onAudio(F &&f) { QMetaObject::invokeMethod(audioContext_, std::forward<F>(f), Qt::QueuedConnection); }
     /** @brief カテゴリの再生器・読み込み待ち・「なし」の状態(未知のカテゴリは操作音の分を返す) */
-    QSoundEffect *effectOf(const QString &category);
+    SoundEffect *effectOf(const QString &category);
     bool &pendingOf(const QString &category);
     bool &mutedOf(const QString &category);
     /** @brief カテゴリの選択に従って再生器へ音を読み込む(「なし」なら空にする)。 */
@@ -188,11 +199,11 @@ private:
     // 再生器は再生用のスレッド(audioThread_)で動かす。audioContext_ が親で、どれも audioContext_ と一緒にそのスレッドにいる
     QThread audioThread_;
     QObject *audioContext_ = nullptr;
-    QSoundEffect *click_ = nullptr;
-    QSoundEffect *start_ = nullptr;
-    QSoundEffect *alert_ = nullptr;
-    QSoundEffect *caution_ = nullptr;
-    QSoundEffect *preview_ = nullptr;
+    SoundEffect *click_ = nullptr;
+    SoundEffect *start_ = nullptr;
+    SoundEffect *alert_ = nullptr;
+    SoundEffect *caution_ = nullptr;
+    SoundEffect *preview_ = nullptr;
     // MP3 の起動音・試聴用(QSoundEffect は WAV しか鳴らせないため)
     QAudioOutput startOutput_;
     QMediaPlayer startPlayer_;

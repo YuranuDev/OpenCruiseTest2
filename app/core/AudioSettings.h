@@ -12,12 +12,10 @@
  *
  * これとは別に、Android Auto の音声入力に使うマイクの設定(使用する/しない、入力元デバイス)も持つ。
  *
- * 出力先・入力元の一覧:
- *  - PulseAudio(PipeWire の pipewire-pulse も同じ)を pactl で操作できるときは、機器の「端子」の単位で出す
- *    (例「Built-in Audio Analog Stereo ・ Headphones」、HDMI などのプロファイル)。音は PulseAudio を通すので機器を占有しない。
- *    選ぶと、その端子・プロファイルに切り替える(PulseAudioControl)。端子は機器ごとに 1 つなので、同じ機器の音は同じ端子から出る
- *  - pactl が使えないときは、これまでどおり Qt の機器一覧(QMediaDevices)
- * 選んだものは文字列の識別子で保存する(audio/<グループ>Output、audio/micInput)。以前の保存(audio/<グループ>Device)も読める。
+ * ALSA で直接鳴らすビルド(OPENCRUISE_WITH_ALSA。Linux で libasound があるとき)では、出力先・入力元の一覧は ALSA の機器
+ * (サウンドカードの PCM ごと。「システム既定」は ALSA の default)になる。PulseAudio / PipeWire を通さず機器を開く(占有する)が、
+ * アプリ内の音(マップ・音楽・システム・効果音)は AlsaAudio で混ぜるので、同じ機器を選んでも同時に鳴り、別の機器にも分けられる。
+ * 選んだ機器は ALSA の機器名で保存する(audio/<グループ>Alsa、audio/micAlsa)。抜き差しは /proc/asound を見て一覧を読み直す。
  */
 #pragma once
 
@@ -28,8 +26,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
-
-#include "PulseAudioControl.h"
+#include <QTimer>
 
 namespace opencruise {
 
@@ -60,8 +57,8 @@ class AudioSettings : public QObject {
     Q_PROPERTY(int micDeviceIndex READ micDeviceIndex WRITE setMicDeviceIndex NOTIFY micChanged)
     /** 選択できる入力元の表示名。先頭は常に「システム既定」。接続の増減に追従する */
     Q_PROPERTY(QStringList inputNames READ inputNames NOTIFY inputsChanged)
-    /** 出力先・入力元を PulseAudio の端子の単位で選んでいるか(pactl が使えるとき)。設定画面の説明の切り替え用 */
-    Q_PROPERTY(bool pulsePorts READ pulsePorts NOTIFY outputsChanged)
+    /** ALSA の機器へ直接出しているか(設定画面の説明の切り替え用) */
+    Q_PROPERTY(bool alsaDirect READ usesAlsa CONSTANT)
 
 public:
     enum Group { Map = 0, Music = 1, System = 2, GroupCount = 3 };
@@ -124,8 +121,13 @@ public:
     void setMicDeviceIndex(int index);
     /** @brief 実際に使う入力デバイス。未選択・未接続ならシステム既定のデバイス。 */
     QAudioDevice micDevice() const;
+    /** @brief ALSA で鳴らすときの出力先の機器名(未選択・未接続なら "default")。 */
+    QString alsaDevice(Group group) const;
+    /** @brief ALSA で録るときの入力元の機器名(未選択・未接続なら "default")。 */
+    QString alsaMicDevice() const;
+    /** @brief ALSA で直接鳴らすビルドか。 */
+    static bool usesAlsa();
     QStringList inputNames() const { return inputNames_; }
-    bool pulsePorts() const { return pulse_.available(); }
 
 signals:
     void volumesChanged();
@@ -147,32 +149,27 @@ private:
     void refreshOutputs();
     /** @brief 入力デバイスの一覧を取り直し、変化を通知する。 */
     void refreshInputs();
-    /** 一覧の 1 項目(Qt の機器、または PulseAudio の端子・プロファイル) */
-    struct Choice {
-        QString key;                    ///< 保存用の識別子("qt:<id の Base64>" または PulseAudioControl の key)
-        QString name;                   ///< 表示名
-        QByteArray qtId;                ///< 実際に開く Qt の機器の id(PulseAudio ならシンク/ソースの名前。未定なら空)
-        bool pulse = false;
-        PulseAudioControl::Entry entry; ///< PulseAudio の項目
-    };
-    /** @brief 一覧(出力・入力)を作り直す。 */
-    QList<Choice> buildChoices(bool output) const;
-    /** @brief 保存した識別子が、今の一覧の何番目に当たるか(1 から。無ければ 0)。端子は機器の今の端子で見る。 */
-    int indexForKey(const QString &key, const QList<Choice> &choices) const;
-    /** @brief 一覧の項目から、実際に開く Qt の機器(見つからなければシステム既定)。 */
-    QAudioDevice deviceFor(int index, const QList<Choice> &choices, bool output) const;
+    /** @brief グループの設定が指している機器の id(未選択・未接続ならシステム既定の id)。 */
+    QByteArray resolvedId(Group group) const;
 
     int volumes_[GroupCount] = {100, 100, 100};
     int masterVolume_ = 100; ///< マスター音量(0..100)。個別音量とは別に保持する
-    QString selectedKeys_[GroupCount]; ///< 選択した出力先の識別子。空ならシステム既定
-    QList<Choice> outputs_;
+    QByteArray selectedIds_[GroupCount]; ///< 選択した機器の id。空ならシステム既定
+    QList<QAudioDevice> outputs_;
     QStringList outputNames_;
     bool micEnabled_ = true;
-    QString selectedMicKey_; ///< 選択したマイクの識別子。空ならシステム既定
-    QList<Choice> inputs_;
+    QByteArray selectedMicId_; ///< 選択したマイクの id。空ならシステム既定
+    QList<QAudioDevice> inputs_;
     QStringList inputNames_;
     QMediaDevices mediaDevices_;
-    PulseAudioControl pulse_;
+    // ALSA(OPENCRUISE_WITH_ALSA のとき)
+    void refreshAlsa();
+    QStringList alsaOutputIds_;          ///< outputNames_ の 2 番目以降に当たる ALSA の機器名
+    QStringList alsaInputIds_;
+    QString alsaSelected_[GroupCount];   ///< 選んだ ALSA の機器名。空ならシステム既定(default)
+    QString alsaMicSelected_;
+    QTimer cardWatch_;                   ///< サウンドカードの抜き差しを見る
+    QString cardSignature_;
 };
 
 } // namespace opencruise

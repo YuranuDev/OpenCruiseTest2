@@ -36,9 +36,10 @@ sudo apt install build-essential cmake ninja-build pkg-config \
   qt6-base-dev qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls \
   qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates \
   qml6-module-qtqml qml6-module-qtqml-workerscript \
-  qt6-multimedia-dev qml6-module-qtmultimedia pulseaudio-utils \
+  qt6-multimedia-dev qml6-module-qtmultimedia \
   libavcodec-dev libavutil-dev libswscale-dev \
-  libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev
+  libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev \
+  libasound2-dev
 # 日本語表示用フォント（例）
 sudo apt install fonts-noto-cjk
 
@@ -90,14 +91,14 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
   - バックライトは、保存された設定がある場合だけ起動時に値を反映する。終了時に元の値へは戻さない。
 
 
-### 出力先・マイクの選び方
+### 音の出し方(ALSA)
 
-PulseAudio(PipeWire の pipewire-pulse も同じ)が動いていて `pactl`(pulseaudio-utils)があれば、出力先・マイクの一覧は
-機器の「端子」の単位で出る(例「Built-in Audio Analog Stereo ・ Headphones」、HDMI などのプロファイル)。音は PulseAudio を通すので
-機器を占有しない。選ぶと `pactl set-sink-port` / `set-source-port` / `set-card-profile` で切り替える(`core/PulseAudioControl`)。
-端子は機器ごとに 1 つなので、同じ機器を選んだ音(マップ・音楽・システム)は同じ端子から出る。ヘッドホンなどの抜き差しは
-`pactl subscribe` で見て、一覧を読み直す。`pactl` が無いときは、これまでどおり Qt の機器一覧を使う。ログは `[AUDIO]`。
-
+libasound(`libasound2-dev`)があるビルドでは、音を ALSA の機器へ直接出す・録る(PulseAudio / PipeWire を通さない。`core/AlsaAudio`)。
+設定の出力先・マイクの一覧は ALSA の機器(サウンドカードの PCM ごと。「システム既定」は ALSA の `default`)。
+機器は音を出している間このアプリが使う(占有する。音が止まって 3 秒たつと手放す)が、アプリ内の音(マップ・音楽・システム・効果音)は
+アプリの中で混ぜてから出すので、同じ機器を選んでも同時に鳴り、音量も別々。別々の機器にも分けられる。
+効果音は `AlsaSoundEffect` で鳴らす(WAV は自前で読み、MP3 は QAudioDecoder で読む)。カードの抜き差しは `/proc/asound` を見て一覧を読み直す。
+libasound が無いビルド(Windows など)は、これまでどおり Qt の音声入出力を使う。ログは `[AUDIO]`。
 ## テーマと背景
 
 設定「表示 > テーマ」でアプリ全体の見た目を選べる(`core/ThemeSettings`、QML では `themeSettings`。色と形は `qml/Theme.qml`)。

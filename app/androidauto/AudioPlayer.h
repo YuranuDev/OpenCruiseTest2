@@ -1,6 +1,8 @@
 /**
  * @file AudioPlayer.h
  * @brief Android Auto から届いた PCM 音声を QAudioSink で再生するクラス。
+ *
+ * ALSA で直接鳴らすビルド(OPENCRUISE_WITH_ALSA)では、QAudioSink の代わりに AlsaAudio の出力(アプリ内で混ぜる)へ流す。
  */
 #pragma once
 
@@ -16,6 +18,9 @@
 #include <QTimer>
 
 #include "core/AudioSettings.h"
+#ifdef OPENCRUISE_WITH_ALSA
+#include "core/AlsaAudio.h"
+#endif
 
 namespace opencruise {
 
@@ -81,6 +86,11 @@ private:
     struct Channel {
         std::unique_ptr<QAudioSink> sink;
         std::unique_ptr<PcmQueueDevice> device;
+#ifdef OPENCRUISE_WITH_ALSA
+        std::shared_ptr<alsa::QueueSource> alsaSource;   ///< ALSA の出力へ流す音
+        alsa::Output *alsaOutput = nullptr;              ///< 流している出力(機器)
+        QElapsedTimer sinceLastPush;
+#endif
         bool failed = false;   ///< 出力を作れなかった(ログの連発防止)
         bool draining = false; ///< 停止通知済み。キューが空になったら破棄する
     };

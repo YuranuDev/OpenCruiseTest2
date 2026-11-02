@@ -53,6 +53,9 @@
 #include "core/AppInfo.h"
 #include "core/AppSettings.h"
 #include "core/ThemeSettings.h"
+#ifdef OPENCRUISE_WITH_ALSA
+#include "core/AlsaAudio.h"
+#endif
 #include "core/ReverseCamera.h"
 #include "core/AudioSettings.h"
 #include "core/BrightnessController.h"
@@ -556,6 +559,9 @@ int main(int argc, char *argv[]) {
     }
 
     const int exitCode = app.exec();
+#ifdef OPENCRUISE_WITH_ALSA
+    opencruise::alsa::shutdown();   // 音の出力のスレッドを止めて、ALSA の機器を閉じる
+#endif
     // 終了の合図(aboutToQuit)で片付けた画面の部品を、画面全体を壊す前に消しておく(後回しにした削除を実行する)
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 

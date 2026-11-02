@@ -13,6 +13,9 @@
 #include <QString>
 
 #include "core/AudioSettings.h"
+#ifdef OPENCRUISE_WITH_ALSA
+#include "core/AlsaAudio.h"
+#endif
 
 namespace opencruise {
 
@@ -25,6 +28,7 @@ namespace opencruise {
  *
  * 形式は Service Discovery で申告した値(16kHz / 16bit / 1ch)に固定。
  * 録音した PCM は captured() で渡す。
+ * ALSA で直接鳴らすビルド(OPENCRUISE_WITH_ALSA)では、QAudioSource の代わりに ALSA の機器から直接録る(alsa::Capture)。
  */
 class MicrophoneInput : public QObject {
     Q_OBJECT
@@ -64,6 +68,11 @@ private:
     QPointer<AudioSettings> settings_;
     bool requested_ = false;
     std::unique_ptr<QAudioSource> source_;
+#ifdef OPENCRUISE_WITH_ALSA
+    std::unique_ptr<alsa::Capture> alsaCapture_;
+#endif
+    /** @brief 録音中か(Qt / ALSA のどちらでも)。 */
+    bool capturing() const;
     QIODevice *io_ = nullptr; ///< source_ が所有
     QByteArray currentDeviceId_;
     QString currentDeviceName_;

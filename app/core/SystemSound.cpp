@@ -114,11 +114,11 @@ SystemSound::SystemSound(AudioSettings *settings, QObject *parent)
       startOutput_(this), startPlayer_(this), previewOutput_(this), previewPlayer_(this) {
     // 再生器は再生用のスレッドで動かす(鳴らし始め・止めるときの出力先とのやり取りで、画面が止まらないように)
     audioContext_ = new QObject;
-    click_ = new QSoundEffect(audioContext_);
-    start_ = new QSoundEffect(audioContext_);
-    alert_ = new QSoundEffect(audioContext_);
-    caution_ = new QSoundEffect(audioContext_);
-    preview_ = new QSoundEffect(audioContext_);
+    click_ = new SoundEffect(audioContext_);
+    start_ = new SoundEffect(audioContext_);
+    alert_ = new SoundEffect(audioContext_);
+    caution_ = new SoundEffect(audioContext_);
+    preview_ = new SoundEffect(audioContext_);
     audioThread_.setObjectName(QStringLiteral("OpenCruiseSound"));
     audioContext_->moveToThread(&audioThread_);
     audioThread_.start();
@@ -194,7 +194,12 @@ bool SystemSound::allowsMp3(const QString &category) {
 }
 
 bool SystemSound::isMp3(const QUrl &url) {
+#ifdef OPENCRUISE_WITH_ALSA
+    Q_UNUSED(url)
+    return false;   // ALSA で鳴らすときは、効果音の再生器(AlsaSoundEffect)が MP3 も読める(QMediaPlayer は使わない)
+#else
     return url.path().endsWith(QStringLiteral(".mp3"), Qt::CaseInsensitive);
+#endif
 }
 
 QStringList SystemSound::soundFiles(const QString &directory, const QString &category) {
@@ -306,7 +311,7 @@ void SystemSound::loadCategory(const QString &category) {
             url = QUrl();   // WAV 用の再生器は空にしておく
         }
     }
-    QSoundEffect *effect = effectOf(category);
+    SoundEffect *effect = effectOf(category);
     bool *pending = &pendingOf(category);
     mutedOf(category) = muted;
     onAudio([effect, pending, url]() {
@@ -324,7 +329,7 @@ void SystemSound::loadCategory(const QString &category) {
     }
 }
 
-QSoundEffect *SystemSound::effectOf(const QString &category) {
+SoundEffect *SystemSound::effectOf(const QString &category) {
     if (category == QStringLiteral("start")) {
         return start_;
     }
@@ -598,7 +603,7 @@ void SystemSound::updateAlertLoop() {
         alertLooping_ = true;
         onAudio([this]() {
             alert_->stop();
-            alert_->setLoopCount(QSoundEffect::Infinite);
+            alert_->setLoopCount(SoundEffect::Infinite);
             playEffect(alert_, alertPending_); // 読み込み中なら、読み込みが終わってから鳴らし始める
         });
     } else if (!loop && alertLooping_) {
@@ -611,13 +616,13 @@ void SystemSound::updateAlertLoop() {
     }
 }
 
-void SystemSound::setupEffect(QSoundEffect *effect, bool &pending) {
+void SystemSound::setupEffect(SoundEffect *effect, bool &pending) {
     // 受け手を再生器自身にして、再生用のスレッドで受ける
-    connect(effect, &QSoundEffect::statusChanged, effect, [effect, &pending]() {
-        if (effect->status() == QSoundEffect::Error) {
+    connect(effect, &SoundEffect::statusChanged, effect, [effect, &pending]() {
+        if (effect->status() == SoundEffect::Error) {
             log::warn("AUDIO", QStringLiteral("cannot load system sound: ") + effect->source().toString());
             pending = false;
-        } else if (effect->status() == QSoundEffect::Ready && pending) {
+        } else if (effect->status() == SoundEffect::Ready && pending) {
             pending = false;
             effect->play();
         }
@@ -629,36 +634,48 @@ void SystemSound::applySettings() {
         return;
     }
     const float gain = static_cast<float>(settings_->gain(AudioSettings::System));
+#ifdef OPENCRUISE_WITH_ALSA
+    // ALSA: システム音の出力先(ALSA の機器名)へ。同じ機器のほかの音とは、アプリ内で混ぜて鳴らす
+    const QString alsaDevice = settings_->alsaDevice(AudioSettings::System);
+    onAudio([this, gain, alsaDevice]() {
+        for (SoundEffect *effect : {click_, start_, alert_, caution_, preview_}) {
+            effect->setVolume(gain);
+            effect->setOutputDevice(alsaDevice);
+        }
+    });
+#else
     const QAudioDevice device = settings_->device(AudioSettings::System);
     onAudio([this, gain, device]() {
-        for (QSoundEffect *effect : {click_, start_, alert_, caution_, preview_}) {
+        for (SoundEffect *effect : {click_, start_, alert_, caution_, preview_}) {
             effect->setVolume(gain);
             if (!device.isNull() && effect->audioDevice().id() != device.id()) {
                 effect->setAudioDevice(device);
             }
         }
     });
+    // MP3 の起動音・試聴(QMediaPlayer)。ALSA のビルドでは使わない(MP3 も効果音の再生器で鳴らす)
     for (QAudioOutput *output : {&startOutput_, &previewOutput_}) {
         output->setVolume(gain);
         if (!device.isNull() && output->device().id() != device.id()) {
             output->setDevice(device);
         }
     }
+#endif
 }
 
-void SystemSound::playEffect(QSoundEffect *effect, bool &pending) {
+void SystemSound::playEffect(SoundEffect *effect, bool &pending) {
     // 再生用のスレッドで呼ぶ。鳴らし始めに時間がかかったら、ログに残す(画面は止まらないが、音が遅れる)
     QElapsedTimer timer;
     timer.start();
     switch (effect->status()) {
-    case QSoundEffect::Ready:
+    case SoundEffect::Ready:
         effect->play();
         if (timer.elapsed() >= 30) {
             log::info("AUDIO", QStringLiteral("starting to play a sound took %1 ms: %2")
                                    .arg(timer.elapsed()).arg(effect->source().fileName()));
         }
         break;
-    case QSoundEffect::Loading:
+    case SoundEffect::Loading:
         pending = true; // 読み込みが終わったら鳴らす
         break;
     default:

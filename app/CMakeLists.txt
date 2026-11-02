@@ -49,7 +49,6 @@ qt_add_executable(opencruise
     core/ThemeSettings.cpp
     core/ReverseCamera.cpp
     core/AudioSettings.cpp
-    core/PulseAudioControl.cpp
     core/BrightnessController.cpp
     core/BootManager.cpp
     core/ClockModel.cpp
@@ -196,6 +195,17 @@ if(LIBDRM_FOUND)
     message(STATUS "libdrm ${LIBDRM_VERSION}: eglfs の外部モニターへのミラーを有効にします")
 else()
     message(STATUS "libdrm が見つかりません: eglfs の外部モニターへのミラーは無効です")
+endif()
+# 音を ALSA の機器へ直接出す・録る(PulseAudio / PipeWire を通さない。アプリ内の音はアプリ内で混ぜる。core/AlsaAudio)。
+# libasound が無いとき(Windows など)は、これまでどおり Qt の音声入出力を使う(sudo apt install libasound2-dev)
+pkg_check_modules(ALSA QUIET IMPORTED_TARGET alsa)
+if(ALSA_FOUND)
+    target_sources(opencruise PRIVATE core/AlsaAudio.cpp core/AlsaSoundEffect.cpp)
+    target_link_libraries(opencruise PRIVATE PkgConfig::ALSA)
+    target_compile_definitions(opencruise PRIVATE OPENCRUISE_WITH_ALSA)
+    message(STATUS "ALSA ${ALSA_VERSION}: 音を ALSA の機器へ直接出します")
+else()
+    message(STATUS "ALSA(libasound)が見つかりません: 音は Qt の音声入出力で出します")
 endif()
 target_compile_options(opencruise PRIVATE -Wall -Wextra)
 

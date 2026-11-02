@@ -58,10 +58,14 @@ void MicrophoneInput::reconcile() {
         refreshStatus();
         return;
     }
-    if (source_) {
+    if (capturing()) {
         // 入力元の選択(や接続状況)が変わっていたら作り直す。変わっていなければ何もしない
-        const QAudioDevice wanted = settings_ ? settings_->micDevice() : QMediaDevices::defaultAudioInput();
-        if (wanted.id() == currentDeviceId_) {
+#ifdef OPENCRUISE_WITH_ALSA
+        const QByteArray wantedId = (settings_ ? settings_->alsaMicDevice() : QStringLiteral("default")).toUtf8();
+#else
+        const QByteArray wantedId = (settings_ ? settings_->micDevice() : QMediaDevices::defaultAudioInput()).id();
+#endif
+        if (wantedId == currentDeviceId_) {
             return;
         }
         qInfo().noquote() << "[mic] input device changed; recreating the recorder";
@@ -72,8 +76,52 @@ void MicrophoneInput::reconcile() {
     startCapture(true);
 }
 
+bool MicrophoneInput::capturing() const {
+#ifdef OPENCRUISE_WITH_ALSA
+    if (alsaCapture_) return true;
+#endif
+    return source_ != nullptr;
+}
+
 void MicrophoneInput::startCapture(bool announce) {
     errorText_.clear();
+#ifdef OPENCRUISE_WITH_ALSA
+    // ALSA の機器から直接録る(16kHz / 16bit / 1ch。届いた分は UI スレッドへ渡して captured() で出す)
+    {
+        const QString device = settings_ ? settings_->alsaMicDevice() : QStringLiteral("default");
+        auto capture = std::make_unique<alsa::Capture>(
+            device,
+            [this](const QByteArray &pcm) {
+                QMetaObject::invokeMethod(this, [this, pcm]() { if (alsaCapture_) emit captured(pcm); }, Qt::QueuedConnection);
+            },
+            [this](const QString &error) {
+                QMetaObject::invokeMethod(this, [this, error]() {
+                    errorText_ = error;
+                    qWarning().noquote() << "[mic]" << errorText_;
+                    const QString keep = errorText_;
+                    stopCapture();
+                    errorText_ = keep;
+                    refreshStatus();
+                }, Qt::QueuedConnection);
+            });
+        if (!capture->start()) {
+            errorText_ = capture->error();
+            qWarning().noquote() << "[mic] cannot start recording:" << errorText_;
+            refreshStatus();
+            return;
+        }
+        alsaCapture_ = std::move(capture);
+        currentDeviceId_ = device.toUtf8();
+        currentDeviceName_ = device;
+        qInfo().noquote() << "[mic] starting recording:" << kSampleRate << "Hz" << kChannels << "ch on ALSA" << device;
+        refreshStatus();
+        if (announce) {
+            NotificationManager::notify(QStringLiteral("マイクがオンになりました"), currentDeviceName_,
+                                        NotificationManager::Info, QStringLiteral("mic"), 3000);
+        }
+        return;
+    }
+#endif
 
     QAudioFormat format;
     format.setSampleRate(kSampleRate);
@@ -144,6 +192,15 @@ void MicrophoneInput::startCapture(bool announce) {
 }
 
 void MicrophoneInput::stopCapture() {
+#ifdef OPENCRUISE_WITH_ALSA
+    if (alsaCapture_) {
+        alsaCapture_.reset();   // 録音のスレッドを止めて機器を閉じる
+        currentDeviceId_.clear();
+        currentDeviceName_.clear();
+        qInfo().noquote() << "[mic] recording stopped";
+        return;
+    }
+#endif
     if (!source_) {
         return;
     }
@@ -170,7 +227,7 @@ void MicrophoneInput::refreshStatus() {
     const bool enabled = settings_ ? settings_->micEnabled() : true;
     if (!errorText_.isEmpty()) {
         text = QStringLiteral("エラー: ") + uitext::toJapanese(errorText_);   // エラーはログ用に英語で持つ
-    } else if (source_) {
+    } else if (capturing()) {
         text = QStringLiteral("録音中 (%1)").arg(currentDeviceName_);
     } else if (!enabled) {
         text = QStringLiteral("オフ(使用しません)");

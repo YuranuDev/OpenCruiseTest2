@@ -112,8 +112,17 @@ void AudioPlayer::applyVolume(int group) {
     }
     for (int kind = 0; kind < kChannelCount; ++kind) {
         Channel &ch = channels_[kind];
-        if (ch.sink && AudioSettings::groupForKind(kind) == group) {
-            ch.sink->setVolume(static_cast<float>(settings_->gain(static_cast<AudioSettings::Group>(group))));
+        if (AudioSettings::groupForKind(kind) != group) {
+            continue;
+        }
+        const float gain = static_cast<float>(settings_->gain(static_cast<AudioSettings::Group>(group)));
+#ifdef OPENCRUISE_WITH_ALSA
+        if (ch.alsaSource) {
+            ch.alsaSource->gain = gain;
+        }
+#endif
+        if (ch.sink) {
+            ch.sink->setVolume(gain);
         }
     }
 }
@@ -124,6 +133,18 @@ void AudioPlayer::reopenGroup(int group) {
         if (AudioSettings::groupForKind(kind) != group) {
             continue;
         }
+#ifdef OPENCRUISE_WITH_ALSA
+        // ALSA: 溜まっている音ごと、新しい出力先(機器)へ移す(途切れないように)
+        if (ch.alsaSource && settings_) {
+            alsa::Output *to = alsa::outputFor(settings_->alsaDevice(static_cast<AudioSettings::Group>(group)));
+            if (to != ch.alsaOutput) {
+                qInfo().noquote() << "[audio] output device changed; moving to" << to->device() << ":" << nameOf(kind);
+                ch.alsaOutput->remove(ch.alsaSource);
+                to->add(ch.alsaSource);
+                ch.alsaOutput = to;
+            }
+        }
+#endif
         if (ch.sink) {
             qInfo().noquote() << "[audio] output device changed; recreating output:" << nameOf(kind);
             destroy(ch);
@@ -137,6 +158,26 @@ void AudioPlayer::write(int kind, const QByteArray &pcm) {
         return;
     }
     Channel &ch = channels_[kind];
+#ifdef OPENCRUISE_WITH_ALSA
+    // ALSA: 選んだ機器の出力(アプリ内で混ぜる)へ流す。形式の違い(16kHz / 1ch など)は QueueSource が直す
+    {
+        const AudioSettings::Group group = AudioSettings::groupForKind(kind);
+        if (!ch.alsaSource) {
+            ch.alsaSource = std::make_shared<alsa::QueueSource>(isStereo(kind) ? 48000 : 16000, isStereo(kind) ? 2 : 1);
+            ch.alsaSource->gain = settings_ ? static_cast<float>(settings_->gain(group)) : 1.0f;
+            ch.alsaOutput = alsa::outputFor(settings_ ? settings_->alsaDevice(group) : QStringLiteral("default"));
+            ch.alsaOutput->add(ch.alsaSource);
+            qInfo().noquote() << "[audio] starting playback:" << nameOf(kind) << "on ALSA" << ch.alsaOutput->device();
+        }
+        ch.alsaSource->push(pcm);
+        ch.sinceLastPush.restart();
+        ch.draining = false;
+        if (!timer_.isActive()) {
+            timer_.start();
+        }
+        return;
+    }
+#endif
     if (ch.failed) {
         return;
     }
@@ -193,6 +234,11 @@ void AudioPlayer::stop(int kind) {
     }
     Channel &ch = channels_[kind];
     ch.failed = false;
+#ifdef OPENCRUISE_WITH_ALSA
+    if (ch.alsaSource) {
+        ch.draining = true;
+    }
+#endif
     if (ch.sink) {
         ch.draining = true; // 再生待ちを鳴らし切ってから housekeeping() が破棄する
     }
@@ -207,6 +253,13 @@ void AudioPlayer::stopAll() {
 }
 
 void AudioPlayer::destroy(Channel &ch) {
+#ifdef OPENCRUISE_WITH_ALSA
+    if (ch.alsaSource) {
+        ch.alsaOutput->remove(ch.alsaSource);
+        ch.alsaSource.reset();
+        ch.alsaOutput = nullptr;
+    }
+#endif
     if (ch.sink) {
         ch.sink->stop();
     }
@@ -219,6 +272,19 @@ void AudioPlayer::housekeeping() {
     bool anyActive = false;
     for (int kind = 0; kind < kChannelCount; ++kind) {
         Channel &ch = channels_[kind];
+#ifdef OPENCRUISE_WITH_ALSA
+        if (ch.alsaSource) {
+            const bool empty = ch.alsaSource->queuedFrames() == 0;
+            const bool quiet = ch.sinceLastPush.elapsed() >= (ch.draining ? kTailMs : kIdleCloseMs);
+            if (empty && quiet) {
+                qInfo().noquote() << "[audio] closing output:" << nameOf(kind);
+                destroy(ch);
+            } else {
+                anyActive = true;
+            }
+            continue;
+        }
+#endif
         if (!ch.sink) {
             continue;
         }
