@@ -60,6 +60,11 @@ AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
     for (const QAudioDevice &dev : std::as_const(outputs_)) {
         outputNames_ << dev.description();
     }
+#ifdef OPENCRUISE_WITH_ALSA
+    log::info("AUDIO", QStringLiteral("audio backend: ALSA direct (mixed in the app)"));
+#else
+    log::info("AUDIO", QStringLiteral("audio backend: Qt Multimedia (built without ALSA)"));
+#endif
     log::info("AUDIO", QStringLiteral("found %1 output devices").arg(outputs_.size()));
 
     connect(&mediaDevices_, &QMediaDevices::audioOutputsChanged, this, [this]() { refreshOutputs(); });
