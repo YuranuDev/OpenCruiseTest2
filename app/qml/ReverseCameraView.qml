@@ -137,57 +137,6 @@ Item {
     readonly property bool previewOnly: reverseCamera.previewing && !reverseCamera.reverse
     readonly property real barH: Math.round(60 * root.unit)
 
-    // ---- 左上: R の札と「リアカメラ」 ----
-    Rectangle {
-        id: gearBadge
-        opacity: root.chromeOpacity
-        Behavior on opacity { NumberAnimation { duration: 150 } }
-        anchors { left: parent.left; top: parent.top; leftMargin: Theme.margin * 1.5; topMargin: Theme.margin * 1.5 }
-        height: root.barH
-        width: gearRow.implicitWidth + Math.round(8 * root.unit) + Math.round(18 * root.unit)
-        radius: Math.round(14 * root.unit)
-        color: Qt.rgba(0.07, 0.08, 0.1, 0.78)
-        border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.16)
-        Row {
-            id: gearRow
-            anchors { left: parent.left; leftMargin: Math.round(8 * root.unit); verticalCenter: parent.verticalCenter }
-            spacing: Math.round(12 * root.unit)
-            // R の札(シフトの表示のような角丸の四角)
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                height: root.barH - Math.round(16 * root.unit)
-                width: height
-                radius: Math.round(9 * root.unit)
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: root.previewOnly ? "#6b6f76" : "#ff5a4e" }
-                    GradientStop { position: 1.0; color: root.previewOnly ? "#4a4e55" : "#d42a1f" }
-                }
-                Rectangle {   // 上側の細いハイライト(立体感)
-                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 2 }
-                    height: 1
-                    color: Qt.rgba(1, 1, 1, 0.35)
-                }
-                Text {
-                    anchors.centerIn: parent
-                    font.family: Theme.numberFontFamily
-                    font.pixelSize: Math.round(parent.height * 0.62)
-                    font.bold: true
-                    color: "#ffffff"
-                    text: "R"
-                }
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                font.family: Theme.fontFamily
-                font.pixelSize: Math.round(21 * root.unit)
-                font.bold: true
-                color: "#ffffff"
-                text: "リアカメラ"
-            }
-        }
-    }
-
     // ---- 上の中央: 周囲の安全の確認(警告マークつき) ----
     Rectangle {
         id: safety
