@@ -1,9 +1,9 @@
 # OpenCruise の Linux 起動画面(Plymouth のスクリプトテーマ)。
-# アプリの起動画面と同じ見た目の画像(background.png。アプリの --export-splash で作る)を全面に出し、
-# 進行バーの塗りだけをここで描く。アプリは起動するとこの画面を消さずに引き継ぎ(plymouth quit --retain-splash)、
-# 同じ位置に同じものを描くので、途切れずにアプリの起動画面へ移る。
+# アプリの起動画面と同じ見た目の画像(黒の背景 + 中央のロゴ。background.png。アプリの --export-splash で作る)を
+# 最初から全面に出す(進行バーなどは出さない)。アプリは起動するとこの画面を消さずに引き継ぎ(plymouth quit --retain-splash)、
+# 同じ位置に同じロゴを描くので、動かず途切れずにアプリの起動画面へ移る。
 # シャットダウン・再起動のときも同じ画像を出す(アプリは終わる前に、この画像へ切り替えてから終わる)。
-# @...@ は install.sh が splash.conf の値で置き換える(画面の大きさ・進行バーの位置・色)。
+# @...@ は install.sh が splash.conf の値で置き換える(画面の大きさ・ロゴの下端の位置・色)。
 
 src_w = @WIDTH@;
 src_h = @HEIGHT@;
@@ -23,35 +23,12 @@ if (background.image.GetWidth() != screen_w || background.image.GetHeight() != s
 background.sprite = Sprite(background.image);
 background.sprite.SetPosition(Window.GetX(), Window.GetY(), -100);
 
-#----------------------------------------- 進行バー(塗り) --------------------------------
-# アプリの起動画面の進行バーと同じ位置。アプリの続きにつながるよう、ここでは 3 割までしか進めない
-bar.x = Window.GetX() + @BAR_X@ * sx;
-bar.y = Window.GetY() + @BAR_Y@ * sy;
-bar.w = @BAR_W@ * sx;
-bar.h = @BAR_H@ * sy;
-bar.fill = Image("progress-fill.png");
-bar.sprite = Sprite();
-bar.sprite.SetPosition(bar.x, bar.y, 10);
-global.bar_shown = -1;
-
-fun progress_callback (duration, progress)
-  {
-    # シャットダウン・再起動の画面では進めない(溝だけ。アプリの終了画面と同じ見た目のまま)
-    if (Plymouth.GetMode() != "boot")
-      return;
-    w = Math.Int(bar.w * progress * 0.3);
-    if (w < 1) w = 1;
-    if (w != global.bar_shown)
-      {
-        global.bar_shown = w;
-        bar.sprite.SetImage(bar.fill.Scale(w, bar.h));
-      }
-  }
-Plymouth.SetBootProgressFunction(progress_callback);
+# ロゴの下端(パスワードの入力欄やメッセージは、その下に出す)
+logo_bottom = Window.GetY() + @LOGO_BOTTOM@ * sy;
 
 #----------------------------------------- パスワード(暗号化したディスクなど) --------------------------------
 prompt.sprite = Sprite();
-prompt.sprite.SetPosition(Window.GetX(), bar.y + bar.h + 24 * sy, 20);
+prompt.sprite.SetPosition(Window.GetX(), logo_bottom + 24 * sy, 20);
 
 fun show_center_text (sprite, text)
   {
@@ -86,7 +63,7 @@ Plymouth.SetDisplayNormalFunction(display_normal_callback);
 
 #----------------------------------------- メッセージ(ディスクの検査など) --------------------------------
 message.sprite = Sprite();
-message.sprite.SetPosition(Window.GetX(), bar.y + bar.h + 60 * sy, 20);
+message.sprite.SetPosition(Window.GetX(), logo_bottom + 60 * sy, 20);
 
 fun display_message_callback (text)
   {

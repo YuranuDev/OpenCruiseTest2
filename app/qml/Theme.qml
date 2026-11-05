@@ -82,7 +82,7 @@ QtObject {
     // Linux の起動画面(Plymouth)用の画像は、インストール時に 1 度だけ書き出す静止画。昼夜テーマ(時刻で自動切替)や
     // アクセント色に連動させると、書き出した時刻のテーマと起動した時刻のテーマが食い違い、色が合わなくなる。
     // そこで、起動画面は常にこの配色(夜の配色 + 既定のアクセント色)で描く。変える場合はここだけを直し、install.sh を再実行する。
-    readonly property color bootBackground:    "#0d1015"
+    readonly property color bootBackground:    "#000000"   // 完全な黒(起動画面・注意事項・終了画面の背景)
     readonly property color bootPanel:         "#161b23"
     readonly property color bootPanelBorder:   "#252c37"
     readonly property color bootTextPrimary:   "#e8ebf0"

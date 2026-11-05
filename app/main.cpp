@@ -10,7 +10,7 @@
  *  --open-settings       設定画面を開いた状態で起動（画面遷移の確認用）
  *  --skip-boot           起動(オープニング)画面を出さずに起動
  *  --export-splash <dir> 起動画面の見た目を、Linux の起動画面(Plymouth)用の画像として書き出して終了
- *                        (tools/bootsplash/install.sh が使う。background.png / progress-fill.png / splash.conf)
+ *                        (tools/bootsplash/install.sh が使う。background.png / splash.conf)
  *
  * Linux の起動画面(Plymouth)からの引き継ぎ(scripts/bootsplash の自動起動のサービスで動かすとき):
  *  Plymouth の操作は root でしかできないので、サービス(systemd)が行う。アプリは画面を開いて最初の 1 枚を描くだけ。
@@ -173,9 +173,8 @@ static void installTermHandler(QGuiApplication &app, QQmlApplicationEngine &engi
  * @brief 起動画面の見た目を、Plymouth のテーマ用に書き出す(--export-splash)。
  *
  * 書き出すもの(dir の中):
- *  - background.png    起動画面のうち、変わらない部分(背景・タイトル・警告・進行バーの溝)だけを描いた全画面の画像
- *  - progress-fill.png 進行バーの塗り(幅 1px。Plymouth が伸ばして使う)
- *  - splash.conf       画面の大きさ・進行バーの位置・色(install.sh がテーマのスクリプトへ埋め込む)
+ *  - background.png    起動画面(黒の背景 + 中央のロゴ)をそのまま描いた全画面の画像
+ *  - splash.conf       画面の大きさ・ロゴの下端の位置・色(install.sh がテーマのスクリプトへ埋め込む)
  * @return 書き出せたら true
  */
 static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
@@ -198,11 +197,6 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
         opencruise::log::error("SPLASH", QStringLiteral("cannot save the splash image: ") + dir);
         return false;
     }
-    const int barH = qMax(1, qRound(g.value(QStringLiteral("barH")).toReal()));
-    QImage fill(1, barH, QImage::Format_ARGB32);
-    fill.fill(QColor(g.value(QStringLiteral("fillColor")).toString()));
-    fill.save(dir + QStringLiteral("/progress-fill.png"));
-
     QFile conf(dir + QStringLiteral("/splash.conf"));
     if (!conf.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         return false;
@@ -214,10 +208,7 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
     QTextStream out(&conf);
     out << "width=" << image.width() << "\n"
         << "height=" << image.height() << "\n"
-        << "bar_x=" << qRound(g.value(QStringLiteral("barX")).toReal()) << "\n"
-        << "bar_y=" << qRound(g.value(QStringLiteral("barY")).toReal()) << "\n"
-        << "bar_w=" << qRound(g.value(QStringLiteral("barW")).toReal()) << "\n"
-        << "bar_h=" << barH << "\n"
+        << "logo_bottom=" << qRound(g.value(QStringLiteral("logoBottom")).toReal()) << "\n"
         << "background_rgb=" << rgb(color(QStringLiteral("backgroundColor"))) << "\n"
         << "text_rgb=" << rgb(color(QStringLiteral("textColor"))) << "\n";
     opencruise::log::info("SPLASH", QStringLiteral("exported the splash screen: %1 (%2 x %3)")

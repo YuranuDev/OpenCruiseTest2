@@ -173,6 +173,7 @@ qt_add_qml_module(opencruise
         qml/widgets/NavigationWidget.qml
         qml/widgets/NavigationSettings.qml
     RESOURCES
+        images/YuranuDev_Brush_Script_Logo.png
         fonts/MaterialIcons-Regular.ttf
         fonts/materialdesignicons-webfont.ttf)
 

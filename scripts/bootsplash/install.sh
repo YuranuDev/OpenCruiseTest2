@@ -5,7 +5,7 @@
 #
 # 行うこと:
 #  1. Plymouth(起動画面)を入れ、アプリの起動画面と同じ見た目のテーマ「opencruise」を作って使う
-#     (画像はアプリの --export-splash で、この PC の画面の大きさと、起動画面の固定配色(Theme.qml の boot*)で書き出す)
+#     (画像はアプリの --export-splash で、この PC の画面の大きさで、黒の背景 + 中央のロゴとして書き出す)
 #  2. 起動時のメッセージを抑える(GRUB のメニューを隠し、カーネルの引数に quiet splash loglevel=3 など)
 #  2b. 起動中の画面が暗くならないよう、バックライトを起動時に最大にする(udev のルール + systemd-backlight の復元を止める)
 #  3. アプリを tty1 で自動起動する systemd サービス(opencruise.service)を入れる(--no-autostart で行わない)
@@ -21,7 +21,7 @@
 #  --no-backlight      起動時にバックライトを最大にする設定を入れない
 #
 # 元に戻す: sudo scripts/bootsplash/uninstall.sh
-# アプリの起動画面のレイアウトや固定配色(Theme.qml の boot*)を変えたら、もう一度実行すると画像を作り直す。
+# アプリの起動画面(ロゴの大きさ・位置・背景色)を変えたら、もう一度実行すると画像を作り直す。
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,7 +69,7 @@ fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 if [ -n "$IMAGE_DIR" ]; then
-    cp "$IMAGE_DIR"/background.png "$IMAGE_DIR"/progress-fill.png "$IMAGE_DIR"/splash.conf "$WORK"/
+    cp "$IMAGE_DIR"/background.png "$IMAGE_DIR"/splash.conf "$WORK"/
 else
     say "アプリの起動画面を書き出します(数秒、画面にアプリの起動画面が出ます)"
     # 自動起動中のアプリが画面を使っていると書き出せないので、止めておく(最後に入れ直す)
@@ -89,18 +89,17 @@ declare -A CONF
 while IFS='=' read -r key value; do
     [ -n "$key" ] && CONF["$key"]="$value"
 done < "$WORK/splash.conf"
-for key in width height bar_x bar_y bar_w bar_h background_rgb text_rgb; do
+for key in width height logo_bottom background_rgb text_rgb; do
     [ -n "${CONF[$key]:-}" ] || die "splash.conf に $key がありません"
 done
 comma() { echo "$1" | sed 's/ \+/, /g'; }
 
 say "テーマを作ります: $THEME_DIR (${CONF[width]} x ${CONF[height]})"
 mkdir -p "$THEME_DIR"
-install -m 0644 "$WORK/background.png" "$WORK/progress-fill.png" "$THEME_DIR"/
+install -m 0644 "$WORK/background.png" "$THEME_DIR"/
 sed -e "s|@THEME_DIR@|$THEME_DIR|g" "$HERE/opencruise.plymouth.in" > "$THEME_DIR/opencruise.plymouth"
 sed -e "s|@WIDTH@|${CONF[width]}|g" -e "s|@HEIGHT@|${CONF[height]}|g" \
-    -e "s|@BAR_X@|${CONF[bar_x]}|g" -e "s|@BAR_Y@|${CONF[bar_y]}|g" \
-    -e "s|@BAR_W@|${CONF[bar_w]}|g" -e "s|@BAR_H@|${CONF[bar_h]}|g" \
+    -e "s|@LOGO_BOTTOM@|${CONF[logo_bottom]}|g" \
     -e "s|@BG_RGB_COMMA@|$(comma "${CONF[background_rgb]}")|g" \
     -e "s|@TEXT_RGB_COMMA@|$(comma "${CONF[text_rgb]}")|g" \
     "$HERE/opencruise.script.in" > "$THEME_DIR/opencruise.script"
