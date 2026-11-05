@@ -10,18 +10,42 @@ OpenCruise/
 ├── CMakeLists.txt            トップ。aasdk をサブプロジェクトとして取り込み、app/ をビルド
 ├── aasdk/                    既存の aasdk（※ USB/USBWrapper.cpp のみ 1 か所修正。後述）
 ├── patches/                  aasdk に当てた修正の diff
-├── scripts/make_test_stream.sh   開発用テスト映像(H.264)の生成
+├── scripts/                  開発用スクリプト(make_test_stream.sh=テスト映像(H.264)の生成 / bootsplash/=起動画面)
+├── docs/                     設計メモ・調査データ・スクリーンショット
+│   ├── *.md                  実装ガイド・Android Auto 接続フローの仕様
+│   ├── reference/            aasdk_phone_data.csv など調査データ
+│   └── screenshots/          画面の確認用スクリーンショット
 └── app/
-    ├── main.cpp              起動・モデル生成・QML 公開・開発用オプション
-    ├── core/                 ClockModel(時計) / DummyCanModel(ダミーCAN)
-    ├── androidauto/          Qt 側: AndroidAutoController / H264Decoder / VideoSurfaceItem / TestVideoFeeder
-    ├── aabackend/            Qt 非依存の aasdk 接続層（UI と分離。無効時はスタブ）
-    │   ├── AasdkBackend.*    libusb・ioスレッド・USBHub、待機→接続→切断→待機のループ
-    │   ├── AasdkSession.*    1接続ぶん。制御チャネル(バージョン/SSL/認証/サービス探索/Ping/切断)
-    │   ├── AasdkVideoHandler.* 映像チャネル(Open/Setup/Start/データ受信/ACK/フォーカス)
-    │   └── AasdkConfig.h     車載機として申告する値（解像度 dpi 等、暫定値を1か所に集約）
-    └── qml/                  Main / HomeScreen / SettingsScreen / CanPanel / ConnectionBadge / ActionButton / Theme
-        └── widgets/          ウィジェット基盤と各ウィジェット(下の「ウィジェット」参照)
+    ├── CMakeLists.txt        アプリ本体のビルド設定(ソース・QML・リソースの登録はここ)
+    ├── src/                  C++(#include は src/ からの相対パス。例: "audio/AudioSettings.h")
+    │   ├── main.cpp          起動・モデル生成・QML 公開・開発用オプション
+    │   ├── core/             アプリ基盤: AppInfo / AppSettings / BootManager / Log / UiText
+    │   ├── audio/            音: AudioSettings / SystemSound / AlsaAudio / AlsaSoundEffect
+    │   ├── display/          画面: BrightnessController / DisplaySettings / DrmDisplay
+    │   ├── ui/               UI 支援: ThemeSettings / WidgetStore / ClockModel / AlbumArtProvider
+    │   ├── vehicle/          車両: VehicleDataManager / ReverseCamera
+    │   ├── system/           SystemStats(CPU・メモリ・温度など)
+    │   ├── notification/     NotificationManager / NotificationHistoryModel
+    │   ├── androidauto/      Qt 側: AndroidAutoController / H264Decoder / VideoSurfaceItem / TestVideoFeeder / PhoneStatus
+    │   └── aabackend/        Qt 非依存の aasdk 接続層（UI と分離。無効時はスタブ）
+    │       ├── AasdkBackend.*    libusb・ioスレッド・USBHub、待機→接続→切断→待機のループ
+    │       ├── AasdkSession.*    1接続ぶん。制御チャネル(バージョン/SSL/認証/サービス探索/Ping/切断)
+    │       ├── AasdkVideoHandler.* 映像チャネル(Open/Setup/Start/データ受信/ACK/フォーカス)
+    │       └── AasdkConfig.h     車載機として申告する値（解像度 dpi 等、暫定値を1か所に集約）
+    ├── qml/                  QML(すべて 1 つのモジュール OpenCruise。他フォルダの型を使うファイルは `import OpenCruise` が必要)
+    │   ├── Main.qml          ルート(ここだけ qml/ 直下)
+    │   ├── theme/            Theme(シングルトン) / ThemeBackground
+    │   ├── components/       共通部品: Panel / ActionButton / MaterialIcon / NumberText / StatCard / MarqueeText など
+    │   ├── screens/          画面: HomeScreen / LauncherScreen / SettingsScreen / SplashScreen / ReverseCamera*
+    │   ├── settings/         設定の部品(Settings* / WSStepper / WSTextField)
+    │   │   └── pages/        設定の各ページ(SettingsPage*)
+    │   ├── osd/              OSD(音量・明るさ)と通知(NotificationPopup / Bell / HistoryPanel)・AlarmClearButton
+    │   ├── services/         画面を持たないシングルトン: VehicleHistory / WarningAlarm
+    │   └── widgets/          ウィジェット(下の「ウィジェット」参照)
+    └── resources/            実行ファイルに入れる/隣へコピーする素材
+        ├── images/           ロゴなど(qrc に埋め込む)
+        ├── fonts/            アイコンフォント(qrc に埋め込む)と日本語フォント(ビルド時に実行ファイルの隣の fonts/ へコピー)
+        └── sounds/           効果音(ビルド時に実行ファイルの隣の sounds/ へコピー)
 ```
 
 接続層 (`aabackend`) は Qt を一切含まず、UI は `AasdkBackend` の公開ヘッダだけを見る。
@@ -80,10 +104,10 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 既存のキー(`Esc` / `F10` / `Menu` / `Meta`・`Super` / `Ctrl+Shift+D`)とは重ならない組み合わせにしてある。
 メディアキーや `Ctrl+Alt+矢印` は、OS 側の音量・画面回転と二重に動くため使っていない。
 
-- **マスター音量**(`core/AudioSettings`): 3 つの音声系統すべてに掛かる共通の倍率(0〜100 %)。各系統の個別音量の設定値は変えずに保持する。
+- **マスター音量**(`audio/AudioSettings`): 3 つの音声系統すべてに掛かる共通の倍率(0〜100 %)。各系統の個別音量の設定値は変えずに保持する。
   再生器へ渡す値は `AudioSettings::gain(group)` の 1 か所で「個別 × マスター」に合成しており、`AudioPlayer` / `SystemSound` はこれだけを使う
   (マスターを別に掛けないこと。二重になる)。マイク(入力)は対象外。保存キーは `audio/masterVolume`。
-- **画面の明るさ**(`core/BrightnessController`): 10〜100 %(0 にして画面が見えなくなるのを防ぐ)。保存キーは `display/brightness`。
+- **画面の明るさ**(`display/BrightnessController`): 10〜100 %(0 にして画面が見えなくなるのを防ぐ)。保存キーは `display/brightness`。
   - Linux で `/sys/class/backlight/*/brightness` に書き込める場合は、バックライトを直接制御する。
   - 書き込めない場合(Windows、権限なし、外部ディスプレイなど)や書き込みに失敗した場合は、画面全体に黒い幕を重ねて暗くする方式に自動で切り替わる。
     どちらか一方だけを使うので、二重に暗くはならない。
@@ -93,7 +117,7 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 
 ### 音の出し方(ALSA)
 
-libasound(`libasound2-dev`)があるビルドでは、音を ALSA の機器へ直接出す・録る(PulseAudio / PipeWire を通さない。`core/AlsaAudio`)。
+libasound(`libasound2-dev`)があるビルドでは、音を ALSA の機器へ直接出す・録る(PulseAudio / PipeWire を通さない。`audio/AlsaAudio`)。
 設定の出力先・マイクの一覧は ALSA の機器(サウンドカードの PCM ごと。「システム既定」は ALSA の `default`)。
 機器は音を出している間このアプリが使う(占有する。音が止まって 3 秒たつと手放す)が、アプリ内の音(マップ・音楽・システム・効果音)は
 アプリの中で混ぜてから出すので、同じ機器を選んでも同時に鳴り、音量も別々。別々の機器にも分けられる。
@@ -101,7 +125,7 @@ libasound(`libasound2-dev`)があるビルドでは、音を ALSA の機器へ�
 libasound が無いビルド(Windows など)は、これまでどおり Qt の音声入出力を使う。ログは `[AUDIO]`。
 ## テーマと背景
 
-設定「表示 > テーマ」でアプリ全体の見た目を選べる(`core/ThemeSettings`、QML では `themeSettings`。色と形は `qml/Theme.qml`)。
+設定「表示 > テーマ」でアプリ全体の見た目を選べる(`ui/ThemeSettings`、QML では `themeSettings`。色と形は `qml/theme/Theme.qml`)。
 
 | テーマ | 内容 |
 |---|---|
@@ -110,7 +134,7 @@ libasound が無いビルド(Windows など)は、これまでどおり Qt の�
 
 背景(設定「表示 > 背景」): テーマに合わせる(シンプルは無地、クラシックはカーボン)/ 無地 / 模様(カーボン・ヘアライン・パンチング・ストライプ)/ 画像。
 画像は `~/.local/share/OpenCruise/backgrounds` に PNG / JPEG を置くと選べる(並べる・画面を埋める・引き伸ばす)。濃さも変えられる。
-面(カード・ボタン・ダイアログ)は `qml/Panel.qml` を使うと、テーマに合わせて描き分けられる。
+面(カード・ボタン・ダイアログ)は `qml/components/Panel.qml` を使うと、テーマに合わせて描き分けられる。
 
 ### 飾りの画像(キャラなど)
 
@@ -140,8 +164,8 @@ libasound が無いビルド(Windows など)は、これまでどおり Qt の�
 
 ## バックカメラ
 
-バック信号が入ると、どの画面でもカメラの映像(全面)に切り替わり、切れると設定の秒数のあとで元の画面に戻る(`core/ReverseCamera`、
-QML では `reverseCamera`。画面は `qml/ReverseCameraView.qml`、設定は「設定 > カメラ」)。
+バック信号が入ると、どの画面でもカメラの映像(全面)に切り替わり、切れると設定の秒数のあとで元の画面に戻る(`vehicle/ReverseCamera`、
+QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設定は「設定 > カメラ」)。
 
 - バック信号: 今はダミーだけ。**Ctrl+Shift+R** か、設定の「ダミーのバック信号」で入/切する。
   将来の外部マイコン(バックランプの線を読む)からの入力は `ReverseCamera::setExternalReverse()` で受け、入力元を「外部」にする(通信は未実装)
@@ -182,22 +206,24 @@ QML では `reverseCamera`。画面は `qml/ReverseCameraView.qml`、設定は�
 
 ### ファイル構成(`app/qml/widgets/`)
 
-| 役割 | ファイル |
-|---|---|
-| 登録(新しいウィジェットを足すときに触る唯一の場所) | `WidgetRegistry.qml`(ジャンル・種類・既定サイズ/設定・初期配置) |
-| 共通基盤 | `WidgetBase`(ウィジェットの土台) / `WidgetHost`(ドラッグ・スナップ・タップ振り分け・表示アニメーション) / `WidgetArea`(グリッド・衝突・保存) |
-| 設定・追加 UI | `WidgetSettingsBase` / `WidgetSettingsDialog` / `WidgetPicker` / `WSStepper` / `WSTextField` |
-| 時計・あいさつ | `ClockWidget` / `GreetingWidget`(+ 各 `*Settings`) |
-| 車載連携 | `GaugeWidget` / `GaugeSettings`(メーター共通。ターボ圧計・タコメーター・スピードメーター・水温計・燃料計。計測値の定義は `WidgetRegistry.gaugeSpecs`。アナログ+デジタル、単位切替、警告値・警告メッセージ。**モックデータ**) |
-| Android Auto 連携 | `PhoneStatusWidget`(スマホ状態。バッテリー残量は実データ、電波はモック) |
-| 通知連携 | `PhoneNoticeWidget`(スマホ通知。表示方法・カテゴリ別メッセージを設定可能。**モックの通知**) |
+| 場所 | 役割 | ファイル |
+|---|---|---|
+| `framework/` | 登録(新しいウィジェットを足すときに触る唯一の場所) | `WidgetRegistry.qml`(ジャンル・種類・既定サイズ/設定・初期配置) |
+| `framework/` | 共通基盤 | `WidgetBase`(ウィジェットの土台) / `WidgetHost`(ドラッグ・スナップ・タップ振り分け・表示アニメーション) / `WidgetArea`(グリッド・衝突・保存) / `WidgetPages` / `PageBar` / `PageMenu` / `WidgetEditBar` |
+| `framework/` | 設定・追加 UI | `WidgetSettingsBase` / `WidgetSettingsDialog` / `WidgetSettingsGroup` / `WidgetPicker`(入力部品の `WSStepper` / `WSTextField` は `settings/`) |
+| `decoration/` | 装飾 | `Decoration*`(Store / Layer / Panel / PanelLayer / Editor / Picker / Effects) |
+| `clock/` `greeting/` | 時計・あいさつ | `ClockWidget` / `GreetingWidget`(+ 各 `*Settings`) |
+| `gauge/` `graph/` | 車載連携 | `GaugeWidget` / `GaugeSettings`(メーター共通。ターボ圧計・タコメーター・スピードメーター・水温計・燃料計。計測値の定義は `WidgetRegistry.gaugeSpecs`。アナログ+デジタル、単位切替、警告値・警告メッセージ。**モックデータ**) / `GraphWidget` / `GraphSettings` |
+| `phonestatus/` | Android Auto 連携 | `PhoneStatusWidget`(スマホ状態。バッテリー残量は実データ、電波はモック) |
+| `phonenotice/` `phonecall/` | 通知・通話連携 | `PhoneNoticeWidget`(スマホ通知。表示方法・カテゴリ別メッセージを設定可能。**モックの通知**) / `PhoneCallWidget` |
+| `nowplaying/` `navigation/` | 再生中・ナビ | `NowPlayingWidget` / `NavigationWidget`(+ 各 `*Settings`) |
 
-新しいウィジェットの追加手順: ① `WidgetBase` を継承した qml を作る ② 設定が要るなら `WidgetSettingsBase` を継承した qml を作る
-③ `WidgetRegistry.qml` に Component と `types` の 1 項目を足す ④ `app/CMakeLists.txt` の `QML_FILES` に足す。
+新しいウィジェットの追加手順: ① `widgets/<名前>/` フォルダを作り、`WidgetBase` を継承した qml を置く ② 設定が要るなら `WidgetSettingsBase` を継承した qml を作る
+③ `WidgetRegistry.qml` に Component と `types` の 1 項目を足す ④ `app/CMakeLists.txt` の `QML_FILES` に足す(他フォルダの型を使うなら `import OpenCruise` を書く)。
 設定が不要なウィジェットは `settings: null` にする(ダブルタップは何もしない)。独自のダブルタップ動作が欲しい場合は
 `doubleTapAction: "custom"` にして `doubleTapped()` を受ける。
 
-### Android Auto から取れる情報(`aasdk_phone_data.csv` の確認結果)
+### Android Auto から取れる情報(`docs/reference/aasdk_phone_data.csv` の確認結果)
 
 - 実データ: スマホのバッテリー(残量・残り時間・危険フラグ。`BatteryStatusNotification`。サービス宣言なしで届く)。`AasdkSession` →
   `AndroidAutoController` → `PhoneStatus::setBattery()`。バッテリー残量の単位(%)は実機での確認が必要。
@@ -276,7 +302,7 @@ QML では `reverseCamera`。画面は `qml/ReverseCameraView.qml`、設定は�
 
 ### 効果音: OtoLogic
 
-アプリの効果音(`app/sounds/`)には、[OtoLogic](https://otologic.jp) が配布している素材音源を使用しています。
+アプリの効果音(`app/resources/sounds/`)には、[OtoLogic](https://otologic.jp) が配布している素材音源を使用しています。
 
 - 素材: OtoLogic (https://otologic.jp)
 - ライセンス: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)
@@ -286,7 +312,7 @@ QML では `reverseCamera`。画面は `qml/ReverseCameraView.qml`、設定は�
 
 ### 音声: AivisSpeech
 
-起動時のあいさつなどの音声(`app/sounds/start/` の読み上げ音声)は、[AivisSpeech](https://aivis-project.com) で作成しました。
+起動時のあいさつなどの音声(`app/resources/sounds/start/` の読み上げ音声)は、[AivisSpeech](https://aivis-project.com) で作成しました。
 
 - AivisSpeech 本体: 生成した音声にクレジット表記の義務はありません(任意のクレジットとして記載しています)
 - 音声合成モデル: 使ったモデルごとのライセンスに従います。AivisHub などで公開されている ACML / ACML-NC / CC0 のモデルは

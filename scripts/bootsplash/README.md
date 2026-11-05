@@ -17,7 +17,7 @@ sudo reboot
 ```
 
 - 起動画面の画像は、アプリの `--export-splash` で、この PC の画面の大きさで作ります。
-  背景は完全な黒、ロゴ(`app/images/YuranuDev_Brush_Script_Logo.png`)は画面の中央に、縦横比を保って画面の大きさに合わせて出します。
+  背景は完全な黒、ロゴ(`app/resources/images/YuranuDev_Brush_Script_Logo.png`)は画面の中央に、縦横比を保って画面の大きさに合わせて出します。
   昼夜テーマ・アクセント色には連動しないので、起動した時刻やテーマの設定に関わらず、Plymouth の画面とアプリの起動画面は同じ見た目です。
   ロゴの大きさ・位置や背景色を変えたら、もう一度 `install.sh` を実行してください。
 - コンソールを使うとき:
