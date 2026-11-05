@@ -65,6 +65,11 @@ sudo scripts/bootsplash/uninstall.sh
 
   以前は、アプリがいきなり終わって最後の画が止まったまま残り(色がだんだんおかしくなる)、Plymouth の終了画面も
   サービスが止まったときに終わらせていた。変更を反映するには `install.sh` をもう一度実行する。
+  3. アプリは終わるとき、Qt の後片付けが済んだ後で、tty1 をテキストモードに戻す(`main.cpp` の `resetConsoleForPlymouth`)。
+     Plymouth は起動の引き継ぎで画面を出したまま(グラフィックスモード)にして、Qt はその状態を覚えて終わるときに戻すので、
+     何もしないと端末がグラフィックスモードのまま残り、Plymouth の終了画面が出ない(ログイン画面を出すと、getty が
+     端末を初期化するので出る)。戻す前の状態は `journalctl -u opencruise` の `console reset for Plymouth` の行で分かる。
+     アプリを入れ替えるだけで反映される(`install.sh` は不要)。
 - Plymouth の画面は起動の終わりに自動で消えないようにしています(`plymouth-quit.service` を止める)。消すのは自動起動のサービスです。
 - カーネルの引数に `quiet splash loglevel=3 rd.udev.log_level=3 vt.global_cursor_default=0` などを足して、起動中のメッセージを抑えます。
   重大なエラーは今まで通り画面に出ます。

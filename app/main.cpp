@@ -37,11 +37,16 @@
 #include <QUrl>
 
 
+#include <cstdio>
 #include <cstdlib>
 #ifdef Q_OS_LINUX
 #include <csignal>
 #include <cstddef>
 #include <cstring>
+#include <fcntl.h>
+#include <linux/kd.h>
+#include <linux/vt.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -217,10 +222,10 @@ static bool exportBootSplash(QQuickWindow *window, const QString &dir) {
 }
 
 /**
- * @brief アプリを起動する。
+ * @brief アプリを起動して、終わるまで動かす。
  * @return QGuiApplication の終了コード。QML のロードに失敗した場合は -1
  */
-int main(int argc, char *argv[]) {
+static int runApplication(int argc, char *argv[]) {
     // Linux の起動画面(Plymouth)から引き継ぐか(自動起動のサービスが付ける。Plymouth の操作はサービスが行う)
     const bool splashHandoff = qgetenv("OPENCRUISE_SPLASH_HANDOFF") == "1";
 #ifdef Q_OS_LINUX
@@ -558,5 +563,51 @@ int main(int argc, char *argv[]) {
 
     opencruise::log::info("APP", QStringLiteral("event loop finished (code %1)").arg(exitCode));
     opencruise::log::shutdown();
+    return exitCode;
+}
+
+/**
+ * @brief 終わった後、仮想端末(tty1)を Plymouth が使える状態(テキストモード)に戻す。
+ *
+ * 自動起動のサービスでは、Plymouth(起動画面)が quit --retain-splash で、画面を出したまま(KD_GRAPHICS)の状態で
+ * アプリへ渡す。Qt(eglfs)は、起動したときの状態を覚えて、終わるときにそこへ戻すので、アプリが終わった後も
+ * 端末がグラフィックスモード・キーボードが切れたままになる。この状態だと、シャットダウン・再起動のときに
+ * Plymouth の終了画面が出ない(いったんログイン画面(getty が端末を初期化する)を出してからなら出る)。
+ * そこで、Qt の後片付け(QGuiApplication の破棄)が終わった後で、端末をテキストモードに戻す(getty が行う端末の初期化と同じ)。
+ * サービスが付ける OPENCRUISE_SPLASH_HANDOFF=1 のときだけ行い、制御端末が仮想端末でなければ(ssh など)何もしない。
+ */
+static void resetConsoleForPlymouth() {
+#ifdef Q_OS_LINUX
+    if (qgetenv("OPENCRUISE_SPLASH_HANDOFF") != "1") {
+        return;
+    }
+    const int fd = ::open("/dev/tty", O_RDWR | O_NOCTTY | O_CLOEXEC);   // 制御端末(サービスの TTYPath=/dev/tty1)
+    if (fd < 0) {
+        return;
+    }
+    int displayMode = 0;
+    if (::ioctl(fd, KDGETMODE, &displayMode) != 0) {   // 仮想端末(VT)でなければ何もしない
+        ::close(fd);
+        return;
+    }
+    int keyboardMode = 0;
+    const bool keyboardKnown = ::ioctl(fd, KDGKBMODE, &keyboardMode) == 0;
+    ::ioctl(fd, KDSETMODE, KD_TEXT);
+    if (keyboardKnown && (keyboardMode == K_OFF || keyboardMode == K_RAW || keyboardMode == K_MEDIUMRAW)) {
+        ::ioctl(fd, KDSKBMODE, K_UNICODE);
+    }
+    struct vt_mode vtMode {};
+    vtMode.mode = VT_AUTO;
+    ::ioctl(fd, VT_SETMODE, &vtMode);
+    ::close(fd);
+    // 終わった後はログを書けないので、標準エラー(journal)へ。journalctl -u opencruise で、戻す前の状態が分かる
+    std::fprintf(stderr, "opencruise: console reset for Plymouth (display mode %d -> KD_TEXT, keyboard mode %d)\n",
+                 displayMode, keyboardKnown ? keyboardMode : -1);
+#endif
+}
+
+int main(int argc, char *argv[]) {
+    const int exitCode = runApplication(argc, argv);   // QGuiApplication(Qt の後片付け)は、ここで終わる
+    resetConsoleForPlymouth();
     return exitCode;
 }
