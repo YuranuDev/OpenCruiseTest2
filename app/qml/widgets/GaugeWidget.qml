@@ -1316,7 +1316,7 @@ WidgetBase {
                     pixelSize: 300
                     minimumPixelSize: 12
                     fit: true
-                    text: root.hasData ? root.fmt(root.shown, root.decimals) : "--"
+                    text: root.hasData ? root.fmt(root.shown, root.decimals) : "---" // データが無いときは、数値の幅を変えないように 3 桁分のハイフンを出す
                     color: root.dialValueColor
                 }
                 Text {
@@ -1414,7 +1414,7 @@ WidgetBase {
                     pixelSize: 300
                     minimumPixelSize: 14
                     fit: true
-                    text: root.hasData ? root.fmt(root.shown, root.decimals) : "--"
+                    text: root.hasData ? root.fmt(root.shown, root.decimals) : "---" // データが無いときは、数値の幅を変えないように 3 桁分のハイフンを出す
                     color: root.valueColor
                 }
                 Text {

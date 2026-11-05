@@ -168,7 +168,7 @@ WidgetBase {
                 italic: Theme.numberItalic
                 pixelSize: Math.round(Math.max(18, Math.min(root.height * 0.16, 44)))
                 color: root.inZone ? Theme.error : Theme.textPrimary
-                text: isNaN(root.current) || !root.hasData ? "--" : root.fmt(root.current, root.decimals)
+                text: isNaN(root.current) || !root.hasData ? "---" : root.fmt(root.current, root.decimals) // データが無いときは、数値の幅を変えないように 3 桁分のハイフンを出す
             }
             Text {
                 anchors.baseline: valueText.baseline
@@ -207,7 +207,7 @@ WidgetBase {
                     pixelSize: Math.round(Math.max(12, Math.min(root.titleFontSize, 18)))
                     color: root.warnOn && !isNaN(modelData.v) && (root.warnBelow ? modelData.v <= root.warnV : modelData.v >= root.warnV)
                            ? Theme.error : Theme.textPrimary
-                    text: isNaN(modelData.v) ? "--" : root.fmt(modelData.v, root.decimals)
+                    text: isNaN(modelData.v) ? "---" : root.fmt(modelData.v, root.decimals) // データが無いときは、数値の幅を変えないように 3 桁分のハイフンを出す
                 }
             }
         }
