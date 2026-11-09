@@ -1,0 +1,143 @@
+import sys; sys.path.insert(0,'/home/claude/pcb/gen')
+from schgen import Sheet
+S=Sheet('pwrctrl','OpenCruise PWR-CTRL main board')
+R0603='Resistor_SMD:R_0603_1608Metric'; C0603='Capacitor_SMD:C_0603_1608Metric'; C0805='Capacitor_SMD:C_0805_2012Metric'
+C1210='Capacitor_SMD:C_1210_3225Metric'; C1206='Capacitor_SMD:C_1206_3216Metric'
+SOD='Diode_SMD:D_SOD-123'; SMA='Diode_SMD:D_SMA'; SOT='Package_TO_SOT_SMD:SOT-23'
+RL={'1k':'C21190','3.3k':'C22978','4.7k':'C23162','10k':'C25804','47k':'C25819','100k':'C25803','470k':'C23178','1M':'C22935','330':'C23138','10.7k':'C5153968'}
+def R(ref,v,x,y,a,b,dnp=False,fp=R0603,lcsc=None,tol='1%'):
+    S.part(ref,'Device','R',x,y,{'1':a,'2':b},value=v,fp=fp,lcsc=lcsc or RL.get(v),dnp=dnp)
+def C(ref,v,x,y,a,b,fp=C0603,lcsc=None,dnp=False,pol=False):
+    S.part(ref,'Device','C_Polarized' if pol else 'C',x,y,{'1':a,'2':b},value=v,fp=fp,lcsc=lcsc,dnp=dnp)
+def D(ref,lib,name,v,x,y,k,a,fp=SOD,lcsc=None,dnp=False):
+    S.part(ref,lib,name,x,y,{'1':k,'2':a},value=v,fp=fp,lcsc=lcsc,dnp=dnp)
+def TVS(ref,v,x,y,k,a,fp,lcsc):
+    S.part(ref,'Device','D_Zener',x,y,{'1':k,'2':a},value=v,fp=fp,lcsc=lcsc,props={'Description':'Unidirectional TVS (shown with zener symbol)'})
+# ================= 1. POWER INPUT =================
+S.box(10,10,215,150,'1. POWER INPUT / MAIN SWITCH (7 A path: J1 -> K1 -> J2)')
+S.part('J1','Connector_Generic','Conn_02x02_Odd_Even',30,45,{'1':'VBAT_IN','2':'ACC_IN','3':'GND','4':'GND'},value='Mini-Fit Jr 2x2 (+B/ACC/GND/GND)',fp='Connector_Molex:Molex_Mini-Fit_Jr_5569-04A2_2x02_P4.20mm_Horizontal',lcsc='C293510',mpn='39301040')
+S.part('K1','Relay','G2RL-1A-E',80,50,{'A1':'COIL_P','A2':'COIL_N','13':'VSW','14':'VBAT_IN'},value='G2RL-1A-E DC12',lcsc='C1564126',mpn='G2RL-1A-E DC12')
+TVS('TVS1','SM8S20A',120,45,'VSW','GND','OpenCruise:DO-218AB','C371081')
+C('C1','100uF/50V',140,45,'VSW','GND',fp='Capacitor_SMD:CP_Elec_8x10.5',lcsc='C48935390',pol=True)
+C('C2','10uF/50V',155,45,'VSW','GND',fp=C1210,lcsc='C138687')
+C('C3','10uF/50V',170,45,'VSW','GND',fp=C1210,lcsc='C138687')
+S.part('J2','Connector_Generic','Conn_01x02',195,45,{'1':'VSW','2':'GND'},value='Mini-Fit Jr 1x2 (VSW to DFR0946)',fp='Connector_Molex:Molex_Mini-Fit_Jr_5569-02A2_2x01_P4.20mm_Horizontal',lcsc='C240832',mpn='39301020')
+TVS('TVS2','SMAJ20A',40,95,'ACC_IN','GND',SMA,'C908772')
+D('LED1','Device','LED','LED VSW (red)',80,95,'GND','LED1_A',fp='LED_SMD:LED_0603_1608Metric',lcsc='C2286')
+R('R40','4.7k',100,95,'VSW','LED1_A')
+S.flag('VBAT_IN',130,95); S.flag('VSW',145,95); S.flag('GND',160,95); S.flag('ACC_IN',175,95)
+S.note('K1 contact 13-14 carries up to 7 A (PC 60 W at 9 V crank). F1 7.5 A / F2 1 A blade fuses are in the harness.\nTVS1 after relay: zero leakage when off. Clamp 32.4 V < DFR0946 35 V max.',15,125)
+# ================= 2. 5V AUX BUCK =================
+S.box(220,10,420,150,'2. 5 V AUX SUPPLY (XL7015, Vout 5.30 V)')
+D('D7','Diode','SS34','SS34',240,35,'VIN5','VSW',fp=SMA,lcsc='C8678')
+D('D9','Diode','SS34','SS34',240,55,'VIN5','ACC_IN',fp=SMA,lcsc='C8678')
+C('C4','470uF/50V',265,45,'VIN5','GND',fp='Capacitor_SMD:CP_Elec_10x12.5',lcsc='C22469994',pol=True)
+C('C5','1uF/50V',280,45,'VIN5','GND',fp=C1206,lcsc='C1848')
+S.part('U1','OpenCruise','XL7015E1',315,45,{'1':'VIN5','5':'GND','2':'SW5','4':'FB5','3':'GND','6':'GND'},value='XL7015E1',lcsc='C73013')
+D('D11','Diode','SS34','SS34',350,70,'SW5','GND',fp=SMA,lcsc='C8678')
+S.part('L1','Device','L',360,40,{'1':'SW5','2':'V5REG'},value='100uH/1A',fp='OpenCruise:L_8040_SWPA8040',lcsc='C83468',mpn='SWPA8040S101MT')
+C('C6','100uF/16V',380,45,'V5REG','GND',fp='Capacitor_SMD:CP_Elec_6.3x5.4',lcsc='C2887276',pol=True)
+C('C7','10uF/25V',395,45,'V5REG','GND',fp=C0805,lcsc='C15850')
+R('R50','10.7k',300,100,'V5REG','FB5')
+R('R51','3.3k',315,100,'FB5','GND')
+C('C8','33nF',285,100,'V5REG','FB5',lcsc='C106856')
+D('D8','Diode','SS34','SS34',350,100,'+5V','V5REG',fp=SMA,lcsc='C8678')
+C('C9','10uF/25V',380,100,'+5V','GND',fp=C0805,lcsc='C15850')
+S.part('F5','Device','Polyfuse',395,100,{'1':'+5V','2':'5V_EXT'},value='0.25A PTC',fp='Fuse:Fuse_1206_3216Metric',lcsc='C70070',mpn='nSMD025-30V')
+D('LED2','Device','LED','LED 5V (red)',250,100,'GND','LED2_A',fp='LED_SMD:LED_0603_1608Metric',lcsc='C2286')
+R('R41','1k',270,100,'+5V','LED2_A')
+S.flag('+5V',240,125); S.flag('VIN5',255,125)
+S.note('Vout = 1.25 x (1 + 10.7k/3.3k) = 5.30 V. After D8: 4.75-5.1 V to XIAO 5V pin.\nKeep C5-U1-D11-L1-C6 loop tight. EN tied to GND (enabled).',225,135)
+# ================= 3. RELAY HOLD =================
+S.box(425,10,585,150,'3. RELAY HOLD (ACC hold + MCU override + Schmitt)')
+D('D1','Diode','1N4148W','1N4148W',445,30,'COIL_P','ACC_IN',lcsc='C81598')
+D('D2','Diode','1N4148W','1N4148W',445,45,'COIL_P','VSW',lcsc='C81598')
+D('D5','Diode','1N4148W','1N4148W',445,60,'COIL_P','COIL_N',lcsc='C81598')
+S.part('Q1','Transistor_FET','BSS138',480,45,{'1':'HOLD_G','2':'GND','3':'COIL_N'},value='BSS138',fp=SOT,lcsc='C82045')
+R('R11','100k',500,45,'HOLD_G','GND')
+S.part('U5','74xGxx','74LVC1G17',530,45,{'2':'HOLD_N','3':'GND','4':'HOLD_G','5':'+3V3'},value='74LVC1G17',fp='Package_TO_SOT_SMD:SOT-23-5',lcsc='C151394')
+C('C10','100nF',560,45,'+3V3','GND',lcsc='C14663')
+D('D3','Diode','1N4148W','1N4148W',445,95,'ACC_D','ACC_IN',lcsc='C81598')
+R('R3','470k',470,95,'ACC_D','HOLD_N')
+R('R1','1k',490,95,'HOLD','HOLD_N')
+C('C11','4.7uF/25V',510,95,'HOLD_N','GND',fp=C0805,lcsc='C1779')
+R('R2','1M',525,95,'HOLD_N','GND')
+D('ZD1','Device','D_Zener','BZT52C3V6',550,95,'HOLD_N','GND',lcsc='C173412')
+S.note('ACC on & MCU Hi-Z -> ON (hardware start). MCU drives HOLD low -> OFF (1k beats 470k).\nACC off & MCU Hi-Z -> OFF after ~6 s (4.7uF x 1M, Schmitt VT-). XIAO removed (no 3V3) -> OFF.',430,125)
+# ================= 4. MCU =================
+S.box(10,155,215,290,'4. MCU: Seeed XIAO ESP32S3 (socketed)')
+S.part('U2','OpenCruise','XIAO_ESP32S3',80,215,{'1':'ACC_SENSE','2':'HOLD','3':'IO_D2','4':'IO_D3','5':'SDA','6':'SCL','7':'IO_D6','8':'IO_D7','9':'VEH_TX','10':'VEH_RX','11':'IO_D10','12':'+3V3','13':'GND','14':'+5V'},
+       value='XIAO ESP32S3 (plug-in, buy separately)',fp='OpenCruise:XIAO_Outline',props={'Assembly':'Plug XIAO ESP32S3 into J10/J11'},inbom=False)
+SOCK='Connector_PinSocket_2.54mm:PinSocket_1x07_P2.54mm_Vertical'
+S.part('J10','Connector','Conn_01x07_Socket',120,230,{'1':'ACC_SENSE','2':'HOLD','3':'IO_D2','4':'IO_D3','5':'SDA','6':'SCL','7':'IO_D6'},value='XIAO socket D0-D6',fp=SOCK,lcsc='C22438157')
+S.part('J11','Connector','Conn_01x07_Socket',140,230,{'1':'IO_D7','2':'VEH_TX','3':'VEH_RX','4':'IO_D10','5':'+3V3','6':'GND','7':'+5V'},value='XIAO socket D7-5V',fp=SOCK,lcsc='C22438157')
+C('C13','10uF/25V',150,205,'+3V3','GND',fp=C0805,lcsc='C15850')
+S.note('D6/D7 (GPIO43/44) carry UART0 boot log: avoid as outputs needing a quiet boot.\nPC USB goes to XIAO USB-C through the separate VBUS-block adapter.',15,265)
+# ACC sense inside MCU box
+R('R5','47k',175,200,'ACC_IN','ACC_SENSE')
+R('R6','10k',175,235,'ACC_SENSE','GND')
+D('ZD2','Device','D_Zener','BZT52C3V6',195,250,'ACC_SENSE','GND',lcsc='C173412')
+C('C12','100nF',200,225,'ACC_SENSE','GND',lcsc='C14663')
+S.text('ACC sense (ratio 5.7)',160,180,1.5)
+# ================= 5. VEHICLE BUS =================
+S.box(220,155,585,290,'5. VEHICLE BUS: CAN (SN65HVD230) / K-LINE (TJA1021) — default RX-only')
+S.part('JP4','Jumper','SolderJumper_3_Open',240,180,{'1':'CAN_TXS','2':'VEH_TX','3':'KL_TXS'},value='TX: CAN|KL',fp='Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm')
+S.part('JP5','Jumper','SolderJumper_3_Open',240,200,{'1':'CAN_RXD','2':'VEH_RX','3':'KL_RXD'},value='RX: CAN|KL',fp='Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm')
+S.part('JP1','Jumper','SolderJumper_2_Open',240,220,{'1':'CAN_TXS','2':'CAN_TXD'},value='CAN TX EN',fp='Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm')
+R('R61','10k',260,225,'+3V3','CAN_TXD')
+S.part('U6','Interface_CAN_LIN','SN65HVD230',300,200,{'1':'CAN_TXD','2':'GND','3':'+3V3','4':'CAN_RXD','5':None,'6':'CANL','7':'CANH','8':'CAN_RS'},value='SN65HVD230',fp='Package_SO:SOIC-8_3.9x4.9mm_P1.27mm',lcsc='C12084')
+C('C14','100nF',335,180,'+3V3','GND',lcsc='C14663')
+R('R60','10k',335,215,'CAN_RS','GND')
+R('R62','120',350,215,'CANH','CANL',fp='Resistor_SMD:R_0805_2012Metric',lcsc='C17437',dnp=True)
+S.part('U7','OpenCruise','PESD1CAN',350,245,{'1':'CANL','2':'CANH','3':'GND'},value='PESD1CAN',lcsc='C15771')
+# K-line
+S.part('U4','Interface_CAN_LIN','TJA1021xT',420,205,{'1':'KL_RXD','2':'KL_SLP','3':'VSW','4':'KL_TXD','5':'GND','6':'KLINE','7':'VSW','8':None},value='TJA1021T/20',fp='Package_SO:SOIC-8_3.9x4.9mm_P1.27mm',lcsc='C128810',mpn='TJA1021T/20/CM')
+R('R70','4.7k',380,175,'+3V3','KL_RXD')
+R('R71','10k',392,175,'+3V3','KL_SLP')
+R('R72','10k',404,175,'+3V3','KL_TXD')
+S.part('JP6','Jumper','SolderJumper_2_Open',385,235,{'1':'KL_TXS','2':'KL_TXD'},value='KL TJA TX',fp='Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm')
+R('R73','10k',375,260,'+3V3','KL_TXS')
+C('C15','100nF',450,180,'VSW','GND',lcsc='C14663')
+C('C16','10uF/50V',462,180,'VSW','GND',fp=C1210,lcsc='C138687')
+D('D10','Diode','1N4148W','1N4148W',475,200,'KPU','VSW',lcsc='C81598')
+R('R14','510 1W',495,205,'KPU','KLINE',fp='Resistor_SMD:R_2512_6332Metric',lcsc='C2934121')
+TVS('TVS3','SMAJ24A',470,230,'KLINE','GND',SMA,'C908774')
+C('C17','220pF',490,240,'KLINE','GND',lcsc='C1603')
+# direct driver DNP
+S.part('Q8','Transistor_BJT','MMBT3904',420,265,{'1':'KDRV_B','2':'GND','3':'KDRV'},value='MMBT3904',fp=SOT,lcsc='C20526')
+R('R20','10k',400,262,'KL_TXS','KDRV_B')
+R('R21','100k',408,280,'KDRV_B','GND')
+R('R22','10k',435,255,'+3V3','KDRV')
+S.part('JP7','Jumper','SolderJumper_2_Open',455,265,{'1':'KDRV','2':'KGATE'},value='KL DIRECT',fp='Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm')
+R('R23','100k',470,272,'KGATE','GND')
+S.part('Q9','Transistor_FET','2N7002K',490,265,{'1':'KGATE','2':'GND','3':'KDRN'},value='2N7002K',fp=SOT,lcsc='C85047')
+S.part('F3','Device','Polyfuse',510,258,{'1':'KDRN','2':'KLINE'},value='0.1A PTC 60V',fp='Fuse:Fuse_1206_3216Metric',lcsc='C70065',mpn='nSMD010')
+S.part('J3','Connector_Generic','Conn_01x04',560,205,{'1':'KLINE','2':'CANH','3':'CANL','4':'GND'},value='DIAG (K/CANH/CANL/GND)',fp='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical',lcsc='C144395')
+S.note('Modes: JP6 open+JP7 open = RX only (default). JP6 = TJA1021 TX (fast init 24-26 ms only).\nJP6+JP7 (Q8,Q9,F3 fitted) = parallel drive: 5-baud init OK. JP4/JP5 select CAN or K on D8/D9.\nR62 120R not fitted (vehicle bus already terminated).',225,280-4)
+# ================= 6. EXPANSION / MISC =================
+S.box(10,295,585,412,'6. EXPANSION / I2C / PC POWER BUTTON / TEST POINTS / MECHANICAL')
+S.part('J5','Connector_Generic','Conn_02x10_Odd_Even',50,350,{'1':'ACC_SENSE','2':'HOLD','3':'IO_D2','4':'IO_D3','5':'SDA','6':'SCL','7':'IO_D6','8':'IO_D7','9':'VEH_TX','10':'VEH_RX','11':'IO_D10','12':'+3V3','13':'5V_EXT','14':'VSW_EXT','15':'GND','16':'GND','17':'GND','18':'GND','19':'GND','20':'GND'},value='EXT 2x10',fp='Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical',lcsc='C492427')
+S.part('F4','Device','Polyfuse',110,320,{'1':'VSW','2':'VSW_EXT'},value='1.1A PTC 33V',fp='Fuse:Fuse_1812_4532Metric',lcsc='C269134',mpn='SMD1812B110TF/33')
+S.part('J8','Connector_Generic','Conn_01x04',130,355,{'1':'VSW_EXT','2':'5V_EXT','3':'GND','4':'IO_D2'},value='XH4 EXT-A',fp='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical',lcsc='C144395')
+S.part('J9','Connector_Generic','Conn_01x04',130,385,{'1':'VSW_EXT','2':'5V_EXT','3':'GND','4':'IO_D3'},value='XH4 EXT-B',fp='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical',lcsc='C144395')
+# I2C
+S.part('JP3','Jumper','SolderJumper_2_Bridged',180,320,{'1':'+3V3','2':'I2C_PU'},value='I2C PU (cut to remove)',fp='Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm')
+R('R30','4.7k',200,340,'I2C_PU','SDA')
+R('R31','4.7k',212,340,'I2C_PU','SCL')
+S.part('J6','Connector_Generic','Conn_01x04',250,345,{'1':'GND','2':'+3V3','3':'SDA','4':'SCL'},value='Qwiic A',fp='Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal',lcsc='C160404')
+S.part('J7','Connector_Generic','Conn_01x04',250,380,{'1':'GND','2':'+3V3','3':'SDA','4':'SCL'},value='Qwiic B',fp='Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal',lcsc='C160404')
+# PWR button
+S.part('JP2','Jumper','SolderJumper_2_Open',300,330,{'1':'IO_D10','2':'PWRB'},value='PC PWR BTN',fp='Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm')
+R('R12','330',320,345,'PWRB','OPTO_A')
+R('R13','100k',305,360,'PWRB','GND')
+S.part('U3','Isolator','PC817',350,350,{'1':'OPTO_A','2':'GND','3':'PWR_SW-','4':'PWR_SW+'},value='PC817 / AQY212',fp='Package_DIP:DIP-4_W7.62mm',lcsc='C5350')
+S.part('J4','Connector_Generic','Conn_01x02',385,350,{'1':'PWR_SW+','2':'PWR_SW-'},value='PC PWR SW',fp='Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical',lcsc='C158012')
+# Test points
+tps=[('TP1','VBAT_IN'),('TP2','VSW'),('TP3','ACC_IN'),('TP4','+5V'),('TP5','+3V3'),('TP6','HOLD_N'),('TP7','HOLD_G'),('TP8','KLINE'),('TP9','GND'),('TP10','GND')]
+for i,(r,n) in enumerate(tps):
+    S.part(r,'Connector','TestPoint',430+(i%5)*30,330+(i//5)*30,{'1':n},value=n,fp='TestPoint:TestPoint_Pad_D1.5mm',inbom=False)
+for i in range(4):
+    S.part(f'H{i+1}','Mechanical','MountingHole',300+i*20,395,{},value='M3',fp='MountingHole:MountingHole_3.2mm_M3',inbom=False)
+
+S.write('/home/claude/pcb/pwrctrl/pwrctrl.kicad_sch')
+print(len(S.parts),'parts')
