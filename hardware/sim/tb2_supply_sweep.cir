@@ -1,0 +1,69 @@
+* TB2: slow supply sweep  0 -> 30 V -> 0 V  (+B and ACC together, MCU pin Hi-Z)
+*  Shows: ACC_SENSE (ADC) scaling and clamp, HOLD_N vs ACC, relay pull-in / drop-out supply,
+*  5 V regulation vs input, and the TVS DC current at 24 V (jump-start check, ISO 16750-2).
+*  Ramp is slow (60 s each way) so the 4.7 uF HOLD_N node follows (tau = 2.2 s).
+.include models.lib
+Vsup vs0 0 PWL(0 0  60 30  120 0)
+Rbat vs0 vb1 0.03
+Lharn vb1 vbat 1u
+Racc vbat acc 0.05
+* ammeters
+Vi_tvs1 vsw tvs1k 0
+Vi_tvs2 acc tvs2k 0
+* ---- relay & VSW ----
+XK1 coilp coiln vbat vsw G2RLV
+DTVS1 0 tvs1k DSM8S20A
+C1 vsw c1n 100u
+Rc1 c1n 0 0.3
+R40 vsw led1 4.7k
+DLED1 led1 0 DLEDR
+Rload vsw 0 1k
+* ---- ACC ----
+DTVS2 0 tvs2k DSMAJ20A
+R5 acc accs 47k
+R6 accs 0 6.8k
+DZ2 0 accs DZ3V6
+C12 accs 0 100n
+* ---- 5 V ----
+D7 vsw vin5 DSS34
+D9 acc vin5 DSS34
+C4 vin5 0 470u
+XU1 vin5 v5reg 0 XL7015AVG
+C6 v5reg 0 100u
+D8 v5reg v5 DSS34
+XLOAD v5 0 XIAOLOAD
+B3v3 v3i 0 V = min(3.3, max(V(v5)-0.25,0))
+R3v3 v3i v3v3 0.2
+C13 v3v3 0 10u
+Rl3 v3v3 0 110
+* ---- hold / coil ----
+D1 acc coilp D1N4148
+D2 vsw coilp D1N4148
+D5 coiln coilp D1N4148
+M1 coiln holdg 0 0 NBSS138
+R11 holdg 0 100k
+XU5 holdn holdg v3v3 0 LVC1G17
+D3 acc accd D1N4148
+R3 accd holdn 470k
+C11 holdn 0 10u
+R2 holdn 0 1Meg
+DZ1 0 holdn DZ3V6
+.options method=gear reltol=1e-3
+.tran 10m 120 0 10m uic
+.control
+run
+meas tran v_relay_in  FIND v(vs0) WHEN v(vsw)=5 RISE=1
+meas tran v_relay_out FIND v(vs0) WHEN v(vsw)=1 FALL=LAST
+meas tran v5_ok_in    FIND v(vs0) WHEN v(v5)=4.75 RISE=1
+meas tran accs_at12   FIND v(accs) AT=24
+meas tran accs_at16   FIND v(accs) AT=32
+meas tran accs_max    MAX v(accs)
+meas tran holdn_at12  FIND v(holdn) AT=24
+meas tran v_hold_on   FIND v(vs0) WHEN v(holdg)=1.65 RISE=1
+meas tran v_hold_off  FIND v(vs0) WHEN v(holdg)=1.65 FALL=1
+meas tran i_tvs1_24v  FIND i(vi_tvs1) AT=48
+meas tran i_tvs2_24v  FIND i(vi_tvs2) AT=48
+meas tran i_tvs1_30v  FIND i(vi_tvs1) AT=60
+wrdata tb2_out.txt v(vs0) v(vsw) v(accs) v(holdn) v(v5) i(vi_tvs1)
+.endc
+.end

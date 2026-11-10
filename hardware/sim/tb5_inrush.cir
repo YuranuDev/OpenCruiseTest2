@@ -1,0 +1,40 @@
+* TB5: inrush when K1 closes into the VSW capacitors + DFR0946 input capacitors
+*  C1 100uF (ESR 0.3) + C2/C3 10uF ceramic + DFR0946 input (assumed 440uF, ESR 30 mohm).
+*  The harness resistance / inductance dominate the result: change RH / LH to your wiring.
+*  Checks: peak contact current, I^2t, settle time.  (G2RL-1A-E: 16 A rated, no inrush rating
+*  published -> compare with the DFR0946 input fuse / connector, and keep I^2t small.)
+.include models.lib
+.param RH=0.03 LH=1u CDFR=440u
+Vbat vb0 0 12.6
+Rh vb0 vb1 {RH}
+Lh vb1 vbat {LH}
+* contact closes at 10 ms (bounce not modelled)
+Vk kctl 0 PWL(0 0 10m 0 10.001m 5)
+Sk vbat vk kctl 0 SWK
+.model SWK SW(Vt=2.5 Vh=0.1 Ron=0.01 Roff=1e8)
+Vi_k vk vsw 0
+C1 vsw c1n 100u
+Rc1 c1n 0 0.3
+C2 vsw c2n 10u
+Rc2 c2n 0 5m
+C3 vsw c3n 10u
+Rc3 c3n 0 5m
+* 2 m of Mini-Fit harness to the DFR0946 (~10 mohm, 0.5 uH)
+Rw vsw vw1 10m
+Lw vw1 vdfr 0.5u
+XDFR vdfr 0 DFRLOAD PARAMS: PLOAD=67 CIN={CDFR} ESR=0.03
+.options method=gear
+.tran 1u 30m 0 1u
+.control
+run
+let ik = i(vi_k)
+let ik2 = ik*ik
+let i2t = integ(ik2)
+meas tran i_peak MAX ik
+meas tran i2t_total FIND i2t AT=30m
+meas tran t_settle WHEN v(vdfr)=11.9 RISE=1
+let tset_ms = (t_settle-10m)*1000
+print tset_ms
+wrdata tb5_out.txt ik v(vsw) v(vdfr)
+.endc
+.end

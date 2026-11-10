@@ -9,10 +9,11 @@ b=pcbnew.LoadBoard(PCB)
 ns=b.GetDesignSettings().m_NetSettings
 def nc(name,tw,cl,vd=0.85,vh=0.3):
     c=pcbnew.NETCLASS(name); c.SetTrackWidth(MM(tw)); c.SetClearance(MM(cl)); c.SetViaDiameter(MM(vd)); c.SetViaDrill(MM(vh)); return c
-d=ns.GetDefaultNetclass(); d.SetTrackWidth(MM(0.25)); d.SetClearance(MM(0.2)); d.SetViaDiameter(MM(0.85)); d.SetViaDrill(MM(0.3))
-CLASSES={'PWR_1A':(0.8,0.25,['VSW','VBAT_IN','VIN5','SW5','V5REG','ACC_IN','VSW_EXT']),
-         'PWR_05A':(0.6,0.25,['+5V','5V_EXT','GND']),
-         'PWR_LOW':(0.4,0.2,['+3V3','COIL_P','COIL_N','KPU','KLINE','KDRN'])}
+d=ns.GetDefaultNetclass(); d.SetTrackWidth(MM(0.25)); d.SetClearance(MM(0.25)); d.SetViaDiameter(MM(0.85)); d.SetViaDrill(MM(0.3))
+CLASSES={'PWR_1A':(0.8,0.25,['VBAT_IN','VIN5','SW5','V5REG','ACC_IN','VSW_EXT','SW6','+5VS']),
+         'PWR_05A':(0.6,0.25,['VSW','+5V','+3V3S','GPS_VCC','GND']),
+         'SIG_PORT':(0.25,0.21,['SDA','SCL','P_D2','P_D3','P_D6','P_D7','P_D10','GPS_PPS']),
+         'PWR_LOW':(0.4,0.25,['+3V3','COIL_P','COIL_N','KPU','KLINE','KDRN'])}
 ns.ClearNetclassPatternAssignments()
 for name,(tw,cl,nets) in CLASSES.items():
     ns.SetNetclass(name,nc(name,tw,cl))
@@ -37,7 +38,9 @@ pcbnew.SaveBoard(PCB,b)
 # ---------- autoroute ----------
 dsn=f'{WD}/pwrctrl.dsn'; ses=f'{WD}/pwrctrl.ses'
 assert pcbnew.ExportSpecctraDSN(b,dsn)
-r=subprocess.run([JAVA,'-jar',FR,'-de',dsn,'-do',ses,'-mp','150','--gui.enabled=false','-mt','4'],capture_output=True,text=True,timeout=1500)
+# orthogonal (Manhattan) routing: top = horizontal, bottom = vertical; 90-degree corners are chamfered to 45 afterwards (chamfer.py)
+_s=open(dsn).read(); _s=_s.replace('    (via "Via[0-1]_850:300_um")','    (snap_angle ninety_degree)\n    (via "Via[0-1]_850:300_um")',1); open(dsn,'w').write(_s)
+r=subprocess.run([JAVA,'-jar',FR,'-de',dsn,'-do',ses,'-mp','300','--gui.enabled=false','-mt','4','--router.scoring.via_costs=30','--router.scoring.undesired_direction_trace_cost=2.5','--router.optimizer.enabled=true','--router.optimizer.improvement_threshold=0.0005','--router.optimizer.max_passes=60'],capture_output=True,text=True,timeout=1500)
 print(r.stdout[-1500:]); print(r.stderr[-800:])
 b=pcbnew.LoadBoard(PCB)
 assert pcbnew.ImportSpecctraSES(b,ses)

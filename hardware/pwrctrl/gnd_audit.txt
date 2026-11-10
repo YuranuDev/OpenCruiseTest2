@@ -1,0 +1,56 @@
+board 165 x 91 mm = 15041 mm2
+
+[F.Cu] GND fill: 7 separate copper areas, 12422 mm2 (83% of board)
+   area   12349 mm2  layer-ties 442  SMD GND pads 57
+   area      41 mm2  layer-ties   1  SMD GND pads 0
+   area      12 mm2  layer-ties   1  SMD GND pads 0
+   other areas: 6  (all tied to the other layer: True; with only one tie: 3)
+     single-tie area 40.7 mm2 at (87.3,60.5) ties=1 smd=0
+     single-tie area 12.2 mm2 at (67.7,69.4) ties=1 smd=0
+     single-tie area 3.7 mm2 at (119.6,38.5) ties=1 smd=1
+
+[B.Cu] GND fill: 13 separate copper areas, 12291 mm2 (82% of board)
+   area   11462 mm2  layer-ties 412  SMD GND pads 0
+   area     233 mm2  layer-ties  14  SMD GND pads 0
+   area     185 mm2  layer-ties   5  SMD GND pads 0
+   other areas: 12  (all tied to the other layer: True; with only one tie: 3)
+     single-tie area 29.1 mm2 at (156.3,81.8) ties=1 smd=0
+     single-tie area 15.7 mm2 at (128.9,84.3) ties=1 smd=0
+     single-tie area 1.0 mm2 at (104.8,52.3) ties=1 smd=0
+
+[vias] total 542
+    398  GND stitching (placed on a grid)
+     67  signal
+     27  GND (placed by router / pad tie)
+     11  power: VSW
+      8  power: +3V3
+      7  power: +5VS
+      6  power: V5REG
+      6  power: ACC_IN
+      3  power: +3V3S
+      2  power: VIN5
+      2  power: +5V
+      2  power: VSW_EXT
+      1  power: COIL_P
+      1  power: VBAT_IN
+      1  power: GPS_VCC
+
+[B.Cu tracks longer than 15 mm (they cut the bottom plane)]
+   +5VS        50.8 mm (148,36)-(148,86)  GND ties within 4 mm: 22
+   +5V         48.2 mm (62,85)-(62,36)  GND ties within 4 mm: 9
+   HOLD        42.1 mm (52,82)-(52,40)  GND ties within 4 mm: 19
+   VSW_EXT     37.5 mm (104,46)-(104,8)  GND ties within 4 mm: 21
+   VSW         36.5 mm (89,45)-(89,8)  GND ties within 4 mm: 11
+   ACC_IN      34.7 mm (12,44)-(46,44)  GND ties within 4 mm: 12
+   +3V3S       34.5 mm (125,43)-(125,77)  GND ties within 4 mm: 7
+   ACC_IN      30.4 mm (12,13)-(12,44)  GND ties within 4 mm: 7
+   IO_D3       28.8 mm (65,76)-(65,48)  GND ties within 4 mm: 2
+   IO_D2       28.4 mm (66,78)-(66,50)  GND ties within 4 mm: 4
+   P_D10       25.4 mm (90,86)-(90,61)  GND ties within 4 mm: 8
+   ACC_SENSE   23.6 mm (68,83)-(68,60)  GND ties within 4 mm: 4
+
+[DC-DC / power GND return]
+   U1 (5V for MCU)              GND pads  8, top copper areas ['6'], GND vias within 8 mm: 7
+   U8 (5VS sensors)             GND pads  8, top copper areas ['6'], GND vias within 8 mm: 10
+   U9 (3V3S LDO)                GND pads  3, top copper areas ['6'], GND vias within 8 mm: 12
+   7A path (J1/J2/TVS1/C1-C3)   GND pads  7, top copper areas ['6'], GND vias within 8 mm: 6

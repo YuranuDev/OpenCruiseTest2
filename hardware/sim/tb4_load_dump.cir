@@ -1,0 +1,73 @@
+* TB4: load dump (ISO 7637-2 pulse 5a / ISO 16750-2 test A and B)
+*  Battery is disconnected and the alternator output rises to US with source resistance RI.
+*  CLAMP = alternator central clamp (pulse 5b, "suppressed").  CLAMP=200 -> no clamp (5a).
+*  Relay is closed and the PC is running (DFR0946 + laptop 67 W), ACC on.
+*  Checks: VSW peak vs DFR0946 35 V max, TJA1021 40 V, C1/C2/C3 50 V;
+*          TVS1 SM8S20A / TVS2 SMAJ20A peak current, peak power and energy.
+.include models.lib
+.param US=87 RI=1 TD=0.2 CLAMP=35 UA=13.5
+* ---- alternator source (pulse starts at 50 ms, 5 ms rise, exponential decay TD) ----
+Balt alt0 0 V = min({UA} + ({US}-{UA})*u(time-0.05)*(1-exp(-(time-0.05)/2m))*exp(-(time-0.05)/{TD}), {CLAMP})
+Ri alt0 vb1 {RI}
+* the regulated alternator keeps the bus at UA for the normal 67 W load (ideal diode, so it
+* only sources current; the dump pulse itself comes through RI as in ISO 7637-2)
+Vreg vreg 0 {UA}
+Dreg vreg vreg2 DIDEAL0
+Rreg vreg2 vb1 0.03
+.model DIDEAL0 D(Is=1e-12 N=0.05 Rs=0.001)
+Lharn vb1 vbat 1u
+* ---- relay closed ----
+Rk1 vbat vsw 0.01
+* 0 V sources = ammeters for the TVS currents
+Vi_tvs1 vsw tvs1k 0
+XTVS1 0 tvs1k DSM8S20A_SUB
+.subckt DSM8S20A_SUB A K
+D1 A K DSM8S20A
+.ends
+C1 vsw c1n 100u
+Rc1 c1n 0 0.3
+C2 vsw 0 10u
+C3 vsw 0 10u
+R40 vsw led1 4.7k
+DLED1 led1 0 DLEDR
+XDFR vsw 0 DFRLOAD PARAMS: PLOAD=67 CIN=440u
+* ---- ACC on (same wire), TVS2 + sense divider ----
+Racc vbat acc 0.05
+Vi_tvs2 acc tvs2k 0
+DTVS2 0 tvs2k DSMAJ20A
+R5 acc accs 47k
+R6 accs 0 6.8k
+DZ2 0 accs DZ3V6
+* ---- 5V supply (XL7015 VIN max 80 V) ----
+D7 vsw vin5 DSS34
+D9 acc vin5 DSS34
+C4 vin5 0 470u
+XU1 vin5 v5reg 0 XL7015AVG
+C6 v5reg 0 100u
+D8 v5reg v5 DSS34
+XLOAD v5 0 XIAOLOAD
+* ---- TJA1021 VBAT = VSW ----
+Rtja vsw 0 20k
+.options method=gear reltol=1e-3
+.ic v(vsw)=13.4 v(vin5)=13 v(v5reg)=5.3 v(v5)=5.05 v(acc)=13.4 v(vbat)=13.5 v(vb1)=13.5
+.tran 50u 0.9 0 50u
+.control
+run
+let p_tvs1 = v(vsw)*i(vi_tvs1)
+let p_tvs2 = v(acc)*i(vi_tvs2)
+let e_tvs1 = integ(p_tvs1)
+let e_tvs2 = integ(p_tvs2)
+meas tran i_tvs1_peak MAX i(vi_tvs1)
+meas tran p_tvs1_peak MAX p_tvs1
+meas tran e_tvs1_total MAX e_tvs1
+meas tran i_tvs2_peak MAX i(vi_tvs2)
+meas tran p_tvs2_peak MAX p_tvs2
+meas tran e_tvs2_total MAX e_tvs2
+meas tran vsw_peak MAX v(vsw)
+meas tran acc_peak MAX v(acc)
+meas tran vin5_peak MAX v(vin5)
+meas tran accs_peak MAX v(accs)
+meas tran v5_min MIN v(v5) FROM=0.05 TO=0.9
+wrdata tb4_out.txt v(alt0) v(vsw) v(acc) v(v5) i(vi_tvs1) i(vi_tvs2)
+.endc
+.end

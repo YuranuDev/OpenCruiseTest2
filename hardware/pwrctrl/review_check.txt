@@ -1,0 +1,79 @@
+[A] parallel runs (same layer, centre distance < 1.6 mm, > 5 mm overlap)
+         P_D6 | P_D7       B.Cu   27.6 mm  pitch 1.19 mm  [S+S]
+         +3V3 | IO_D7      F.Cu   26.7 mm  pitch 0.98 mm  [P+S]
+        IO_D2 | IO_D3      B.Cu   26.4 mm  pitch 1.29 mm  [S+S]
+        +3V3S | SCL        B.Cu   23.8 mm  pitch 0.80 mm  [P+S]
+        IO_D3 | VEH_TX     F.Cu   19.8 mm  pitch 0.85 mm  [S+S]
+      CAN_RXD | GND        F.Cu   19.4 mm  pitch 1.46 mm  [S+P]
+        +3V3S | P_D10      B.Cu   17.7 mm  pitch 0.80 mm  [P+S]
+       VEH_RX | VEH_TX     B.Cu   14.4 mm  pitch 0.80 mm  [S+S]
+        P_D10 | P_D6       B.Cu   13.4 mm  pitch 0.46 mm  [S+S]
+          +5V | IO_D6      B.Cu   13.0 mm  pitch 1.40 mm  [P+S]
+        IO_D3 | IO_D6      B.Cu   13.0 mm  pitch 1.23 mm  [S+S]
+          SCL | SDA        F.Cu   12.8 mm  pitch 1.18 mm  [S+S]
+        +3V3S | P_D6       B.Cu   12.6 mm  pitch 1.26 mm  [P+S]
+         P_D3 | VSW_EXT    B.Cu   12.5 mm  pitch 0.78 mm  [S+P]
+         P_D2 | P_D7       B.Cu   10.7 mm  pitch 0.46 mm  [S+S]
+          GND | SDA        B.Cu   10.4 mm  pitch 1.39 mm  [P+S]
+       KL_RXD | VSW        B.Cu    8.5 mm  pitch 0.89 mm  [S+P]
+         +3V3 | KGATE      B.Cu    8.2 mm  pitch 0.98 mm  [P+S]
+       CAN_RS | VSW        B.Cu    8.1 mm  pitch 0.93 mm  [S+P]
+          GND | SCL        B.Cu    7.9 mm  pitch 1.51 mm  [P+S]
+       ACC_IN | IO_D2      F.Cu    7.9 mm  pitch 1.12 mm  [P+S]
+          GND | KLINE      B.Cu    7.7 mm  pitch 1.28 mm  [P+S]
+
+[A2] bottom GND directly under long top-layer tracks (>=15 mm): % of length with GND underneath
+   +3V3        28.4 mm   55.2 %   (75,60)-(47,60)
+   IO_D6       32.9 mm   60.6 %   (97,56)-(64,56)
+   IO_D2       31.0 mm   62.5 %   (97,50)-(66,50)
+   HOLD        16.6 mm   64.7 %   (80,82)-(64,82)
+   IO_D7       47.9 mm   66.7 %   (49,59)-(96,59)
+   VEH_TX      58.0 mm   69.0 %   (104,52)-(46,52)
+   VEH_RX      58.0 mm   70.7 %   (45,54)-(103,54)
+   SDA         25.4 mm   73.1 %   (78,64)-(103,64)
+   +5VS        18.9 mm   73.7 %   (127,82)-(146,82)
+   CAN_RXD     19.4 mm   75.0 %   (40,61)-(21,61)
+   HOLD        24.1 mm   80.0 %   (105,71)-(81,71)
+   +3V3        22.4 mm   82.6 %   (78,62)-(100,62)
+   SDA         49.1 mm   86.0 %   (111,59)-(160,59)
+   IO_D10      21.9 mm   86.4 %   (73,68)-(95,68)
+   +3V3S       27.2 mm   89.3 %   (133,46)-(160,46)
+   all 21 long top tracks: mean 79 %, min 55 %
+
+[B] power nets: narrowest track vs current (IPC-2221 external, 2 oz, +10 C)
+   VBAT_IN  I=7.00 A  widths [0.8, 3.0]  narrowest 0.8 mm (7.6 mm long) -> 3.36 A capacity
+   VSW      I=7.00 A  widths [0.6, 3.0]  narrowest 0.6 mm (262.9 mm long) -> 2.73 A capacity
+   VSW_EXT  I=1.10 A  widths [0.6, 0.8]  narrowest 0.6 mm (3.0 mm long) -> 2.73 A capacity
+   +5VS     I=0.70 A  widths [0.8]  narrowest 0.8 mm (280.0 mm long) -> 3.36 A capacity
+   SW6      I=0.80 A  widths [0.8]  narrowest 0.8 mm (8.4 mm long) -> 3.36 A capacity
+   SW5      I=0.80 A  widths [0.8]  narrowest 0.8 mm (8.5 mm long) -> 3.36 A capacity
+   V5REG    I=0.80 A  widths [0.8]  narrowest 0.8 mm (61.3 mm long) -> 3.36 A capacity
+   VIN5     I=0.50 A  widths [0.6, 0.8]  narrowest 0.6 mm (3.7 mm long) -> 2.73 A capacity
+   +5V      I=0.70 A  widths [0.6]  narrowest 0.6 mm (109.8 mm long) -> 2.73 A capacity
+   +3V3S    I=0.40 A  widths [0.45, 0.6]  narrowest 0.45 mm (7.8 mm long) -> 2.22 A capacity
+   +3V3     I=0.25 A  widths [0.3, 0.4]  narrowest 0.3 mm (7.3 mm long) -> 1.65 A capacity
+   ACC_IN   I=0.50 A  widths [0.8]  narrowest 0.8 mm (179.8 mm long) -> 3.36 A capacity
+   GPS_VCC  I=0.10 A  widths [0.6]  narrowest 0.6 mm (18.0 mm long) -> 2.73 A capacity
+   COIL_P   I=0.05 A  widths [0.4]  narrowest 0.4 mm (27.9 mm long) -> 2.03 A capacity
+   KPU      I=0.03 A  widths [0.4]  narrowest 0.4 mm (6.0 mm long) -> 2.03 A capacity
+   GND      I=7.00 A  widths [0.45, 0.6, 3.0]  narrowest 0.45 mm (11.3 mm long) -> 2.22 A capacity
+   7A path tracks (hand placed): [('GND', 3.0), ('VBAT_IN', 3.0), ('VSW', 3.0)]
+
+[C] DC-DC layout (XL7015: pin1 VIN, pin2 SW, pin3/5/6(tab) GND, pin4 FB)
+   U1 5V MCU: Cin(ceramic C5) VIN-pad 4.6 mm, GND-pad to IC GND tab 9.4 mm; bulk C4 VIN 33.5 mm
+      catch diode D11: cathode to SW pin 3.8 mm, anode to Cin GND 9.7 mm; inductor SW pad to SW pin 8.1 mm
+      hot-loop polygon (Cin->VIN->SW->D->Cin) approx 3 mm2; SW copper tracks 8.5 mm long, 6.8 mm2
+      FB divider R50 to FB pin 5.2 mm; nearest FB track point to inductor SW pad 8.5 mm
+   U8 5VS: Cin(ceramic C41) VIN-pad 4.6 mm, GND-pad to IC GND tab 9.4 mm; bulk C40 VIN 12.3 mm
+      catch diode D12: cathode to SW pin 3.8 mm, anode to Cin GND 9.7 mm; inductor SW pad to SW pin 8.1 mm
+      hot-loop polygon (Cin->VIN->SW->D->Cin) approx 3 mm2; SW copper tracks 8.4 mm long, 6.7 mm2
+      FB divider R52 to FB pin 4.7 mm; nearest FB track point to inductor SW pad 6.7 mm
+
+[D] copper clearance actually used (pairs closer than 0.25 mm), by region
+   vehicle bus (left bottom)    minimum 0.250 mm, pairs below 0.25 mm: 0
+   XIAO U2 (bottom centre)      minimum 0.252 mm, pairs below 0.25 mm: 0
+   J5 / centre bundle           minimum 0.211 mm, pairs below 0.25 mm: 26
+   whole board                  minimum 0.211 mm, pairs below 0.25 mm: 39
+
+[E] vias: 542, sizes [(0.85, 0.3)]
+   GND pad zone connection: {('THT', '-1'): 21, ('SMD', '-1'): 58, ('THT', 'thermal'): 1}

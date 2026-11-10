@@ -1,7 +1,7 @@
 import sys; sys.path.insert(0,'/home/claude/pcb/gen')
 from pcbbuild import build
 from render import render
-W,H=111,91
+W,H=165,91
 P={
 # power entry (top-left)
 'J1':(14.9,16,90),'J2':(14.9,33,90),'K1':(51,13,270),
@@ -11,11 +11,13 @@ P={
 'D1':(58,27,0),'D2':(58,30.5,0),'D5':(58,34,0),'Q1':(51,30,0),'R11':(51,34,0),'U5':(46,30,0),'C10':(46,34,0),
 'D3':(46,39,0),'R3':(51,39,90),'R1':(54,39,90),'C11':(57,39,90),'R2':(60,39,90),'ZD1':(64,39,90),'TP6':(44,44),'TP7':(55,23),
 # buck (top-right)
-'D7':(66,7,0),'D9':(66,12,0),'C4':(78,12,90),'C5':(68,18,0),'U1':(91,10,0),'D11':(92,20,180),'L1':(103,22,90),
-'C6':(97,33,0),'C7':(103,33,90),'R50':(85,24,0),'R51':(85,27,0),'C8':(85,21,0),'D8':(89,38,0),'C9':(83,37,90),
-'F5':(98,41,0),'LED2':(77,24,0),'R41':(77,27,0),'TP4':(78,33),
+# MCU 5V buck, compact cell (TI layout guide): ceramic Cin right above VIN pin with its GND pad next to the GND tab,
+# catch diode right beside SW pin (anode next to GND pin 5), inductor next to the diode, FB divider below FB pin
+'D7':(66,7,0),'D9':(66,12,0),'C4':(69.5,29,0),'C5':(90.86,6.0,0),'U1':(96,12,0),'D11':(88.66,12.96,270),'L1':(81.5,10.73,180),
+'C6':(79.0,21.5,90),'C7':(74.8,10.7,90),'R50':(91.5,18.5,0),'R51':(91.5,21,0),'C8':(95.5,19,90),'D8':(89,38,0),'C9':(83,37,90),
+'LED2':(86,24,0),'R41':(86,26.5,0),'TP4':(78,33),
 # MCU
-'U2':(56,77,180),'C13':(44,60,90),'TP5':(47,58),
+'U2':(56,77,180),'J10':(63.62,84.62,180),'J11':(48.38,69.38,0),'C13':(44,60,90),'TP5':(47,58),
 'R5':(74,47,90),'R6':(77,47,90),'ZD2':(81,47,90),'C12':(71,47,90),
 # vehicle bus (bottom-left)
 'J3':(4,70,90),'U7':(13,58,0),'R62':(13,63,90),'TVS3':(11,82,0),'R14':(21,82,0),'D10':(21,77,0),'C17':(15,77,90),'TP8':(5,58),
@@ -23,16 +25,27 @@ P={
 'U4':(23,70,0),'C15':(17,66,90),'C16':(14,70,90),'R70':(31,66,90),'R71':(33.5,66,90),'R72':(36,66,90),'JP6':(32,73,90),'R73':(36,73,90),
 'JP4':(39,56,90),'JP5':(42,56,90),
 'Q8':(31,80,0),'R20':(36,80,90),'R21':(27,79,90),'R22':(31,84,0),'JP7':(36,85,0),'R23':(39,79,90),'Q9':(29,76,0),'F3':(25,76,90),
-# expansion (right / bottom-right)
-'J5':(108,70.9,180),'F4':(92,45,0),'J8':(91,84,0),'J9':(76,84,0),'J6':(81,69,0),'J7':(91,69,0),
+# expansion header, I2C pull-ups, GPIO protection, PC power button
+'J5':(108,70.9,180),'F4':(92,45,0),
 'JP3':(76,61,0),'R30':(76,64,0),'R31':(76,66.5,0),
-'JP2':(71,78,0),'R12':(71,81,0),'R13':(71,84,0),'U3':(73,53,0),'J4':(90,55,0),
-'TP9':(47,45),'TP10':(100,62),
-'H1':(4,4),'H2':(107,4),'H3':(4,87),'H4':(107,87),
+'R80':(98,50,0),'R81':(98,52.5,0),'R82':(98,55,0),'R83':(98,57.5,0),'R84':(98,60,0),
+'JP2':(71,68,0),'R12':(71,71,0),'R13':(71,74,0),'U3':(78,76,0),
+'TP9':(47,45),'TP10':(92,66),
+# sensor supply (top right): input cap next to U8 VIN/GND, short SW node to L2/D12, FB divider at U8
+'C40':(148,8,0),'C41':(130.86,8.0,0),'U8':(136,14,0),'D12':(128.66,14.96,270),'L2':(121.5,12.73,180),'C42':(119.0,23.5,90),'C43':(114.8,12.7,90),
+'R52':(131.5,20,0),'R53':(131.5,22.5,0),'C44':(135,20.5,90),
+'U9':(142,32,0),'C45':(150,30,90),'C46':(150,35,90),'LED3':(120,33,0),'R42':(120,30.5,0),'LED4':(120,38,0),'R43':(120,35.5,0),
+'TP11':(132,36),'TP12':(132,41),
+# ports, grouped by type: right edge = I2C (sensors), bottom edge = signal ports (PC button / AUX / pulse / GPS / I2C6)
+'J6':(160.5,18,90),'J7':(160.5,33.4,90),'J12':(160.5,48.8,90),'J13':(160.5,64.2,90),'J14':(160.5,79.6,90),
+'J4':(73,86.5,0),'J17':(82.9,86.5,0),'J9':(97.8,86.5,0),'J8':(112.7,86.5,0),'J16':(127.65,86.5,0),'J15':(145.1,86.5,0),
+'JP8':(126,79,0),'JP9':(132,79,0),
+'H1':(4,4),'H2':(107,4),'H3':(4,87),'H4':(161,87),'H5':(161,4),
 }
-REFPOS={'J1':(13,7.0,0),'J2':(10,27.6,0),'J3':(4,74.8,0),'TVS1':(31,46.3,0),'L1':(108.6,22,90),'U2':(56,79,0)}
-b,comps,miss=build('/home/claude/pcb/pwrctrl/pwrctrl.net','/home/claude/pcb/pwrctrl/pwrctrl.kicad_pcb',W,H,P,ref_pos={k:(v[0]-P[k][0],v[1]-P[k][1],v[2]) for k,v in REFPOS.items()})
+REFPOS={'L2':(121.5,18.9,0),'J1':(13,7.0,0),'J2':(10,27.6,0),'J3':(4,74.8,0),'TVS1':(31,46.3,0),'L1':(81.5,4.6,0),'U2':(56,79,0)}
+b,comps,miss=build('/home/claude/pcb/pwrctrl/pwrctrl.net','/home/claude/pcb/pwrctrl/pwrctrl.kicad_pcb',W,H,P,ref_pos={k:(v[0]-P[k][0],v[1]-P[k][1],v[2]) for k,v in REFPOS.items()},hide_refs=('J10','J11'),silk_to_fab=('J10','J11'))
 print('missing',miss)
-G=[(0,8,45,52,'1 POWER ENTRY / 7A','#d62728'),(40,24,66,44,'3 RELAY HOLD','#9467bd'),(62,2,111,44,'2 5V BUCK','#ff7f0e'),
-(0,52,45,91,'5 VEHICLE BUS (CAN/K)','#2ca02c'),(45,55,68,91,'4 XIAO (USB-C at edge)','#1f77b4'),(68,44,111,91,'6 EXPANSION','#8c564b')]
-render('/home/claude/pcb/pwrctrl/pwrctrl.kicad_pcb','/home/claude/pcb/pwrctrl/placement_proposal.png',groups=G,title='OpenCruise PWR-CTRL v1.0 - placement proposal (111 x 91 mm, ratsnest shown, GND omitted)',dpi=130)
+G=[(0,8,45,52,'1 POWER ENTRY / 7A','#d62728'),(40,24,66,44,'3 RELAY HOLD','#9467bd'),(62,2,111,44,'2 5V BUCK (MCU)','#ff7f0e'),
+(0,52,45,91,'5 VEHICLE BUS (CAN/K)','#2ca02c'),(45,55,68,91,'4 XIAO (USB-C at edge)','#1f77b4'),(68,44,114,82,'6 EXPANSION / I2C PU / PC BTN','#8c564b'),
+(114,2,156,46,'7 SENSOR SUPPLY 5VS/3V3S','#e377c2'),(156,7,165,84,'8a I2C PORTS','#17becf'),(68,82,156,91,'8b SIGNAL PORTS (BTN/AUX/PULSE/GPS/I2C6)','#bcbd22')]
+render('/home/claude/pcb/pwrctrl/pwrctrl.kicad_pcb','/home/claude/pcb/pwrctrl/placement_proposal.png',groups=G,title='OpenCruise PWR-CTRL v2.0 - placement (165 x 91 mm, ratsnest shown, GND omitted)',dpi=110)

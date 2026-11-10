@@ -1,0 +1,37 @@
+* TB6: relay hold time after the MCU pin goes Hi-Z with ACC off (MCU crash / reset / removed)
+*  HOLD_N starts at the MCU high level, then discharges via R2 1M (+ ZD1 leakage) until
+*  it falls below VT- of U5.  Variants (edit the .param line or let run_all.py do it):
+*   C11 (10u, v1.8), R2 (1Meg), VTN (U5 VT-), ZMODEL (DZ3V6 = soft knee / DZ3V6_SHARP)
+.include models.lib
+.param C11=10u R2=1Meg VTP=1.8 VTN=1.0
+Vsw vsw 0 13.8
+V3 v3v3 0 3.3
+* MCU pin: H through 50 ohm until 1 s, then Hi-Z
+Vpin pin 0 PWL(0 3.3 1 3.3 1.001 3.3)
+Spin pin holdpin pctl 0 SWP
+Vpctl pctl 0 PWL(0 5 1 5 1.0001 0)
+.model SWP SW(Vt=2.5 Vh=0.1 Ron=50 Roff=1e9)
+R1 holdpin holdn 1k
+C11 holdn 0 {C11}
+R2 holdn 0 {R2}
+DZ1 0 holdn DZ3V6
+* ACC off: D3/R3 path dead (ACC = 0)
+XU5 holdn holdg v3v3 0 LVC1G17 PARAMS: VTP={VTP} VTN={VTN}
+R11 holdg 0 100k
+* coil driver + relay
+D2 vsw coilp D1N4148
+D5 coiln coilp D1N4148
+M1 coiln holdg 0 0 NBSS138
+XK1 coilp coiln vsw vout G2RLV
+Rl vout 0 10
+.options method=gear
+.tran 5m 25 0 5m
+.control
+run
+meas tran holdn_start FIND v(holdn) AT=0.99
+meas tran t_off WHEN v(holdg)=1.65 FALL=1
+let hold_s = t_off - 1
+print hold_s
+wrdata tb6_out.txt v(holdn) v(holdg) v(vout)
+.endc
+.end

@@ -1,0 +1,1321 @@
+{
+ "date": "2026-11-10 10:13",
+ "cases": [
+  {
+   "name": "tb1_nominal",
+   "tb": "tb1_power_sequence.cir",
+   "title": "Power sequence: ACC on -> crank -> ACC off -> MCU HOLD=L at 12 s",
+   "params": {
+    "MCUFAIL": 0
+   },
+   "meas": {
+    "t_relay_on": 1.518888,
+    "vsw_min_crank": 6.576228,
+    "v5_min_crank": 4.785503,
+    "v3_min_all": 3.293945,
+    "holdn_crank": 2.982827,
+    "t_relay_off": 12.03615,
+    "ibat_peak": 83.43052
+   },
+   "errors": [],
+   "columns": [
+    "acc",
+    "vbat",
+    "vsw",
+    "v5",
+    "v3v3",
+    "holdn",
+    "holdg",
+    "coil",
+    "ivsw"
+   ],
+   "checks": [
+    {
+     "expr": "t_relay_on-1",
+     "value": 0.518888,
+     "op": "<",
+     "limit": 1.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "ACCだけで1秒以内にリレーが入る [s]（通常はマイコンが先にHOLD=Hにする）"
+    },
+    {
+     "expr": "vsw_min_crank",
+     "value": 6.576228,
+     "op": ">",
+     "limit": 6.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "クランキング中のVSWがDFR0946の最低入力6V以上 [V]"
+    },
+    {
+     "expr": "v5_min_crank",
+     "value": 4.785503,
+     "op": ">",
+     "limit": 4.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "クランキング中の+5V（XIAOの5V入力） [V]"
+    },
+    {
+     "expr": "v3_min_all",
+     "value": 3.293945,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "動作中に3V3が下がらない [V]"
+    },
+    {
+     "expr": "t_relay_off-12",
+     "value": 0.03614999999999924,
+     "op": "<",
+     "limit": 0.2,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "HOLD=Lから0.2秒以内にリレーが切れる [s]"
+    },
+    {
+     "expr": "ibat_peak",
+     "value": 83.43052,
+     "op": "<",
+     "limit": 200,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "リレーが閉じたときの突入電流 [A]（tb5で詳しく確認）"
+    }
+   ]
+  },
+  {
+   "name": "tb1_mcufail",
+   "tb": "tb1_power_sequence.cir",
+   "title": "Same, but the MCU pin goes Hi-Z at 12 s (crash): HOLD_N RC must release the relay",
+   "params": {
+    "MCUFAIL": 1
+   },
+   "meas": {
+    "t_relay_on": 1.518888,
+    "vsw_min_crank": 6.576228,
+    "v5_min_crank": 4.785503,
+    "v3_min_all": 3.293945,
+    "holdn_crank": 2.982827,
+    "t_relay_off": 19.89038,
+    "ibat_peak": 83.43052
+   },
+   "errors": [],
+   "columns": [
+    "acc",
+    "vbat",
+    "vsw",
+    "v5",
+    "v3v3",
+    "holdn",
+    "holdg",
+    "coil",
+    "ivsw"
+   ],
+   "checks": [
+    {
+     "expr": "t_relay_off-12",
+     "value": 7.89038,
+     "op": ">",
+     "limit": 2.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "Hi-Z後の保持時間が2秒以上（マイコンのリセットに足りる） [s]"
+    },
+    {
+     "expr": "t_relay_off-12",
+     "value": 7.89038,
+     "op": "<",
+     "limit": 30.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "30秒以内にリレーが切れる（暗電流ゼロ） [s]"
+    }
+   ]
+  },
+  {
+   "name": "tb2_sweep",
+   "tb": "tb2_supply_sweep.cir",
+   "title": "Slow supply sweep 0->30->0 V (MCU Hi-Z): ADC scaling, relay pull-in, jump start",
+   "params": {},
+   "meas": {
+    "v_relay_in": 9.900007,
+    "v_relay_out": 4.542859,
+    "v5_ok_in": 6.451398,
+    "accs_at12": 1.51592,
+    "accs_at16": 2.018089,
+    "accs_max": 2.817529,
+    "holdn_at12": 2.534691,
+    "v_hold_on": 4.67625,
+    "v_hold_off": 4.680085,
+    "i_tvs1_24v": 16.76531,
+    "i_tvs2_24v": 1.175957,
+    "i_tvs1_30v": 81.4149
+   },
+   "errors": [],
+   "columns": [
+    "vsup",
+    "vsw",
+    "accs",
+    "holdn",
+    "v5",
+    "itvs1"
+   ],
+   "checks": [
+    {
+     "expr": "accs_max",
+     "value": 2.817529,
+     "op": "<",
+     "limit": 3.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "ACC_SENSEが3.3V（ESP32の上限）を超えない [V]"
+    },
+    {
+     "expr": "abs(accs_at12/(12/ACCDIV)-1)",
+     "value": 0.0005331372549021163,
+     "op": "<",
+     "limit": 0.03,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "12VでのACC_SENSEの誤差が3%未満"
+    },
+    {
+     "expr": "abs(accs_at16/(16/ACCDIV)-1)",
+     "value": 0.0020846672794120336,
+     "op": "<",
+     "limit": 0.03,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "16VでのACC_SENSEの誤差が3%未満（ZD2の漏れ）"
+    },
+    {
+     "expr": "v_relay_in",
+     "value": 9.900007,
+     "op": "<",
+     "limit": 10.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "電源10.5V未満でリレーが入る [V]"
+    },
+    {
+     "expr": "v5_ok_in",
+     "value": 6.451398,
+     "op": "<",
+     "limit": 7.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "電源7V未満で+5Vが4.75V以上になる [V]"
+    },
+    {
+     "expr": "i_tvs1_24v",
+     "value": 16.76531,
+     "op": "<",
+     "limit": 1.0,
+     "level": "WARN",
+     "result": "WARN",
+     "desc": "24VジャンプスタートでのTVS1の電流 [A]"
+    },
+    {
+     "expr": "i_tvs2_24v",
+     "value": 1.175957,
+     "op": "<",
+     "limit": 0.1,
+     "level": "WARN",
+     "result": "WARN",
+     "desc": "24VジャンプスタートでのTVS2の電流 [A]"
+    }
+   ]
+  },
+  {
+   "name": "tb3_tja_only",
+   "tb": "tb3_kline.cir",
+   "title": "K-line, JP6 only (TJA1021): fast init / 10400 bps / 5-baud start bit",
+   "params": {
+    "PAR": 0
+   },
+   "meas": {
+    "k_fast_low": 1.423037,
+    "k_bit_early": 1.423037,
+    "k_bit_late": 13.79986,
+    "k_idle": 13.79986,
+    "t_fall": 0.4000026,
+    "t_fall2": 0.4000027,
+    "t_rise": 0.4000983,
+    "t_rise2": 0.400099,
+    "fall_us": 0.1,
+    "rise_us": 0.7,
+    "rxd_bit_late": 3.299845,
+    "p_r14_low": 0.02515989
+   },
+   "errors": [],
+   "columns": [
+    "txs",
+    "kline",
+    "rxd",
+    "kgate"
+   ],
+   "checks": [
+    {
+     "expr": "k_idle",
+     "value": 13.79986,
+     "op": ">",
+     "limit": 11.040000000000001,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "待機中のK-LineがVBATの80%以上 [V]"
+    },
+    {
+     "expr": "k_fast_low",
+     "value": 1.423037,
+     "op": "<",
+     "limit": 2.7600000000000002,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "ファスト初期化のLがVBATの20%以下（ISO 14230） [V]"
+    },
+    {
+     "expr": "k_bit_late",
+     "value": 13.79986,
+     "op": "<",
+     "limit": 2.7600000000000002,
+     "level": "WARN",
+     "result": "WARN",
+     "desc": "5ボー初期化の200msの間Lを保つ [V]（TJA1021は約27msで解除されるため、想定どおり満たさない）"
+    }
+   ]
+  },
+  {
+   "name": "tb3_parallel",
+   "tb": "tb3_kline.cir",
+   "title": "K-line, JP6 + JP7 (parallel drive with Q9)",
+   "params": {
+    "PAR": 1
+   },
+   "meas": {
+    "k_fast_low": 0.18125,
+    "k_bit_early": 0.18125,
+    "k_bit_late": 0.2046534,
+    "k_idle": 13.79986,
+    "t_fall": 0.4000011,
+    "t_fall2": 0.4000012,
+    "t_rise": 0.4000984,
+    "t_rise2": 0.4000991,
+    "fall_us": 0.1,
+    "rise_us": 0.7,
+    "rxd_bit_late": 0.03473684,
+    "p_r14_low": 0.3239133
+   },
+   "errors": [],
+   "columns": [
+    "txs",
+    "kline",
+    "rxd",
+    "kgate"
+   ],
+   "checks": [
+    {
+     "expr": "k_idle",
+     "value": 13.79986,
+     "op": ">",
+     "limit": 11.040000000000001,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "待機中のK-LineがVBATの80%以上 [V]"
+    },
+    {
+     "expr": "k_fast_low",
+     "value": 0.18125,
+     "op": "<",
+     "limit": 2.7600000000000002,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "ファスト初期化のLがVBATの20%以下 [V]"
+    },
+    {
+     "expr": "k_bit_late",
+     "value": 0.2046534,
+     "op": "<",
+     "limit": 2.7600000000000002,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "5ボー初期化の200msの間Lを保つ [V]"
+    },
+    {
+     "expr": "rxd_bit_late",
+     "value": 0.03473684,
+     "op": "<",
+     "limit": 0.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "RXDがLを受信する（エコー） [V]"
+    },
+    {
+     "expr": "p_r14_low",
+     "value": 0.3239133,
+     "op": "<",
+     "limit": 0.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "K-LineがLの間のR14（1W品）の消費電力 [W]"
+    }
+   ]
+  },
+  {
+   "name": "tb4_5b_35V",
+   "tb": "tb4_load_dump.cir",
+   "title": "Load dump, suppressed (alternator clamps at 35 V), Ri 1 ohm, td 200 ms",
+   "params": {
+    "US": 87,
+    "RI": 1,
+    "CLAMP": 35
+   },
+   "meas": {
+    "i_tvs1_peak": 8.428422,
+    "p_tvs1_peak": 192.6066,
+    "e_tvs1_total": 57.18438,
+    "i_tvs2_peak": 0.6407007,
+    "p_tvs2_peak": 14.69278,
+    "e_tvs2_total": 4.436824,
+    "vsw_peak": 22.85203,
+    "acc_peak": 22.93237,
+    "vin5_peak": 22.72781,
+    "accs_peak": 2.667028,
+    "v5_min": 4.994282
+   },
+   "errors": [],
+   "columns": [
+    "alt",
+    "vsw",
+    "acc",
+    "v5",
+    "itvs1",
+    "itvs2"
+   ],
+   "checks": [
+    {
+     "expr": "vsw_peak",
+     "value": 22.85203,
+     "op": "<",
+     "limit": 35,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "VSWがDFR0946の上限35V未満 [V]"
+    },
+    {
+     "expr": "acc_peak",
+     "value": 22.93237,
+     "op": "<",
+     "limit": 40,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "ACCが40V未満 [V]"
+    },
+    {
+     "expr": "v5_min",
+     "value": 4.994282,
+     "op": ">",
+     "limit": 4.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "+5Vが止まらない [V]"
+    },
+    {
+     "expr": "e_tvs1_total",
+     "value": 57.18438,
+     "op": "<",
+     "limit": 75,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "TVS1が吸収するエネルギー [J]（SM8S20Aの目安 約75J）"
+    },
+    {
+     "expr": "p_tvs2_peak",
+     "value": 14.69278,
+     "op": "<",
+     "limit": 40,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "TVS2 SMAJ20Aのピーク電力 [W]（約200msのパルス）"
+    }
+   ]
+  },
+  {
+   "name": "tb4_5a_87V_1R",
+   "tb": "tb4_load_dump.cir",
+   "title": "Load dump, unsuppressed 87 V, Ri 1 ohm (severe ISO 16750-2 test A)",
+   "params": {
+    "US": 87,
+    "RI": 1,
+    "CLAMP": 200
+   },
+   "meas": {
+    "i_tvs1_peak": 51.14516,
+    "p_tvs1_peak": 1280.871,
+    "e_tvs1_total": 166.4692,
+    "i_tvs2_peak": 3.553364,
+    "p_tvs2_peak": 90.26628,
+    "e_tvs2_total": 12.00424,
+    "vsw_peak": 25.04383,
+    "acc_peak": 25.40305,
+    "vin5_peak": 25.19841,
+    "accs_peak": 2.768028,
+    "v5_min": 4.99396
+   },
+   "errors": [],
+   "columns": [
+    "alt",
+    "vsw",
+    "acc",
+    "v5",
+    "itvs1",
+    "itvs2"
+   ],
+   "checks": [
+    {
+     "expr": "vsw_peak",
+     "value": 25.04383,
+     "op": "<",
+     "limit": 35,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "VSWがDFR0946の上限35V未満 [V]"
+    },
+    {
+     "expr": "e_tvs1_total",
+     "value": 166.4692,
+     "op": "<",
+     "limit": 75,
+     "level": "WARN",
+     "result": "WARN",
+     "desc": "TVS1が吸収するエネルギー [J]"
+    },
+    {
+     "expr": "p_tvs2_peak",
+     "value": 90.26628,
+     "op": "<",
+     "limit": 40,
+     "level": "WARN",
+     "result": "WARN",
+     "desc": "TVS2のピーク電力 [W]"
+    }
+   ]
+  },
+  {
+   "name": "tb4_5a_87V_4R",
+   "tb": "tb4_load_dump.cir",
+   "title": "Load dump, unsuppressed 87 V, Ri 4 ohm (mild test A)",
+   "params": {
+    "US": 87,
+    "RI": 4,
+    "CLAMP": 200
+   },
+   "meas": {
+    "i_tvs1_peak": 11.1861,
+    "p_tvs1_peak": 257.2657,
+    "e_tvs1_total": 26.40776,
+    "i_tvs2_peak": 0.8293165,
+    "p_tvs2_peak": 19.15466,
+    "e_tvs2_total": 2.136204,
+    "vsw_peak": 22.9987,
+    "acc_peak": 23.09693,
+    "vin5_peak": 22.89143,
+    "accs_peak": 2.675256,
+    "v5_min": 4.994282
+   },
+   "errors": [],
+   "columns": [
+    "alt",
+    "vsw",
+    "acc",
+    "v5",
+    "itvs1",
+    "itvs2"
+   ],
+   "checks": [
+    {
+     "expr": "vsw_peak",
+     "value": 22.9987,
+     "op": "<",
+     "limit": 35,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "VSWがDFR0946の上限35V未満 [V]"
+    },
+    {
+     "expr": "e_tvs1_total",
+     "value": 26.40776,
+     "op": "<",
+     "limit": 75,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "TVS1が吸収するエネルギー [J]"
+    },
+    {
+     "expr": "p_tvs2_peak",
+     "value": 19.15466,
+     "op": "<",
+     "limit": 40,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "TVS2のピーク電力 [W]"
+    }
+   ]
+  },
+  {
+   "name": "tb5_inrush",
+   "tb": "tb5_inrush.cir",
+   "title": "Relay-close inrush into C1-C3 + DFR0946 input capacitors",
+   "params": {},
+   "meas": {
+    "i_peak": 74.88886,
+    "i2t_total": 0.8689454,
+    "t_settle": 0.01006491,
+    "tset_ms": 0.06491
+   },
+   "errors": [],
+   "columns": [
+    "ik",
+    "vsw",
+    "vdfr"
+   ],
+   "checks": [
+    {
+     "expr": "i_peak",
+     "value": 74.88886,
+     "op": "<",
+     "limit": 150,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "接点電流のピーク [A]"
+    },
+    {
+     "expr": "i2t_total",
+     "value": 0.8689454,
+     "op": "<",
+     "limit": 5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "I²t [A²s]（7.5Aヒューズの溶断は約20A²s）"
+    }
+   ]
+  },
+  {
+   "name": "tb6_nom",
+   "tb": "tb6_hold_time.cir",
+   "title": "Hold time after Hi-Z: C11=10u R2=1Meg VT-=1.0 V zener=DZ3V6",
+   "params": {
+    "C11": "10u",
+    "R2": "1Meg",
+    "VTN": 1.0,
+    "@ZMODEL": "DZ3V6"
+   },
+   "meas": {
+    "holdn_start": 2.984872,
+    "t_off": 8.883759,
+    "hold_s": 7.883759
+   },
+   "errors": [],
+   "columns": [
+    "holdn",
+    "holdg",
+    "vout"
+   ],
+   "checks": [
+    {
+     "expr": "hold_s",
+     "value": 7.883759,
+     "op": ">",
+     "limit": 2.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "保持時間が2秒以上（マイコンのリセットに足りる） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 7.883759,
+     "op": ">",
+     "limit": 3.0,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "保持時間がwdt_timeout_ms（3000ms）より長い（ファーム仕様） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 7.883759,
+     "op": "<",
+     "limit": 30.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "30秒以内にリレーが切れる（暗電流ゼロ） [s]"
+    }
+   ]
+  },
+  {
+   "name": "tb6_sharpZ",
+   "tb": "tb6_hold_time.cir",
+   "title": "Hold time after Hi-Z: C11=10u R2=1Meg VT-=1.0 V zener=DZ3V6_SHARP",
+   "params": {
+    "C11": "10u",
+    "R2": "1Meg",
+    "VTN": 1.0,
+    "@ZMODEL": "DZ3V6_SHARP"
+   },
+   "meas": {
+    "holdn_start": 3.279001,
+    "t_off": 12.66376,
+    "hold_s": 11.66376
+   },
+   "errors": [],
+   "columns": [
+    "holdn",
+    "holdg",
+    "vout"
+   ],
+   "checks": [
+    {
+     "expr": "hold_s",
+     "value": 11.66376,
+     "op": ">",
+     "limit": 2.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "保持時間が2秒以上（マイコンのリセットに足りる） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 11.66376,
+     "op": ">",
+     "limit": 3.0,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "保持時間がwdt_timeout_ms（3000ms）より長い（ファーム仕様） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 11.66376,
+     "op": "<",
+     "limit": 30.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "30秒以内にリレーが切れる（暗電流ゼロ） [s]"
+    }
+   ]
+  },
+  {
+   "name": "tb6_worst",
+   "tb": "tb6_hold_time.cir",
+   "title": "Hold time after Hi-Z: C11=8u R2=0.95Meg VT-=1.2 V zener=DZ3V6",
+   "params": {
+    "C11": "8u",
+    "R2": "0.95Meg",
+    "VTN": 1.2,
+    "@ZMODEL": "DZ3V6"
+   },
+   "meas": {
+    "holdn_start": 2.984817,
+    "t_off": 5.633759,
+    "hold_s": 4.633759
+   },
+   "errors": [],
+   "columns": [
+    "holdn",
+    "holdg",
+    "vout"
+   ],
+   "checks": [
+    {
+     "expr": "hold_s",
+     "value": 4.633759,
+     "op": ">",
+     "limit": 2.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "保持時間が2秒以上（マイコンのリセットに足りる） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 4.633759,
+     "op": ">",
+     "limit": 3.0,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "保持時間がwdt_timeout_ms（3000ms）より長い（ファーム仕様） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 4.633759,
+     "op": "<",
+     "limit": 30.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "30秒以内にリレーが切れる（暗電流ゼロ） [s]"
+    }
+   ]
+  },
+  {
+   "name": "tb6_best",
+   "tb": "tb6_hold_time.cir",
+   "title": "Hold time after Hi-Z: C11=12u R2=1.05Meg VT-=0.8 V zener=DZ3V6_SHARP",
+   "params": {
+    "C11": "12u",
+    "R2": "1.05Meg",
+    "VTN": 0.8,
+    "@ZMODEL": "DZ3V6_SHARP"
+   },
+   "meas": {
+    "holdn_start": 3.279113,
+    "t_off": 18.51216,
+    "hold_s": 17.51216
+   },
+   "errors": [],
+   "columns": [
+    "holdn",
+    "holdg",
+    "vout"
+   ],
+   "checks": [
+    {
+     "expr": "hold_s",
+     "value": 17.51216,
+     "op": ">",
+     "limit": 2.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "保持時間が2秒以上（マイコンのリセットに足りる） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 17.51216,
+     "op": ">",
+     "limit": 3.0,
+     "level": "WARN",
+     "result": "PASS",
+     "desc": "保持時間がwdt_timeout_ms（3000ms）より長い（ファーム仕様） [s]"
+    },
+    {
+     "expr": "hold_s",
+     "value": 17.51216,
+     "op": "<",
+     "limit": 30.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "30秒以内にリレーが切れる（暗電流ゼロ） [s]"
+    }
+   ]
+  },
+  {
+   "name": "tb7_speed12",
+   "tb": "tb7_pulse_in.cir",
+   "title": "12V方形波・Lが0.8V浮く（車速パルス想定）200Hz",
+   "params": {
+    "F": 200,
+    "VHI": 12,
+    "VLO": 0.8,
+    "OC": 0,
+    "PU": 12,
+    "JP2": 0,
+    "SPIKE": 0
+   },
+   "meas": {
+    "siga_max": 4.575183,
+    "siga_min": 0.7999833,
+    "out_hi": 3.330405,
+    "out_lo": -0.01486554,
+    "t_a": 0.01002155,
+    "t_b": 0.01502155,
+    "t_c": 0.01275276,
+    "f_out": 200.0,
+    "duty": 0.546242
+   },
+   "errors": [],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "abs(f_out/200-1)",
+     "value": 0.0,
+     "op": "<",
+     "limit": 0.01,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力の周波数が入力（200Hz）と一致（パルスの抜け・余分なし）"
+    },
+    {
+     "expr": "duty",
+     "value": 0.546242,
+     "op": ">",
+     "limit": 0.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 30%以上"
+    },
+    {
+     "expr": "duty",
+     "value": 0.546242,
+     "op": "<",
+     "limit": 0.7,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 70%以下"
+    },
+    {
+     "expr": "out_hi",
+     "value": 3.330405,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力のH電圧 [V]"
+    },
+    {
+     "expr": "siga_max",
+     "value": 4.575183,
+     "op": "<",
+     "limit": 5.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "U1入力の最大電圧 [V]（74LVC1G17の推奨上限5.5V）"
+    }
+   ]
+  },
+  {
+   "name": "tb7_tach12_jp2",
+   "tb": "tb7_pulse_in.cir",
+   "title": "12V方形波・JP2（12Vしきい値）あり（タコ信号想定）300Hz",
+   "params": {
+    "F": 300,
+    "VHI": 12,
+    "VLO": 0.8,
+    "OC": 0,
+    "PU": 12,
+    "JP2": 1,
+    "SPIKE": 0
+   },
+   "meas": {
+    "siga_max": 3.738318,
+    "siga_min": 0.2492215,
+    "out_hi": 3.350619,
+    "out_lo": -0.03517834,
+    "t_a": 0.006702619,
+    "t_b": 0.01003595,
+    "t_c": 0.008458453,
+    "f_out": 300.0002,
+    "duty": 0.5267506
+   },
+   "errors": [],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "abs(f_out/300-1)",
+     "value": 6.66666666759852e-07,
+     "op": "<",
+     "limit": 0.01,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力の周波数が入力（300Hz）と一致（パルスの抜け・余分なし）"
+    },
+    {
+     "expr": "duty",
+     "value": 0.5267506,
+     "op": ">",
+     "limit": 0.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 30%以上"
+    },
+    {
+     "expr": "duty",
+     "value": 0.5267506,
+     "op": "<",
+     "limit": 0.7,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 70%以下"
+    },
+    {
+     "expr": "out_hi",
+     "value": 3.350619,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力のH電圧 [V]"
+    },
+    {
+     "expr": "siga_max",
+     "value": 3.738318,
+     "op": "<",
+     "limit": 5.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "U1入力の最大電圧 [V]（74LVC1G17の推奨上限5.5V）"
+    }
+   ]
+  },
+  {
+   "name": "tb7_oc5",
+   "tb": "tb7_pulse_in.cir",
+   "title": "オープンコレクタ・5Vプルアップ 200Hz",
+   "params": {
+    "F": 200,
+    "VHI": 5,
+    "VLO": 0,
+    "OC": 1,
+    "PU": 5,
+    "JP2": 0,
+    "SPIKE": 0
+   },
+   "meas": {
+    "siga_max": 4.472544,
+    "siga_min": 0.02118596,
+    "out_hi": 3.411323,
+    "out_lo": -0.05449877,
+    "t_a": 0.01006476,
+    "t_b": 0.01506476,
+    "t_c": 0.01268678,
+    "f_out": 200.0,
+    "duty": 0.524404
+   },
+   "errors": [],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "abs(f_out/200-1)",
+     "value": 0.0,
+     "op": "<",
+     "limit": 0.01,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力の周波数が入力（200Hz）と一致（パルスの抜け・余分なし）"
+    },
+    {
+     "expr": "duty",
+     "value": 0.524404,
+     "op": ">",
+     "limit": 0.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 30%以上"
+    },
+    {
+     "expr": "duty",
+     "value": 0.524404,
+     "op": "<",
+     "limit": 0.7,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 70%以下"
+    },
+    {
+     "expr": "out_hi",
+     "value": 3.411323,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力のH電圧 [V]"
+    },
+    {
+     "expr": "siga_max",
+     "value": 4.472544,
+     "op": "<",
+     "limit": 5.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "U1入力の最大電圧 [V]（74LVC1G17の推奨上限5.5V）"
+    }
+   ]
+  },
+  {
+   "name": "tb7_oc12_jp2",
+   "tb": "tb7_pulse_in.cir",
+   "title": "オープンコレクタ・12Vプルアップ・JP2あり 200Hz",
+   "params": {
+    "F": 200,
+    "VHI": 5,
+    "VLO": 0,
+    "OC": 1,
+    "PU": 12,
+    "JP2": 1,
+    "SPIKE": 0
+   },
+   "meas": {
+    "siga_max": 3.269773,
+    "siga_min": 0.01587993,
+    "out_hi": 3.483747,
+    "out_lo": -0.1391477,
+    "t_a": 0.01005852,
+    "t_b": 0.01505852,
+    "t_c": 0.01266021,
+    "f_out": 200.0,
+    "duty": 0.520338
+   },
+   "errors": [],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "abs(f_out/200-1)",
+     "value": 0.0,
+     "op": "<",
+     "limit": 0.01,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力の周波数が入力（200Hz）と一致（パルスの抜け・余分なし）"
+    },
+    {
+     "expr": "duty",
+     "value": 0.520338,
+     "op": ">",
+     "limit": 0.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 30%以上"
+    },
+    {
+     "expr": "duty",
+     "value": 0.520338,
+     "op": "<",
+     "limit": 0.7,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 70%以下"
+    },
+    {
+     "expr": "out_hi",
+     "value": 3.483747,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力のH電圧 [V]"
+    },
+    {
+     "expr": "siga_max",
+     "value": 3.269773,
+     "op": "<",
+     "limit": 5.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "U1入力の最大電圧 [V]（74LVC1G17の推奨上限5.5V）"
+    }
+   ]
+  },
+  {
+   "name": "tb7_sensor3v3",
+   "tb": "tb7_pulse_in.cir",
+   "title": "3.3Vセンサー 5kHz",
+   "params": {
+    "F": 5000,
+    "VHI": 3.3,
+    "VLO": 0,
+    "OC": 0,
+    "PU": 12,
+    "JP2": 0,
+    "SPIKE": 0
+   },
+   "meas": {
+    "siga_max": 3.259144,
+    "siga_min": 1.199967e-06,
+    "out_hi": 3.475916,
+    "out_lo": -0.1759158,
+    "t_a": 0.0004204137,
+    "t_b": 0.0006204137,
+    "t_c": 0.0005338404,
+    "f_out": 5000.0,
+    "duty": 0.5671335
+   },
+   "errors": [],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "abs(f_out/5000-1)",
+     "value": 0.0,
+     "op": "<",
+     "limit": 0.01,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力の周波数が入力（5000Hz）と一致（パルスの抜け・余分なし）"
+    },
+    {
+     "expr": "duty",
+     "value": 0.5671335,
+     "op": ">",
+     "limit": 0.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 30%以上"
+    },
+    {
+     "expr": "duty",
+     "value": 0.5671335,
+     "op": "<",
+     "limit": 0.7,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 70%以下"
+    },
+    {
+     "expr": "out_hi",
+     "value": 3.475916,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力のH電圧 [V]"
+    },
+    {
+     "expr": "siga_max",
+     "value": 3.259144,
+     "op": "<",
+     "limit": 5.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "U1入力の最大電圧 [V]（74LVC1G17の推奨上限5.5V）"
+    }
+   ]
+  },
+  {
+   "name": "tb7_spike",
+   "tb": "tb7_pulse_in.cir",
+   "title": "12V方形波＋40Vスパイク",
+   "params": {
+    "F": 200,
+    "VHI": 12,
+    "VLO": 0.8,
+    "OC": 0,
+    "PU": 12,
+    "JP2": 0,
+    "SPIKE": 1
+   },
+   "meas": {
+    "siga_max": 4.641537,
+    "siga_min": 0.7999831,
+    "out_hi": 3.330407,
+    "out_lo": -0.01486817,
+    "t_a": 0.01002173,
+    "t_b": 0.01502173,
+    "t_c": 0.01275276,
+    "f_out": 200.0,
+    "duty": 0.546206
+   },
+   "errors": [],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "abs(f_out/200-1)",
+     "value": 0.0,
+     "op": "<",
+     "limit": 0.01,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力の周波数が入力（200Hz）と一致（パルスの抜け・余分なし）"
+    },
+    {
+     "expr": "duty",
+     "value": 0.546206,
+     "op": ">",
+     "limit": 0.3,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 30%以上"
+    },
+    {
+     "expr": "duty",
+     "value": 0.546206,
+     "op": "<",
+     "limit": 0.7,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "デューティ比 70%以下"
+    },
+    {
+     "expr": "out_hi",
+     "value": 3.330407,
+     "op": ">",
+     "limit": 3.0,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力のH電圧 [V]"
+    },
+    {
+     "expr": "siga_max",
+     "value": 4.641537,
+     "op": "<",
+     "limit": 5.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "U1入力の最大電圧 [V]（74LVC1G17の推奨上限5.5V）"
+    }
+   ]
+  },
+  {
+   "name": "tb7_5v_jp2_ng",
+   "tb": "tb7_pulse_in.cir",
+   "title": "5V信号でJP2を閉じた場合（使えない組み合わせの確認）",
+   "params": {
+    "F": 1000,
+    "VHI": 5,
+    "VLO": 0,
+    "OC": 0,
+    "PU": 12,
+    "JP2": 1,
+    "SPIKE": 0
+   },
+   "meas": {
+    "siga_max": 1.557634,
+    "siga_min": 3.719782e-07,
+    "out_hi": 8.249998e-07,
+    "out_lo": 8.249998e-07
+   },
+   "errors": [
+    "Error: measure  t_a  when(WHEN) : out of interval",
+    "Error: measure  t_b  when(WHEN) : out of interval",
+    "Error: measure  t_c  when(WHEN) : out of interval",
+    "Error: RHS \"1/(t_b - t_a)\" invalid",
+    "Error: RHS \"(t_c - t_a)/(t_b - t_a)\" invalid"
+   ],
+   "columns": [
+    "sigin",
+    "siga",
+    "out"
+   ],
+   "checks": [
+    {
+     "expr": "out_hi",
+     "value": 8.249998e-07,
+     "op": "<",
+     "limit": 0.5,
+     "level": "NG",
+     "result": "PASS",
+     "desc": "出力が変化しない [V]（5V信号ではJP2を閉じないこと）"
+    }
+   ]
+  }
+ ]
+}

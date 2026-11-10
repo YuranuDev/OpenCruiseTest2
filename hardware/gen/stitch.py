@@ -20,16 +20,22 @@ def _clear(poly,p):
     for dx,dy in [(need,0),(-need,0),(0,need),(0,-need),(need*0.7,need*0.7),(-need*0.7,need*0.7),(need*0.7,-need*0.7),(-need*0.7,-need*0.7)]:
         if not poly.Contains(pcbnew.VECTOR2I(p.x+int(dx),p.y+int(dy))): return False
     return True
-n=0; step=5.0
+holes=[(pcbnew.ToMM(t.GetPosition().x),pcbnew.ToMM(t.GetPosition().y)) for t in b.GetTracks() if t.GetClass()=='PCB_VIA']
+for fp in b.GetFootprints():
+    for pd in fp.Pads():
+        if pd.GetDrillSizeX()>0: holes.append((pcbnew.ToMM(pd.GetPosition().x),pcbnew.ToMM(pd.GetPosition().y)))
+import math
+n=0; step=4.0
 y=4.0
 while y<H-3:
     x=4.0
     while x<W-3:
         p=pcbnew.VECTOR2I(MM(x),MM(y))
-        if _clear(fF,p) and _clear(fB,p) and not any(c.Collide(p,MM(0.5)) for c in crt):
+        if all(math.dist((x,y),h)>1.5 for h in holes) and _clear(fF,p) and _clear(fB,p) and not any(c.Collide(p,MM(0.5)) for c in crt):
             v=pcbnew.PCB_VIA(b); v.SetPosition(p); v.SetWidth(MM(0.85)); v.SetDrill(MM(0.3)); v.SetNet(b.FindNet('GND')); v.SetLocked(True); b.Add(v); n+=1
         x+=step
     y+=step
+for z in b.Zones(): z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)   # now drop islands that are still floating
 f=pcbnew.ZONE_FILLER(b); f.Fill(b.Zones())
 pcbnew.SaveBoard(PCB,b)
 print('stitching vias',n)

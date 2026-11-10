@@ -1,6 +1,6 @@
 import sys; sys.path.insert(0,'/home/claude/pcb/gen')
 from schgen import Sheet
-S=Sheet('pwrctrl','OpenCruise PWR-CTRL main board')
+S=Sheet('pwrctrl','OpenCruise PWR-CTRL main board',paper='A1',rev='2.0')
 R0603='Resistor_SMD:R_0603_1608Metric'; C0603='Capacitor_SMD:C_0603_1608Metric'; C0805='Capacitor_SMD:C_0805_2012Metric'
 C1210='Capacitor_SMD:C_1210_3225Metric'; C1206='Capacitor_SMD:C_1206_3216Metric'
 SOD='Diode_SMD:D_SOD-123'; SMA='Diode_SMD:D_SMA'; SOT='Package_TO_SOT_SMD:SOT-23'
@@ -43,7 +43,6 @@ R('R51','3.3k',315,100,'FB5','GND')
 C('C8','33nF',285,100,'V5REG','FB5',lcsc='C106856')
 D('D8','Diode','SS34','SS34',350,100,'+5V','V5REG',fp=SMA,lcsc='C8678')
 C('C9','10uF/25V',380,100,'+5V','GND',fp=C0805,lcsc='C15850')
-S.part('F5','Device','Polyfuse',395,100,{'1':'+5V','2':'5V_EXT'},value='0.25A PTC',fp='Fuse:Fuse_1206_3216Metric',lcsc='C70070',mpn='nSMD025-30V')
 D('LED2','Device','LED','LED 5V (red)',250,100,'GND','LED2_A',fp='LED_SMD:LED_0603_1608Metric',lcsc='C2286')
 R('R41','1k',270,100,'+5V','LED2_A')
 S.flag('+5V',240,125); S.flag('VIN5',255,125)
@@ -60,10 +59,10 @@ C('C10','100nF',560,45,'+3V3','GND',lcsc='C14663')
 D('D3','Diode','1N4148W','1N4148W',445,95,'ACC_D','ACC_IN',lcsc='C81598')
 R('R3','470k',470,95,'ACC_D','HOLD_N')
 R('R1','1k',490,95,'HOLD','HOLD_N')
-C('C11','4.7uF/25V',510,95,'HOLD_N','GND',fp=C0805,lcsc='C1779')
+C('C11','10uF/25V',510,95,'HOLD_N','GND',fp=C0805,lcsc='C15850')
 R('R2','1M',525,95,'HOLD_N','GND')
 D('ZD1','Device','D_Zener','BZT52C3V6',550,95,'HOLD_N','GND',lcsc='C173412')
-S.note('ACC on & MCU Hi-Z -> ON (hardware start). MCU drives HOLD low -> OFF (1k beats 470k).\nACC off & MCU Hi-Z -> OFF after ~6 s (4.7uF x 1M, Schmitt VT-). XIAO removed (no 3V3) -> OFF.',430,125)
+S.note('ACC on & MCU Hi-Z -> ON (hardware start). MCU drives HOLD low -> OFF (1k beats 470k).\nACC off & MCU Hi-Z -> OFF after ~8 s (4.6-17 s, 10uF x 1M + ZD1 leak, Schmitt VT-; SPICE tb6). XIAO removed (no 3V3) -> OFF.',430,125)
 # ================= 4. MCU =================
 S.box(10,155,215,290,'4. MCU: Seeed XIAO ESP32S3 (socketed)')
 S.part('U2','OpenCruise','XIAO_ESP32S3',80,215,{'1':'ACC_SENSE','2':'HOLD','3':'IO_D2','4':'IO_D3','5':'SDA','6':'SCL','7':'IO_D6','8':'IO_D7','9':'VEH_TX','10':'VEH_RX','11':'IO_D10','12':'+3V3','13':'GND','14':'+5V'},
@@ -75,10 +74,10 @@ C('C13','10uF/25V',150,205,'+3V3','GND',fp=C0805,lcsc='C15850')
 S.note('D6/D7 (GPIO43/44) carry UART0 boot log: avoid as outputs needing a quiet boot.\nPC USB goes to XIAO USB-C through the separate VBUS-block adapter.',15,265)
 # ACC sense inside MCU box
 R('R5','47k',175,200,'ACC_IN','ACC_SENSE')
-R('R6','10k',175,235,'ACC_SENSE','GND')
+R('R6','6.8k',175,235,'ACC_SENSE','GND',lcsc='C23212')
 D('ZD2','Device','D_Zener','BZT52C3V6',195,250,'ACC_SENSE','GND',lcsc='C173412')
 C('C12','100nF',200,225,'ACC_SENSE','GND',lcsc='C14663')
-S.text('ACC sense (ratio 5.7)',160,180,1.5)
+S.text('ACC sense (ratio 7.91, 47k/6.8k)',160,180,1.5)
 # ================= 5. VEHICLE BUS =================
 S.box(220,155,585,290,'5. VEHICLE BUS: CAN (SN65HVD230) / K-LINE (TJA1021) — default RX-only')
 S.part('JP4','Jumper','SolderJumper_3_Open',240,180,{'1':'CAN_TXS','2':'VEH_TX','3':'KL_TXS'},value='TX: CAN|KL',fp='Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm')
@@ -115,17 +114,16 @@ S.part('F3','Device','Polyfuse',510,258,{'1':'KDRN','2':'KLINE'},value='0.1A PTC
 S.part('J3','Connector_Generic','Conn_01x04',560,205,{'1':'KLINE','2':'CANH','3':'CANL','4':'GND'},value='DIAG (K/CANH/CANL/GND)',fp='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical',lcsc='C144395')
 S.note('Modes: JP6 open+JP7 open = RX only (default). JP6 = TJA1021 TX (fast init 24-26 ms only).\nJP6+JP7 (Q8,Q9,F3 fitted) = parallel drive: 5-baud init OK. JP4/JP5 select CAN or K on D8/D9.\nR62 120R not fitted (vehicle bus already terminated).',225,280-4)
 # ================= 6. EXPANSION / MISC =================
-S.box(10,295,585,412,'6. EXPANSION / I2C / PC POWER BUTTON / TEST POINTS / MECHANICAL')
-S.part('J5','Connector_Generic','Conn_02x10_Odd_Even',50,350,{'1':'ACC_SENSE','2':'HOLD','3':'IO_D2','4':'IO_D3','5':'SDA','6':'SCL','7':'IO_D6','8':'IO_D7','9':'VEH_TX','10':'VEH_RX','11':'IO_D10','12':'+3V3','13':'5V_EXT','14':'VSW_EXT','15':'GND','16':'GND','17':'GND','18':'GND','19':'GND','20':'GND'},value='EXT 2x10',fp='Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical',lcsc='C492427')
+S.box(10,295,585,412,'6. EXPANSION HEADER / I2C PULL-UP / PC POWER BUTTON / TEST POINTS / MECHANICAL')
+S.part('J5','Connector_Generic','Conn_02x10_Odd_Even',50,350,{'1':'ACC_SENSE','2':'HOLD','3':'P_D2','4':'P_D3','5':'SDA','6':'SCL','7':'P_D6','8':'P_D7','9':'VEH_TX','10':'VEH_RX','11':'P_D10','12':'+3V3','13':'+5VS','14':'VSW_EXT','15':'GND','16':'GND','17':'GND','18':'GND','19':'GND','20':'GND'},value='EXT 2x10 (debug / future)',fp='Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical',lcsc='C492427')
 S.part('F4','Device','Polyfuse',110,320,{'1':'VSW','2':'VSW_EXT'},value='1.1A PTC 33V',fp='Fuse:Fuse_1812_4532Metric',lcsc='C269134',mpn='SMD1812B110TF/33')
-S.part('J8','Connector_Generic','Conn_01x04',130,355,{'1':'VSW_EXT','2':'5V_EXT','3':'GND','4':'IO_D2'},value='XH4 EXT-A',fp='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical',lcsc='C144395')
-S.part('J9','Connector_Generic','Conn_01x04',130,385,{'1':'VSW_EXT','2':'5V_EXT','3':'GND','4':'IO_D3'},value='XH4 EXT-B',fp='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical',lcsc='C144395')
-# I2C
+# GPIO series protection (MCU side -> port side)
+for i,(m,p) in enumerate([('IO_D2','P_D2'),('IO_D3','P_D3'),('IO_D6','P_D6'),('IO_D7','P_D7'),('IO_D10','P_D10')]):
+    R(f'R{80+i}','100',100+i*12,370,m,p,lcsc='C22775')
+# I2C pull-up (single set, 2.2k for 400 kHz)
 S.part('JP3','Jumper','SolderJumper_2_Bridged',180,320,{'1':'+3V3','2':'I2C_PU'},value='I2C PU (cut to remove)',fp='Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm')
-R('R30','4.7k',200,340,'I2C_PU','SDA')
-R('R31','4.7k',212,340,'I2C_PU','SCL')
-S.part('J6','Connector_Generic','Conn_01x04',250,345,{'1':'GND','2':'+3V3','3':'SDA','4':'SCL'},value='Qwiic A',fp='Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal',lcsc='C160404')
-S.part('J7','Connector_Generic','Conn_01x04',250,380,{'1':'GND','2':'+3V3','3':'SDA','4':'SCL'},value='Qwiic B',fp='Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal',lcsc='C160404')
+R('R30','2.2k',200,340,'I2C_PU','SDA',lcsc='C4190')
+R('R31','2.2k',212,340,'I2C_PU','SCL',lcsc='C4190')
 # PWR button
 S.part('JP2','Jumper','SolderJumper_2_Open',300,330,{'1':'IO_D10','2':'PWRB'},value='PC PWR BTN',fp='Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm')
 R('R12','330',320,345,'PWRB','OPTO_A')
@@ -133,11 +131,40 @@ R('R13','100k',305,360,'PWRB','GND')
 S.part('U3','Isolator','PC817',350,350,{'1':'OPTO_A','2':'GND','3':'PWR_SW-','4':'PWR_SW+'},value='PC817 / AQY212',fp='Package_DIP:DIP-4_W7.62mm',lcsc='C5350')
 S.part('J4','Connector_Generic','Conn_01x02',385,350,{'1':'PWR_SW+','2':'PWR_SW-'},value='PC PWR SW',fp='Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical',lcsc='C158012')
 # Test points
-tps=[('TP1','VBAT_IN'),('TP2','VSW'),('TP3','ACC_IN'),('TP4','+5V'),('TP5','+3V3'),('TP6','HOLD_N'),('TP7','HOLD_G'),('TP8','KLINE'),('TP9','GND'),('TP10','GND')]
+tps=[('TP1','VBAT_IN'),('TP2','VSW'),('TP3','ACC_IN'),('TP4','+5V'),('TP5','+3V3'),('TP6','HOLD_N'),('TP7','HOLD_G'),('TP8','KLINE'),('TP9','GND'),('TP10','GND'),('TP11','+5VS'),('TP12','+3V3S')]
 for i,(r,n) in enumerate(tps):
-    S.part(r,'Connector','TestPoint',430+(i%5)*30,330+(i//5)*30,{'1':n},value=n,fp='TestPoint:TestPoint_Pad_D1.5mm',inbom=False)
-for i in range(4):
-    S.part(f'H{i+1}','Mechanical','MountingHole',300+i*20,395,{},value='M3',fp='MountingHole:MountingHole_3.2mm_M3',inbom=False)
+    S.part(r,'Connector','TestPoint',430+(i%6)*25,330+(i//6)*30,{'1':n},value=n,fp='TestPoint:TestPoint_Pad_D1.5mm',inbom=False)
+for i in range(5):
+    S.part(f'H{i+1}','Mechanical','MountingHole',280+i*20,395,{},value='M3',fp='MountingHole:MountingHole_3.2mm_M3',inbom=False)
+
+# ================= 7. SENSOR SUPPLY + PORTS (v2.0, integrated EXT-HUB) =================
+S.box(10,420,585,580,'7. SENSOR SUPPLY (5.3 V / 3.3 V from VSW_EXT) + PORTS (all JST XH)')
+C('C40','100uF/50V',30,450,'VSW_EXT','GND',fp='Capacitor_SMD:CP_Elec_8x10.5',lcsc='C48935390',pol=True)
+C('C41','1uF/50V',45,450,'VSW_EXT','GND',fp=C1206,lcsc='C1848')
+S.part('U8','OpenCruise','XL7015E1',75,450,{'1':'VSW_EXT','5':'GND','2':'SW6','4':'FB6','3':'GND','6':'GND'},value='XL7015E1',lcsc='C73013')
+D('D12','Diode','SS34','SS34',105,475,'SW6','GND',fp=SMA,lcsc='C8678')
+S.part('L2','Device','L',115,445,{'1':'SW6','2':'+5VS'},value='100uH/1A',fp='OpenCruise:L_8040_SWPA8040',lcsc='C83468',mpn='SWPA8040S101MT')
+C('C42','100uF/16V',135,450,'+5VS','GND',fp='Capacitor_SMD:CP_Elec_6.3x5.4',lcsc='C2887276',pol=True)
+C('C43','10uF/25V',150,450,'+5VS','GND',fp=C0805,lcsc='C15850')
+R('R52','10.7k',60,500,'+5VS','FB6'); R('R53','3.3k',75,500,'FB6','GND'); C('C44','33nF',45,500,'+5VS','FB6',lcsc='C106856')
+S.part('U9','Regulator_Linear','AMS1117-3.3',120,505,{'1':'GND','2':'+3V3S','3':'+5VS'},value='AMS1117-3.3',fp='Package_TO_SOT_SMD:SOT-223-3_TabPin2',lcsc='C6186')
+C('C45','10uF/25V',145,505,'+3V3S','GND',fp=C0805,lcsc='C15850'); C('C46','10uF/25V',160,505,'+3V3S','GND',fp=C0805,lcsc='C15850')
+D('LED3','Device','LED','LED 5VS (red)',175,450,'GND','LED3_A',fp='LED_SMD:LED_0603_1608Metric',lcsc='C2286'); R('R42','1k',175,470,'+5VS','LED3_A')
+D('LED4','Device','LED','LED 3V3S (red)',190,450,'GND','LED4_A',fp='LED_SMD:LED_0603_1608Metric',lcsc='C2286'); R('R43','1k',190,470,'+3V3S','LED4_A')
+S.flag('+5VS',30,540); S.flag('VSW_EXT',45,540)
+S.note('Sensor rails are separate from the XIAO supply: +5VS ~0.7 A (XL7015), +3V3S ~0.4 A (AMS1117, 1 W).\nPowered only while the relay is on -> zero dark current is kept.',15,560)
+XH4='Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical'; XH5='Connector_JST:JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical'
+for i,ref in enumerate(['J6','J7','J12','J13']):
+    S.part(ref,'Connector_Generic','Conn_01x04',230+i*25,460,{'1':'GND','2':'+3V3S','3':'SDA','4':'SCL'},value=f'I2C{i+1} 3V3 (XH4)',fp=XH4,lcsc='C144395')
+for i,ref in enumerate(['J14','J15']):
+    S.part(ref,'Connector_Generic','Conn_01x04',330+i*25,460,{'1':'GND','2':'+5VS','3':'SDA','4':'SCL'},value=f'I2C{i+5} 5V (XH4)',fp=XH4,lcsc='C144395')
+S.part('J16','Connector_Generic','Conn_01x05',420,460,{'1':'GND','2':'GPS_VCC','3':'P_D6','4':'P_D7','5':'GPS_PPS'},value='GPS XH5 (3:RX of GPS<-D6, 4:TX of GPS->D7)',fp=XH5,lcsc='C157991')
+S.part('JP8','Jumper','SolderJumper_3_Bridged12',420,500,{'1':'+3V3S','2':'GPS_VCC','3':'+5VS'},value='GPS VCC 3V3|5V',fp='Jumper:SolderJumper-3_P1.3mm_Bridged12_RoundedPad1.0x1.5mm')
+S.part('JP9','Jumper','SolderJumper_2_Open',450,500,{'1':'GPS_PPS','2':'P_D10'},value='PPS -> D10',fp='Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm')
+S.part('J8','Connector_Generic','Conn_01x04',480,460,{'1':'VSW_EXT','2':'+5VS','3':'GND','4':'P_D2'},value='PULSE-A D2 (XH4)',fp=XH4,lcsc='C144395')
+S.part('J9','Connector_Generic','Conn_01x04',505,460,{'1':'VSW_EXT','2':'+5VS','3':'GND','4':'P_D3'},value='PULSE-B D3 (XH4)',fp=XH4,lcsc='C144395')
+S.part('J17','Connector_Generic','Conn_01x04',530,460,{'1':'VSW_EXT','2':'+5VS','3':'GND','4':'P_D10'},value='AUX D10 (XH4)',fp=XH4,lcsc='C144395')
+S.note('I2C1-6 share one bus (D4/D5, 400 kHz, 2.2k pull-up). I2C5/6: 5 V power, 3.3 V logic.\nPULSE-A/B and AUX: 1 12V 2 5V 3 GND 4 IO (same as PULSE-IN adapter). D10 is shared by AUX, GPS PPS (JP9) and the PC power button (JP2): use one.',215,545)
 
 S.write('/home/claude/pcb/pwrctrl/pwrctrl.kicad_sch')
 print(len(S.parts),'parts')
