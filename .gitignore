@@ -4,3 +4,5 @@ AGENTS.md
 build/*
 *.patch
 .vscode/*
+hardware/pwrctrl/.history/
+hardware/pwrctrl/placement_v2.1/.history/
