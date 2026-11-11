@@ -35,6 +35,8 @@ C3 vsw 0 10u
 R40 vsw led1 4.7k
 DLED1 led1 0 DLEDR
 XDFR vsw 0 DFRLOAD PARAMS: PLOAD=67 CIN=440u
+* ---- v2.0 sensor supply on VSW_EXT (F4 -> U8 5VS -> U9 3V3S), 0.3 A on 5VS + 0.4 A on 3V3S ----
+XSEN vsw vswext v5s v3s 0 SENSORSUP
 * ---- ACC TVS ----
 DTVS2 0 acc DSMAJ20A
 * ---- 5V aux supply ----
@@ -87,6 +89,10 @@ meas tran v3_min_all MIN v(v3v3) FROM=1.6 TO=11.9
 meas tran holdn_crank MIN v(holdn) FROM=3 TO=4.2
 meas tran t_relay_off WHEN v(vsw)=6 FALL=LAST
 meas tran ibat_peak MAX ivsw FROM=1.2 TO=1.6
-wrdata tb1_out.txt v(acc) v(vbat) v(vsw) v(v5) v(v3v3) v(holdn) v(holdg) v(coilp,coiln) ivsw
+meas tran v5s_min_crank MIN v(v5s) FROM=3 TO=4.2
+meas tran v3s_min_crank MIN v(v3s) FROM=3 TO=4.2
+meas tran v5s_on AVG v(v5s) FROM=2 TO=2.9
+meas tran v3s_on AVG v(v3s) FROM=2 TO=2.9
+wrdata tb1_out.txt v(acc) v(vbat) v(vsw) v(v5) v(v3v3) v(holdn) v(holdg) v(coilp,coiln) ivsw v(v5s) v(v3s)
 .endc
 .end

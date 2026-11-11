@@ -1,0 +1,68 @@
+* TB8: XL7015 buck, switching-level model (150 kHz) - used for U1 (MCU 5V) and U8 (sensor 5VS)
+*  Purpose: output ripple, load-step response, inductor peak current, and the RMS ripple
+*  current that the input capacitors (bulk electrolytic + 1uF ceramic) must carry.
+*  Controller: voltage-mode PWM, 150 kHz, PI on FB (Vref 1.25 V) - a stand-in for the
+*  internal compensation of the XL7015 (no vendor model).  Power stage = real parts.
+*  Params: VIN (input), CB/ESRB (bulk input cap: U1 = C4 470u, U8 = C40 100u),
+*          I0 -> I1 load step at 8 ms (back at 11 ms) (A), RDCR (inductor DCR)
+.include models.lib
+.param VIN=13.8 CB=100u ESRB=0.3 I0=0.3 I1=0.7 RDCR=0.17 RSW=0.3 CC=0.6u
+* ---- source + harness ----
+Vin vs0 0 {VIN}
+Rh vs0 vs1 0.05
+Lh vs1 vin 1u
+* bulk input capacitor (C4 / C40) and ceramic (C5 / C41). CC = effective value at 14 V:
+*   1uF/50V 1206 -> ~0.6u ; 10uF/50V X7R 1206 (C41, v2.4.1) -> ~3-4u (DC-bias derating, conservative 3u)
+Vi_cb vin cbp 0
+Cb cbp cbn {CB}
+Rcb cbn 0 {ESRB}
+Vi_cc vin ccp 0
+Cc ccp ccn {CC}
+Rcc ccn 0 5m
+* ---- XL7015 power stage: high-side switch (Ron ~0.3 ohm), catch diode SS34 ----
+Vi_sw vin swi 0
+S1 swi sw ctl 0 SWHS
+.model SWHS SW(Vt=2.5 Vh=0.2 Ron={RSW} Roff=1e7)
+D11 0 sw DSS34
+* L1/L2 SWPA8040S101MT 100uH, DCR ~0.17 ohm
+L1 sw lx 100u ic=0
+Rdcr lx vout_r {RDCR}
+Vi_l vout_r vout 0
+* output caps: 100uF/16V electrolytic (ESR 0.15) + 10uF ceramic
+C6 vout c6n 100u
+Rc6 c6n 0 0.15
+C7 vout 0 10u
+* FB divider 10.7k / 3.3k + 33nF feed-forward (C8 / C44)
+R50 vout fb 10.7k
+R51 fb 0 3.3k
+C8 vout fb 33n
+* ---- controller: PI -> duty -> PWM comparator ----
+Vramp ramp 0 PULSE(0 1 0 6.6u 1n 1n 6.667u)
+Bint 0 integ I = 0.35*(1.25 - V(fb))
+Cint integ 0 1m
+Rint integ 0 1e9
+Bduty duty 0 V = max(0.0, min(0.93, V(integ) + 0.04*(1.25-V(fb))))
+Bctl ctl 0 V = 2.5*(1+tanh((V(duty)-V(ramp))/0.004))
+* ---- load: step I0 -> I1 at 8 ms, back at 11 ms ----
+Iload vout 0 PWL(0 0 0.5m {I0} 8m {I0} 8.001m {I1} 11m {I1} 11.001m {I0})
+.options method=gear reltol=2e-3 abstol=1e-9 chgtol=1e-14 itl4=200
+.tran 20n 14m 0 40n uic
+.control
+run
+let icb = i(vi_cb)
+let icc = i(vi_cc)
+let il = i(vi_l)
+meas tran vout_avg AVG v(vout) FROM=7m TO=8m
+meas tran vout_pp PP v(vout) FROM=7m TO=8m
+meas tran vout_min_step MIN v(vout) FROM=8m TO=11m
+meas tran vout_max_rel MAX v(vout) FROM=11m TO=14m
+meas tran vout_hi AVG v(vout) FROM=10m TO=11m
+meas tran il_peak MAX il FROM=5m TO=14m
+meas tran icb_rms RMS icb FROM=9m TO=11m
+meas tran icc_rms RMS icc FROM=9m TO=11m
+meas tran icb_rms_lo RMS icb FROM=6m TO=8m
+meas tran vin_pp PP v(vin) FROM=9m TO=11m
+meas tran t_start WHEN v(vout)=5.0 RISE=1
+wrdata tb8_out.txt v(vout) v(sw) il icb icc v(vin)
+.endc
+.end

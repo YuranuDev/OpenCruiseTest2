@@ -18,6 +18,7 @@ Rc1 c1n 0 0.3
 R40 vsw led1 4.7k
 DLED1 led1 0 DLEDR
 Rload vsw 0 1k
+XSEN vsw vswext v5s v3s 0 SENSORSUP
 * ---- ACC ----
 DTVS2 0 tvs2k DSMAJ20A
 R5 acc accs 47k
@@ -64,6 +65,8 @@ meas tran v_hold_off  FIND v(vs0) WHEN v(holdg)=1.65 FALL=1
 meas tran i_tvs1_24v  FIND i(vi_tvs1) AT=48
 meas tran i_tvs2_24v  FIND i(vi_tvs2) AT=48
 meas tran i_tvs1_30v  FIND i(vi_tvs1) AT=60
-wrdata tb2_out.txt v(vs0) v(vsw) v(accs) v(holdn) v(v5) i(vi_tvs1)
+meas tran v5s_ok_in   FIND v(vs0) WHEN v(v5s)=5.0 RISE=1
+meas tran v3s_ok_in   FIND v(vs0) WHEN v(v3s)=3.2 RISE=1
+wrdata tb2_out.txt v(vs0) v(vsw) v(accs) v(holdn) v(v5) i(vi_tvs1) v(v5s) v(v3s)
 .endc
 .end

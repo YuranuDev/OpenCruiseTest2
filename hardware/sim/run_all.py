@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PWR-CTRL v1.0 SPICE verification runner.
+"""PWR-CTRL v2.4.1 SPICE verification runner.
 
     python run_all.py            # run every case, write out/report.md and out/*.png
     python run_all.py tb3        # run only cases whose name starts with "tb3"
@@ -26,14 +26,17 @@ CASES = [
    ('v5_min_crank', '>', 4.5, 'NG', 'クランキング中の+5V（XIAOの5V入力） [V]'),
    ('v3_min_all', '>', 3.0, 'NG', '動作中に3V3が下がらない [V]'),
    ('t_relay_off-12', '<', 0.2, 'NG', 'HOLD=Lから0.2秒以内にリレーが切れる [s]'),
-   ('ibat_peak', '<', 200, 'WARN', 'リレーが閉じたときの突入電流 [A]（tb5で詳しく確認）')],
-  ('tb1_nominal', ['acc', 'vbat', 'vsw', 'v5', 'v3v3', 'holdn', 'holdg', 'coil', 'ivsw'],
+   ('ibat_peak', '<', 200, 'WARN', 'リレーが閉じたときの突入電流 [A]（tb5で詳しく確認）'),
+   ('abs(v5s_on-5.3)', '<', 0.15, 'NG', '+5VS（センサー用5V）が5.3V±0.15V'),
+   ('v5s_min_crank', '>', 4.75, 'NG', 'クランキング中の+5VS [V]'),
+   ('v3s_min_crank', '>', 3.135, 'NG', 'クランキング中の+3V3S（3.3V−5%以上） [V]')],
+  ('tb1_nominal', ['acc', 'vbat', 'vsw', 'v5', 'v3v3', 'holdn', 'holdg', 'coil', 'ivsw', 'v5s', 'v3s'],
    [['vbat', 'acc', 'vsw'], ['v5', 'v3v3', 'holdn', 'holdg']])),
  ('tb1_mcufail', 'tb1_power_sequence.cir', {'MCUFAIL': 1},
   'Same, but the MCU pin goes Hi-Z at 12 s (crash): HOLD_N RC must release the relay',
   [('t_relay_off-12', '>', 2.0, 'NG', 'Hi-Z後の保持時間が2秒以上（マイコンのリセットに足りる） [s]'),
    ('t_relay_off-12', '<', 30.0, 'NG', '30秒以内にリレーが切れる（暗電流ゼロ） [s]')],
-  ('tb1_mcufail', ['acc', 'vbat', 'vsw', 'v5', 'v3v3', 'holdn', 'holdg', 'coil', 'ivsw'],
+  ('tb1_mcufail', ['acc', 'vbat', 'vsw', 'v5', 'v3v3', 'holdn', 'holdg', 'coil', 'ivsw', 'v5s', 'v3s'],
    [['vbat', 'acc', 'vsw'], ['v5', 'v3v3', 'holdn', 'holdg']])),
  ('tb2_sweep', 'tb2_supply_sweep.cir', {},
   'Slow supply sweep 0->30->0 V (MCU Hi-Z): ADC scaling, relay pull-in, jump start',
@@ -43,8 +46,9 @@ CASES = [
    ('v_relay_in', '<', 10.5, 'NG', '電源10.5V未満でリレーが入る [V]'),
    ('v5_ok_in', '<', 7.0, 'NG', '電源7V未満で+5Vが4.75V以上になる [V]'),
    ('i_tvs1_24v', '<', 1.0, 'WARN', '24VジャンプスタートでのTVS1の電流 [A]'),
-   ('i_tvs2_24v', '<', 0.1, 'WARN', '24VジャンプスタートでのTVS2の電流 [A]')],
-  ('tb2_sweep', ['vsup', 'vsw', 'accs', 'holdn', 'v5', 'itvs1'],
+   ('i_tvs2_24v', '<', 0.1, 'WARN', '24VジャンプスタートでのTVS2の電流 [A]'),
+   ('v3s_ok_in', '<', 10.5, 'NG', '+3V3S（センサー用3.3V）が確立する電源電圧 [V]')],
+  ('tb2_sweep', ['vsup', 'vsw', 'accs', 'holdn', 'v5', 'itvs1', 'v5s', 'v3s'],
    [['vsup', 'vsw', 'v5'], ['accs', 'holdn']])),
  ('tb3_tja_only', 'tb3_kline.cir', {'PAR': 0},
   'K-line, JP6 only (TJA1021): fast init / 10400 bps / 5-baud start bit',
@@ -66,25 +70,33 @@ CASES = [
    ('acc_peak', '<', 40, 'NG', 'ACCが40V未満 [V]'),
    ('v5_min', '>', 4.5, 'NG', '+5Vが止まらない [V]'),
    ('e_tvs1_total', '<', 75, 'WARN', 'TVS1が吸収するエネルギー [J]（SM8S20Aの目安 約75J）'),
-   ('p_tvs2_peak', '<', 40, 'WARN', 'TVS2 SMAJ20Aのピーク電力 [W]（約200msのパルス）')],
-  ('tb4_5b_35V', ['alt', 'vsw', 'acc', 'v5', 'itvs1', 'itvs2'], [['alt', 'vsw', 'acc'], ['v5']])),
+   ('p_tvs2_peak', '<', 40, 'WARN', 'TVS2 SMAJ20Aのピーク電力 [W]（約200msのパルス）'),
+   ('v5s_min', '>', 4.75, 'NG', '+5VSが止まらない [V]'),
+   ('vswext_peak', '<', 30, 'WARN', 'ポートの12V端子（VSW_EXT）の最大 [V]（外付け機器の耐圧の目安30V）')],
+  ('tb4_5b_35V', ['alt', 'vsw', 'acc', 'v5', 'itvs1', 'itvs2', 'v5s'], [['alt', 'vsw', 'acc'], ['v5', 'v5s']])),
  ('tb4_5a_87V_1R', 'tb4_load_dump.cir', {'US': 87, 'RI': 1, 'CLAMP': 200},
   'Load dump, unsuppressed 87 V, Ri 1 ohm (severe ISO 16750-2 test A)',
   [('vsw_peak', '<', 35, 'NG', 'VSWがDFR0946の上限35V未満 [V]'),
    ('e_tvs1_total', '<', 75, 'WARN', 'TVS1が吸収するエネルギー [J]'),
-   ('p_tvs2_peak', '<', 40, 'WARN', 'TVS2のピーク電力 [W]')],
-  ('tb4_5a_87V_1R', ['alt', 'vsw', 'acc', 'v5', 'itvs1', 'itvs2'], [['alt', 'vsw', 'acc'], ['v5']])),
+   ('p_tvs2_peak', '<', 40, 'WARN', 'TVS2のピーク電力 [W]'),
+   ('v5s_min', '>', 4.75, 'NG', '+5VSが止まらない [V]'),
+   ('vswext_peak', '<', 30, 'WARN', 'ポートの12V端子（VSW_EXT）の最大 [V]（外付け機器の耐圧の目安30V）')],
+  ('tb4_5a_87V_1R', ['alt', 'vsw', 'acc', 'v5', 'itvs1', 'itvs2', 'v5s'], [['alt', 'vsw', 'acc'], ['v5', 'v5s']])),
  ('tb4_5a_87V_4R', 'tb4_load_dump.cir', {'US': 87, 'RI': 4, 'CLAMP': 200},
   'Load dump, unsuppressed 87 V, Ri 4 ohm (mild test A)',
   [('vsw_peak', '<', 35, 'NG', 'VSWがDFR0946の上限35V未満 [V]'),
    ('e_tvs1_total', '<', 75, 'WARN', 'TVS1が吸収するエネルギー [J]'),
-   ('p_tvs2_peak', '<', 40, 'WARN', 'TVS2のピーク電力 [W]')],
-  ('tb4_5a_87V_4R', ['alt', 'vsw', 'acc', 'v5', 'itvs1', 'itvs2'], [['alt', 'vsw', 'acc'], ['v5']])),
+   ('p_tvs2_peak', '<', 40, 'WARN', 'TVS2のピーク電力 [W]'),
+   ('v5s_min', '>', 4.75, 'NG', '+5VSが止まらない [V]'),
+   ('vswext_peak', '<', 30, 'WARN', 'ポートの12V端子（VSW_EXT）の最大 [V]（外付け機器の耐圧の目安30V）')],
+  ('tb4_5a_87V_4R', ['alt', 'vsw', 'acc', 'v5', 'itvs1', 'itvs2', 'v5s'], [['alt', 'vsw', 'acc'], ['v5', 'v5s']])),
  ('tb5_inrush', 'tb5_inrush.cir', {},
   'Relay-close inrush into C1-C3 + DFR0946 input capacitors',
   [('i_peak', '<', 150, 'WARN', '接点電流のピーク [A]'),
-   ('i2t_total', '<', 5, 'NG', 'I²t [A²s]（7.5Aヒューズの溶断は約20A²s）')],
-  ('tb5_inrush', ['ik', 'vsw', 'vdfr'], [['ik'], ['vsw', 'vdfr']])),
+   ('i2t_total', '<', 5, 'NG', 'I²t [A²s]（7.5Aヒューズの溶断は約20A²s）'),
+   ('i_d7_peak', '<', 50, 'NG', 'D7（SS34）のピーク電流 [A]（サージ定格IFSM 80A）'),
+   ('i_f4_peak', '<', 20, 'NG', 'F4（1.1A PTC）を通る突入電流のピーク [A]')],
+  ('tb5_inrush', ['ik', 'vsw', 'vdfr', 'id7', 'if4'], [['ik', 'id7', 'if4'], ['vsw', 'vdfr']])),
 ]
 # TB6 hold-time corner cases: (C11, R2, VTN, zener model)
 for nm, c, r, vtn, z in [('nom', '10u', '1Meg', 1.0, 'DZ3V6'),
@@ -117,6 +129,55 @@ for nm, prm, ttl, fexp in [
     CASES.append(('tb7_' + nm, 'tb7_pulse_in.cir', prm, ttl, ck,
                   ('tb7_' + nm, ['sigin', 'siga', 'out'], [['sigin'], ['siga', 'out']])))
 
+# ---------------- v2.x additions ----------------
+# TB8 XL7015 switching model: U1 (MCU 5V, C4 470uF) and U8 (sensor 5VS, C40 100uF)
+for nm, prm, ttl, ilim in [
+    ('u1', {'CB': '470u', 'ESRB': 0.08, 'I0': 0.15, 'I1': 0.5, 'CC': '0.6u'}, 'U1（マイコン用5V）：入力C4 470µF＋C5 1µF、負荷0.15→0.5A', 0.6),
+    ('u8', {'CB': '100u', 'ESRB': 0.3, 'I0': 0.3, 'I1': 0.7, 'CC': '3u'}, 'U8（センサー用5VS）：入力C40 100µF＋C41 10µF（14Vで約3µF）、負荷0.3→0.7A', 0.3)]:
+    CASES.append(('tb8_' + nm, 'tb8_buck_switching.cir', prm, ttl,
+        [('abs(vout_avg-5.3)', '<', 0.15, 'NG', '出力電圧が5.3V±0.15V'),
+         ('vout_pp', '<', 0.1, 'NG', '出力のリップル（ピーク間） [V]'),
+         ('vout_min_step', '>', 4.75, 'NG', '負荷が増えた瞬間の最低電圧 [V]'),
+         ('vout_max_rel', '<', 5.8, 'WARN', '負荷が減った瞬間の最高電圧 [V]'),
+         ('il_peak', '<', 1.1, 'WARN', 'インダクタ電流のピーク [A]（SWPA8040S101MTの飽和電流は要確認）'),
+         ('icb_rms', '<', ilim, 'WARN', f'電解コンデンサの入力リップル電流（実効値） [A]（目安{ilim}A、部品の定格は要確認）'),
+         ('t_start*1000', '<', 10, 'NG', '起動時間 [ms]')],
+        ('tb8_' + nm, ['vout', 'sw', 'il', 'icb', 'icc', 'vin'], [['vout'], ['il', 'icb', 'icc']])))
+# TB9 I2C 400 kHz: (CBUS, RMOD, RPU).  v2.4.1: R30/R31 = 1.2k
+for nm, cb, rm, rpu, ttl in [('100p', '100p', '1e9', '1.2k', 'バス容量100pF（ケーブル短め）'), ('200p', '200p', '1e9', '1.2k', 'バス容量200pF'),
+                             ('250p', '250p', '1e9', '1.2k', 'バス容量250pF（6ポートに約50cmずつ）'),
+                             ('200p_mod2', '200p', '5k', '1.2k', 'バス容量200pF＋センサー基板のプルアップ10k×2'),
+                             ('400p', '400p', '1e9', '1.2k', '限界の確認：バス容量400pF'),
+                             ('200p_mod6', '200p', '1.67k', '1.2k', '限界の確認：センサー基板のプルアップ10k×6')]:
+    CASES.append(('tb9_' + nm, 'tb9_i2c.cir', {'CBUS': cb, 'RMOD': rm, 'RPU': rpu}, 'I2C 400kHz：' + ttl,
+        [('trise_ns', '<', 300, 'WARN' if nm == '400p' else 'NG', '立ち上がり時間（30→70%） [ns]（Fast-modeの上限300ns）'),
+         ('scl_hi_end', '>', 2.31, 'NG', '次の立ち下がりまでにHレベル（70%）に達する [V]'),
+         ('sda_vol', '<', 0.4, 'WARN' if nm == '200p_mod6' else 'NG', 'Lレベル（弱いデバイス、約3mA） [V]（上限0.4V）')],
+        ('tb9_' + nm, ['scl', 'sda'], [['scl', 'sda']])))
+# TB10 CAN front end (TJA1042T/3 + PESD1CAN)
+for nm, vs, vt, ttl in [('rx', 0, 0, '500kbpsの受信'), ('short14', 14.4, 0, 'CANHが14.4Vに短絡'),
+                        ('short24', 24, 0, 'CANHが24Vに短絡（24Vジャンプスタート）'),
+                        ('pulse_a', 0, -150, 'ISO 7637-3 パルスa（−150V）'), ('pulse_b', 0, 100, 'ISO 7637-3 パルスb（+100V）')]:
+    ck = [('ch_max', '<', 58, 'NG', 'U6のCANHが+58V以下 [V]（TJA1042の絶対最大定格）'),
+          ('ch_min', '>', -58, 'NG', 'U6のCANHが−58V以上 [V]'),
+          ('cl_max', '<', 58, 'NG', 'U6のCANLが+58V以下 [V]'),
+          ('cl_min', '>', -58, 'NG', 'U6のCANLが−58V以上 [V]')]
+    if nm == 'rx':
+        ck = [('vdiff_dom', '>', 1.5, 'NG', 'ドミナントの差動電圧 [V]（1.5〜3.0V）'), ('vdiff_dom', '<', 3.0, 'NG', 'ドミナントの差動電圧 [V]'),
+              ('rxd_dom', '<', 0.5, 'NG', 'RXDのL（ドミナント受信） [V]'), ('rxd_rec', '>', 2.8, 'NG', 'RXDのH（レセッシブ） [V]')] + ck
+    if nm.startswith('short'):
+        ck += [('ipesd_end', '<', 0.005, 'NG', '短絡が続いている間にJ3から流れ込む電流 [A]（PESD1CANが導通しない）')]
+    CASES.append(('tb10_' + nm, 'tb10_can.cir', {'VSHORT': vs, 'VTR': vt}, 'CAN：' + ttl, ck,
+        ('tb10_' + nm, ['jh', 'jl', 'ch', 'cl', 'rxd', 'txr', 'ipesd'], [['jh', 'jl', 'ch', 'cl'], ['rxd', 'txr']])))
+# TB11 GPIO miswire protection (series resistor R80-R84, v2.4.1: 1k)
+for nm, vf, i3, ttl in [('12v', 12, 0.04, 'ポートの信号ピンに12Vを誤配線（3.3Vの消費40mA）'), ('25v', 25, 0.04, '25V（ロードダンプ時のVSW_EXT）'),
+                        ('12v_sleep', 12, 0.005, '参考：12V・マイコンがスリープ中（3.3Vの消費5mA）')]:
+    CASES.append(('tb11_' + nm, 'tb11_gpio.cir', {'RSER': '1k', 'VF': vf, 'I3': i3}, 'GPIO保護（1kΩ）：' + ttl,
+        [('v3_max', '<', 3.6, 'WARN' if 'sleep' in nm else 'NG', 'XIAOの3.3Vが上がらない [V]（ESP32-S3の絶対最大3.6V）'),
+         ('ipin_max*1000', '<', 10, 'WARN', 'ピンに流れ込む電流 [mA]（目安10mA以下）'),
+         ('trise_ns', '<', 1000, 'NG', '通常使用：受信側（GPSのTX→XIAO）の立ち上がり [ns]'),
+         ('trise_tx_ns', '<', 271, 'WARN', '通常使用：送信側（XIAO→ケーブル100pF→GPSのRX）の立ち上がり [ns]（921600bpsの1ビットの25%）')],
+        ('tb11_' + nm, ['port', 'pin', 'v3', 'ir'], [['port', 'pin', 'v3'], ['ir']])))
 
 def find_ngspice():
     for c in [os.environ.get('NGSPICE'), 'ngspice_con', 'ngspice']:
@@ -224,7 +285,7 @@ def main():
             sec += ['', f'![{name}]({png})']
         sections.append('\n'.join(sec))
     nfail = sum(r[3] == 'FAIL' for r in rows); nwarn = sum(r[3] == 'WARN' for r in rows)
-    head = [f'# PWR-CTRL v1.0 SPICE report', f'{datetime.datetime.now():%Y-%m-%d %H:%M}  ngspice: {ng}', '',
+    head = [f'# PWR-CTRL v2.4.1 SPICE report', f'{datetime.datetime.now():%Y-%m-%d %H:%M}  ngspice: {ng}', '',
             f'**FAIL {nfail} / WARN {nwarn} / checks {len(rows)}**', '']
     open(os.path.join(OUT, 'report.md'), 'w', encoding='utf-8').write('\n'.join(head) + '\n\n'.join(sections) + '\n')
     json.dump({'date': f'{datetime.datetime.now():%Y-%m-%d %H:%M}', 'cases': results},

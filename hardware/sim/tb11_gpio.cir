@@ -1,0 +1,55 @@
+* TB11: GPIO port protection (R80-R84 series resistor between XIAO pin and the port pin)
+*  Miswire: the port signal pin (P_Dx) is connected to 12 V (VSW_EXT) or 25 V (load-dump clamp).
+*  The ESP32-S3 pin clamps to its 3.3 V rail through the internal ESD diode; the XIAO LDO cannot
+*  sink current, so injected current lifts +3V3 if it exceeds the board's 3.3 V consumption.
+*  RSER = R80-R84 value (v2.4.1: 1k, was 100 ohm), VF = fault voltage, I3 = 3.3 V consumption (A).
+*  Second half (from 2 ms): normal use - 3.3 V 115200 bps UART/PPS edge through RSER,
+*  1 m cable (100 pF) + pin 5 pF: rise time at the pin.
+.include models.lib
+.param RSER=1k VF=12 I3=0.04
+* XIAO 3.3 V rail: LDO (source only) + consumption
+Bldo 0 v3 I = max(0, (3.3-V(v3))*20)
+C13 v3 0 10u
+Il v3 0 {I3}
+* ESP32 pin: ESD diodes to the rails (~0.6 V at mA), 5 pF
+Dhi pin v3 DESD
+Dlo 0 pin DESD
+.model DESD D(Is=1e-9 N=1.5 Rs=2)
+Cpin pin 0 5p
+Vi_r pin pin_r 0
+Rser pin_r port {RSER}
+* fault 0-1.5 ms, then a 3.3 V UART edge train through a 1 m cable
+Vfault f 0 PWL(0 0 0.1m 0 0.1001m {VF} 1.5m {VF} 1.5001m 0)
+Sf f port fctl 0 SWF
+Vfctl fctl 0 PWL(0 5 1.6m 5 1.6001m 0)
+.model SWF SW(Vt=2.5 Vh=0.1 Ron=0.1 Roff=1e9)
+Vuart u 0 PULSE(0 3.3 2m 2n 2n 4.34u 8.68u)
+Su u ucab uctl 0 SWF
+Vuctl uctl 0 PWL(0 0 1.9m 0 1.9001m 5)
+Rsrc ucab cab 50
+Ccab cab 0 100p
+Rcab cab port 0.5
+* TX direction: XIAO pin (driver ~30 ohm) -> RSER -> 1 m cable (100 pF) + GPS RX input 5 pF, 921600 bps
+*   (firmware gps_baud upper limit).  Alternating bits, 1.085 us per bit.
+Vtx tx 0 PULSE(0 3.3 0.02m 2n 2n 1.083u 2.17u)
+Rdrv tx txo 30
+Rs2 txo gin {RSER}
+Cg gin 0 105p
+.options method=gear
+.tran 10n 2.05m 0 20n
+.control
+run
+let ir = -i(vi_r)
+meas tran ipin_max MAX ir FROM=0.2m TO=1.4m
+meas tran v3_max MAX v(v3) FROM=0.2m TO=1.4m
+meas tran vpin_max MAX v(pin) FROM=0.2m TO=1.4m
+meas tran t10 WHEN v(pin)=0.33 RISE=2
+meas tran t90 WHEN v(pin)=2.97 RISE=2
+let trise_ns = (t90-t10)*1e9
+meas tran g10 WHEN v(gin)=0.33 RISE=5
+meas tran g90 WHEN v(gin)=2.97 RISE=5
+let trise_tx_ns = (g90-g10)*1e9
+print trise_ns trise_tx_ns
+wrdata tb11_out.txt v(port) v(pin) v(v3) ir
+.endc
+.end

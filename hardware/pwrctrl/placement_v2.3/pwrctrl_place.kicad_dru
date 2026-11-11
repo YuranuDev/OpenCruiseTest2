@@ -1,0 +1,18 @@
+(version 1)
+# JLCPCB 2-layer, 2 oz outer copper (https://jlcpcb.com/capabilities/pcb-capabilities, checked 2026-11-09)
+# Design values include margin over JLC minimums (in brackets).
+(rule "JLC clearance 0.20 [0.16 @2oz]"   (constraint clearance (min 0.2mm)))
+(rule "JLC track 0.20 [0.16 @2oz]"       (constraint track_width (min 0.2mm)))
+(rule "JLC via hole/diameter 0.30/0.85 [0.15/0.25, ring 0.254 @2oz]"
+  (condition "A.Type == 'Via'")
+  (constraint hole_size (min 0.3mm)) (constraint via_diameter (min 0.85mm)))
+(rule "JLC annular ring 0.254 @2oz"      (constraint annular_width (min 0.254mm)))
+(rule "JLC hole to hole 0.50 [0.45 pad/0.2 via]" (constraint hole_to_hole (min 0.5mm)))
+(rule "JLC hole to copper 0.30 [0.28 PTH]" (constraint hole_clearance (min 0.3mm)))
+(rule "JLC copper to edge 0.30 [0.2]"   (constraint edge_clearance (min 0.3mm)))
+(rule "JLC NPTH min 0.5" (condition "A.Pad_Type == 'NPTH, mechanical'") (constraint hole_size (min 0.5mm)))
+(rule "JLC silk text h>=1.0 w>=0.15" (layer "F.Silkscreen")
+  (constraint text_height (min 1.0mm)) (constraint text_thickness (min 0.15mm)))
+(rule "JLC silk text bottom" (layer "B.Silkscreen")
+  (constraint text_height (min 1.0mm)) (constraint text_thickness (min 0.15mm)))
+(rule "JLC silk clearance 0.15" (layer "?.Silkscreen") (constraint silk_clearance (min 0.15mm)))

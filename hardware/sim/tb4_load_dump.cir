@@ -46,6 +46,7 @@ XU1 vin5 v5reg 0 XL7015AVG
 C6 v5reg 0 100u
 D8 v5reg v5 DSS34
 XLOAD v5 0 XIAOLOAD
+XSEN vsw vswext v5s v3s 0 SENSORSUP
 * ---- TJA1021 VBAT = VSW ----
 Rtja vsw 0 20k
 .options method=gear reltol=1e-3
@@ -68,6 +69,9 @@ meas tran acc_peak MAX v(acc)
 meas tran vin5_peak MAX v(vin5)
 meas tran accs_peak MAX v(accs)
 meas tran v5_min MIN v(v5) FROM=0.05 TO=0.9
-wrdata tb4_out.txt v(alt0) v(vsw) v(acc) v(v5) i(vi_tvs1) i(vi_tvs2)
+meas tran vswext_peak MAX v(vswext)
+meas tran v5s_peak MAX v(v5s)
+meas tran v5s_min MIN v(v5s) FROM=0.05 TO=0.9
+wrdata tb4_out.txt v(alt0) v(vsw) v(acc) v(v5) i(vi_tvs1) i(vi_tvs2) v(v5s)
 .endc
 .end

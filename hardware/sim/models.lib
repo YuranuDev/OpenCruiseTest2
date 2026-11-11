@@ -122,3 +122,69 @@ Bp VIN GND I = {PLOAD}/max(V(VIN,GND),3) * 0.5*(1+tanh((V(VIN,GND)-6)/0.15))
 Vp ip GND PULSE(0.10 0.35 0 1u 1u 2m 20m)
 Bl V5 GND I = V(ip,GND) * pwr(max(V(V5,GND),0),6)/(pwr(max(V(V5,GND),0),6)+729)
 .ends
+
+* ================= v2.x additions =================
+* ---------------- BEH: AMS1117-3.3 LDO ----------------
+* Vout = 3.30V while VIN > 3.3+VDO, dropout VDO ~1.1V (datasheet @0.8A ~1.1-1.3V), Iq 5mA.
+.subckt AMS1117 VIN VOUT GND PARAMS: VDO=1.1
+Bo vo GND V = max(min(3.30, V(VIN,GND)-{VDO}), 0)
+Ro vo VOUT 0.05
+Bi VIN GND I = max((V(vo,GND)-V(VOUT,GND))/0.05,0) + 5m*0.5*(1+tanh((V(VIN,GND)-2)/0.2))
+.ends
+
+* ---------------- sensor supply (v2.0): F4 -> C40/C41 -> U8 XL7015 -> +5VS -> U9 -> +3V3S --------
+* Loads: I5 on +5VS (ports, PULSE-IN, I2C5/6), I3 on +3V3S (I2C1-4, GPS).  Averaged buck (XL7015AVG).
+.subckt SENSORSUP VSW VSWEXT V5S V3S GND PARAMS: I5=0.3 I3=0.4 RPTC=0.15
+Rf4 VSW VSWEXT {RPTC}
+C40 VSWEXT c40n 100u
+Rc40 c40n GND 0.3
+C41 VSWEXT GND 1u
+XU8 VSWEXT v5r GND XL7015AVG
+C42 v5r c42n 100u
+Rc42 c42n GND 0.15
+C43 v5r GND 10u
+Rs v5r V5S 1m
+Bl5 V5S GND I = {I5} * pwr(max(V(V5S,GND),0),4)/(pwr(max(V(V5S,GND),0),4)+81)
+XU9 V5S V3S GND AMS1117
+C45 V3S GND 10u
+C46 V3S GND 10u
+Bl3 V3S GND I = {I3} * pwr(max(V(V3S,GND),0),4)/(pwr(max(V(V3S,GND),0),4)+16)
+.ends
+
+* ---------------- BEH: TJA1042T/3 CAN transceiver (VCC 5V, VIO 3.3V) ----------------
+* Driver (TXD low & STB low): CANH -> VCC via diode + 20 ohm, CANL -> GND via 20 ohm + diode
+*   -> Vdiff ~2.2 V into 60 ohm (datasheet 1.5-3.0 V).  Slope ~ 20 ns.
+* Receiver: Rin ~25k per pin to VCC/2; RXD (push-pull to VIO) low when Vdiff > ~0.7 V
+*   (datasheet threshold 0.5-0.9 V).  Bus pins limiting values +-58 V (checked in the testbench).
+.subckt TJA1042 TXD RXD VCC VIO GND CANH CANL STB
+Bdrv den GND V = 5*0.5*(1-tanh((V(TXD,GND)-0.5*V(VIO,GND))/0.1))*0.5*(1-tanh((V(STB,GND)-0.5*V(VIO,GND))/0.1))
+Rsl den dens 1k
+Csl dens GND 20p
+Dh VCC h1 DCANDRV
+Sh h1 CANH dens GND SWCAN
+Sl CANL l1 dens GND SWCAN
+Dl l1 GND DCANDRV
+.model SWCAN SW(Vt=2.5 Vh=0.3 Ron=20 Roff=1e8)
+.model DCANDRV D(Is=1e-14 N=1 Rs=0.5 bv=70)
+Bcm cm GND V = 0.5*V(VCC,GND)
+Rih CANH cm 25k
+Ril CANL cm 25k
+Cih CANH GND 10p
+Cil CANL GND 10p
+Brx RXD GND V = V(VIO,GND)*0.5*(1+tanh((0.7-V(CANH,CANL))/0.05))
+.ends
+
+* ---------------- BEH: PESD1CAN (bidirectional, 2 lines) ----------------
+* VBR 26 V min, VC 36 V @1 A / 50 V @3 A (8/20us) -> two anti-series diodes, bv 27, Rs 3.5 each,
+* Cd ~13 pF per line.  Pins: CANL CANH GND (SOT-23 pin 1, 2, 3)
+.subckt PESD1CAN L H GND
+D1 L x1 DPESD
+D2 GND x1 DPESD
+D3 H x2 DPESD
+D4 GND x2 DPESD
+Rx1 x1 GND 1e8
+Rx2 x2 GND 1e8
+Cx1 x1 GND 1p
+Cx2 x2 GND 1p
+.model DPESD D(Is=1e-13 N=1 Rs=3.5 bv=27 ibv=1m nbv=1.2 Cjo=26p)
+.ends

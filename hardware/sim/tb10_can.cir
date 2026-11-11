@@ -1,0 +1,103 @@
+* TB10: CAN front end - J3 -> U7 PESD1CAN -> U6 TJA1042T/3 (VCC +5V, VIO +3V3, STB low via R60)
+*  Vehicle bus: two 120 ohm terminations (60 ohm), a remote ECU sending at 500 kbps,
+*  1 m OBD lead (LC ladder, ~120 ohm differential) to J3, ~10 nH of PCB trace between U7 and U6.
+*  VSHORT : DC fault on CANH at the connector from 20 us (0 = none), e.g. 14.4 V / 24 V jump start
+*  VTR    : ISO 7637-3 style fast pulse (a: -150 V, b: +100 V), 50 ohm, 100 pF coupling to both lines
+*  Limits: TJA1042 bus pins +-58 V (old SN65HVD230: -4..+16 V, shown for comparison).
+.include models.lib
+.param VSHORT=0 VTR=0
+V5 v5 0 5
+V33 v33 0 3.3
+* ---- remote ECU: same transceiver model, 500 kbps pattern 1010 0110 ... ----
+Vtxr txr 0 PWL(0 3.3 2u 3.3 2.001u 0 4u 0 4.001u 3.3 6u 3.3 6.001u 0 8u 0 8.001u 3.3 12u 3.3 12.001u 0 16u 0 16.001u 3.3 18u 3.3 18.001u 0 20u 0 20.001u 3.3)
+XR txr rxr v5 v33 0 bh bl stbr TJA1042
+Vstbr stbr 0 0
+* vehicle bus terminations (one at the remote ECU, one at the far end of the bus)
+Rt1 bh bl 120
+Rt2 bh bl 120
+* 1 m OBD lead to J3 (differential pair approximated by two lines to GND)
+* (5-section LC ladder per line: Z0 ~60 ohm to GND, 5 ns)
+Lh0 bh mh0 60n
+Rdh0 bh mh0 330
+Rh0 mh0 nh0 0.02
+Ch0 nh0 0 16.6p
+Lh1 nh0 mh1 60n
+Rdh1 nh0 mh1 330
+Rh1 mh1 nh1 0.02
+Ch1 nh1 0 16.6p
+Lh2 nh1 mh2 60n
+Rdh2 nh1 mh2 330
+Rh2 mh2 nh2 0.02
+Ch2 nh2 0 16.6p
+Lh3 nh2 mh3 60n
+Rdh3 nh2 mh3 330
+Rh3 mh3 nh3 0.02
+Ch3 nh3 0 16.6p
+Lh4 nh3 mh4 60n
+Rdh4 nh3 mh4 330
+Rh4 mh4 jh 0.02
+Ch4 jh 0 16.6p
+Ll0 bl ml0 60n
+Rdl0 bl ml0 330
+Rl0 ml0 nl0 0.02
+Cl0 nl0 0 16.6p
+Ll1 nl0 ml1 60n
+Rdl1 nl0 ml1 330
+Rl1 ml1 nl1 0.02
+Cl1 nl1 0 16.6p
+Ll2 nl1 ml2 60n
+Rdl2 nl1 ml2 330
+Rl2 ml2 nl2 0.02
+Cl2 nl2 0 16.6p
+Ll3 nl2 ml3 60n
+Rdl3 nl2 ml3 330
+Rl3 ml3 nl3 0.02
+Cl3 nl3 0 16.6p
+Ll4 nl3 ml4 60n
+Rdl4 nl3 ml4 330
+Rl4 ml4 jl 0.02
+Cl4 jl 0 16.6p
+* ---- fault injection at J3 ----
+Vsh shs 0 {VSHORT}
+Vsctl sctl 0 PWL(0 0 20u 0 20.01u {abs(VSHORT)>0 ? 5 : 0})
+Ssh shs jh sctl 0 SWSH
+.model SWSH SW(Vt=2.5 Vh=0.1 Ron=0.5 Roff=1e9)
+Vtr trs 0 PWL(0 0 30u 0 30.005u {VTR} 30.105u 0)
+Rtr trs trn 50
+Ctrh trn jh 100p
+Ctrl trn jl 100p
+* ---- our board: U7 at J3, 10 nH of trace, U6 ----
+Vi_ph jh jh2 0
+Vi_pl jl jl2 0
+XU7 jl2 jh2 0 PESD1CAN
+Lph jh2 ch 10n
+Lpl jl2 cl 10n
+* R62 120R not fitted (bus already terminated)
+XU6 txd rxd v5 v33 0 ch cl stb TJA1042
+R61 v33 txd 10k
+R60 stb 0 10k
+C14 v5 0 100n
+C18 v33 0 100n
+.options reltol=2e-3 trtol=7
+.tran 2n 40u 0 5n
+.control
+run
+let ipesd = abs(i(vi_ph))+abs(i(vi_pl))
+meas tran ch_max MAX v(ch)
+meas tran ch_min MIN v(ch)
+meas tran cl_max MAX v(cl)
+meas tran cl_min MIN v(cl)
+meas tran ipesd_peak MAX ipesd
+meas tran ipesd_end AVG ipesd FROM=27u TO=29u
+meas tran ch_dc AVG v(ch) FROM=27u TO=29u
+let vd = v(ch)-v(cl)
+meas tran vdiff_dom FIND vd AT=3u
+meas tran rxd_dom FIND v(rxd) AT=3u
+meas tran rxd_rec FIND v(rxd) AT=5u
+meas tran t_txr WHEN v(txr)=1.65 FALL=1
+meas tran t_rxd WHEN v(rxd)=1.65 FALL=1
+let tdelay_ns = (t_rxd-t_txr)*1e9
+print tdelay_ns
+wrdata tb10_out.txt v(jh) v(jl) v(ch) v(cl) v(rxd) v(txr) ipesd
+.endc
+.end

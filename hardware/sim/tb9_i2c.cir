@@ -1,0 +1,38 @@
+* TB9: I2C bus at 400 kHz (Fast-mode) - XIAO D4/D5 with R30/R31 1.2k (v2.4.1, was 2.2k) to +3V3 (JP3), six XH ports
+*  CBUS = total bus capacitance per line: XIAO pin ~10 pF + PCB ~15 pF + 6 ports + sensor cables
+*         (~50-100 pF per metre) + sensor inputs (~10 pF each).
+*  RMOD = extra pull-up on the sensor modules (many breakout boards carry 10k/4.7k); 1e9 = none.
+*  Fast-mode limits (UM10204): rise time 30->70 % <= 300 ns, VOL <= 0.4 V at 3 mA.
+.include models.lib
+.param CBUS=100p RMOD=1e9 RPU=1.2k
+V3 v3 0 3.3
+* JP3 closed (I2C_PU) -> R30 (SDA) / R31 (SCL)
+R31 v3 scl {RPU}
+Rmod v3 scl {RMOD}
+Cbus scl 0 {CBUS}
+* master (ESP32) open-drain driver, Ron ~25 ohm, SCL 400 kHz (period 2.5 us)
+Vclk ck 0 PULSE(0 5 1u 5n 5n 1.25u 2.5u)
+Sm scl 0 ck 0 SWOD
+.model SWOD SW(Vt=2.5 Vh=0.2 Ron=25 Roff=1e9)
+* a weak slave pulling SDA low (Ron 100 ohm -> datasheet-type 3 mA @ 0.4 V device), for VOL
+R30 v3 sda {RPU}
+Rmod2 v3 sda {RMOD}
+Cbus2 sda 0 {CBUS}
+Vsl sl 0 PULSE(0 5 2u 5n 5n 3u 6u)
+Ss sda 0 sl 0 SWWK
+.model SWWK SW(Vt=2.5 Vh=0.2 Ron=100 Roff=1e9)
+.tran 1n 12u 0 2n
+.control
+run
+meas tran t30 WHEN v(scl)=0.99 RISE=3
+meas tran t70 WHEN v(scl)=2.31 RISE=3
+meas tran t70f WHEN v(scl)=2.31 FALL=3
+meas tran t30f WHEN v(scl)=0.99 FALL=3
+meas tran scl_hi_end FIND v(scl) AT=8.49u
+meas tran sda_vol MIN v(sda) FROM=3u TO=5u
+let trise_ns = (t70-t30)*1e9
+let tfall_ns = (t30f-t70f)*1e9
+print trise_ns tfall_ns
+wrdata tb9_out.txt v(scl) v(sda)
+.endc
+.end

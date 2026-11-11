@@ -68,20 +68,42 @@ td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:now
 .verdict.PASS{border-color:var(--pass)} .verdict.WARN{border-color:var(--warn)} .verdict.FAIL{border-color:var(--fail)}
 .verdict span{color:var(--ink)}
 .howto{font-size:.88rem;color:var(--muted);margin:0}
-svg text{font-family:var(--mono);font-size:10.5px}
+.chart svg text{font-family:var(--mono);font-size:10.5px}
+.schems{display:grid;gap:18px}
+.schems>h2{margin-top:6px}
+.blk{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:18px clamp(14px,3vw,24px);display:grid;gap:10px;scroll-margin-top:12px}
+.blk .bh{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.blk h3{font-size:1.05rem;color:var(--ink);letter-spacing:0;font-weight:700}
+.blk p{margin:0;font-size:.9rem;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{font:inherit;font-size:.8rem;padding:4px 12px;background:none;border:0;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.fig{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--sheet)}
+.fig svg{display:block;width:100%;min-width:720px;height:auto;color:var(--ink)}
+.fig img{display:block;width:100%;min-width:720px;height:auto;background:#fff;border-radius:4px}
+.rel{font-size:.86rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.rel a{color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:2px 9px}
+.rel a:hover,.rel a:focus-visible{border-color:var(--accent);outline:none}
+.toc2{display:flex;flex-wrap:wrap;gap:8px}
+.toc2 a{font-size:.86rem;color:var(--ink);text-decoration:none;background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+.toc2 a:hover{border-color:var(--accent)}
+
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 </style>
 <!--BODY-->
 <div class="wrap">
   <header>
     <div>
-      <h1>PWR-CTRL v1.0 SPICE検証</h1>
-      <p class="sub">車載PC電源制御基板の主要な動作を、ngspiceで再現した結果です。<span class="mono" id="date"></span></p>
+      <h1>PWR-CTRL v2.4.1 SPICE検証</h1>
+      <p class="sub">車載PC電源制御基板の回路図（ブロックごと）と、主要な動作をngspiceで再現した結果です。<span class="mono" id="date"></span></p>
     </div>
+    <p class="howto"><b style="color:var(--ink)">v2.4.1の変更</b>（このSPICEの結果を受けて）：R80〜R84 100Ω→<b style="color:var(--ink)">1kΩ</b>（GPIOの誤配線保護）、R30/R31 2.2k→<b style="color:var(--ink)">1.2kΩ</b>（I2C 400kHz）、C41 1µF→<b style="color:var(--ink)">10µF/50V X7R</b>（U8の入力リップル）。</p>
     <div class="tally" id="tally"></div>
     <p class="howto">グラフの上でマウスを動かす（スマホはタップ）と、その時刻の各波形の値が凡例に表示されます。点線は合否の基準、帯は試験のシナリオの区間です。</p>
     <div class="map" id="map"></div>
+    <div><h3 style="margin-bottom:8px">回路図（ブロックごと）</h3><nav class="toc2" id="toc2"></nav></div>
   </header>
+  <section class="schems" id="schem"></section>
   <main id="tests" style="display:grid;gap:28px"></main>
 </div>
 <script>
@@ -215,7 +237,27 @@ function drawBars(host, b) {
   host.append(svg);
 }
 
+function buildSchem() {
+  const host = document.getElementById('schem'), toc = document.getElementById('toc2');
+  if (!DATA.schem || !DATA.schem.length) return;
+  host.append($('h2', {}, '回路図'), $('p', { class: 'howto' }, '「見やすい図」は信号の流れを左→右、GNDを下にして描き直した図です。部品番号と値は回路図ファイル（pwrctrl.kicad_sch v2.4）と同じです。「KiCad原本」で実際のシートの該当部分を表示します。図は横にスクロールできます。'));
+  for (const b of DATA.schem) {
+    toc.append($('a', { href: '#' + b.id }, b.title));
+    const vbw = +((b.svg.match(/viewBox="[\d.]+ [\d.]+ ([\d.]+)/) || [])[1] || 900);
+    const fig = $('div', { class: 'fig', role: 'img', 'aria-label': b.title }); fig.innerHTML = b.svg;
+    const setw = () => { const e = fig.firstElementChild; if (e) e.style.minWidth = Math.max(720, Math.round(vbw * 0.85)) + 'px'; }; setw();
+    const mk = (lab, on) => $('button', { type: 'button', 'aria-pressed': on ? 'true' : 'false' }, lab);
+    const b1 = mk('見やすい図', true), b2 = mk('KiCad原本', false);
+    const seg = $('div', { class: 'seg' }, b1); if (b.kicad) seg.append(b2);
+    b1.onclick = () => { fig.innerHTML = b.svg; setw(); b1.setAttribute('aria-pressed', 'true'); b2.setAttribute('aria-pressed', 'false'); };
+    b2.onclick = () => { fig.innerHTML = ''; fig.append($('img', { src: b.kicad, alt: b.title + '（KiCad）' })); b2.setAttribute('aria-pressed', 'true'); b1.setAttribute('aria-pressed', 'false'); };
+    const rel = $('div', { class: 'rel' }, '関係する試験：');
+    DATA.tests.filter(t => (t.schem || []).includes(b.id)).forEach(t => rel.append($('a', { href: '#' + t.id }, shortName(t))));
+    host.append($('section', { class: 'blk', id: b.id }, $('div', { class: 'bh' }, $('h3', {}, b.title), seg), $('p', {}, b.desc), fig, rel));
+  }
+}
 function build() {
+  buildSchem();
   document.getElementById('date').textContent = '　実行日時 ' + DATA.date;
   const all = DATA.tests.flatMap(t => t.checks); const n = s => all.filter(c => c.result === s).length;
   const tally = document.getElementById('tally');
@@ -230,6 +272,7 @@ function build() {
     const sec = $('section', { class: 'test', id: t.id });
     sec.append($('div', { class: 'head' }, $('h2', {}, shortName(t)), chip(t.status), $('span', { class: 'file' }, t.tb)));
     const ol = $('ol'); t.steps.forEach(s => ol.append($('li', {}, s)));
+    if (t.schem && t.schem.length) { const rel = $('div', { class: 'rel' }, '関係する回路図：'); const ttl = Object.fromEntries((DATA.schem || []).map(b => [b.id, b.title])); t.schem.forEach(id => ttl[id] && rel.append($('a', { href: '#' + id }, ttl[id]))); sec.append(rel); }
     sec.append($('div', { class: 'intro' }, $('div', { style: 'display:grid;gap:8px' }, $('p', {}, t.what), $('p', { class: 'parts' }, '対象の部品：' + t.parts)), ol));
     for (const ch of t.charts) { const box = $('div', { class: 'chart' }, $('div', { class: 'ttl' }, ch.title)); const host = $('div'); box.append(host); sec.append(box); charts.push({ host, ch, kind: 'c' }); }
     if (t.bars) { const box = $('div', { class: 'chart' }, $('div', { class: 'ttl' }, t.bars.title)); const host = $('div'); box.append(host); sec.append(box); charts.push({ host, ch: t.bars, kind: 'b' }); }
@@ -242,7 +285,7 @@ function build() {
   }
   redraw();
 }
-const NAMES = { tb1_nominal: '電源シーケンス（通常）', tb1_mcufail: '電源シーケンス（マイコン停止）', tb2_sweep: '電源電圧スイープ', tb3_tja_only: 'K-Line：TJA1021のみ', tb3_parallel: 'K-Line：並列駆動', tb4_5b_35V: 'ロードダンプ：35Vに抑制', tb4_5a_87V_1R: 'ロードダンプ：87V・1Ω', tb4_5a_87V_4R: 'ロードダンプ：87V・4Ω', tb5_inrush: 'リレーの突入電流', tb6: '保持時間のばらつき', tb7: 'パルス入力（PULSE-IN）' };
+const NAMES = { tb1_nominal: '電源シーケンス（通常）', tb1_mcufail: '電源シーケンス（マイコン停止）', tb2_sweep: '電源電圧スイープ', tb3_tja_only: 'K-Line：TJA1021のみ', tb3_parallel: 'K-Line：並列駆動', tb4_5b_35V: 'ロードダンプ：35Vに抑制', tb4_5a_87V_1R: 'ロードダンプ：87V・1Ω', tb4_5a_87V_4R: 'ロードダンプ：87V・4Ω', tb5_inrush: 'リレーの突入電流', tb6: '保持時間のばらつき', tb7: 'パルス入力（PULSE-IN）', tb8: 'DC-DC（XL7015）のスイッチング', tb9: 'I2C 400kHzの立ち上がり', tb10: 'CAN（TJA1042＋PESD1CAN）', tb11: 'GPIOの誤配線保護' };
 function shortName(t) { return NAMES[t.id] || t.id; }
 function redraw() { for (const c of charts) (c.kind === 'c' ? drawChart : drawBars)(c.host, c.ch); }
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(redraw, 150); });
