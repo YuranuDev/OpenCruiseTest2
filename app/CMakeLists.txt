@@ -60,6 +60,7 @@ qt_add_executable(opencruise
     src/audio/SystemSound.cpp
     src/vehicle/VehicleDataManager.cpp
     src/system/SystemStats.cpp
+    src/system/ShutdownManager.cpp
     src/androidauto/PhoneStatus.cpp
     src/ui/AlbumArtProvider.cpp
     src/ui/WidgetStore.cpp
@@ -106,6 +107,7 @@ qt_add_qml_module(opencruise
         qml/settings/pages/SettingsPageVehicle.qml
         qml/settings/pages/SettingsPageCamera.qml
         qml/screens/ReverseCameraView.qml
+        qml/screens/ShutdownScreen.qml
         qml/screens/ReverseCameraVideo.qml
         qml/settings/pages/SettingsPageSystem.qml
         qml/settings/pages/SettingsPageAbout.qml

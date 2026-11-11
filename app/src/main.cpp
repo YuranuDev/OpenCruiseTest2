@@ -33,6 +33,7 @@
 #include <QQuickWindow>
 #include <QSocketNotifier>
 #include <QTextStream>
+#include <QSettings>
 #include <QTimer>
 #include <QUrl>
 
@@ -69,6 +70,7 @@
 #include "display/DrmDisplay.h"
 #include "ui/ClockModel.h"
 #include "system/SystemStats.h"
+#include "system/ShutdownManager.h"
 #include "vehicle/VehicleDataManager.h"
 #include "core/Log.h"
 #include "notification/NotificationManager.h"
@@ -407,7 +409,34 @@ static int runApplication(int argc, char *argv[]) {
                     QStringLiteral("initialized in %1; waiting for the connection wait to start").arg(msText(aaInitMs)));
     }
 
+    // 車両の終了(ACC OFF)に合わせたシャットダウン。終了の要求を受けたら、終了の準備の画面に切り替えて、
+    // 下の終了処理を順に行い、済んだら電源を切る(今は Ctrl+Shift+P で要求する。将来は外部マイコンの EVT SHUTDOWN_REQUEST)。
+    // 終了処理を足すときは addTask を足す(済んだら done を呼ぶ。上限の時間を過ぎたら、待たずに次へ進む)
+    opencruise::ShutdownManager shutdownManager;
+    shutdownManager.addTask(QStringLiteral("save-settings"), QStringLiteral("設定を保存"),
+                            [](const opencruise::ShutdownManager::Done &done) {
+                                QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
+                                                QStringLiteral("OpenCruise"));
+                                store.sync();
+                                done(store.status() == QSettings::NoError, QString());
+                            }, 2000);
+    shutdownManager.addTask(QStringLiteral("android-auto"), QStringLiteral("Android Auto を切断"),
+                            [androidAuto](const opencruise::ShutdownManager::Done &done) {
+                                if (androidAuto->stateKey() == QStringLiteral("unavailable")) {
+                                    done(true, QStringLiteral("skip:接続していません"));
+                                    return;
+                                }
+                                androidAuto->stop();
+                                done(true, QString());
+                            }, 5000);
+    // ドアロックの自動解除: 外部マイコン(拡張バスのリレー)ができるまでのダミー。少し待って済んだことにする
+    shutdownManager.addTask(QStringLiteral("door-unlock"), QStringLiteral("ドアロックを解除"),
+                            [&app](const opencruise::ShutdownManager::Done &done) {
+                                QTimer::singleShot(1200, &app, [done]() { done(true, QStringLiteral("ダミー(外部マイコン未接続)")); });
+                            }, 5000);
+
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("shutdownManager"), &shutdownManager);
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("appInfo"), &appInfo);
     engine.rootContext()->setContextProperty(QStringLiteral("displaySettings"), &displaySettings);

@@ -72,7 +72,7 @@ ApplicationWindow {
 
     // 下から出るメニュー(シート)を開閉する。設定画面などを開いているときは、メイン画面へ戻ってから開く
     function toggleMenu() {
-        if (boot.active || splash.noticeShowing || exitConfirmation.opened) return
+        if (boot.active || splash.noticeShowing || exitConfirmation.opened || shutdownManager.state !== "idle") return
         if (stack.depth > 1) {
             stack.pop(null)
             if (stack.currentItem) stack.currentItem.menuOpen = true
@@ -85,7 +85,9 @@ ApplicationWindow {
     Shortcut {
         sequence: "Esc"
         onActivated: {
-            if (exitConfirmation.opened) {
+            if (shutdownManager.state !== "idle") {
+                return   // 終了の準備中は何もしない
+            } else if (exitConfirmation.opened) {
                 exitConfirmation.close()
             } else if (notifications.historyOpen) {
                 notifications.historyOpen = false // 通知履歴を開いている間は、まずそれを閉じる
@@ -145,6 +147,25 @@ ApplicationWindow {
         sequence: "Ctrl+Shift+R"
         autoRepeat: false
         onActivated: reverseCamera.toggleMockReverse()
+    }
+
+    // ---- 終了(ACC OFF): 外部マイコンが ACC OFF を確定して終了を要求したときの代わり(外部マイコンができるまでの確認用) ----
+    //   Ctrl+Shift+P   終了を要求する(P = Power)。終了の準備の画面に切り替え、裏で終了処理を行い、済んだら電源を切る
+    //                  (設定「電源管理」で、電源を切らずにアプリだけ終了するようにもできる)
+    Shortcut {
+        sequence: "Ctrl+Shift+P"
+        autoRepeat: false
+        onActivated: shutdownManager.requestShutdown("ACC OFF(テスト: Ctrl+Shift+P)")
+    }
+    Connections {
+        target: shutdownManager
+        function onStateChanged() {
+            // 終了の画面(ShutdownScreen)が、ロゴを出して終了処理を待ち、済んだらフェードアウトして finish()(電源を切る)を呼ぶ
+            if (shutdownManager.state === "preparing") {
+                exitConfirmation.close()
+                if (stack.currentItem) stack.currentItem.menuOpen = false
+            }
+        }
     }
 
     // ---- コンソールへ(eglfs のときだけ) ----
@@ -542,6 +563,12 @@ ApplicationWindow {
             z: 200
         }
 
+        // 終了の画面(終了の要求を受けたら、ほかの画面・バックカメラ・通知より手前に全面で出す。明るさの幕よりは奥)
+        ShutdownScreen {
+            anchors.fill: parent
+            z: 950
+        }
+
         // 画面の明るさ(ソフトウェア方式のときだけ不透明度が 0 より大きくなる黒い幕)。
         // 入力は受けない(MouseArea を持たない)。映像・起動画面を含む全体を暗くするため、最前面に近い位置に置く。
         Rectangle {
@@ -647,6 +674,12 @@ ApplicationWindow {
     property bool shutdownShown: false
     property bool shutdownQuitArmed: false
     function showShutdownScreen(imageUrl) {
+        // 終了処理(ACC OFF)の後に電源を切っている途中で、systemd から終了の合図が来た:
+        // もう終了の画面(真っ黒)なので、Plymouth の画像には切り替えずにすぐ終わる
+        if (shutdownManager.state === "stopping" || shutdownManager.state === "failed") {
+            Qt.quit()
+            return
+        }
         if (shutdownShown) return
         shutdownImage.source = imageUrl || ""
         shutdownShown = true
