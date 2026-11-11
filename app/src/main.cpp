@@ -434,6 +434,12 @@ static int runApplication(int argc, char *argv[]) {
                             [&app](const opencruise::ShutdownManager::Done &done) {
                                 QTimer::singleShot(1200, &app, [done]() { done(true, QStringLiteral("ダミー(外部マイコン未接続)")); });
                             }, 5000);
+    // 電源モード: アプリが変えた Linux の電源プロファイル(powerprofilesctl)を、起動前(ノート PC のもともとの設定)に戻す。
+    // power-profiles-daemon は最後のプロファイルを覚えて次の起動にも使うので、電源を切る前に戻しておく
+    shutdownManager.addTask(QStringLiteral("power-profile"), QStringLiteral("電源モードを元に戻す"),
+                            [&appSettings](const opencruise::ShutdownManager::Done &done) {
+                                appSettings.restorePowerModeAsync(done);
+                            }, 4000);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("shutdownManager"), &shutdownManager);

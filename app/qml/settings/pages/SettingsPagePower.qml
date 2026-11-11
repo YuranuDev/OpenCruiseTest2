@@ -22,7 +22,7 @@ SettingsPage {
         }
 
         SettingsNote {
-            text: "power-profiles-daemon が必要です。アプリ終了時に起動前のプロファイルへ戻します。現在の状態: " + appSettings.powerModeStatus
+            text: "power-profiles-daemon が必要です。アプリの終了時(ACC OFF の終了では電源を切る前)に、起動前のプロファイルへ戻します。現在の状態: " + appSettings.powerModeStatus
         }
     }
 

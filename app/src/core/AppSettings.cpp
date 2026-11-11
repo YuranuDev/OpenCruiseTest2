@@ -16,6 +16,7 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QThread>
+#include <QTimer>
 
 #include <memory>
 
@@ -372,6 +373,9 @@ void AppSettings::setPhoneNoticePopupEnabled(bool enabled) {
 
 void AppSettings::applyPowerMode() {
 #ifdef Q_OS_LINUX
+    if (powerRestoring_) {
+        return; // 終了処理で元のプロファイルへ戻した(戻している)ので、もう適用しない
+    }
     if (QStandardPaths::findExecutable(QStringLiteral("powerprofilesctl")).isEmpty()) {
         powerModeStatus_ = QStringLiteral("power-profiles-daemon / powerprofilesctl が見つかりません");
         return;
@@ -406,6 +410,9 @@ void AppSettings::runPowerStep() {
             // 読めなかったときは空のまま(終了時に戻さない)
             if (ok) originalPowerProfile_ = QString::fromLocal8Bit(process->readAllStandardOutput()).trimmed();
             process->deleteLater();
+            if (powerRestoring_) {
+                return; // 終了処理で元に戻すところなので、選んだモードは適用しない
+            }
             runPowerStep(); // 続けて設定する
             return;
         }
@@ -439,9 +446,59 @@ void AppSettings::runPowerStep() {
 #endif
 }
 
+void AppSettings::restorePowerModeAsync(std::function<void(bool ok, const QString &detail)> done) {
+#ifdef Q_OS_LINUX
+    powerRestoring_ = true;
+    powerReapply_ = false;
+    if (powerProcess_) {
+        // 読み取り・適用の途中: 終わるのを待ってから戻す(終了処理の上限の時間を過ぎたら、終了処理のほうが先へ進む)
+        QTimer::singleShot(100, this, [this, done]() { restorePowerModeAsync(done); });
+        return;
+    }
+    if (powerRestored_) {
+        done(true, QStringLiteral("skip:戻し済み"));
+        return;
+    }
+    if (originalPowerProfile_.isEmpty()) {
+        log::info("POWER", QStringLiteral("previous Linux power profile is unknown; nothing to restore"));
+        done(true, QStringLiteral("skip:起動前のモードが分かりません"));
+        return;
+    }
+    const QString executable = QStandardPaths::findExecutable(QStringLiteral("powerprofilesctl"));
+    if (executable.isEmpty()) {
+        done(true, QStringLiteral("skip:powerprofilesctl がありません"));
+        return;
+    }
+    const QString target = originalPowerProfile_;
+    auto *process = new QProcess(this);
+    connect(process, &QProcess::finished, this, [this, process, target, done](int exitCode, QProcess::ExitStatus status) {
+        process->deleteLater();
+        if (status == QProcess::NormalExit && exitCode == 0) {
+            powerRestored_ = true;
+            log::info("POWER", QStringLiteral("restored the previous Linux power profile: ") + target);
+            done(true, target);
+            return;
+        }
+        const QString detail = QString::fromLocal8Bit(process->readAllStandardError()).trimmed();
+        log::warn("POWER", QStringLiteral("could not restore the previous Linux power profile: %1 (%2)").arg(target, detail));
+        done(false, detail.isEmpty() ? QStringLiteral("powerprofilesctl exited with code %1").arg(exitCode) : detail);
+    });
+    connect(process, &QProcess::errorOccurred, this, [process, done](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart) {
+            return; // 実行中のエラーは finished で扱う
+        }
+        process->deleteLater();
+        done(false, QStringLiteral("cannot run powerprofilesctl"));
+    });
+    process->start(executable, {QStringLiteral("set"), target});
+#else
+    done(true, QStringLiteral("skip:Linux 以外"));
+#endif
+}
+
 void AppSettings::restorePowerMode() {
 #ifdef Q_OS_LINUX
-    if (originalPowerProfile_.isEmpty()) {
+    if (originalPowerProfile_.isEmpty() || powerRestored_) {
         return;
     }
     const QString executable = QStandardPaths::findExecutable(QStringLiteral("powerprofilesctl"));

@@ -83,7 +83,13 @@ public:
     /** @brief スマートフォン通知のポップアップ表示を保存する。既定はオフ。 */
     void setPhoneNoticePopupEnabled(bool enabled);
     void applyPowerMode();
+    /** @brief 起動前の電源プロファイルへ戻す(終了時。完了を待つ。すでに戻していれば何もしない)。 */
     void restorePowerMode();
+    /**
+     * @brief 起動前の電源プロファイルへ戻す(終了処理の 1 つとして。待たずに進め、済んだら done を呼ぶ)。
+     * 呼んだ後は、選んだモードをもう適用しない。戻せたら、アプリの終了時(デストラクタ)にはもう戻さない。
+     */
+    void restorePowerModeAsync(std::function<void(bool ok, const QString &detail)> done);
 
 signals:
     void userNameChanged();
@@ -153,6 +159,8 @@ private:
     QProcess *powerProcess_ = nullptr;
     bool powerReapply_ = false;
     bool powerOriginalTried_ = false; ///< 今のプロファイルを読みに行ったか(終了時に戻すため。1 回だけ)
+    bool powerRestoring_ = false;     ///< 終了処理で元に戻し始めた(これ以降、選んだモードを適用しない)
+    bool powerRestored_ = false;      ///< 元に戻し終えた(終了時にもう一度戻さない)
 };
 
 } // namespace opencruise
