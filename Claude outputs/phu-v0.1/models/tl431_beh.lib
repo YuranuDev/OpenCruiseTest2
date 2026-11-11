@@ -1,0 +1,10 @@
+* TL431 の簡易動作モデル（K A REF の順はTIモデルと同じ）
+* TIのPSpiceモデル（tl431.lib）は、ACCが急に立ち上がる（10µs）ケースで ngspice が
+* 「Timestep too small」になるため、主要特性で作った：
+*   基準電圧 2.495V、動的インピーダンス 約0.2Ω（データシート typ 0.2Ω）、
+*   内部の消費 約0.2mA（最小カソード電流 Imin 0.4mA typ の半分程度）
+.SUBCKT TL431 K A REF
+Bsh K A I = 0.002*ln(1+exp((v(REF,A)-2.495)/0.0004)) + 0.2m*tanh(max(v(K,A),0)*2)
+Cka K A 10p
+Rin REF A 1G
+.ENDS

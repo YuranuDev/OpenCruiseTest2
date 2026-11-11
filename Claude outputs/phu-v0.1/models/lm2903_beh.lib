@@ -1,0 +1,19 @@
+* LM2903（1回路分）の簡易動作モデル
+* TIのPSpiceモデル（lm2903b.lib）は、ngspiceでは電源の立ち上がり（VCC約3V）で
+* 「Timestep too small」になり先へ進めないため、データシートの主要値で作った。
+*   入力オフセット 0.37mV（TIモデルと同じ）、出力：オープンコレクタ
+*   吸い込み電流 最大16mA（データシートのIsink typ）、ON抵抗 約60Ω（TIモデルのROUTL）
+*   応答 約1µs、電源 2V以上で動作（TIモデルのVS_MIN 1.99V）、消費 約0.4mA
+* 端子順はTIモデルと同じ：IN+ IN- VCC GND OUT
+.SUBCKT LM2903B INP INM VCC GN OUT
+Ben en GN V = 0.5*(1+tanh((v(VCC,GN)-2.1)*10))
+Bc  c  GN V = 0.5*(1+tanh((v(INP,GN)-v(INM,GN)+0.37m)*500))
+Rd  c  cd 1k
+Cd  cd GN 1n
+Bo  OUT GN I = 16m*tanh(v(OUT,GN)/0.96)*(1-v(cd))*v(en)
+Rleak OUT GN 1G
+Cout OUT GN 5p
+Dsub GN OUT DSUB
+.model DSUB D(IS=1e-14 RS=10)
+Bq  VCC GN I = 0.4m*tanh(max(v(VCC,GN),0)*2)
+.ENDS

@@ -1,0 +1,1042 @@
+[
+ {
+  "name": "tb1a_normal",
+  "desc": "通常：ACC ON→マイコン起動→ACC OFF→PC終了30秒→DISCHでOFF",
+  "vals": {
+   "t_on": 0.1087691,
+   "t_off": 40.05457,
+   "vsw_hold": 12.47327
+  },
+  "checks": [
+   {
+    "key": "t_on",
+    "op": "<",
+    "lim": 0.2,
+    "val": 0.1087691,
+    "status": "PASS",
+    "text": "ACC ONから0.1秒以内にリレーON"
+   },
+   {
+    "key": "vsw_hold",
+    "op": ">",
+    "lim": 12,
+    "val": 12.47327,
+    "status": "PASS",
+    "text": "PC終了中（ACC OFF後）も保持"
+   },
+   {
+    "key": "t_off",
+    "op": "<",
+    "lim": 40.2,
+    "val": 40.05457,
+    "status": "PASS",
+    "text": "DISCHから0.2秒以内にOFF"
+   }
+  ],
+  "aborted": false,
+  "sec": 132.4,
+  "png": "tb1a_normal.png"
+ },
+ {
+  "name": "tb1b_mcu_dead",
+  "desc": "マイコンが動かない（ポンプなし）：ACC 10秒 ON→OFF",
+  "vals": {
+   "t_off": 23.17418
+  },
+  "checks": [
+   {
+    "key": "t_off",
+    "op": "<",
+    "lim": 70,
+    "val": 23.17418,
+    "status": "PASS",
+    "text": "ハードタイマーで必ず切れる（暗電流ゼロ）"
+   }
+  ],
+  "aborted": false,
+  "sec": 22.6,
+  "png": "tb1b_mcu_dead.png"
+ },
+ {
+  "name": "tb1c_stuckH",
+  "desc": "ACC OFF後にマイコンが固まる（ピンH固着）",
+  "vals": {
+   "t_off": 52.27564
+  },
+  "checks": [
+   {
+    "key": "t_off",
+    "op": "<",
+    "lim": 75,
+    "val": 52.27564,
+    "status": "PASS",
+    "text": "固着から60秒以内に切れる"
+   }
+  ],
+  "aborted": false,
+  "sec": 68.8,
+  "png": "tb1c_stuckH.png"
+ },
+ {
+  "name": "tb1d_crank",
+  "desc": "始動：ACC 3秒断、+B 4.5V(50ms)→6V、マイコンも3.5秒リセット",
+  "vals": {
+   "vsw_min": 4.497454,
+   "hn_min": 5.839291
+  },
+  "checks": [
+   {
+    "key": "vsw_min",
+    "op": ">",
+    "lim": 4.0,
+    "val": 4.497454,
+    "status": "PASS",
+    "text": "クランキング中もリレーを保持（VSW≒+B）"
+   }
+  ],
+  "aborted": false,
+  "sec": 48.6,
+  "png": "tb1d_crank.png"
+ },
+ {
+  "name": "tb1e_crank_early",
+  "desc": "ACC ON 0.5秒後（マイコン起動前）にクランキング",
+  "vals": {
+   "t_drop": 0.629814,
+   "t_re": 3.608815
+  },
+  "checks": [
+   {
+    "key": "t_re",
+    "op": "<",
+    "lim": 3.8,
+    "val": 3.608815,
+    "status": "PASS",
+    "text": "始動後にACCが戻れば再びON"
+   }
+  ],
+  "aborted": false,
+  "sec": 6.5,
+  "png": "tb1e_crank_early.png"
+ },
+ {
+  "name": "tb1f_cap_derated",
+  "desc": "保持コンデンサがDCバイアスで4.7uFに減った場合（マイコン故障）",
+  "vals": {
+   "t_off": 20.70494
+  },
+  "checks": [
+   {
+    "key": "t_off",
+    "op": ">",
+    "lim": 12,
+    "val": 20.70494,
+    "status": "PASS",
+    "text": "ACC OFF後に2秒以上は保持（瞬断対策）"
+   }
+  ],
+  "aborted": false,
+  "sec": 63.9,
+  "png": "tb1f_cap_derated.png"
+ },
+ {
+  "name": "tb2_9V",
+  "desc": "+B=ACC=9V 定常（リレーON・ポンプ動作）",
+  "vals": {
+   "vsw": 8.825742,
+   "vcmp": 5.398658,
+   "i431": 0.0013199,
+   "pz1": 1.509775e-08,
+   "pr5": 0.008562845,
+   "vgs2": -8.02321,
+   "icoil": 0.02424824,
+   "pcoil": 0.2116718,
+   "hn": 3.396768,
+   "adc0": 0.8176888
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": 8.6,
+    "val": 8.825742,
+    "status": "PASS",
+    "text": "リレーがONしている"
+   },
+   {
+    "key": "i431",
+    "op": ">",
+    "lim": 0.001,
+    "val": 0.0013199,
+    "status": "PASS",
+    "text": "TL431のImin（最大1mA）"
+   },
+   {
+    "key": "pz1",
+    "op": "<",
+    "lim": 0.25,
+    "val": 1.509775e-08,
+    "status": "PASS",
+    "text": "ZD1 0.5Wの半分以下"
+   },
+   {
+    "key": "pr5",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.008562845,
+    "status": "PASS",
+    "text": "R5（1206 0.25W）"
+   },
+   {
+    "key": "vgs2",
+    "op": ">",
+    "lim": -15,
+    "val": -8.02321,
+    "status": "PASS",
+    "text": "Q2のVgs（±20V）"
+   },
+   {
+    "key": "pcoil",
+    "op": "<",
+    "lim": 0.72,
+    "val": 0.2116718,
+    "status": "PASS",
+    "text": "リレーコイル（定格0.4W、最大電圧180%＝1.3W相当の半分）"
+   },
+   {
+    "key": "adc0",
+    "op": "<",
+    "lim": 3.3,
+    "val": 0.8176888,
+    "status": "PASS",
+    "text": "ADC入力3.3V以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 1.9,
+  "png": null
+ },
+ {
+  "name": "tb2_12V",
+  "desc": "+B=ACC=12V 定常（リレーON・ポンプ動作）",
+  "vals": {
+   "vsw": 11.86817,
+   "vcmp": 7.256928,
+   "i431": 0.002164421,
+   "pz1": 2.498389e-08,
+   "pr5": 0.01641467,
+   "vgs2": -10.78903,
+   "icoil": 0.03255087,
+   "pcoil": 0.3814414,
+   "hn": 4.825359,
+   "adc0": 1.090257
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": 11.6,
+    "val": 11.86817,
+    "status": "PASS",
+    "text": "リレーがONしている"
+   },
+   {
+    "key": "i431",
+    "op": ">",
+    "lim": 0.001,
+    "val": 0.002164421,
+    "status": "PASS",
+    "text": "TL431のImin（最大1mA）"
+   },
+   {
+    "key": "pz1",
+    "op": "<",
+    "lim": 0.25,
+    "val": 2.498389e-08,
+    "status": "PASS",
+    "text": "ZD1 0.5Wの半分以下"
+   },
+   {
+    "key": "pr5",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.01641467,
+    "status": "PASS",
+    "text": "R5（1206 0.25W）"
+   },
+   {
+    "key": "vgs2",
+    "op": ">",
+    "lim": -15,
+    "val": -10.78903,
+    "status": "PASS",
+    "text": "Q2のVgs（±20V）"
+   },
+   {
+    "key": "pcoil",
+    "op": "<",
+    "lim": 0.72,
+    "val": 0.3814414,
+    "status": "PASS",
+    "text": "リレーコイル（定格0.4W、最大電圧180%＝1.3W相当の半分）"
+   },
+   {
+    "key": "adc0",
+    "op": "<",
+    "lim": 3.3,
+    "val": 1.090257,
+    "status": "PASS",
+    "text": "ADC入力3.3V以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 1.8,
+  "png": null
+ },
+ {
+  "name": "tb2_14.2V",
+  "desc": "+B=ACC=14.2V 定常（リレーON・ポンプ動作）",
+  "vals": {
+   "vsw": 14.08699,
+   "vcmp": 8.621387,
+   "i431": 0.002784546,
+   "pz1": 3.349284e-08,
+   "pr5": 0.02379495,
+   "vgs2": -11.6683,
+   "icoil": 0.03864419,
+   "pcoil": 0.5376146,
+   "hn": 5.877071,
+   "adc0": 1.290149
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": 13.799999999999999,
+    "val": 14.08699,
+    "status": "PASS",
+    "text": "リレーがONしている"
+   },
+   {
+    "key": "i431",
+    "op": ">",
+    "lim": 0.001,
+    "val": 0.002784546,
+    "status": "PASS",
+    "text": "TL431のImin（最大1mA）"
+   },
+   {
+    "key": "pz1",
+    "op": "<",
+    "lim": 0.25,
+    "val": 3.349284e-08,
+    "status": "PASS",
+    "text": "ZD1 0.5Wの半分以下"
+   },
+   {
+    "key": "pr5",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.02379495,
+    "status": "PASS",
+    "text": "R5（1206 0.25W）"
+   },
+   {
+    "key": "vgs2",
+    "op": ">",
+    "lim": -15,
+    "val": -11.6683,
+    "status": "PASS",
+    "text": "Q2のVgs（±20V）"
+   },
+   {
+    "key": "pcoil",
+    "op": "<",
+    "lim": 0.72,
+    "val": 0.5376146,
+    "status": "PASS",
+    "text": "リレーコイル（定格0.4W、最大電圧180%＝1.3W相当の半分）"
+   },
+   {
+    "key": "adc0",
+    "op": "<",
+    "lim": 3.3,
+    "val": 1.290149,
+    "status": "PASS",
+    "text": "ADC入力3.3V以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 1.8,
+  "png": null
+ },
+ {
+  "name": "tb2_16V",
+  "desc": "+B=ACC=16V 定常（リレーON・ポンプ動作）",
+  "vals": {
+   "vsw": 15.89819,
+   "vcmp": 9.738474,
+   "i431": 0.003292252,
+   "pz1": 4.119915e-08,
+   "pr5": 0.03085462,
+   "vgs2": -11.73743,
+   "icoil": 0.04363174,
+   "pcoil": 0.6853423,
+   "hn": 6.738697,
+   "adc0": 1.453702
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": 15.6,
+    "val": 15.89819,
+    "status": "PASS",
+    "text": "リレーがONしている"
+   },
+   {
+    "key": "i431",
+    "op": ">",
+    "lim": 0.001,
+    "val": 0.003292252,
+    "status": "PASS",
+    "text": "TL431のImin（最大1mA）"
+   },
+   {
+    "key": "pz1",
+    "op": "<",
+    "lim": 0.25,
+    "val": 4.119915e-08,
+    "status": "PASS",
+    "text": "ZD1 0.5Wの半分以下"
+   },
+   {
+    "key": "pr5",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.03085462,
+    "status": "PASS",
+    "text": "R5（1206 0.25W）"
+   },
+   {
+    "key": "vgs2",
+    "op": ">",
+    "lim": -15,
+    "val": -11.73743,
+    "status": "PASS",
+    "text": "Q2のVgs（±20V）"
+   },
+   {
+    "key": "pcoil",
+    "op": "<",
+    "lim": 0.72,
+    "val": 0.6853423,
+    "status": "PASS",
+    "text": "リレーコイル（定格0.4W、最大電圧180%＝1.3W相当の半分）"
+   },
+   {
+    "key": "adc0",
+    "op": "<",
+    "lim": 3.3,
+    "val": 1.453702,
+    "status": "PASS",
+    "text": "ADC入力3.3V以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 1.8,
+  "png": null
+ },
+ {
+  "name": "tb2_24V",
+  "desc": "+B=ACC=24V 定常（リレーON・ポンプ動作）",
+  "vals": {
+   "vsw": 23.92557,
+   "vcmp": 14.65516,
+   "i431": 0.005526875,
+   "pz1": 0.003384662,
+   "pr5": 0.07424921,
+   "vgs2": -11.84533,
+   "icoil": 0.06581189,
+   "pcoil": 1.559234,
+   "hn": 10.55807,
+   "adc0": 2.180646
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": 23.6,
+    "val": 23.92557,
+    "status": "PASS",
+    "text": "リレーがONしている"
+   },
+   {
+    "key": "i431",
+    "op": ">",
+    "lim": 0.001,
+    "val": 0.005526875,
+    "status": "PASS",
+    "text": "TL431のImin（最大1mA）"
+   },
+   {
+    "key": "pz1",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.003384662,
+    "status": "PASS",
+    "text": "ZD1 0.5Wの半分以下"
+   },
+   {
+    "key": "pr5",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.07424921,
+    "status": "PASS",
+    "text": "R5（1206 0.25W）"
+   },
+   {
+    "key": "vgs2",
+    "op": ">",
+    "lim": -15,
+    "val": -11.84533,
+    "status": "PASS",
+    "text": "Q2のVgs（±20V）"
+   },
+   {
+    "key": "pcoil",
+    "op": "<",
+    "lim": 0.72,
+    "val": 1.559234,
+    "status": "WARN",
+    "text": "リレーコイル（定格0.4W、最大電圧180%＝1.3W相当の半分）"
+   },
+   {
+    "key": "adc0",
+    "op": "<",
+    "lim": 3.3,
+    "val": 2.180646,
+    "status": "PASS",
+    "text": "ADC入力3.3V以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 1.7,
+  "png": null
+ },
+ {
+  "name": "tb2_35V",
+  "desc": "+B=ACC=35V 定常（リレーON・ポンプ動作）",
+  "vals": {
+   "vsw": 34.93941,
+   "vcmp": 15.10602,
+   "i431": 0.005731791,
+   "pz1": 0.1626223,
+   "pr5": 0.3656869,
+   "vgs2": -11.90964,
+   "icoil": 0.0963229,
+   "pcoil": 3.340116,
+   "hn": 11.07859,
+   "adc0": 3.180165
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": 34.6,
+    "val": 34.93941,
+    "status": "PASS",
+    "text": "リレーがONしている"
+   },
+   {
+    "key": "i431",
+    "op": ">",
+    "lim": 0.001,
+    "val": 0.005731791,
+    "status": "PASS",
+    "text": "TL431のImin（最大1mA）"
+   },
+   {
+    "key": "pz1",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.1626223,
+    "status": "PASS",
+    "text": "ZD1 0.5Wの半分以下"
+   },
+   {
+    "key": "pr5",
+    "op": "<",
+    "lim": 0.25,
+    "val": 0.3656869,
+    "status": "WARN",
+    "text": "R5（1206 0.25W）"
+   },
+   {
+    "key": "vgs2",
+    "op": ">",
+    "lim": -15,
+    "val": -11.90964,
+    "status": "PASS",
+    "text": "Q2のVgs（±20V）"
+   },
+   {
+    "key": "pcoil",
+    "op": "<",
+    "lim": 0.72,
+    "val": 3.340116,
+    "status": "WARN",
+    "text": "リレーコイル（定格0.4W、最大電圧180%＝1.3W相当の半分）"
+   },
+   {
+    "key": "adc0",
+    "op": "<",
+    "lim": 3.3,
+    "val": 3.180165,
+    "status": "PASS",
+    "text": "ADC入力3.3V以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 1.6,
+  "png": null
+ },
+ {
+  "name": "tb3a_inrush",
+  "desc": "リレーが閉じたときの突入電流（電池10mΩ＋配線1µH）",
+  "vals": {
+   "ipk": 126.1359,
+   "i2t": 2.05536,
+   "v5end": 4.984578
+  },
+  "checks": [
+   {
+    "key": "ipk",
+    "op": "<",
+    "lim": 80,
+    "val": 126.1359,
+    "status": "WARN",
+    "text": "接点の突入電流（目安80A）"
+   },
+   {
+    "key": "v5end",
+    "op": ">",
+    "lim": 4.75,
+    "val": 4.984578,
+    "status": "PASS",
+    "text": "5Vが立ち上がる"
+   }
+  ],
+  "aborted": false,
+  "sec": 0.8,
+  "png": "tb3a_inrush.png"
+ },
+ {
+  "name": "tb3b_crank",
+  "desc": "始動中の5V（+B 4.5V→6V 1秒、ACC断、マイコンはリセット）",
+  "vals": {
+   "v5min": -6.723442e-11,
+   "vswmin": 4.497401,
+   "v5end": 4.984684
+  },
+  "checks": [
+   {
+    "key": "vswmin",
+    "op": ">",
+    "lim": 4.0,
+    "val": 4.497401,
+    "status": "PASS",
+    "text": "リレーを保持"
+   },
+   {
+    "key": "v5min",
+    "op": ">",
+    "lim": 4.4,
+    "val": -6.723442e-11,
+    "status": "WARN",
+    "text": "5Vが4.4V以上（ハブ・ノードがリセットしない）"
+   },
+   {
+    "key": "v5end",
+    "op": ">",
+    "lim": 4.75,
+    "val": 4.984684,
+    "status": "PASS",
+    "text": "始動後に5Vが戻る"
+   }
+  ],
+  "aborted": false,
+  "sec": 2.5,
+  "png": "tb3b_crank.png"
+ },
+ {
+  "name": "tb3c_iso2a",
+  "desc": "ISO 7637-2 パルス2a相当（+50V／2Ω／50µs、電池なし）",
+  "vals": {
+   "vswmax": 15.13224,
+   "itvs": 0.004651489,
+   "v5max": 4.984711
+  },
+  "checks": [
+   {
+    "key": "vswmax",
+    "op": "<",
+    "lim": 45,
+    "val": 15.13224,
+    "status": "PASS",
+    "text": "40V級の部品の定格以内"
+   },
+   {
+    "key": "v5max",
+    "op": "<",
+    "lim": 5.5,
+    "val": 4.984711,
+    "status": "PASS",
+    "text": "5Vに影響しない"
+   }
+  ],
+  "aborted": false,
+  "sec": 3.6,
+  "png": "tb3c_iso2a.png"
+ },
+ {
+  "name": "tb3d_iso2a_noload",
+  "desc": "パルス2a・PCモジュールなし（大きな入力コンデンサがない最悪条件）",
+  "vals": {
+   "vswmax": 24.81719,
+   "vin5max": 23.42348,
+   "itvs": 0.005472947,
+   "vcmpmax": 8.589987
+  },
+  "checks": [
+   {
+    "key": "vswmax",
+    "op": "<",
+    "lim": 60,
+    "val": 24.81719,
+    "status": "PASS",
+    "text": "LM2576HV（63V）以内"
+   },
+   {
+    "key": "vcmpmax",
+    "op": "<",
+    "lim": 30,
+    "val": 8.589987,
+    "status": "PASS",
+    "text": "LM2903の電源（36V）以内"
+   }
+  ],
+  "aborted": false,
+  "sec": 3.9,
+  "png": "tb3d_iso2a_noload.png"
+ },
+ {
+  "name": "tb3e_loaddump",
+  "desc": "ロードダンプ（抑制後35V・0.2秒、電源側50mΩ）",
+  "vals": {
+   "vswmax": 34.78151,
+   "itvs": 1.335296e-05,
+   "v5max": 4.98494,
+   "v5min": 4.984627,
+   "vcmpmax": 15.09972
+  },
+  "checks": [
+   {
+    "key": "itvs",
+    "op": "<",
+    "lim": 0.05,
+    "val": 1.335296e-05,
+    "status": "PASS",
+    "text": "TVSが導通しない（焼けない）"
+   },
+   {
+    "key": "v5max",
+    "op": "<",
+    "lim": 5.25,
+    "val": 4.98494,
+    "status": "PASS",
+    "text": "5V正常"
+   },
+   {
+    "key": "v5min",
+    "op": ">",
+    "lim": 4.75,
+    "val": 4.984627,
+    "status": "PASS",
+    "text": "5V正常"
+   }
+  ],
+  "aborted": false,
+  "sec": 2.0,
+  "png": "tb3e_loaddump.png"
+ },
+ {
+  "name": "tb3f_iso1",
+  "desc": "ISO 7637-2 パルス1相当（電源断＋−75V／10Ω／2ms）",
+  "vals": {
+   "vswmin": -0.7032743,
+   "vin5min": 4.448849,
+   "itvsmin": -1.567294
+  },
+  "checks": [
+   {
+    "key": "vin5min",
+    "op": ">",
+    "lim": -0.3,
+    "val": 4.448849,
+    "status": "PASS",
+    "text": "LM2576に逆電圧がかからない"
+   },
+   {
+    "key": "vswmin",
+    "op": ">",
+    "lim": -2,
+    "val": -0.7032743,
+    "status": "PASS",
+    "text": "PC用モジュールにかかる逆電圧"
+   }
+  ],
+  "aborted": false,
+  "sec": 0.8,
+  "png": "tb3f_iso1.png"
+ },
+ {
+  "name": "tb3g_reverse",
+  "desc": "逆接 −14V（駐車中に逆につないだ）",
+  "vals": {
+   "ibat": 1.400008e-08,
+   "iacc": 0.0001921861,
+   "vsw": -5.608291e-07
+  },
+  "checks": [
+   {
+    "key": "vsw",
+    "op": ">",
+    "lim": -0.5,
+    "val": -5.608291e-07,
+    "status": "PASS",
+    "text": "リレーが閉じない（VSWに逆電圧が出ない）"
+   },
+   {
+    "key": "iacc",
+    "op": ">",
+    "lim": -0.001,
+    "val": 0.0001921861,
+    "status": "PASS",
+    "text": "ACCから流れる電流1mA未満"
+   }
+  ],
+  "aborted": false,
+  "sec": 0.2,
+  "png": null
+ },
+ {
+  "name": "tb3h_dark",
+  "desc": "暗電流（駐車中：+B 12.6V、ACC線は車両の負荷10Ωで0V）",
+  "vals": {
+   "ibat": -1.260003e-08,
+   "iacc": 1.380312e-15,
+   "vsw": 4.999648e-07
+  },
+  "checks": [
+   {
+    "key": "ibat",
+    "op": ">",
+    "lim": -1e-06,
+    "val": -1.260003e-08,
+    "status": "PASS",
+    "text": "+Bから1µA未満（リレーの開放抵抗1GΩ分だけ）"
+   },
+   {
+    "key": "iacc",
+    "op": ">",
+    "lim": -1e-06,
+    "val": 1.380312e-15,
+    "status": "PASS",
+    "text": "ACCから1µA未満"
+   }
+  ],
+  "aborted": false,
+  "sec": 0.5,
+  "png": null
+ },
+ {
+  "name": "tb4_9V_2A",
+  "desc": "LM2576（TIのスイッチングモデル）入力9V・2A",
+  "vals": {
+   "v5avg": 4.987595,
+   "v5pp": 0.01708279,
+   "iin": null
+  },
+  "checks": [
+   {
+    "key": "v5avg",
+    "op": ">",
+    "lim": 4.85,
+    "val": 4.987595,
+    "status": "PASS",
+    "text": "5V（±3%）"
+   },
+   {
+    "key": "v5pp",
+    "op": "<",
+    "lim": 0.1,
+    "val": 0.01708279,
+    "status": "PASS",
+    "text": "リップル100mV以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 11.8,
+  "png": "tb4_9V_2A.png"
+ },
+ {
+  "name": "tb4_14.2V_2A",
+  "desc": "LM2576（TIのスイッチングモデル）入力14.2V・2A",
+  "vals": {
+   "v5avg": 5.004815,
+   "v5pp": 0.02801227,
+   "iin": null
+  },
+  "checks": [
+   {
+    "key": "v5avg",
+    "op": ">",
+    "lim": 4.85,
+    "val": 5.004815,
+    "status": "PASS",
+    "text": "5V（±3%）"
+   },
+   {
+    "key": "v5pp",
+    "op": "<",
+    "lim": 0.1,
+    "val": 0.02801227,
+    "status": "PASS",
+    "text": "リップル100mV以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 11.3,
+  "png": "tb4_14.2V_2A.png"
+ },
+ {
+  "name": "tb4_24V_2A",
+  "desc": "LM2576（TIのスイッチングモデル）入力24V・2A",
+  "vals": {
+   "v5avg": 5.017255,
+   "v5pp": 0.04383284,
+   "iin": null
+  },
+  "checks": [
+   {
+    "key": "v5avg",
+    "op": ">",
+    "lim": 4.85,
+    "val": 5.017255,
+    "status": "PASS",
+    "text": "5V（±3%）"
+   },
+   {
+    "key": "v5pp",
+    "op": "<",
+    "lim": 0.1,
+    "val": 0.04383284,
+    "status": "PASS",
+    "text": "リップル100mV以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 11.3,
+  "png": "tb4_24V_2A.png"
+ },
+ {
+  "name": "tb4_35V_2A",
+  "desc": "LM2576（TIのスイッチングモデル）入力35V・2A",
+  "vals": {
+   "v5avg": 5.025227,
+   "v5pp": 0.0480167,
+   "iin": null
+  },
+  "checks": [
+   {
+    "key": "v5avg",
+    "op": ">",
+    "lim": 4.85,
+    "val": 5.025227,
+    "status": "PASS",
+    "text": "5V（±3%）"
+   },
+   {
+    "key": "v5pp",
+    "op": "<",
+    "lim": 0.1,
+    "val": 0.0480167,
+    "status": "PASS",
+    "text": "リップル100mV以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 12.6,
+  "png": "tb4_35V_2A.png"
+ },
+ {
+  "name": "tb4_24V_3A",
+  "desc": "LM2576（TIのスイッチングモデル）入力24V・3A",
+  "vals": {
+   "v5avg": 4.515372,
+   "v5pp": 0.3816501,
+   "iin": null
+  },
+  "checks": [
+   {
+    "key": "v5avg",
+    "op": ">",
+    "lim": 4.85,
+    "val": 4.515372,
+    "status": "WARN",
+    "text": "5V（±3%）"
+   },
+   {
+    "key": "v5pp",
+    "op": "<",
+    "lim": 0.1,
+    "val": 0.3816501,
+    "status": "WARN",
+    "text": "リップル100mV以下"
+   }
+  ],
+  "aborted": false,
+  "sec": 11.3,
+  "png": "tb4_24V_3A.png"
+ },
+ {
+  "name": "tb5_uvlo",
+  "desc": "LM2576の低電圧停止（入力 0→12→0V）",
+  "vals": {
+   "vin_on": 6.269315,
+   "vin_off": 4.077034
+  },
+  "checks": [
+   {
+    "key": "vin_on",
+    "op": "<",
+    "lim": 7.0,
+    "val": 6.269315,
+    "status": "PASS",
+    "text": "7V以下で起動"
+   },
+   {
+    "key": "vin_off",
+    "op": "<",
+    "lim": 5.0,
+    "val": 4.077034,
+    "status": "PASS",
+    "text": "クランキング（6V）では止まらない"
+   }
+  ],
+  "aborted": false,
+  "sec": 33.9,
+  "png": "tb5_uvlo.png"
+ }
+]

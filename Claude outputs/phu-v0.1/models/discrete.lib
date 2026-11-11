@@ -1,0 +1,76 @@
+* PHU 用ディスクリート部品モデル集
+* 出典を各モデルに記載。「汎用」はデータシート値に合わせた自作モデル
+
+* ---- Diodes Inc. BZT52C15 (Zener-Diodes.txt) ----
+.SUBCKT DI_BZT52C15  1 2
+* A K
+D1 1 2 DF15
+DZ 3 1 DR15
+VZ 2 3 12.7
+.MODEL DF15 D ( IS=13.7p RS=31.9 N=1.10 CJO=32.7p VJ=1.00 M=0.330 TT=50.1n )
+.MODEL DR15 D ( IS=2.75f RS=14.5 N=3.00 )
+.ENDS
+
+* ---- Diodes Inc. BZT52C12 ----
+.SUBCKT DI_BZT52C12  1 2
+D1 1 2 DF12
+DZ 3 1 DR12
+VZ 2 3 9.78
+.MODEL DF12 D ( IS=17.2p RS=32.5 N=1.10 CJO=42.7p VJ=1.00 M=0.330 TT=50.1n )
+.MODEL DR12 D ( IS=3.43f RS=9.46 N=3.00 )
+.ENDS
+
+* ---- Diodes Inc. 1N4148WS (Switching-Diodes.txt) ----
+.MODEL 1N4148WS D ( IS=10.4n RS=51.5m BV=75.0 IBV=1.00u CJO=2.00p M=0.333 N=2.07 TT=5.76n )
+
+* ---- Diodes Inc. BAV99 (1素子分) ----
+.MODEL DI_BAV99 D ( IS=261p RS=0.140 BV=75.0 IBV=2.50u CJO=1.19p M=0.333 N=1.70 TT=5.76n )
+
+* ---- 汎用：1N4007 / SM4007（1A 1000V） 広く使われる標準モデル ----
+.MODEL SM4007 D ( IS=7.02767n RS=0.0341512 N=1.80803 EG=1.05743 XTI=5 BV=1000 IBV=0.1u CJO=1e-11 VJ=0.7 M=0.5 FC=0.5 TT=1e-7 )
+
+* ---- 汎用：SS56（60V 5A ショットキー）データシート Vf 0.70V@5A, 0.45V@1A に合わせた ----
+.MODEL SS56 D ( IS=20u RS=0.045 N=1.25 BV=63 IBV=0.5m CJO=400p VJ=0.5 M=0.5 TT=1n EG=0.69 XTI=2 )
+
+* ---- 汎用：SS14（40V 1A ショットキー） ----
+.MODEL SS14 D ( IS=5u RS=0.08 N=1.2 BV=44 IBV=0.2m CJO=110p VJ=0.5 M=0.5 EG=0.69 XTI=2 )
+
+* ---- 汎用：2N7002（60V Nch）サブ回路。LTspice標準ライブラリの値（Vto=1.6 Kp=0.17 Rs=0.75 Cgs=50p
+*      Cgd 12〜80p）を、ngspiceで収束しやすい LEVEL1 MOSFET＋ボディダイオードに置き換えた ----
+.SUBCKT N2N7002 D G S
+RG  G g1 3
+M1  d1 g1 s1 s1 NM7002 L=1u W=1u
+RS  s1 S 0.75
+RD  D d1 0.1
+CGS g1 s1 50p
+CGD g1 d1 20p
+DB  S D DB7002
+.MODEL NM7002 NMOS ( LEVEL=1 VTO=1.6 KP=0.17 LAMBDA=0.01 )
+.MODEL DB7002 D ( IS=0.04p BV=62 CJO=50p TT=20n )
+.ENDS
+
+* ---- 汎用：G2RL-1A-E DC12 リレー（コイル 360Ω・約0.3H、動作 定格の70%=8.4V=23.3mA、開放 10%=1.2V=3.3mA（G2RLの値、要データシート確認）） ----
+* 端子：CP CN（コイル）、A B（接点）
+.SUBCKT RELAY_G2RL CP CN A B
+Lc CP x 0.3
+Rc x s 360
+Vs s CN 0
+* コイル電流を電圧にする（1mA = 0.1V）、動作遅れ約8ms
+Bm m 0 V = 100*i(Vs)
+Rd m d 8k
+Cd d 0 1u
+S1 A B d 0 SWK
+.MODEL SWK SW ( VT=1.33 VH=1.0 RON=5m ROFF=1G )
+.ENDS
+
+* ---- 汎用：MMBT3904（2N3904と同じチップ）広く使われる標準モデル ----
+.MODEL MMBT3904 NPN ( IS=6.734f XTI=3 EG=1.11 VAF=74.03 BF=416.4 NE=1.259 ISE=6.734f IKF=66.78m XTB=1.5 BR=0.7371 NC=2 ISC=0 IKR=0 RC=1 CJC=3.638p MJC=0.3085 VJC=0.75 FC=0.5 CJE=4.493p MJE=0.2593 VJE=0.75 TR=239.5n TF=301.2p ITF=0.4 VTF=4 XTF=2 RB=10 )
+
+* ---- 汎用：BZT52C4V7 相当（簡易モデル、4.7V@5mA） ----
+.SUBCKT DZ4V7 1 2
+D1 1 2 DF62
+DZ 3 1 DR62
+VZ 2 3 4.1
+.MODEL DF62 D ( IS=20p RS=20 N=1.1 )
+.MODEL DR62 D ( IS=5f RS=10 N=2.0 )
+.ENDS
