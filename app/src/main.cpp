@@ -409,18 +409,19 @@ static int runApplication(int argc, char *argv[]) {
                     QStringLiteral("initialized in %1; waiting for the connection wait to start").arg(msText(aaInitMs)));
     }
 
-    // 車両の終了(ACC OFF)に合わせたシャットダウン。終了の要求を受けたら、終了の準備の画面に切り替えて、
+    // 車両の終了(ACC OFF)に合わせたシャットダウン。終了の要求を受けたら、終了の画面(ロゴ)に切り替えて、
     // 下の終了処理を順に行い、済んだら電源を切る(今は Ctrl+Shift+P で要求する。将来は外部マイコンの EVT SHUTDOWN_REQUEST)。
-    // 終了処理を足すときは addTask を足す(済んだら done を呼ぶ。上限の時間を過ぎたら、待たずに次へ進む)
+    // 終了処理を足すときは addTask を足す(済んだら done を呼ぶ。上限の時間を過ぎたら、待たずに次へ進む)。
+    // 名前は「〇〇の××」の形にする(終了の画面の下に「〇〇の××中…」と出す)
     opencruise::ShutdownManager shutdownManager;
-    shutdownManager.addTask(QStringLiteral("save-settings"), QStringLiteral("設定を保存"),
+    shutdownManager.addTask(QStringLiteral("save-settings"), QStringLiteral("設定の保存"),
                             [](const opencruise::ShutdownManager::Done &done) {
                                 QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
                                                 QStringLiteral("OpenCruise"));
                                 store.sync();
                                 done(store.status() == QSettings::NoError, QString());
                             }, 2000);
-    shutdownManager.addTask(QStringLiteral("android-auto"), QStringLiteral("Android Auto を切断"),
+    shutdownManager.addTask(QStringLiteral("android-auto"), QStringLiteral("Android Auto の切断"),
                             [androidAuto](const opencruise::ShutdownManager::Done &done) {
                                 if (androidAuto->stateKey() == QStringLiteral("unavailable")) {
                                     done(true, QStringLiteral("skip:接続していません"));
@@ -430,13 +431,13 @@ static int runApplication(int argc, char *argv[]) {
                                 done(true, QString());
                             }, 5000);
     // ドアロックの自動解除: 外部マイコン(拡張バスのリレー)ができるまでのダミー。少し待って済んだことにする
-    shutdownManager.addTask(QStringLiteral("door-unlock"), QStringLiteral("ドアロックを解除"),
+    shutdownManager.addTask(QStringLiteral("door-unlock"), QStringLiteral("ドアロックの解除"),
                             [&app](const opencruise::ShutdownManager::Done &done) {
                                 QTimer::singleShot(1200, &app, [done]() { done(true, QStringLiteral("ダミー(外部マイコン未接続)")); });
                             }, 5000);
     // 電源モード: アプリが変えた Linux の電源プロファイル(powerprofilesctl)を、起動前(ノート PC のもともとの設定)に戻す。
     // power-profiles-daemon は最後のプロファイルを覚えて次の起動にも使うので、電源を切る前に戻しておく
-    shutdownManager.addTask(QStringLiteral("power-profile"), QStringLiteral("電源モードを元に戻す"),
+    shutdownManager.addTask(QStringLiteral("power-profile"), QStringLiteral("電源モードの復元"),
                             [&appSettings](const opencruise::ShutdownManager::Done &done) {
                                 appSettings.restorePowerModeAsync(done);
                             }, 4000);

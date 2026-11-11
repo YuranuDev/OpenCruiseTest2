@@ -56,7 +56,7 @@ public:
 
     /**
      * @brief 終了処理を登録する(登録順に行う)。
-     * @param id ログ用の名前(英語) / label 画面に出す名前 / timeoutMs この処理の上限
+     * @param id ログ用の名前(英語) / label 画面に出す名前(「設定の保存」の形。画面には「設定の保存中…」と出す)/ timeoutMs この処理の上限
      */
     void addTask(const QString &id, const QString &label, Task task, int timeoutMs = 5000);
 

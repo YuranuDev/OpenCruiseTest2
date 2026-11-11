@@ -4,7 +4,8 @@
 //    アプリはそれを消さずに引き継ぎ(handoff)、同じ位置に同じロゴを最初から出すので、動かず途切れずに切り替わる。
 //    Plymouth を経由しないとき(開発中の起動など)だけ、最初の 1 枚を描いてからロゴをゆっくりフェードインする
 // BootManager(context property `boot`)の待ち(ESP32 などの応答待ち)は、これまでどおり C++ 側にある。ここは表示だけで、
-// 待ちの状況は画面に出さない(各ステップの詳細はログに残る。問題があれば注意事項の画面に出す)。
+// 今の処理の内容(boot.summaryText)を、画面の下に小さく控えめに出す(各ステップの詳細はログに残る。問題があれば注意事項の画面に出す)。
+// Plymouth 用の画像(--export-splash)には出さない。
 // メイン画面ができて起動の待ちが終わったら(ready)、注意事項の画面に切り替える。一定時間(または OK)で注意事項が終わったら、
 // 起動画面を閉じてメイン画面へ移り(canClose)、メイン画面の動き(ゲージ・点滅・警告など)を始める(boot.release)。
 import QtQuick
@@ -79,6 +80,21 @@ Rectangle {
         asynchronous: false     // 最初の 1 枚から出せるように、描く前に読み込んでおく
         opacity: root.logoOpacity
         // 引き継ぎ・書き出しのときは最初から出す(変化しない)。そうでないときだけ、ゆっくり浮かび上がらせる
+        Behavior on opacity { NumberAnimation { duration: 900; easing.type: Easing.InOutQuad } }
+    }
+
+    // ---- 下: 今の処理の内容(控えめに。ロゴと一緒に浮かび上がる) ----
+    Text {
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: Math.round(28 * root.unit) }
+        width: parent.width - Theme.margin * 4
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.pixelSize: Math.round(15 * root.unit)
+        color: Theme.bootTextSecondary
+        text: boot.summaryText
+        visible: !root.exportMode
+        opacity: root.logoOpacity * 0.7
         Behavior on opacity { NumberAnimation { duration: 900; easing.type: Easing.InOutQuad } }
     }
 
