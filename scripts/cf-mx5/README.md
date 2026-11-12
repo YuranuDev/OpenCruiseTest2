@@ -5,7 +5,24 @@ Panasonic CF-MX5 の BIOS Setup に表示されない設定を、Linux から 1 
 
 BIOS のフラッシュには書き込まず、NVRAM の UEFI 変数 `Setup`(GUID `EC87D643-EBA4-4BB5-A1E5-3F3E36B20DA9`)の 1 バイトだけを変えます。
 
-## 対象
+## AC 投入で自動起動(おすすめ: install-afterg3.sh)
+
+実機では `Setup` 変数が OS(Linux / Windows)から隠されていて、下の `cfmx5-setupvar.py` では書き換えられませんでした。
+代わりに、PCH の AFTERG3_EN(PMC `00:1f.2` の `0xA4` bit0)を、起動時とシャットダウン時に systemd で 0 にします。
+BIOS にも NVRAM にも触りません。
+
+```
+sudo scripts/cf-mx5/install-afterg3.sh install    # 入れる(AC 投入で起動する)
+sudo scripts/cf-mx5/install-afterg3.sh status     # 状態を見る
+sudo scripts/cf-mx5/install-afterg3.sh uninstall  # 外す(bit0 を 1 に戻す = 起動しない)
+```
+
+- `install` は `/etc/systemd/system/afterg3.service` を作って有効にし、その場で bit0 を 0 にします。
+- `00:1f.2` が Sunrise Point-LP の PMC(8086:9d21)でなければ何もしません。
+- 確認: `sudo poweroff` → AC を抜いて 10 秒 → 挿して起動すれば成功。
+- 正常にシャットダウンしなかった場合も、直前の起動時に 0 を書いているので通常は問題ありません。
+
+## 対象(cfmx5-setupvar.py)
 
 - 機種: CF-MX5(DMI product_name `CFMX5-3`)
 - BIOS: V3.00L25 のみ(オフセットはこの版の Setup IFR から取り出したもの)
