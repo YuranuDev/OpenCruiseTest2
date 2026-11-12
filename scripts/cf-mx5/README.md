@@ -22,6 +22,23 @@ sudo scripts/cf-mx5/install-afterg3.sh uninstall  # 外す(bit0 を 1 に戻す 
 - 確認: `sudo poweroff` → AC を抜いて 10 秒 → 挿して起動すれば成功。
 - 正常にシャットダウンしなかった場合も、直前の起動時に 0 を書いているので通常は問題ありません。
 
+## RU.efi を USB メモリなしで使う(setup-ru-shell.sh)
+
+バッテリーが付いたままだと AFTERG3_EN は効かない(AC を抜いても G3 にならない)ので、
+Panasonic 独自の Power On AC(Setup の 0x97C)を RU.efi で書き換えるときに使います。
+内蔵 ESP の `EFI/tools/` に UEFI Shell(pbatard/UEFI-Shell 25H1、SHA-256 固定)と RU.efi を置き、GRUB に項目を足します。
+
+```
+# RU.efi は配布元(ruexe.blogspot.com)から自分でダウンロードしておく
+sudo scripts/cf-mx5/setup-ru-shell.sh install ~/Downloads/RU.zip   # RU.efi 単体でも可
+sudo scripts/cf-mx5/setup-ru-shell.sh boot        # 次の 1 回だけ UEFI Shell で起動
+sudo scripts/cf-mx5/setup-ru-shell.sh status
+sudo scripts/cf-mx5/setup-ru-shell.sh uninstall   # ESP のファイルと GRUB の項目を消す
+```
+
+Shell では `fs0:` → `cd EFI\tools` → `RU.efi`。Alt+= で変数一覧を開き、`Setup`(GUID **EC87D643-…**。80E1202E-… ではない)を選びます。
+現在値を確かめてから `0x97C` を `00`→`01`(Power On AC)、必要なら `0x41` を `01`→`00`(State After G3)に変え、Ctrl+W で保存します。
+
 ## 対象(cfmx5-setupvar.py)
 
 - 機種: CF-MX5(DMI product_name `CFMX5-3`)
