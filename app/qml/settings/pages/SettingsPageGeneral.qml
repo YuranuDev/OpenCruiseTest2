@@ -1,4 +1,4 @@
-// 設定ジャンル「一般」: ユーザー名と表示フォント。
+// 設定「表示と操作 > ユーザー・文字」: ユーザー名と表示フォント・数値のフォント。
 import QtQuick
 import QtQuick.Controls
 import OpenCruise

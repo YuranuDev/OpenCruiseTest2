@@ -258,6 +258,20 @@ QtObject {
         changed()
     }
 
+    // 同じセンサー(最初の条件)のルールの中で、前後のものと入れ替える(設定画面はセンサーごとに並べるため)
+    function moveRuleWithin(id, dir) {
+        const i = rules.findIndex(r => r.id === id)
+        if (i < 0) return
+        const src = rules[i].conditions[0].source
+        let j = i + dir
+        while (j >= 0 && j < rules.length && rules[j].conditions[0].source !== src) j += dir
+        if (j < 0 || j >= rules.length) return
+        const list = rules.slice()
+        const t = list[i]; list[i] = list[j]; list[j] = t
+        rules = list
+        changed()
+    }
+
     // ---- 文字にする(設定画面の一覧・通知) ----
     function conditionText(rule, c) {
         const spec = numberSpec(c.source)

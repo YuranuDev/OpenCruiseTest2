@@ -1,4 +1,4 @@
-// 設定ジャンル「カメラ」: バックカメラ(バック信号での自動切り替え・使うカメラ・映し方)。
+// 設定「車両 > バックカメラ」: バックカメラ(バック信号での自動切り替え・使うカメラ・映し方)。
 // バック信号は今はダミーだけ(キーボードの Ctrl+Shift+R か、下のスイッチ)。将来は外部マイコンから受ける。
 import QtQuick
 import OpenCruise
@@ -118,12 +118,19 @@ SettingsPage {
         title: "バック信号"
         icon: "mdi:car-back"
 
-        SettingsInfoRow {
+        SettingsRow {
             label: "入力元"
-            value: "ダミー(外部マイコンからの入力は未実装)"
-            valueColor: Theme.warn
+            description: reverseCamera.signalSource === 1
+                         ? "外部マイコンからのバック信号を使います(外部マイコンとの通信はまだ無いので、今はバックになりません)"
+                         : "ダミーのバック信号を使います(下のスイッチか Ctrl+Shift+R で入/切)"
+            SettingsChoice {
+                model: ["ダミー", "外部マイコン"]
+                currentIndex: reverseCamera.signalSource
+                onPicked: (index) => reverseCamera.signalSource = index
+            }
         }
         SettingsRow {
+            visible: reverseCamera.signalSource === 0
             label: "ダミーのバック信号"
             description: "キーボードの Ctrl+Shift+R でも入/切できます"
             SettingsSwitch {

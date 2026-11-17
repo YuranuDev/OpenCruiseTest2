@@ -96,8 +96,12 @@ qt_add_qml_module(opencruise
         qml/settings/SettingsNote.qml
         qml/settings/pages/SettingsPageGeneral.qml
         qml/settings/pages/SettingsPageDisplay.qml
+        qml/settings/pages/SettingsPageTheme.qml
+        qml/settings/pages/SettingsPageRendering.qml
         qml/settings/pages/SettingsPagePower.qml
         qml/settings/pages/SettingsPageAudio.qml
+        qml/settings/pages/SettingsPageSounds.qml
+        qml/settings/pages/SettingsPageMicrophone.qml
         qml/settings/SettingsSlider.qml
         qml/settings/SettingsColorBar.qml
         qml/settings/SettingsColorPicker.qml

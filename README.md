@@ -38,7 +38,7 @@ OpenCruise/
     │   ├── components/       共通部品: Panel / ActionButton / MaterialIcon / NumberText / StatCard / MarqueeText など
     │   ├── screens/          画面: HomeScreen / LauncherScreen / SettingsScreen / SplashScreen / ReverseCamera*
     │   ├── settings/         設定の部品(Settings* / WSStepper / WSTextField)
-    │   │   └── pages/        設定の各ページ(SettingsPage*)
+    │   │   └── pages/        設定の各ページ(SettingsPage*。分類・並び・案内の書き方は screens/SettingsScreen.qml の先頭)
     │   ├── osd/              OSD(音量・明るさ)と通知(NotificationPopup / Bell / HistoryPanel)・AlarmClearButton
     │   ├── services/         画面を持たないシングルトン: VehicleHistory / WarningAlarm
     │   └── widgets/          ウィジェット(下の「ウィジェット」参照)
@@ -116,8 +116,8 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 
 ## 音量・明るさ
 
-設定の「サウンド」「表示」から変更できるほか、キーボード(将来はステアリングスイッチ等)のショートカットで操作できる。
-画面の端のボタン(`qml/osd/SideButtonRail.qml`。設定「表示 > 画面 > 画面の端のボタン」で 左端 / 右端 / 出さない。既定は右端)からも操作できる:
+設定の「音 > 音量・出力先」「表示と操作 > 画面」から変更できるほか、キーボード(将来はステアリングスイッチ等)のショートカットで操作できる。
+画面の端のボタン(`qml/osd/SideButtonRail.qml`。設定「表示と操作 > 画面 > 画面の端のボタン」で 左端 / 右端 / 出さない。既定は右端)からも操作できる:
 上から メニュー(下から出るメニューの開閉)/ 音量 ＋・今の値・− / 明るさ ＋・今の値・−。押しっぱなしで連続して変わり、
 今の値をタップすると、変えずに音量・明るさの表示を出す。各画面は帯の分だけ狭くなる(重ならない)。起動画面・注意事項の間は出さない。
 
@@ -152,14 +152,14 @@ libasound(`libasound2-dev`)があるビルドでは、音を ALSA の機器へ�
 libasound が無いビルド(Windows など)は、これまでどおり Qt の音声入出力を使う。ログは `[AUDIO]`。
 ## テーマと背景
 
-設定「表示 > テーマ」でアプリ全体の見た目を選べる(`ui/ThemeSettings`、QML では `themeSettings`。色と形は `qml/theme/Theme.qml`)。
+設定「表示と操作 > テーマ・背景」でアプリ全体の見た目を選べる(`ui/ThemeSettings`、QML では `themeSettings`。色と形は `qml/theme/Theme.qml`)。
 
 | テーマ | 内容 |
 |---|---|
 | シンプル | これまでの見た目(平らな面・大きめの角丸・青のアクセント) |
 | クラシック | 2000 年代ごろの車の内装に合う見た目。ガンメタ(夜)/シルバー(昼)の面に、ゆるいグラデーションと内側の細いハイライト、小さめの角丸。アクセント色(照明色)はアンバー・赤・青・緑・アイボリー・シアン |
 
-背景(設定「表示 > 背景」): テーマに合わせる(シンプルは無地、クラシックはカーボン)/ 無地 / 模様(カーボン・ヘアライン・パンチング・ストライプ)/ 画像。
+背景(設定「表示と操作 > テーマ・背景」): テーマに合わせる(シンプルは無地、クラシックはカーボン)/ 無地 / 模様(カーボン・ヘアライン・パンチング・ストライプ)/ 画像。
 画像は `~/.local/share/OpenCruise/backgrounds` に PNG / JPEG を置くと選べる(並べる・画面を埋める・引き伸ばす)。濃さも変えられる。
 面(カード・ボタン・ダイアログ)は `qml/components/Panel.qml` を使うと、テーマに合わせて描き分けられる。
 
@@ -192,7 +192,7 @@ libasound が無いビルド(Windows など)は、これまでどおり Qt の�
 ## バックカメラ
 
 バック信号が入ると、どの画面でもカメラの映像(全面)に切り替わり、切れると設定の秒数のあとで元の画面に戻る(`vehicle/ReverseCamera`、
-QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設定は「設定 > カメラ」)。
+QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設定は「設定 > 車両 > バックカメラ」)。
 
 - バック信号: 今はダミーだけ。**Ctrl+Shift+R** か、設定の「ダミーのバック信号」で入/切する。
   将来の外部マイコン(バックランプの線を読む)からの入力は `ReverseCamera::setExternalReverse()` で受け、入力元を「外部」にする(通信は未実装)
@@ -348,4 +348,4 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
 
 ### クレジットの表示場所
 
-アプリの画面内にも、同じクレジットを表示しています(設定 > 情報 > 使用素材・ライセンス)。
+アプリの画面内にも、同じクレジットを表示しています(設定 > システム > 情報 > 使用素材・ライセンス)。

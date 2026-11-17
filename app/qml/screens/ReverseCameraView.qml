@@ -118,7 +118,7 @@ Item {
             color: "#d0d0d0"
             visible: text !== ""
             text: reverseCamera.cameraState === "error" ? reverseCamera.cameraError
-                : reverseCamera.missingDevice !== "" ? reverseCamera.missingDevice + "(設定 > カメラ で選び直せます)"
+                : reverseCamera.missingDevice !== "" ? reverseCamera.missingDevice + "(設定 > 車両 > バックカメラ で選び直せます)"
                 : reverseCamera.cameraState === "none" ? "キャプチャーボード・USB カメラをつないでください" : ""
         }
     }

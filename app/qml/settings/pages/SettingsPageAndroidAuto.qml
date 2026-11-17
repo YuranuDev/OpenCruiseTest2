@@ -1,11 +1,37 @@
-// 設定ジャンル「Android Auto」: 映像(解像度・fps・フルスクリーン)、フルスクリーンでないときの映像の置き方
-// (角と幅・高さのマス数。残りのマスにウィジェットを置ける)と、現在の接続診断情報。
+// 設定「スマホ連携 > Android Auto」: 接続状態(いちばん上。つながらないときにまず見る)、映像(解像度・フレームレート・
+//   接続後フルスクリーン)、フルスクリーンでないときの映像の配置(widgetStore)。
 import QtQuick
 import OpenCruise
 
 SettingsPage {
+    SettingsSection {
+        title: "接続状態"
+        icon: "usb"
+
+        SettingsInfoRow { label: "状態"; value: androidAuto.stateText; valueColor: Theme.stateColor(androidAuto.stateKey) }
+        SettingsInfoRow { label: "詳細"; value: androidAuto.detailText }
+        SettingsInfoRow { label: "直近の切断/エラー"; value: androidAuto.lastIssue === "" ? "なし" : androidAuto.lastIssue }
+        SettingsInfoRow { label: "受信フレーム数"; value: String(androidAuto.frameCount) }
+        SettingsInfoRow { label: "映像サイズ"; value: androidAuto.videoInfo }
+        SettingsInfoRow { label: "aasdk 接続処理"; value: androidAuto.aasdkEnabled ? "ビルドに含まれる" : "含まれない (OFF)" }
+    }
+
     // フレームレートの選択肢(表示順)。増やすときはここに足す
     readonly property var fpsOptions: [30, 60]
+
+    SettingsSection {
+        title: "スマホのダミーデータ"
+        icon: "science"
+
+        SettingsRow {
+            label: "モックデータを使う"
+            description: "スマホから取れない項目(電波・通知・通話・再生中の曲など)を、仮の値で表示します(スマホ関連のウィジェット全体に反映。各ウィジェットの設定の「テスト」と同じ)"
+            SettingsSwitch {
+                checked: phoneStatus.mockEnabled
+                onToggled: (v) => phoneStatus.mockEnabled = v
+            }
+        }
+    }
 
     SettingsSection {
         title: "映像"
@@ -85,17 +111,5 @@ SettingsPage {
             text: "映像の周りの空いたマスに、ウィジェットを置けます(Android Auto 画面のメニューの「編集」から追加。編集中は映像の大きさ・角もドラッグで変えられます)。"
                   + "映像を大きくして入りきらなくなったウィジェットは、一時的に隠れ、空きができると元の近くに戻ります。"
         }
-    }
-
-    SettingsSection {
-        title: "接続状態"
-        icon: "usb"
-
-        SettingsInfoRow { label: "状態"; value: androidAuto.stateText; valueColor: Theme.stateColor(androidAuto.stateKey) }
-        SettingsInfoRow { label: "詳細"; value: androidAuto.detailText }
-        SettingsInfoRow { label: "直近の切断/エラー"; value: androidAuto.lastIssue === "" ? "なし" : androidAuto.lastIssue }
-        SettingsInfoRow { label: "受信フレーム数"; value: String(androidAuto.frameCount) }
-        SettingsInfoRow { label: "映像サイズ"; value: androidAuto.videoInfo }
-        SettingsInfoRow { label: "aasdk 接続処理"; value: androidAuto.aasdkEnabled ? "ビルドに含まれる" : "含まれない (OFF)" }
     }
 }

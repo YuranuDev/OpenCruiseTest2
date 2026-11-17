@@ -15,7 +15,7 @@ WidgetSettingsBase {
     }
     SettingsRow {
         label: "名前を付ける"
-        description: "ユーザー名は 設定 > 一般 で変更できます"
+        description: "ユーザー名は 設定 > 表示と操作 > ユーザー・文字 で変更できます"
         SettingsSwitch {
             checked: root.config.showName !== false
             onToggled: (v) => root.edit("showName", v)

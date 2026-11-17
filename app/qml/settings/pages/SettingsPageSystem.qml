@@ -1,4 +1,4 @@
-// 設定ジャンル「システム」: CPU / GPU / メモリの使用状況の表示設定と、現在の値(1 秒ごとに更新)。
+// 設定「システム > システムの状態」: CPU / GPU / メモリの使用状況(1 秒ごとに更新)と、メニューに出すか。
 import QtQuick
 import OpenCruise
 
@@ -12,7 +12,7 @@ SettingsPage {
     function gb(mb) { return (mb / 1024).toFixed(1) }
 
     SettingsSection {
-        title: "表示"
+        title: "メニュー"
         icon: "monitor_heart"
 
         SettingsRow {

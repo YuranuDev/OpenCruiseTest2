@@ -1,4 +1,4 @@
-// 設定画面の左側に並ぶジャンルボタン(アイコン + 名前)。選択中は塗りと左端のバーで示す。
+// 設定画面の左側に並ぶジャンルボタン(アイコン + 名前 + 中身の例)。選択中は塗りと左端のバーで示す。
 import QtQuick
 import OpenCruise
 
@@ -6,12 +6,13 @@ Rectangle {
     id: root
     property string icon: ""
     property string title: ""
+    property string description: ""
     property bool selected: false
     signal clicked()
 
     readonly property real unit: Theme.uiScale
 
-    implicitHeight: 84 * unit
+    implicitHeight: (description !== "" ? 88 : 76) * unit
     height: implicitHeight
     radius: Theme.radius + 2
     color: selected ? Theme.mix(Theme.panel, Theme.accentFill, 0.35)
@@ -43,15 +44,28 @@ Rectangle {
             size: 40 * root.unit
             color: root.selected ? Theme.accent : Theme.textSecondary
         }
-        Text {
+        Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - 40 * root.unit - parent.spacing
-            font.family: Theme.fontFamily
-            text: root.title
-            color: Theme.textPrimary
-            font.pixelSize: 26 * root.unit
-            font.bold: root.selected
-            elide: Text.ElideRight
+            spacing: 2 * root.unit
+            Text {
+                width: parent.width
+                font.family: Theme.fontFamily
+                text: root.title
+                color: Theme.textPrimary
+                font.pixelSize: 25 * root.unit
+                font.bold: root.selected
+                elide: Text.ElideRight
+            }
+            Text {
+                visible: root.description !== ""
+                width: parent.width
+                font.family: Theme.fontFamily
+                text: root.description
+                color: Theme.textSecondary
+                font.pixelSize: 16 * root.unit
+                elide: Text.ElideRight
+            }
         }
     }
 

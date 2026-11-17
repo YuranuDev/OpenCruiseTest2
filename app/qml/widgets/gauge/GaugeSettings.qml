@@ -517,7 +517,7 @@ WidgetSettingsBase {
         }
         SettingsRow {
             label: "この計測値のルールを追加"
-            description: "条件・音・通知・続いた時間などの細かい設定は 設定 > 警告・注意 で変えます"
+            description: "条件・音・通知・続いた時間などの細かい設定は 設定 > 車両 > 警告・注意 で変えます"
             stacked: true
             Row {
                 spacing: 12 * Theme.uiScale

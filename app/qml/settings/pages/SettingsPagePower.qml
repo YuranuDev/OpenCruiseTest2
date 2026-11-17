@@ -1,4 +1,5 @@
-// 設定ジャンル「電源管理」。Linux が公開する電源管理モードを選び、アプリ設定として保持する。
+// 設定「システム > 電源」: 電源モード(Linux の電源プロファイル。appSettings)と、
+//   ACC OFF での終了(終了処理が済んだら電源を切る / アプリだけ終了、終了処理の上限。shutdownManager)。
 import QtQuick
 import OpenCruise
 
@@ -20,6 +21,10 @@ SettingsPage {
                 onPicked: (index) => appSettings.powerMode = index
             }
         }
+
+        SettingsInfoRow { label: "標準"; value: "バランス重視の電源プロファイル" }
+        SettingsInfoRow { label: "省電力"; value: "消費電力を抑える設定を優先" }
+        SettingsInfoRow { label: "高性能"; value: "性能を優先する設定" }
 
         SettingsNote {
             text: "power-profiles-daemon が必要です。アプリの終了時(ACC OFF の終了では電源を切る前)に、起動前のプロファイルへ戻します。現在の状態: " + appSettings.powerModeStatus
@@ -55,14 +60,5 @@ SettingsPage {
         SettingsNote {
             text: "終了の要求は、外部マイコンができるまではキーボードの Ctrl+Shift+P で試せます(ACC OFF を検出したのと同じ動きをします)。"
         }
-    }
-
-    SettingsSection {
-        title: "モードの説明"
-        icon: "info"
-
-        SettingsInfoRow { label: "標準"; value: "バランス重視の電源プロファイル" }
-        SettingsInfoRow { label: "省電力"; value: "消費電力を抑える設定を優先" }
-        SettingsInfoRow { label: "高性能"; value: "性能を優先する設定" }
     }
 }

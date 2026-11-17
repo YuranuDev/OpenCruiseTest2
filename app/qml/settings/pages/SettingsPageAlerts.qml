@@ -1,5 +1,9 @@
-// 設定ジャンル「警告・注意」。警告・注意のルール(AlertRules)を作る・変える・消す。
+// 設定「車両 > 警告・注意」。警告・注意のルール(AlertRules)を作る・変える・消す。
 // ルールはメーターとは別に動く(メーターが無くても、音・通知で知らせる)。同じ計測値のメーターには、範囲と状態も出る。
+// 混み合わないよう、センサー(条件に使える値。水温・油圧・バックなど)ごとの箱に分ける。箱はタップで開閉し、
+// 閉じているときは「ルール n 件(オン m 件)・今出ています」だけを出す。ルールは、そのセンサーの箱の中で足す
+// (ルールは最初の条件のセンサーの箱に入る。最初の条件のセンサーを変えると、その箱へ移る)。
+// 上が数値(メーターの計測値・ギア・スマホの電池)、下が状態(エンジン・バック・Android Auto など)。
 // 1 件ごとのカード: 見出し(段階・メッセージ・今出ているか・オン/オフ)と条件のまとめ。タップで開いて細かく変える。
 // 一覧の Repeater は件数だけを model にする(値を変えるたびに作り直さない。数値の長押しの連続変化が途切れないように)。
 import QtQuick
@@ -8,8 +12,14 @@ import OpenCruise
 SettingsPage {
     id: page
     readonly property real unit: Theme.uiScale
-    // 開いているルールの id
+    // 開いているルールの id / 開いているセンサーの箱
     property string openId: ""
+    property string openSensor: ""
+    // ルールを足して、その箱とカードを開く
+    function addTo(source, level) {
+        openSensor = source
+        openId = AlertRules.addRule(source, level)
+    }
 
     SettingsSection {
         title: "警告・注意"
@@ -17,27 +27,129 @@ SettingsPage {
 
         SettingsNote {
             text: "条件を満たすと、警告(赤)・注意(黄)として知らせます。メーターが無くても動きます。"
-                  + "条件はいくつでも組み合わせられ(すべて満たしたとき)、計測値のほか、エンジン・バック・Android Auto・スマホの状態も使えます。"
+                  + "下のセンサーの箱を開いて、そのセンサーのルールを足します。条件はほかのセンサーとも組み合わせられます(すべて満たしたとき)。"
                   + "同じ計測値のメーターには、範囲を目盛りの帯で、状態を色・点滅・メッセージで出します。"
                   + "数値の範囲はメーターの目盛りに関係なく、計測値の限界まで決められます。"
         }
-        SettingsRow {
-            label: "ルールを追加"
-            description: "追加したあと、カードを開いて条件を決めます"
-            Row {
-                spacing: 12 * page.unit
-                ActionButton { text: "警告を追加"; onClicked: page.openId = AlertRules.addRule("coolant", "warn") }
-                ActionButton { text: "注意を追加"; onClicked: page.openId = AlertRules.addRule("coolant", "caution") }
-            }
-        }
     }
 
+    // ---- センサーごとの箱 ----
     Repeater {
-        model: AlertRules.rules.length
+        model: AlertRules.sourceIds
+        Column {
+            id: sensorBlock
+            required property var modelData
+            required property int index
+            readonly property string source: modelData
+            readonly property bool isNumber: AlertRules.isNumber(source)
+            // 数値・状態それぞれの最初の箱の上に見出しを出す
+            readonly property bool firstOfKind: index === 0 || AlertRules.isNumber(AlertRules.sourceIds[index - 1]) !== isNumber
+            // この箱に入るルール(最初の条件がこのセンサーのもの)の、AlertRules.rules の中での番号
+            readonly property var ruleIdx: { AlertRules.revision
+                const out = []
+                AlertRules.rules.forEach((r, i) => { if (r.conditions[0].source === source) out.push(i) })
+                return out }
+            readonly property int enabledCount: { AlertRules.revision
+                return ruleIdx.filter(i => AlertRules.rules[i].enabled).length }
+            readonly property int activeLevel: { AlertRules.stateRevision; AlertRules.revision
+                let lv = 0
+                for (const i of ruleIdx) {
+                    const r = AlertRules.rules[i]
+                    if (AlertRules.isActive(r.id)) lv = Math.max(lv, r.level === "warn" ? 2 : 1)
+                }
+                return lv }
+            readonly property bool expanded: page.openSensor === source
+            width: parent ? parent.width : 0
+            spacing: 8 * page.unit
+
+            Item {
+                visible: sensorBlock.firstOfKind
+                width: parent.width
+                height: 44 * page.unit
+                Text {
+                    anchors { left: parent.left; leftMargin: 8 * page.unit; bottom: parent.bottom; bottomMargin: 4 * page.unit }
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 21 * page.unit
+                    font.bold: true
+                    color: Theme.textSecondary
+                    text: sensorBlock.isNumber ? "数値(メーターの計測値・ギア・スマホの電池)" : "状態(エンジン・バック・Android Auto・スマホ・車両データ)"
+                }
+            }
+
+            Panel {
+                id: sensorBox
+                width: parent.width
+                height: sensorCol.implicitHeight + 2 * pad
+                radius: Theme.radius + 6
+                readonly property real pad: 18 * page.unit
+                border.color: sensorBlock.activeLevel === 2 ? Theme.error : sensorBlock.activeLevel === 1 ? Theme.warn : Theme.panelBorder
+                border.width: sensorBlock.activeLevel > 0 ? 2 : 1
+
+                Column {
+                    id: sensorCol
+                    x: sensorBox.pad
+                    y: sensorBox.pad
+                    width: sensorBox.width - 2 * sensorBox.pad
+                    spacing: 10 * page.unit
+
+                    // 見出し(タップで開閉): アイコン・センサーの名前・ルールの件数・今出ているか
+                    Item {
+                        width: parent.width
+                        height: 56 * page.unit
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: page.openSensor = sensorBlock.expanded ? "" : sensorBlock.source
+                        }
+                        Row {
+                            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                            spacing: 14 * page.unit
+                            MaterialIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                name: AlertRules.sourceIcon(sensorBlock.source)
+                                size: 38 * page.unit
+                                color: sensorBlock.activeLevel === 2 ? Theme.error : sensorBlock.activeLevel === 1 ? Theme.warn
+                                     : sensorBlock.enabledCount > 0 ? Theme.accent : Theme.textSecondary
+                            }
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2 * page.unit
+                                Text {
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 26 * page.unit
+                                    font.bold: true
+                                    color: Theme.textPrimary
+                                    text: AlertRules.sourceTitle(sensorBlock.source)
+                                }
+                                Text {
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 18 * page.unit
+                                    color: sensorBlock.activeLevel === 2 ? Theme.error : sensorBlock.activeLevel === 1 ? Theme.warn : Theme.textSecondary
+                                    text: (sensorBlock.ruleIdx.length === 0 ? "ルールなし"
+                                           : "ルール " + sensorBlock.ruleIdx.length + " 件(オン " + sensorBlock.enabledCount + " 件)")
+                                          + (sensorBlock.activeLevel === 2 ? "  ・ 警告が出ています" : sensorBlock.activeLevel === 1 ? "  ・ 注意が出ています" : "")
+                                }
+                            }
+                        }
+                        MaterialIcon {
+                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                            name: sensorBlock.expanded ? "expand_less" : "expand_more"
+                            size: 38 * page.unit
+                            color: Theme.textSecondary
+                        }
+                    }
+
+                    // ---- 開いたとき: このセンサーのルールと、足すボタン ----
+                    Column {
+                        visible: sensorBlock.expanded
+                        width: parent.width
+                        spacing: 10 * page.unit
+
+    Repeater {
+        model: sensorBlock.expanded ? sensorBlock.ruleIdx.length : 0
         Panel {
             id: card
             required property int index
-            readonly property var rule: { AlertRules.revision; return AlertRules.rules[index] || null }
+            readonly property var rule: { AlertRules.revision; return AlertRules.rules[sensorBlock.ruleIdx[index]] || null }
             readonly property bool opened: rule !== null && page.openId === rule.id
             readonly property bool active: { AlertRules.stateRevision; return rule !== null && AlertRules.isActive(rule.id) }
             readonly property color levelColor: rule && rule.level === "caution" ? Theme.warn : Theme.error
@@ -169,7 +281,11 @@ SettingsPage {
                                     maxWidth: condRow.width
                                     model: AlertRules.sourceIds.map(id => AlertRules.sourceTitle(id))
                                     currentIndex: AlertRules.sourceIds.indexOf(condRow.cond.source)
-                                    onPicked: (i) => AlertRules.updateCondition(card.rule.id, condRow.index, { source: AlertRules.sourceIds[i] })
+                                    onPicked: (i) => {
+                                        // 最初の条件のセンサーを変えると、ルールはそのセンサーの箱へ移る(箱もそちらを開く)
+                                        if (condRow.index === 0) page.openSensor = AlertRules.sourceIds[i]
+                                        AlertRules.updateCondition(card.rule.id, condRow.index, { source: AlertRules.sourceIds[i] })
+                                    }
                                 }
                                 SettingsChoice {
                                     readonly property var ops: condRow.spec ? AlertRules.opsNumber : AlertRules.opsBool
@@ -272,8 +388,8 @@ SettingsPage {
                     }
                     SettingsRow {
                         label: isWarn ? "警告音を鳴らす" : "注意音を鳴らす"
-                        description: isWarn ? "消音するまで鳴らし続けます(メーター・ホーム画面の解除ボタンで消音。音は 設定 > サウンド > 警告音)"
-                                            : "注意になったときに 1 回だけ鳴らします(音は 設定 > サウンド > 注意音)"
+                        description: isWarn ? "消音するまで鳴らし続けます(メーター・ホーム画面の解除ボタンで消音。音は 設定 > 音 > 効果音 の警告音)"
+                                            : "注意になったときに 1 回だけ鳴らします(音は 設定 > 音 > 効果音 の注意音)"
                         SettingsSwitch {
                             checked: rule.beep
                             onToggled: (v) => AlertRules.updateRule(rule.id, { beep: v })
@@ -320,8 +436,8 @@ SettingsPage {
                     Item { width: 1; height: 12 * page.unit }
                     Row {
                         spacing: 12 * page.unit
-                        ActionButton { text: "上へ"; onClicked: AlertRules.moveRule(rule.id, -1) }
-                        ActionButton { text: "下へ"; onClicked: AlertRules.moveRule(rule.id, 1) }
+                        ActionButton { text: "上へ"; onClicked: AlertRules.moveRuleWithin(rule.id, -1) }
+                        ActionButton { text: "下へ"; onClicked: AlertRules.moveRuleWithin(rule.id, 1) }
                         ActionButton {
                             id: deleteButton
                             property bool armed: false
@@ -333,6 +449,16 @@ SettingsPage {
                                 AlertRules.removeRule(rule.id)
                             }
                             Timer { id: disarm; interval: 3000; onTriggered: deleteButton.armed = false }
+                        }
+                    }
+                }
+            }
+        }
+    }
+                        Row {
+                            spacing: 12 * page.unit
+                            ActionButton { text: "警告を追加"; onClicked: page.addTo(sensorBlock.source, "warn") }
+                            ActionButton { text: "注意を追加"; onClicked: page.addTo(sensorBlock.source, "caution") }
                         }
                     }
                 }
