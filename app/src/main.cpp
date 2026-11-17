@@ -54,6 +54,11 @@
 #endif
 #include <exception>
 #include <memory>
+#include <string>
+#include <vector>
+#ifdef Q_OS_LINUX
+#include <cerrno>
+#endif
 
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppInfo.h"
@@ -643,7 +648,29 @@ static void resetConsoleForPlymouth() {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_LINUX
+    // 起動し直す(設定「表示 > 描画」の再起動)ときに同じ引数を渡すため、Qt が引数を読み取る(書き換える)前に写しておく
+    std::vector<std::string> args(argv, argv + argc);
+#endif
     const int exitCode = runApplication(argc, argv);   // QGuiApplication(Qt の後片付け)は、ここで終わる
+#ifdef Q_OS_LINUX
+    // 起動し直す: 画面(DRM)などを手放し終えた後で、同じプロセスのまま新しいアプリに入れ替える
+    // (新しいプロセスを横に立てると、古いアプリが画面を握っている間に新しい方が起動して、画面を使えない)。
+    // 端末(tty1)はこのまま新しいアプリが使うので、Plymouth 用に端末を戻す処理はしない
+    const QString restartPath = opencruise::DisplaySettings::restartPath();
+    if (!restartPath.isEmpty()) {
+        const std::string path = restartPath.toLocal8Bit().toStdString();
+        std::vector<char *> list;
+        for (std::string &a : args) {
+            list.push_back(a.data());
+        }
+        list.push_back(nullptr);
+        std::fprintf(stderr, "opencruise: restarting: exec %s\n", path.c_str());
+        std::fflush(nullptr);
+        ::execv(path.c_str(), list.data());
+        std::fprintf(stderr, "opencruise: could not restart (exec failed: %s)\n", std::strerror(errno));
+    }
+#endif
     resetConsoleForPlymouth();
     return exitCode;
 }

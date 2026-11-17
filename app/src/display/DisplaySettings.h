@@ -92,8 +92,19 @@ public:
     QString platformName() const;
     bool isEglfs() const;
 
-    /** @brief 同じ引数でアプリを起動し直す(描画や画面の設定を反映するため)。 */
+    /**
+     * @brief 同じ引数でアプリを起動し直す(描画や画面の設定を反映するため)。
+     *
+     * Linux では、新しいプロセスを横に立てずに、このアプリを普通に終わらせてから、同じプロセスで起動し直す
+     * (main.cpp が restartPath() を見て execv する)。eglfs では画面(DRM)の持ち主は 1 つのプロセスだけなので、
+     * 古いアプリが画面を握ったまま新しいアプリを立てると、新しい方が画面を使えず
+     * 「Could not queue DRM page flip (Permission denied)」になって映らないため。
+     * 同じプロセスのまま入れ替わるので、自動起動のサービス(systemd)からも同じアプリのままに見え、端末(tty1)もそのまま使える。
+     * Linux 以外は、これまでどおり新しいプロセスを立ててから終わる。
+     */
     Q_INVOKABLE void restartApp();
+    /** @brief restartApp() で起動し直すときの実行ファイル(起動し直さないなら空)。main.cpp が終わった後に見る。 */
+    static QString restartPath();
 
 signals:
     void screensChanged();

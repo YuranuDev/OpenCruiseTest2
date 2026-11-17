@@ -305,7 +305,24 @@ QString DisplaySettings::graphicsNote() const { return g_graphicsNote; }
 
 QString DisplaySettings::platformName() const { return QGuiApplication::platformName(); }
 
+namespace {
+QString g_restartPath;   // restartApp() で起動し直すときの実行ファイル
+} // namespace
+
+QString DisplaySettings::restartPath() {
+    return g_restartPath;
+}
+
 void DisplaySettings::restartApp() {
+#ifdef Q_OS_LINUX
+    // 画面(DRM)を手放してから起動し直す: ここでは終わるだけにして、Qt の後片付けが済んだ後で main.cpp が execv する
+    if (!g_restartPath.isEmpty()) {
+        return;   // もう終わり始めている
+    }
+    g_restartPath = QCoreApplication::applicationFilePath();
+    log::info("DISPLAY", QStringLiteral("restarting to apply the settings (quit, then exec %1)").arg(g_restartPath));
+    QCoreApplication::quit();
+#else
     QStringList args = QCoreApplication::arguments();
     if (!args.isEmpty()) {
         args.removeFirst();   // 先頭は実行ファイル自身
@@ -316,6 +333,7 @@ void DisplaySettings::restartApp() {
     } else {
         log::warn("DISPLAY", QStringLiteral("could not restart (cannot start a new process)"));
     }
+#endif
 }
 
 } // namespace opencruise
