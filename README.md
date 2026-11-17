@@ -10,7 +10,7 @@ OpenCruise/
 ├── CMakeLists.txt            トップ。aasdk をサブプロジェクトとして取り込み、app/ をビルド
 ├── aasdk/                    既存の aasdk（※ USB/USBWrapper.cpp のみ 1 か所修正。後述）
 ├── patches/                  aasdk に当てた修正の diff
-├── scripts/                  開発用スクリプト(make_test_stream.sh=テスト映像(H.264)の生成 / bootsplash/=起動画面)
+├── scripts/                  install.sh=インストーラー(ウィザード) / make_test_stream.sh=テスト映像(H.264)の生成 / bootsplash/=起動画面
 ├── docs/                     設計メモ・調査データ・スクリーンショット
 │   ├── *.md                  実装ガイド・Android Auto 接続フローの仕様
 │   ├── reference/            aasdk_phone_data.csv など調査データ
@@ -50,6 +50,30 @@ OpenCruise/
 
 接続層 (`aabackend`) は Qt を一切含まず、UI は `AasdkBackend` の公開ヘッダだけを見る。
 そのため aasdk が無い/接続できない環境でもアプリ全体が起動する（状態は「利用不可」「待機中」と表示）。
+
+## まとめて入れる(インストーラー)
+
+パッケージ・ビルド・権限・タッチパネル・音・起動画面などを、ウィザード形式でまとめて入れる(Debian 系。SSH かデスクトップの端末から):
+
+```bash
+sudo scripts/install.sh               # 入れるものを選んで、質問に答えて、最後にまとめて入れる
+sudo scripts/install.sh --check       # 権限などの状態を確かめるだけ(何も変えない)
+sudo scripts/install.sh --uninstall   # このインストーラーが入れた設定を外す
+```
+
+| 項目 | 内容 |
+|---|---|
+| パッケージ | ビルド・実行に要るもの(その Debian に無いものは飛ばして知らせる) |
+| ビルド | `build/app/opencruise`(Android Auto の接続を含めるか選べる) |
+| 権限 | グループ(video・render・input・audio・plugdev・dialout)、電源を切る・再起動・電源モードをパスワードなしで(polkit)、バックライトへの書き込み(udev)、蓋を閉じても・放っておいてもスリープしない(logind) |
+| Android Auto | スマホを USB で開ける権限(udev。主なメーカーだけ / すべての USB 機器)。無いと aasdk は黙って無視し「待機中」のまま |
+| タッチパネル | 向きの補正(回転・反転。libinput の補正を udev で入れる)と、触って試す |
+| 音 | audio グループ、PipeWire / PulseAudio を止める(ALSA を直接使うため)、音を出して試す |
+| 起動画面 | `scripts/bootsplash/install.sh` を呼ぶ(自動起動・メッセージを隠す・起動中の明るさを選べる) |
+| CF-MX5 | AC を挿したら起動する(`scripts/cf-mx5/install-afterg3.sh`。CF-MX5 のときだけ出る) |
+
+入れたものは `/etc/opencruise/install.state`、ログは `/var/log/opencruise-install.log`。グループは次のログイン(自動起動ならアプリの次の起動)から効く。
+`--yes` で質問せずにおすすめの内容を入れる、`--no-tui` でダイアログを使わず文字だけで進める、`--user <名前>` でアプリを動かすユーザーを決める。
 
 ## ビルド
 
