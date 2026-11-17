@@ -121,24 +121,27 @@ ApplicationWindow {
     //                      Ctrl+Shift を押さえた左手の人差し指で届く)
     //   Ctrl+Shift+K / L   画面の明るさを下げる / 上げる(L = Light)
     // 押しっぱなしで連続して変わる。操作すると、対応する表示が出て、しばらくして自動で閉じる。
+    // 画面の端のボタン(SideButtonRail)も、同じ stepVolume / stepBrightness を使う。
     readonly property int volumeStep: 5
     readonly property int brightnessStep: 10
+    function stepVolume(dir) { audioSettings.adjustMasterVolume(dir * window.volumeStep); brightnessOsd.hide(); volumeOsd.show() }
+    function stepBrightness(dir) { brightnessController.adjustBrightness(dir * window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
 
     Shortcut {
         sequence: "Ctrl+Shift+V"
-        onActivated: { audioSettings.adjustMasterVolume(-window.volumeStep); brightnessOsd.hide(); volumeOsd.show() }
+        onActivated: window.stepVolume(-1)
     }
     Shortcut {
         sequence: "Ctrl+Shift+B"
-        onActivated: { audioSettings.adjustMasterVolume(window.volumeStep); brightnessOsd.hide(); volumeOsd.show() }
+        onActivated: window.stepVolume(1)
     }
     Shortcut {
         sequence: "Ctrl+Shift+L"
-        onActivated: { brightnessController.adjustBrightness(window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
+        onActivated: window.stepBrightness(1)
     }
     Shortcut {
         sequence: "Ctrl+Shift+K"
-        onActivated: { brightnessController.adjustBrightness(-window.brightnessStep); volumeOsd.hide(); brightnessOsd.show() }
+        onActivated: window.stepBrightness(-1)
     }
 
     // ---- バックカメラ: ダミーのバック信号の入/切(外部マイコンからの入力ができるまでの確認用) ----
@@ -254,6 +257,15 @@ ApplicationWindow {
     Item {
         id: rotor
         readonly property bool quarter: displaySettings.rotation === 90 || displaySettings.rotation === 270
+        // 画面の端のボタン(SideButtonRail)の帯: 置く側(0 = 出さない / 1 = 左端 / 2 = 右端)と幅。
+        // 各画面(StackView)・バックカメラ・通知履歴は、帯の分だけ狭くして重ならないようにする
+        // (起動画面・終了の画面・終了確認は全面のまま、帯の上に出す)
+        readonly property int railEdge: splashExport ? 0 : displaySettings.sideButtons
+        readonly property real railWidth: railEdge === 0 ? 0 : Math.round(92 * Theme.uiScale)
+        readonly property real leftSpace: railEdge === 1 ? railWidth : 0
+        readonly property real rightSpace: railEdge === 2 ? railWidth : 0
+        // 帯を除いた中身の範囲の中央へずらす量(画面の中央に出す表示用)
+        readonly property real centerShift: (leftSpace - rightSpace) / 2
         anchors.centerIn: parent
         width: quarter ? parent.height : parent.width
         height: quarter ? parent.width : parent.height
@@ -288,6 +300,8 @@ ApplicationWindow {
         // 通知履歴パネル(ベルボタンで開く。ポップアップより下、各画面より上)
         NotificationHistoryPanel {
             anchors.fill: parent
+            anchors.leftMargin: rotor.leftSpace
+            anchors.rightMargin: rotor.rightSpace
             z: 90
         }
 
@@ -340,11 +354,14 @@ ApplicationWindow {
             anchors.top: parent.top
             anchors.topMargin: Theme.margin
             anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: rotor.centerShift
         }
 
         StackView {
             id: stack
             anchors.fill: parent
+            anchors.leftMargin: rotor.leftSpace
+            anchors.rightMargin: rotor.rightSpace
 
             // 新しい画面が入る：少し拡大した状態から通常サイズへ
             pushEnter: Transition {
@@ -562,7 +579,30 @@ ApplicationWindow {
         // バックカメラの映像(バック信号が入ったら、各画面・通知・起動画面より手前に全面で出す。明るさの幕よりは奥)
         ReverseCameraView {
             anchors.fill: parent
+            anchors.leftMargin: rotor.leftSpace
+            anchors.rightMargin: rotor.rightSpace
             z: 200
+        }
+
+        // 画面の端のボタン(物理ボタンの代わり: メニュー・音量・明るさ)。起動画面・注意事項の間は出さない。
+        // 各画面・バックカメラの横に置き(重ならない)、明るさの幕(z 1000)の下・終了の画面(z 950)の下にする
+        SideButtonRail {
+            id: sideRail
+            z: 210
+            edge: rotor.railEdge
+            anchors { top: parent.top; bottom: parent.bottom }
+            x: rotor.railEdge === 1 ? 0 : parent.width - width
+            width: rotor.railWidth
+            readonly property bool wanted: rotor.railEdge !== 0 && splash.canClose
+            opacity: wanted ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.InOutQuad } }
+            menuOpen: stack.depth === 1 && stack.currentItem !== null && stack.currentItem.menuOpen === true
+            onMenuClicked: window.toggleMenu()
+            onVolumeStep: (dir) => window.stepVolume(dir)
+            onBrightnessStep: (dir) => window.stepBrightness(dir)
+            onVolumeShow: { brightnessOsd.hide(); volumeOsd.show() }
+            onBrightnessShow: { volumeOsd.hide(); brightnessOsd.show() }
         }
 
         // 終了の画面(終了の要求を受けたら、ほかの画面・バックカメラ・通知より手前に全面で出す。明るさの幕よりは奥)
@@ -587,6 +627,7 @@ ApplicationWindow {
             id: volumeOsd
             z: 1100
             anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: rotor.centerShift
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 40 * Theme.uiScale
         }
@@ -594,6 +635,7 @@ ApplicationWindow {
             id: brightnessOsd
             z: 1100
             anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: rotor.centerShift
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 40 * Theme.uiScale
         }

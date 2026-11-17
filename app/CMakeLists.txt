@@ -117,6 +117,7 @@ qt_add_qml_module(opencruise
         qml/components/ConnectionBadge.qml
         qml/osd/OsdBar.qml
         qml/osd/VolumeOsd.qml
+        qml/osd/SideButtonRail.qml
         qml/osd/BrightnessOsd.qml
         qml/components/ActionButton.qml
         qml/components/Panel.qml

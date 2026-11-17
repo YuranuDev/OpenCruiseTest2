@@ -31,6 +31,7 @@ QSettings openStore() {
 
 const QString kScreenKey = QStringLiteral("display/screen");
 const QString kRotationKey = QStringLiteral("display/rotation");
+const QString kSideButtonsKey = QStringLiteral("display/sideButtons");
 const QString kApiKey = QStringLiteral("display/graphicsApi");
 const QString kVsyncKey = QStringLiteral("display/vsync");
 const QString kDividerKey = QStringLiteral("display/frameDivider");
@@ -150,6 +151,7 @@ DisplaySettings::DisplaySettings(QObject *parent) : QObject(parent) {
     // 既定は「外部画面を優先」(起動時に外部画面がつながっていれば、自動でそちらに出す)
     savedScreen_ = store.value(kScreenKey, kAutoExternal).toString();
     rotation_ = normalizeRotation(store.value(kRotationKey, 0).toInt());
+    sideButtons_ = std::clamp(store.value(kSideButtonsKey, 2).toInt(), 0, 2);
     graphicsApi_ = clampApi(store.value(kApiKey, 0).toInt());
     vsync_ = store.value(kVsyncKey, true).toBool();
     frameDivider_ = clampDivider(store.value(kDividerKey, 1).toInt());
@@ -236,6 +238,19 @@ void DisplaySettings::setRotation(int degrees) {
     rotation_ = r;
     openStore().setValue(kRotationKey, rotation_);
     emit rotationChanged();
+}
+
+void DisplaySettings::setSideButtons(int edge) {
+    edge = std::clamp(edge, 0, 2);
+    if (edge == sideButtons_) {
+        return;
+    }
+    sideButtons_ = edge;
+    openStore().setValue(kSideButtonsKey, sideButtons_);
+    log::info("DISPLAY", QStringLiteral("side buttons: %1")
+                             .arg(edge == 0 ? QStringLiteral("hidden") : edge == 1 ? QStringLiteral("left edge")
+                                                                                   : QStringLiteral("right edge")));
+    emit sideButtonsChanged();
 }
 
 void DisplaySettings::setGraphicsApi(int api) {

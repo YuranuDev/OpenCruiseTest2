@@ -222,6 +222,16 @@ SettingsPage {
             }
         }
 
+        SettingsRow {
+            label: "画面の端のボタン"
+            description: "物理ボタンの代わりに、画面の端にメニュー・音量・明るさのボタンを並べます(押しっぱなしで連続して変わります)。各画面はその分だけ狭くなります"
+            SettingsChoice {
+                model: ["出さない", "左端", "右端"]
+                currentIndex: displaySettings.sideButtons
+                onPicked: (index) => displaySettings.sideButtons = index
+            }
+        }
+
         SettingsNote {
             visible: !displaySettings.isEglfs
             text: "外部モニターへの複製表示(ミラー)は、OS のディスプレイ設定で行ってください。現在のプラットフォーム: "

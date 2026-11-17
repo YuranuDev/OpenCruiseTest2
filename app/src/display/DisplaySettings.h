@@ -40,6 +40,8 @@ class DisplaySettings : public QObject {
     Q_PROPERTY(bool externalConnected READ externalConnected NOTIFY screensChanged)
     // ---- 回転(すぐ反映) ----
     Q_PROPERTY(int rotation READ rotation WRITE setRotation NOTIFY rotationChanged)
+    /** 画面の端のボタン(音量・明るさ・メニュー。物理ボタンの代わり): 0 = 出さない / 1 = 左端 / 2 = 右端。保存する */
+    Q_PROPERTY(int sideButtons READ sideButtons WRITE setSideButtons NOTIFY sideButtonsChanged)
     // ---- 描画(再起動で反映) ----
     /// 0: 自動 / 1: OpenGL / 2: Vulkan / 3: ソフトウェア
     Q_PROPERTY(int graphicsApi READ graphicsApi WRITE setGraphicsApi NOTIFY renderingChanged)
@@ -75,6 +77,8 @@ public:
 
     int rotation() const { return rotation_; }
     void setRotation(int degrees);
+    int sideButtons() const { return sideButtons_; }
+    void setSideButtons(int edge);
 
     int graphicsApi() const { return graphicsApi_; }
     void setGraphicsApi(int api);
@@ -95,6 +99,7 @@ signals:
     void screensChanged();
     void rotationChanged();
     void renderingChanged();
+    void sideButtonsChanged();
 
 private:
     /** @brief 接続中の画面から選択肢と、実際に出す画面を作り直す。 */
@@ -108,6 +113,7 @@ private:
     bool usingFallback_ = false;
     bool externalConnected_ = false;
     int rotation_ = 0;
+    int sideButtons_ = 2;
     int graphicsApi_ = 0;
     bool vsync_ = true;
     int frameDivider_ = 1;
