@@ -1,7 +1,7 @@
 // 汎用のメーター(ターボ圧計・タコメーター・スピードメーター・水温計・燃料計・油温計・油圧計・電圧計で共通)。
 // 何を測るかは config.metric(WidgetRegistry の defaultConfig で種類ごとに固定)で決まり、計測値の定義
 // (データ元・単位・換算・設定できる範囲・既定の見出し)は WidgetRegistry.gaugeSpecs にまとめてある。
-// 設定値(最小・最大・警告値)は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集のときだけ選んだ単位に換算する。
+// 設定値(最小・最大)は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集のときだけ選んだ単位に換算する。
 //  - 表示方式: アナログ+デジタル / アナログ / デジタル
 //  - メーターの種類: クラシック(細い外周+目盛り+警告帯) / シンプル(細い進捗リング) /
 //    マーカー(針の代わりに外周を三角の印が動く。中央に大きな数値) / レトロ(クリーム色の文字盤に黒い目盛りと赤い針) /
@@ -9,29 +9,17 @@
 //    以前の「スポーツ」「バンド」はマーカーとして扱う
 //    どの種類も、数字の内側に細い円を引き、数値は太字の斜体で表示する
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
-//  - アイコン表示・警告値・警告メッセージ(燃料計のように「この値以下で警告」の計測値もある)
+//  - アイコン表示・警告・注意の表示(config.showAlerts)
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
-// 警告になると、針と数値が赤になり、名前の横のアイコンが警告マークになって点滅し、警告メッセージの帯がメーターに重なる
-// (解除は警告値から少し戻ったとき)。
-// 警告(と、警告音・通知)は、エンジンが始動したとみなされてから有効になる(can.warningsArmed。判定は VehicleDataManager)。
-// 注意(警告の手前の段階): 注意値(config.caution)を超えると、注意音を 1 回鳴らし(設定 > サウンド > 注意音)、
-// 目盛りの注意の帯を光らせて点滅させ、数値・名前を黄色にし、通知にも今の状態を出す(針・中心円の色は変えない)。
-// 警告値まで超えたら警告(赤)が優先する。警告中は針・出っ張り・中心円を赤にする。目盛りには注意ゾーンを黄色で描く。
-// 始動前は警告値を超えていても警告しない。
+// 警告・注意は、メーターとは別の AlertRules(設定 > 警告・注意 のルール)が判定し、音・通知も AlertRules が出す
+// (メーターが無くても動く)。メーターは、同じ計測値のルールの範囲を目盛りの帯に描き、出ている間の状態を表示するだけ:
+//   警告: 針・出っ張り・中心円・数値が赤になり、名前の横のアイコンが警告マークになって点滅し、メッセージの帯が重なる
+//   注意: 目盛りの注意の帯を光らせて点滅させ、数値・名前を黄色にする(針・中心円の色は変えない)
+//   警告音つきの警告が鳴っている間は、メーター全体を赤く点滅させ、太い赤枠と「消音」の印を出す。
+//   タップすると、その警告が解除されるまで音を止める(赤い表示は残す)。設定画面のプレビューでは出さない。
+// 範囲はいくつあってもよい(以上・以下・範囲外・範囲内)。目盛りの外の範囲は描かない(警告・注意そのものは出る)。
 // ピーク表示(config.peakMode): "max"(既定。最大値) / "min"(最小値) / "off"。数値のすぐ上に小さく「MAX 値 単位 ↺」を出し
 //   (アナログのみのときは単位の下)、タップでリセットする(今の値から測り直す)。起動中だけ覚える(再起動するとリセット)。
-// 警告音(config.warnBeep): 警告中は WarningAlarm に登録し、ビープを鳴らしてもらう(自分では鳴らさない)。
-//   鳴っている間はメーター全体を赤く点滅させ、太い赤枠と「消音」の印を出して、どのメーターが鳴っているか分かるようにする。
-//   タップすると、その警告が解除されるまで音を止める(赤い表示は残す)。設定画面のプレビューでは鳴らさない。
-// ポップアップ通知(config.warnPopupMode。通知はどれも赤いエラー表示):
-//   "once": 警告になったときに通知を出す(8 秒で消える)。表示中は今の値を 0.5 秒ごとに書き換え、もう一度警告に
-//           なったときにまだ出ていれば、新しく出さずに同じ通知を書き換えて、表示時間を数え直す
-//   "live": 警告中は通知を出し続け、今の値を 0.5 秒ごとに書き換える。警告が解除されると消える。
-//           タップで消すと、その警告が解除されるまでは出し直さない
-//   警告が解除された(警告値の内側へ戻った)ときは、その警告の間の最大値(下側で警告する計測値は最低値)を
-//   「解除」として通知に出す(赤 → 橙。8 秒で消える。出し続ける通知もこのとき消えずに解除の表示へ変わる)。
-//   config.warnPopupDetail がオンなら、警告値も通知に入れる。
-//   以前の設定(config.warnPopup === true)は "once" として扱う。
 //
 // レイアウトの考え方:
 //  1. 上部の見出し・下の警告欄は持たず、名前と警告メッセージはメーターの中(中心円の上)に出す
@@ -76,15 +64,14 @@ WidgetBase {
     readonly property color dialLine: lightFace ? "#b7aa90" : Theme.panelBorder
     readonly property real minV: toShown(config.min)
     readonly property real maxV: Math.max(toShown(config.max), minV + 0.1)
-    readonly property real warnV: toShown(config.warn)
-    readonly property bool warnOn: config.warnEnabled === true
-    // 注意値(警告値の手前)。警告と同じ向き(warnBelow なら注意値以下で注意)
-    readonly property bool cautionOn: config.cautionEnabled === true && config.caution !== undefined
-    readonly property real cautionV: toShown(config.caution)
-    readonly property bool showWarnMessage: config.showWarnMessage !== false   // false なら色・アイコンだけで知らせる
-    readonly property bool showCautionMessage: config.showCautionMessage !== false   // 注意中のメッセージ(false なら色・アイコンだけ)
-    // 今、下の帯にメッセージを出すか(警告中は警告メッセージの設定、注意中は注意メッセージの設定に従う)
-    readonly property bool bannerShown: warning ? showWarnMessage : (caution && showCautionMessage)
+    // 警告・注意は AlertRules(設定 > 警告・注意)のルールが決める。このメーターは、同じ計測値のルールの範囲(目盛りの帯)と
+    // 状態(色・点滅・帯のメッセージ・警告音の消音)を出すだけ。config.showAlerts が false なら出さない
+    readonly property bool alertsShown: config.showAlerts !== false
+    // 今出ている、いちばん高い段階のルール(無ければ null)
+    readonly property var activeRule: alertsShown ? AlertRules.activeRuleFor(metric) : null
+    // 今、下の帯にメッセージを出すか(ルールごとの「メーターにメッセージを出す」に従う)
+    readonly property bool bannerShown: activeRule !== null && activeRule.banner !== false
+    readonly property string bannerText: activeRule ? activeRule.message : ""
     readonly property bool showIcon: config.showIcon !== false
     readonly property real startAngle: Math.max(-180, Math.min(-90, config.startAngle === undefined ? -135 : Number(config.startAngle)))
     readonly property real endAngle: Math.max(90, Math.min(180, config.endAngle === undefined ? 135 : Number(config.endAngle)))
@@ -246,73 +233,71 @@ WidgetBase {
         return v < 0 ? negFont * (1 + (negFontEnd - 1) * Math.min(1, v / minV))
                      : posFont * (1 + (posFontEnd - 1) * Math.min(1, v / maxV))
     }
-    // 警告ゾーン(表示単位)。上側警告なら [警告値, 最大]、下側警告なら [最小, 警告値]
-    readonly property bool hasWarnZone: warnOn && (warnBelow ? warnV > minV : warnV < maxV)
-    readonly property real zoneLo: warnBelow ? minV : Math.max(warnV, minV)
-    readonly property real zoneHi: warnBelow ? Math.min(warnV, maxV) : maxV
-    function inZone(v) { return hasWarnZone && (warnBelow ? v <= warnV + 1e-9 : v >= warnV - 1e-9) }
-    // 注意ゾーン(表示単位)。注意値から警告値(警告が無ければ端)まで。注意値が警告値より奥にあるときは描かない
-    readonly property bool hasCautionZone: cautionOn && (warnBelow ? cautionV > minV : cautionV < maxV)
-                                           && (!warnOn || (warnBelow ? cautionV > warnV : cautionV < warnV))
-    readonly property real cZoneLo: warnBelow ? (warnOn ? Math.max(warnV, minV) : minV) : Math.max(cautionV, minV)
-    readonly property real cZoneHi: warnBelow ? Math.min(cautionV, maxV) : (warnOn ? Math.min(warnV, maxV) : maxV)
-    function inCaution(v) { return hasCautionZone && !inZone(v) && (warnBelow ? v <= cautionV + 1e-9 : v >= cautionV - 1e-9) }
+    // ---- 警告・注意の範囲(表示単位。目盛りの範囲 [minV, maxV] に切り詰めたもの) ----
+    // AlertRules のルールの範囲(以上・以下・範囲外・範囲内。いくつあってもよい)を、警告・注意ごとに区間の並びにする。
+    // 注意の区間からは警告の区間を除く(重なっているところは警告)
+    function clipZones(list) {
+        // 表示単位にして目盛りの範囲に切り詰め、重なり・接している区間をまとめる
+        const out = []
+        for (const z of list.map(z => ({ lo: z.lo === -Infinity ? minV : Math.max(minV, toShown(z.lo)),
+                                         hi: z.hi === Infinity ? maxV : Math.min(maxV, toShown(z.hi)) }))
+                            .filter(z => z.hi > z.lo).sort((a, b) => a.lo - b.lo)) {
+            const last = out[out.length - 1]
+            if (last && z.lo <= last.hi) last.hi = Math.max(last.hi, z.hi)
+            else out.push({ lo: z.lo, hi: z.hi })
+        }
+        return out
+    }
+    function subtractZones(list, cut) {
+        let out = list
+        for (const c of cut) {
+            const next = []
+            for (const z of out) {
+                if (c.hi <= z.lo || c.lo >= z.hi) { next.push(z); continue }
+                if (c.lo > z.lo) next.push({ lo: z.lo, hi: c.lo })
+                if (c.hi < z.hi) next.push({ lo: c.hi, hi: z.hi })
+            }
+            out = next
+        }
+        return out
+    }
+    readonly property var ruleZones: { AlertRules.revision; return alertsShown ? AlertRules.zonesFor(metric) : [] }
+    readonly property var warnZones: clipZones(ruleZones.filter(z => z.level === "warn"))
+    readonly property var cautionZones: subtractZones(clipZones(ruleZones.filter(z => z.level === "caution")), warnZones)
+    readonly property bool hasWarnZone: warnZones.length > 0
+    readonly property bool hasCautionZone: cautionZones.length > 0
+    function inZones(list, v) {
+        for (const z of list) if (v >= z.lo - 1e-9 && v <= z.hi + 1e-9) return true
+        return false
+    }
+    function inZone(v) { return inZones(warnZones, v) }
+    function inCaution(v) { return !inZone(v) && inZones(cautionZones, v) }
     // 値 v の位置の色(警告ゾーン = 赤 / 注意ゾーン = 黄 / それ以外 = fallback)
     function zoneColorAt(v, fallback) { return inZone(v) ? Theme.error : (inCaution(v) ? Theme.warn : fallback) }
-    // 色の切れ目(警告値・注意値)
+    // 色の切れ目(区間の端)
     readonly property var zoneEdges: {
         const e = []
-        if (hasWarnZone) e.push(warnV)
-        if (hasCautionZone) e.push(cautionV)
+        for (const z of warnZones.concat(cautionZones)) e.push(z.lo, z.hi)
         return e
     }
+    // 目盛りを描き直す合図に使う、範囲の文字列
+    readonly property string zoneKey: JSON.stringify([warnZones, cautionZones])
     // 「-0.00」を出さない数値整形
     function fmt(v, dec) {
         const half = 0.5 * Math.pow(10, -dec)
         return (Math.abs(v) < half ? 0 : v).toFixed(dec)
     }
 
-    // ---------------------------------------------------------------- 警告(ヒステリシスつき)
-    property bool warning: false
-    readonly property bool warningsArmed: can.warningsArmed && released   // 起動画面・注意事項が終わるまでは警告も出さない
-    onWarningsArmedChanged: { updateWarning(); updateCaution() }
-    function updateWarning() {
-        const hysteresis = (maxV - minV) * 0.03
-        if (!warnOn || !warningsArmed) warning = false
-        else if (warnBelow) {
-            if (!warning && rawValue <= warnV) warning = true
-            else if (warning && rawValue > warnV + hysteresis) warning = false
-        } else {
-            if (!warning && rawValue >= warnV) warning = true
-            else if (warning && rawValue < warnV - hysteresis) warning = false
-        }
-    }
-    // 注意(ヒステリシスは警告と同じ)。警告中も注意は true のまま(警告が解除されたら注意へ戻る)
-    property bool caution: false
-    function updateCaution() {
-        const hysteresis = (maxV - minV) * 0.03
-        if (!cautionOn || !warningsArmed) caution = false
-        else if (warnBelow) {
-            if (!caution && rawValue <= cautionV) caution = true
-            else if (caution && rawValue > cautionV + hysteresis) caution = false
-        } else {
-            if (!caution && rawValue >= cautionV) caution = true
-            else if (caution && rawValue < cautionV - hysteresis) caution = false
-        }
-    }
+    // ---------------------------------------------------------------- 警告・注意の状態(AlertRules が判定する)
+    // 判定(ヒステリシス・エンジン始動後だけ・続いたら など)は AlertRules。ここは出ているかを読むだけ
+    readonly property bool warning: activeRule !== null && activeRule.level === "warn"
+    readonly property bool caution: activeRule !== null && activeRule.level === "caution"
     // 画面の状態: 警告(赤)が注意(黄)より優先
     readonly property bool cautionShown: caution && !warning
     readonly property bool alerting: warning || caution
     readonly property color alertColor: warning ? Theme.error : Theme.warn
-    onRawValueChanged: { updateWarning(); updateCaution(); updatePeak(); if (alerting) updateEpisode() }
-    onWarnOnChanged: updateWarning()
-    onWarnVChanged: updateWarning()
-    onWarnBelowChanged: { updateWarning(); updateCaution() }
-    onCautionOnChanged: updateCaution()
-    onCautionVChanged: updateCaution()
+    onRawValueChanged: updatePeak()
     Component.onCompleted: {
-        updateWarning()
-        updateCaution()
         smoothBase = liveBase   // 宣言の束縛を外す。以後は onLiveBaseChanged / onOnScreenChanged で更新する(見えていない間は止める)
         // 起動時(起動画面が出ている間に作られた)で、データがもう来ていれば、起動画面が消えてからオープニング
         // (この時点では widgetId がまだ入っていないことがあるので、始めるときに判定する)
@@ -451,150 +436,19 @@ WidgetBase {
         onRunningChanged: if (!running) root.blink = 1
     }
 
-    // ---------------------------------------------------------------- 警告音・ポップアップ通知
-    readonly property bool beepOn: warnOn && config.warnBeep === true
-    readonly property string popupMode: config.warnPopupMode === "once" || config.warnPopupMode === "live"
-                                        || config.warnPopupMode === "off"
-                                        ? config.warnPopupMode : (config.warnPopup === true ? "once" : "off")
-    readonly property bool popupDetail: config.warnPopupDetail !== false
-    readonly property bool warnPopupOn: warnOn && popupMode !== "off"
-    // 注意の通知(1 回だけ出す。今の値を更新し続け、警告になれば警告の通知へ、解除されれば「正常に戻りました」へ変わる)
-    readonly property bool cautionPopupOn: cautionOn && config.cautionPopup !== false
-    // 注意音(注意値を超えたときに 1 回)
-    readonly property bool cautionBeepOn: cautionOn && config.cautionBeep !== false
-    // 操作(消音・ポップアップ通知・最大値のリセット)をリンクする範囲: 同じ計測値のメーター
-    // (作られた直後の警告の登録でも使うので、束縛の評価順に左右されないよう関数でも求められるようにする)
+    // ---------------------------------------------------------------- 警告音の消音・操作のリンク
+    // 警告音・ポップアップ通知は AlertRules が出す(メーターが無くても出る)。メーターは、鳴っている間に
+    // 赤く点滅して「タップで消音」を出し、タップで消音するだけ
+    // 操作(最大値のリセット)をリンクする範囲: 同じ計測値のメーター
+    // (作られた直後でも使うので、束縛の評価順に左右されないよう関数でも求められるようにする)
     function groupName() { return "gauge:" + ((config && config.metric) || "") }
     readonly property string linkGroup: groupName()
-    // 警告のポップアップ通知は、同じ範囲のメーターのうち 1 つだけが出す(同じ通知が重ならないように)
-    readonly property bool wantsNotice: widgetId !== "" && (warnPopupOn || cautionPopupOn)
-    property string noticeKey: ""     // WarningAlarm.joinNotice している key(group は linkGroup)
-    property string noticeGroup: ""
-    function syncNoticeMember() {
-        const key = wantsNotice ? widgetId : ""
-        if (noticeKey === key && noticeGroup === groupName()) return
-        if (noticeKey !== "") WarningAlarm.leaveNotice(noticeGroup, noticeKey)
-        noticeKey = key
-        noticeGroup = groupName()
-        if (key !== "") WarningAlarm.joinNotice(noticeGroup, key)
-    }
-    onWantsNoticeChanged: syncNoticeMember()
-    onLinkGroupChanged: syncNoticeMember()
-    readonly property bool noticeOwner: { WarningAlarm.noticeRevision; return WarningAlarm.isNoticeOwner(linkGroup, widgetId) }
-    // 警告音を出したい状態(配置されているウィジェットだけ。プレビューは widgetId が空)
-    readonly property bool alarming: beepOn && warning && widgetId !== ""
+    // 警告音つきの警告中(配置されているウィジェットだけ。プレビューは widgetId が空)
+    readonly property bool alarming: alertsShown && widgetId !== "" && AlertRules.alarmingFor(metric)
     // 今ビープが鳴っているか / 鳴っていたがタップで止めたか
-    readonly property bool beeping: { WarningAlarm.revision; return alarming && WarningAlarm.isSounding(widgetId) }
+    readonly property bool beeping: alarming && AlertRules.beepingFor(metric)
     readonly property bool silenced: alarming && !beeping
-    property string raisedKey: ""     // WarningAlarm に登録している key
-    function syncAlarm() {
-        const want = alarming ? widgetId : ""
-        if (raisedKey === want) return
-        if (raisedKey !== "") WarningAlarm.clear(raisedKey)
-        raisedKey = want
-        if (want !== "") WarningAlarm.raise(want, labelText, groupName())
-    }
-    onAlarmingChanged: syncAlarm()
-    onWidgetIdChanged: { syncAlarm(); syncNoticeMember() }
-    Component.onDestruction: {
-        if (raisedKey !== "") WarningAlarm.clear(raisedKey)
-        withdrawNotice()
-        if (noticeKey !== "") WarningAlarm.leaveNotice(noticeGroup, noticeKey)
-    }
-    onTapped: if (beeping) WarningAlarm.acknowledge(widgetId)
-
-    // 通知のタイトル(警告中の状態)。警告メッセージ(例: 「油温が高すぎます」)をそのまま使う
-    readonly property string warnTitle: config.warnMessage || gauge.warnMessage || (labelText + "が警告値を超えています")
-    // 今の警告の間の最大値(下側で警告する計測値は最低値)。警告になったときに測り始める
-    property real episodePeak: NaN
-    function updateEpisode() {
-        if (isNaN(episodePeak) || (warnBelow ? rawValue < episodePeak : rawValue > episodePeak)) episodePeak = rawValue
-    }
-    readonly property string episodeLabel: warnBelow ? "最低" : "最大"
-    // 注意の通知・帯のメッセージ
-    readonly property string cautionTitle: config.cautionMessage || (labelText + "に注意")
-    // 今、通知で知らせる段階: "warn"(警告) / "caution"(注意) / ""(知らせない)。
-    // 警告の通知がオフで注意の通知がオンなら、警告中も注意として知らせる
-    function noticeKind() {
-        if (warning && warnPopupOn) return "warn"
-        if ((caution || warning) && cautionPopupOn) return "caution"
-        return ""
-    }
-    // 通知のタイトル・レベル(警告中は赤、注意中・解除後は橙)。warning / caution が変わった直後のハンドラーからも
-    // 呼ぶので、束縛ではなく関数にして、その時点の状態で決める
-    function noticeTitle() {
-        const kind = noticeKind()
-        if (kind === "") return labelText + "が正常に戻りました"
-        return kind === "warn" || warning ? warnTitle : cautionTitle
-    }
-    // 警告値を超えていれば(警告の通知がオフで、注意の通知として知らせるときも)警告の段階(赤)
-    function noticeLevel() { return noticeKind() !== "" && warning ? 3 : 2 }
-    // 通知の本文: 値だけの 1 行。警告・注意中は今の値(行き過ぎていればその間の最大値も)、
-    // 解除後はその間の最大値。「通知に詳細を表示」なら警告値(注意中は注意値)も付ける
-    function warnPopupText() {
-        const kind = noticeKind()
-        // 注意値と警告値のどちらを添えるか: 警告中は警告値。解除後は、その間に警告まで行ったかで決める
-        const useCaution = kind === "" ? (cautionOn && !episodeWarned) : (kind === "caution" && !warning)
-        const limitV = useCaution ? cautionV : warnV
-        const limit = popupDetail ? "(" + (useCaution ? "注意値 " : "警告値 ") + fmt(limitV, decimals) + " " + unitText
-                                    + (warnBelow ? " 以下)" : " 以上)") : ""
-        const peakText = isNaN(episodePeak) ? "" : episodeLabel + " " + fmt(episodePeak, decimals) + " " + unitText
-        if (kind === "") return (peakText !== "" ? peakText : "") + limit
-        let line = "現在 " + fmt(rawValue, decimals) + " " + unitText
-        if (peakText !== "" && Math.abs(episodePeak - rawValue) >= Math.pow(10, -decimals))
-            line += " ・ " + peakText
-        return line + limit
-    }
-    // ポップアップ通知: 内容を WarningAlarm に知らせるだけ。通知はメーターの種類ごとに 1 つ出す
-    // (同じ計測値のメーターがいくつあっても、知らせるのは 1 つだけ = noticeOwner)
-    readonly property bool noticeReporting: wantsNotice && noticeOwner && warningsArmed
-    property bool noticeReported: false   // WarningAlarm に載せている
-    function reportNotice() {
-        if (!noticeReporting) return
-        const kind = noticeKind()
-        WarningAlarm.noticeReport(groupName(), { title: noticeTitle(), text: warnPopupText(), level: noticeLevel(),
-                                                warning: kind !== "", icon: gauge.icon,
-                                                mode: kind === "warn" ? popupMode : "once" })
-        noticeReported = true
-    }
-    function withdrawNotice() {
-        if (!noticeReported) return
-        WarningAlarm.noticeRemove(noticeGroup !== "" ? noticeGroup : groupName())
-        noticeReported = false
-    }
-    // 警告・注意の間の最大値は、どちらかになったときから測り始める
-    property bool episodeOpen: false
-    property bool episodeWarned: false   // この間に警告まで行ったか(解除の通知に添える値を決める)
-    function syncEpisode() {
-        if ((warning || caution) && !episodeOpen) { episodeOpen = true; episodeWarned = false; episodePeak = rawValue }
-        else if (!warning && !caution) episodeOpen = false
-        if (warning) episodeWarned = true
-    }
-    onWarningChanged: {
-        syncEpisode()
-        syncNoticeMember()
-        reportNotice()
-    }
-    onCautionChanged: {
-        syncEpisode()
-        // 注意値を超えた(警告値までは行っていない)とき、注意音を 1 回(同じ種類のメーターの分も含めて、まとめて 1 回)
-        if (caution && !warning && cautionBeepOn && widgetId !== "" && WarningAlarm.isNoticeOwner(groupName(), widgetId))
-            WarningAlarm.caution()
-        syncNoticeMember()
-        reportNotice()
-    }
-    onNoticeReportingChanged: {
-        if (noticeReporting) { if (warning || caution) reportNotice() }
-        else withdrawNotice()   // 設定を変えた・警告が無効になった・通知を出す役を外れた
-    }
-    onPopupModeChanged: if (noticeReporting && (warning || caution)) reportNotice()
-    onCautionPopupOnChanged: if (noticeReporting && (warning || caution)) reportNotice()
-    Timer {   // 警告・注意の間は、通知の値を 0.5 秒ごとに更新する
-        interval: 500
-        repeat: true
-        running: root.noticeReporting && (root.warning || root.caution)
-        onTriggered: root.reportNotice()
-    }
+    onTapped: if (beeping) AlertRules.acknowledgeFor(metric)
 
     // ---------------------------------------------------------------- 寸法
     readonly property real m: root.innerMargin
@@ -764,14 +618,14 @@ WidgetBase {
                 id: face
                 anchors.fill: parent
                 renderStrategy: Canvas.Cooperative
-                readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.warnV,
-                                               root.warnOn, root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
+                readonly property string key: [width, height, dial.cx, dial.cy, dial.rpx, root.minV, root.maxV, root.zoneKey,
+                                               root.warnBelow, root.labelDiv, root.dialStyle, root.startAngle,
                                                root.endAngle, root.compact, Theme.panel, Theme.panelBorder, Theme.textSecondary,
                                                Theme.textPrimary, Theme.error, Theme.accent, Theme.numberFontFamily, root.faceColor,
                                                root.splitScale, root.zeroAngle, root.negStepShown, root.posStepShown,
                                                root.negSub, root.posSub, root.majorStepShown, root.minorSub,
                                                root.negFont, root.negFontEnd,
-                                               root.posFont, root.posFontEnd, root.cautionV, root.hasCautionZone,
+                                               root.posFont, root.posFontEnd,
                                                Theme.warn].join("|")
                 onKeyChanged: if (visible) root.paintCanvas(face)
                 onVisibleChanged: if (visible) root.paintCanvas(face)
@@ -826,16 +680,20 @@ WidgetBase {
                         if (root.hasCautionZone) {
                             ctx.lineWidth = R * 0.04
                             ctx.strokeStyle = Theme.warn
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * 0.905, angV(root.cZoneLo), angV(root.cZoneHi))
-                            ctx.stroke()
+                            for (const z of root.cautionZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * 0.905, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                         if (root.hasWarnZone) {
                             ctx.lineWidth = R * 0.04
                             ctx.strokeStyle = Theme.error
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * 0.905, angV(root.zoneLo), angV(root.zoneHi))
-                            ctx.stroke()
+                            for (const z of root.warnZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * 0.905, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                     } else if (root.dialStyle === "neon") {
                         // ネオン: ごく薄い光の溝(警告ゾーンは薄い赤)
@@ -848,16 +706,20 @@ WidgetBase {
                         if (root.hasCautionZone) {
                             ctx.lineCap = "butt"
                             ctx.strokeStyle = Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.3)
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * dm.trackR, angV(root.cZoneLo), angV(root.cZoneHi))
-                            ctx.stroke()
+                            for (const z of root.cautionZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * dm.trackR, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                         if (root.hasWarnZone) {
                             ctx.lineCap = "butt"
                             ctx.strokeStyle = Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.3)
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * dm.trackR, angV(root.zoneLo), angV(root.zoneHi))
-                            ctx.stroke()
+                            for (const z of root.warnZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * dm.trackR, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                     } else if (root.dialStyle === "minimal") {
                         ctx.lineCap = "round"
@@ -869,16 +731,20 @@ WidgetBase {
                         if (root.hasCautionZone) {
                             ctx.lineCap = "butt"
                             ctx.strokeStyle = cautionZoneColor
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * dm.trackR, angV(root.cZoneLo), angV(root.cZoneHi))
-                            ctx.stroke()
+                            for (const z of root.cautionZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * dm.trackR, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                         if (root.hasWarnZone) {
                             ctx.lineCap = "butt"
                             ctx.strokeStyle = zoneColor
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * dm.trackR, angV(root.zoneLo), angV(root.zoneHi))
-                            ctx.stroke()
+                            for (const z of root.warnZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * dm.trackR, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                     } else {
                         // リング: 太めの溝(警告ゾーンは赤みを帯びる)。両端は丸める
@@ -891,16 +757,20 @@ WidgetBase {
                         if (root.hasCautionZone) {
                             ctx.lineCap = "butt"
                             ctx.strokeStyle = cautionZoneColor
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * dm.trackR, angV(root.cZoneLo), angV(root.cZoneHi))
-                            ctx.stroke()
+                            for (const z of root.cautionZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * dm.trackR, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                         if (root.hasWarnZone) {
                             ctx.lineCap = "butt"
                             ctx.strokeStyle = zoneColor
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, R * dm.trackR, angV(root.zoneLo), angV(root.zoneHi))
-                            ctx.stroke()
+                            for (const z of root.warnZones) {
+                                ctx.beginPath()
+                                ctx.arc(cx, cy, R * dm.trackR, angV(z.lo), angV(z.hi))
+                                ctx.stroke()
+                            }
                         }
                     }
 
@@ -990,8 +860,13 @@ WidgetBase {
                 opacity: 0.25 + 0.75 * root.blink
                 renderStrategy: Canvas.Cooperative
                 readonly property bool bandOutside: root.dialStyle === "classic" || root.dialStyle === "retro" || root.dialStyle === "marker"
+                // 光らせる帯: 今の値が入っている注意の帯(範囲がいくつかあるときは、その帯だけ)。入っていなければ全部
+                readonly property var litZones: {
+                    const lit = root.cautionZones.filter(z => root.inZones([z], root.shown))
+                    return lit.length > 0 ? lit : root.cautionZones
+                }
                 readonly property string key: !visible ? "" :
-                    [width, height, dial.cx, dial.cy, dial.rpx, root.cZoneLo, root.cZoneHi, root.dialStyle,
+                    [width, height, dial.cx, dial.cy, dial.rpx, JSON.stringify(litZones), root.dialStyle,
                      root.startAngle, root.endAngle, root.splitScale, root.zeroAngle, Theme.warn].join("|")
                 onKeyChanged: if (visible) root.paintCanvas(cautionGlow)
                 onPaint: {
@@ -999,17 +874,19 @@ WidgetBase {
                     ctx.reset()
                     const R = dial.rpx, dm = dial.dims
                     if (R <= 1 || !visible) return
-                    const a0 = dial.rad(dial.angOf(root.cZoneLo)), a1 = dial.rad(dial.angOf(root.cZoneHi))
                     const r = bandOutside ? R * 0.905 : R * dm.trackR
                     const w = bandOutside ? R * 0.04 : R * dm.trackW
                     ctx.lineCap = "butt"
                     // 外側のにじみ(太く薄く)と、帯そのもの(明るく)
-                    for (const [k, a] of [[3.2, 0.18], [2.0, 0.35], [1.15, 1.0]]) {
-                        ctx.lineWidth = w * k
-                        ctx.strokeStyle = Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, a)
-                        ctx.beginPath()
-                        ctx.arc(dial.cx, dial.cy, r, a0, a1)
-                        ctx.stroke()
+                    for (const z of litZones) {
+                        const a0 = dial.rad(dial.angOf(z.lo)), a1 = dial.rad(dial.angOf(z.hi))
+                        for (const [k, a] of [[3.2, 0.18], [2.0, 0.35], [1.15, 1.0]]) {
+                            ctx.lineWidth = w * k
+                            ctx.strokeStyle = Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, a)
+                            ctx.beginPath()
+                            ctx.arc(dial.cx, dial.cy, r, a0, a1)
+                            ctx.stroke()
+                        }
                     }
                 }
             }
@@ -1023,9 +900,9 @@ WidgetBase {
                 readonly property string key: !visible ? "" :
                     [width, height, dial.rpx, root.hasData,
                      dial.angOf(root.shown).toFixed(1),
-                     root.minV, root.maxV, root.warnV, root.warnOn,
+                     root.minV, root.maxV, root.zoneKey,
                      root.warnBelow, root.dialStyle, root.startAngle, root.endAngle, Theme.accent, Theme.warn,
-                     Theme.error, root.splitScale, root.zeroAngle, root.cautionV, root.hasCautionZone, root.needleColor, root.markerLineColor,
+                     Theme.error, root.splitScale, root.zeroAngle, root.needleColor, root.markerLineColor,
                      root.needleOutline, root.lineOutline, root.outlineColor].join("|")
                 onKeyChanged: if (visible) root.paintCanvas(progress)
                 onVisibleChanged: if (visible) root.paintCanvas(progress)
@@ -1100,16 +977,25 @@ WidgetBase {
                     }
 
                     if (root.dialStyle === "ring") {
-                        // リング: 注意ゾーンは注意色、警告ゾーンは警告色。注意値を決めていなければ、警告値の手前
+                        // リング: 注意ゾーンは注意色、警告ゾーンは警告色。注意のルールが無ければ、警告ゾーンの手前
                         // (範囲の 10%)を注意色にする。色の切れ目で分けて描く(境目は直角。帯の先端だけ丸める)
                         const near = (root.maxV - root.minV) * 0.1
                         const autoNear = root.hasWarnZone && !root.hasCautionZone
-                        const nearEdge = root.warnBelow ? root.warnV + near : root.warnV - near
+                        // 警告ゾーンの手前の区間(目盛りの端に接していない側)
+                        const nearZones = []
+                        if (autoNear) {
+                            for (const z of root.warnZones) {
+                                if (z.lo > root.minV) nearZones.push({ lo: Math.max(root.minV, z.lo - near), hi: z.lo })
+                                if (z.hi < root.maxV) nearZones.push({ lo: z.hi, hi: Math.min(root.maxV, z.hi + near) })
+                            }
+                        }
                         const cuts = [lo, hi]
-                        for (const c of root.zoneEdges.concat(autoNear ? [nearEdge] : [])) if (c > lo && c < hi) cuts.push(c)
+                        const edges = root.zoneEdges.slice()
+                        for (const z of nearZones) edges.push(z.lo, z.hi)
+                        for (const c of edges) if (c > lo && c < hi) cuts.push(c)
                         cuts.sort((a, b) => a - b)
                         const colorOf = (v) => {
-                            if (autoNear && !root.inZone(v) && (root.warnBelow ? v <= nearEdge : v >= nearEdge)) return Theme.warn
+                            if (!root.inZone(v) && root.inZones(nearZones, v)) return Theme.warn
                             return root.zoneColorAt(v, root.needleColor)   // 帯はリングの針: 針の色の設定を使う
                         }
                         // 帯の先端を丸める: 今の値の側と、目盛りの端から始まっている側(溝の丸い端と重ねる)
@@ -1442,21 +1328,27 @@ WidgetBase {
                     readonly property real valueX: width * root.frac(root.shown)
 
                     Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.panelBorder }
-                    Rectangle {   // 注意ゾーン
-                        visible: root.hasCautionZone
-                        x: bar.width * root.frac(root.cZoneLo)
-                        width: bar.width * root.frac(root.cZoneHi) - x
-                        height: parent.height
-                        radius: height / 2
-                        color: Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.4)
+                    Repeater {   // 注意ゾーン
+                        model: root.cautionZones
+                        Rectangle {
+                            required property var modelData
+                            x: bar.width * root.frac(modelData.lo)
+                            width: bar.width * root.frac(modelData.hi) - x
+                            height: bar.height
+                            radius: height / 2
+                            color: Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.4)
+                        }
                     }
-                    Rectangle {   // 警告ゾーン
-                        visible: root.hasWarnZone
-                        x: bar.width * root.frac(root.zoneLo)
-                        width: bar.width * root.frac(root.zoneHi) - x
-                        height: parent.height
-                        radius: height / 2
-                        color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.4)
+                    Repeater {   // 警告ゾーン
+                        model: root.warnZones
+                        Rectangle {
+                            required property var modelData
+                            x: bar.width * root.frac(modelData.lo)
+                            width: bar.width * root.frac(modelData.hi) - x
+                            height: bar.height
+                            radius: height / 2
+                            color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.4)
+                        }
                     }
                     Rectangle {   // 現在値(データが無いときは出さない)
                         visible: root.hasData
@@ -1481,7 +1373,7 @@ WidgetBase {
                     anchors { left: parent.left; top: bar.bottom; topMargin: 4 }
                     font.family: Theme.numberFontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
-                    color: root.warnOn && root.warnBelow ? Theme.error : Theme.textSecondary
+                    color: root.inZone(root.minV) ? Theme.error : Theme.textSecondary
                     text: root.fmt(root.minV, root.unitDef.stepDec)
                 }
                 Text {
@@ -1489,7 +1381,7 @@ WidgetBase {
                     anchors { right: parent.right; top: bar.bottom; topMargin: 4 }
                     font.family: Theme.numberFontFamily
                     font.pixelSize: Math.round(root.titleFontSize * 0.8)
-                    color: root.warnOn && !root.warnBelow ? Theme.error : Theme.textSecondary
+                    color: root.inZone(root.maxV) ? Theme.error : Theme.textSecondary
                     text: root.fmt(root.maxV, root.unitDef.stepDec)
                 }
             }
@@ -1578,7 +1470,7 @@ WidgetBase {
                 font.pixelSize: Math.max(12, Math.round(warnBanner.height * 0.5))
                 elide: Text.ElideRight
                 color: root.alertColor
-                text: root.warning ? (root.config.warnMessage || "警告") : root.cautionTitle
+                text: root.bannerText
             }
         }
     }

@@ -304,7 +304,9 @@ ApplicationWindow {
             }
         }
 
-        // 警告音(メーターのしきい値超え)。鳴らす場所はここだけ。どのウィジェットが警告中かは WarningAlarm が管理する
+        // 警告・注意のルール(設定 > 警告・注意)。メーターが無くても動くよう、起動時に作っておく(シングルトンは使われるまで作られない)
+        readonly property bool alertRulesLoaded: AlertRules.loaded
+        // 警告音(警告・注意のルール)。鳴らす場所はここだけ。どの警告が鳴っているかは WarningAlarm が管理する
         Connections {
             target: WarningAlarm
             function onBeep() { systemSound.play("alert") }

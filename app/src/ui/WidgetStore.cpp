@@ -20,6 +20,7 @@ const QString kAaKey = QStringLiteral("widgets/aaLayout");
 const QString kAaCornerKey = QStringLiteral("widgets/aaCorner");
 const QString kAaColsKey = QStringLiteral("widgets/aaCols");
 const QString kAaRowsKey = QStringLiteral("widgets/aaRows");
+const QString kAlertRulesKey = QStringLiteral("alerts/rules");
 constexpr int kGridCols = 12;
 constexpr int kGridRows = 6;
 constexpr int kAaMinCols = 4;
@@ -33,6 +34,21 @@ WidgetStore::WidgetStore(QObject *parent) : QObject(parent) {
     aaCorner_ = std::clamp(store.value(kAaCornerKey, 0).toInt(), 0, 3);
     aaCols_ = std::clamp(store.value(kAaColsKey, 9).toInt(), kAaMinCols, kGridCols);
     aaRows_ = std::clamp(store.value(kAaRowsKey, kGridRows).toInt(), kAaMinRows, kGridRows);
+    alertRulesJson_ = store.value(kAlertRulesKey).toString();
+}
+
+void WidgetStore::setAlertRulesJson(const QString &json) {
+    if (alertRulesJson_ == json) {
+        return;
+    }
+    alertRulesJson_ = json;
+    QSettings store = openStore();
+    if (json.isEmpty()) {
+        store.remove(kAlertRulesKey);
+    } else {
+        store.setValue(kAlertRulesKey, json);
+    }
+    emit alertRulesJsonChanged();
 }
 
 void WidgetStore::setAaLayoutJson(const QString &json) {

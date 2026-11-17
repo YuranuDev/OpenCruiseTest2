@@ -353,10 +353,9 @@ QtObject {
     // ---- 同じ種類のウィジェットでリンクする(共通にする)設定: 通知・警告まわり ----
     // どれか 1 つで変えると、全ページ・Android Auto 画面の同じ種類のウィジェットにも同じ値が入る(WidgetArea)。
     // グラフは計測値ごとに別の種類として扱う(ターボ圧のグラフ同士だけがリンクする)
-    readonly property var gaugeLinkedKeys: ["warnEnabled", "warn", "showWarnMessage", "warnBeep",
-                                            "warnPopupMode", "warnPopup", "warnPopupDetail", "warnMessage",
-                                            "cautionEnabled", "caution", "cautionBeep", "cautionPopup", "cautionMessage",
-                                            "showCautionMessage"]
+    // メーターの警告・注意は、メーターとは別のルール(AlertRules。設定 > 警告・注意)になったので、リンクする設定は無い
+    // (defaultConfig の warn / caution などは、以前の設定からルールを作るときと、グラフの既定にだけ使う)
+    readonly property var gaugeLinkedKeys: []
     readonly property var graphLinkedKeys: ["warnEnabled", "warn"]
     readonly property var phoneLinkedKeys: ["lowThreshold", "showLowMessage", "lowMessage"]
     readonly property var noticeLinkedKeys: ["tplCall", "tplMessage", "tplNavigation", "tplOther"]

@@ -71,7 +71,7 @@ qt_add_executable(opencruise
     src/androidauto/TestVideoFeeder.cpp)
 
 set_source_files_properties(qml/theme/Theme.qml qml/widgets/framework/WidgetRegistry.qml qml/services/WarningAlarm.qml
-    qml/services/VehicleHistory.qml qml/widgets/decoration/DecorationEffects.qml
+    qml/services/AlertRules.qml qml/services/VehicleHistory.qml qml/widgets/decoration/DecorationEffects.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(opencruise
@@ -105,6 +105,7 @@ qt_add_qml_module(opencruise
         qml/settings/pages/SettingsPageAndroidAuto.qml
         qml/settings/pages/SettingsPageNotifications.qml
         qml/settings/pages/SettingsPageVehicle.qml
+        qml/settings/pages/SettingsPageAlerts.qml
         qml/settings/pages/SettingsPageCamera.qml
         qml/screens/ReverseCameraView.qml
         qml/screens/ShutdownScreen.qml
@@ -131,6 +132,7 @@ qt_add_qml_module(opencruise
         qml/osd/NotificationHistoryPanel.qml
         qml/widgets/framework/WidgetRegistry.qml
         qml/services/WarningAlarm.qml
+        qml/services/AlertRules.qml
         qml/services/VehicleHistory.qml
         qml/widgets/framework/WidgetPages.qml
         qml/widgets/framework/PageBar.qml

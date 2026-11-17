@@ -9,6 +9,8 @@
  *
  * Android Auto 画面(フルスクリーンでないとき)のウィジェットは、初期画面とは別に aaLayoutJson に保存する
  * (形式は version 1 = 1 ページ分)。映像を置く場所(グリッドの角と、幅・高さのマス数)も、ここに保存する。
+ *
+ * 警告・注意のルール(AlertRules.qml。メーターとは別に動く)も、JSON 文字列のまま alertRulesJson に保存する。
  */
 #pragma once
 
@@ -28,6 +30,8 @@ class WidgetStore : public QObject {
     /** Android Auto の映像の幅・高さ(グリッドのマス数。横 12 × 縦 6 マスのうち) */
     Q_PROPERTY(int aaCols READ aaCols WRITE setAaCols NOTIFY aaFrameChanged)
     Q_PROPERTY(int aaRows READ aaRows WRITE setAaRows NOTIFY aaFrameChanged)
+    /** 警告・注意のルールの JSON(AlertRules.qml)。未保存なら空文字(QML 側がメーターの設定から作る) */
+    Q_PROPERTY(QString alertRulesJson READ alertRulesJson WRITE setAlertRulesJson NOTIFY alertRulesJsonChanged)
 
 public:
     explicit WidgetStore(QObject *parent = nullptr);
@@ -44,11 +48,14 @@ public:
     void setAaCols(int cols);
     int aaRows() const { return aaRows_; }
     void setAaRows(int rows);
+    QString alertRulesJson() const { return alertRulesJson_; }
+    void setAlertRulesJson(const QString &json);
 
 signals:
     void layoutJsonChanged();
     void aaLayoutJsonChanged();
     void aaFrameChanged();
+    void alertRulesJsonChanged();
 
 private:
     QString layoutJson_;
@@ -56,6 +63,7 @@ private:
     int aaCorner_ = 0;
     int aaCols_ = 9;
     int aaRows_ = 6;
+    QString alertRulesJson_;
 };
 
 } // namespace opencruise

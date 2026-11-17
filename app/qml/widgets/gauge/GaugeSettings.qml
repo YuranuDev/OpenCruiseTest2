@@ -1,5 +1,6 @@
 // メーター(GaugeWidget)の設定。ジャンル(タブ)ごとに分ける:
-//   表示(表示方式・種類・単位・範囲・アイコン・ピーク)/ 目盛り・針(角度・目盛りの分割・針と中心円)/ 警告 / 注意
+//   表示(表示方式・種類・単位・範囲・アイコン・ピーク)/ 目盛り・針(角度・目盛りの分割・針と中心円)/ 警告・注意
+// 警告・注意はメーターとは別のルール(AlertRules。設定 > 警告・注意)。ここでは、この計測値のルールの値とオン/オフだけ変えられる
 // 計測値ごとの単位・範囲・刻みは WidgetRegistry.gaugeSpecs(config.metric)から取る。
 // 値は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集は選んだ単位で行う。
 import QtQuick
@@ -442,186 +443,93 @@ WidgetSettingsBase {
         }
     }
 
+    // 警告・注意は 設定 > 警告・注意 のルール(AlertRules)が出す(メーターが無くても動く)。
+    // ここでは、この計測値を使うルールの オン/オフ と値だけを変えられる(値の範囲はメーターの目盛りに関係なく、計測値の限界まで)
     WidgetSettingsGroup {
-        title: "警告"
+        title: "警告・注意"
         icon: "warning"
-        active: root.config.warnEnabled === true
+        active: root.config.showAlerts !== false && root.metricRules.some(r => r.enabled)
 
         SettingsRow {
-            label: "警告"
-            description: (root.warnBelow ? "警告値以下で、色・アイコン・メッセージで知らせます"
-                                         : "警告値以上で、色・アイコン・メッセージで知らせます")
-                         + "。警告と通知の設定は、同じ種類のメーターすべてで共通です"
+            label: "警告・注意をこのメーターに表示"
+            description: "この計測値のルールの範囲を目盛りに描き、警告・注意になったら色・点滅・メッセージで知らせます。"
+                         + "オフにしても、警告音・通知は(ルールの設定どおり)出ます"
             SettingsSwitch {
-                checked: root.config.warnEnabled === true
-                onToggled: (v) => root.edit("warnEnabled", v)
+                checked: root.config.showAlerts !== false
+                onToggled: (v) => root.edit("showAlerts", v)
             }
         }
-        SettingsRow {
-            visible: root.config.warnEnabled === true
-            label: "警告値"
-            WSStepper {
-                value: root.toShown(root.config.warn)
-                from: root.toShown(root.config.min)
-                to: root.toShown(root.config.max)
-                step: root.step
-                decimals: root.dec
-                suffix: root.suffix
-                onMoved: (v) => root.save("warn", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.warnEnabled === true
-            label: "警告メッセージを表示"
-            description: "オフにすると、メッセージは出さずに色とアイコンだけで知らせます"
-            SettingsSwitch {
-                checked: root.config.showWarnMessage !== false
-                onToggled: (v) => root.edit("showWarnMessage", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.warnEnabled === true
-            label: "警告音を鳴らす"
-            description: "鳴っている間はメーター全体が赤く点滅します。タップすると、その警告が解除されるまで止まります(音は 設定 > サウンド > 警告音)"
-            SettingsSwitch {
-                checked: root.config.warnBeep === true
-                onToggled: (v) => root.edit("warnBeep", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.warnEnabled === true
-            label: "ポップアップ通知"
-            description: "「1 回だけ」: 警告になったときに通知を出し(8 秒で消えます)、表示中は今の値を更新し続けます。"
-                         + "まだ出ている間にもう一度警告になると、同じ通知を書き換えます。\n"
-                         + "「出し続ける」: 警告中は通知を出したままにし、今の値を更新し続けます。タップで消せます。\n"
-                         + "どちらも、警告が解除されると、その警告の間の最大値(燃料などは最低値)を出してから消えます。\n"
-                         + "通知はメーターの種類ごとに出します(同じ種類のメーターがいくつあっても、その種類の通知は 1 つ)。\n"
-                         + "通知履歴には途中の値は残さず、解除されたときに最大値(最低値)と続いた時間を 1 件だけ残します"
-            stacked: true
-            SettingsChoice {
-                model: ["オフ", "1 回だけ", "警告中は出し続ける"]
-                currentIndex: ["off", "once", "live"].indexOf(root.popupMode)
-                onPicked: (index) => root.edit("warnPopupMode", ["off", "once", "live"][index])
-            }
-        }
-        SettingsRow {
-            visible: root.config.warnEnabled === true && root.popupMode !== "off"
-            label: "通知に詳細を表示"
-            description: "通知に、今の値と並べて警告値も入れます"
-            SettingsSwitch {
-                checked: root.config.warnPopupDetail !== false
-                onToggled: (v) => root.edit("warnPopupDetail", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.warnEnabled === true && root.config.showWarnMessage !== false
-            label: "警告メッセージ"
-            stacked: true
-            WSTextField {
-                width: 520 * Theme.uiScale
-                text: root.config.warnMessage || ""
-                placeholder: root.gauge.warnMessage || "警告"
-                maxLength: 24
-                onChanging: (t) => root.preview("warnMessage", t)
-                onEdited: (t) => root.edit("warnMessage", t)
-            }
-        }
-    }
-
-    WidgetSettingsGroup {
-        title: "注意"
-        icon: "error"
-        active: root.config.cautionEnabled === true
-
-        SettingsRow {
-            label: "注意"
-            description: (root.warnBelow ? "注意値以下になると" : "注意値以上になると")
-                         + "、注意音を 1 回鳴らし、目盛りの注意の帯を光らせ、数値と名前を黄色くして知らせます(針の色は変えません。警告値まで行くと警告が優先します)。"
-                         + "注意の設定も、同じ種類のメーターすべてで共通です"
-            SettingsSwitch {
-                checked: root.config.cautionEnabled === true
-                onToggled: (v) => {
-                    if (v && root.config.caution === undefined)
-                        root.edit("caution", Number(root.defaultCautionBase().toFixed(3)))
-                    root.edit("cautionEnabled", v)
+        // 件数だけを model にする(値を変えるたびに作り直さない。長押しの連続変化が途切れないように)
+        Repeater {
+            model: root.metricRules.length
+            SettingsRow {
+                id: ruleRow
+                required property int index
+                readonly property var modelData: root.metricRules[index] || root.metricRules[0]
+                // 値を変える条件(この計測値の最初の条件)
+                readonly property int condIndex: modelData.conditions.findIndex(c => c.source === root.config.metric)
+                readonly property var cond: modelData.conditions[condIndex]
+                readonly property bool twoValues: cond.op === "outside" || cond.op === "inside"
+                label: (modelData.level === "warn" ? "警告: " : "注意: ") + modelData.message
+                description: { AlertRules.stateRevision
+                    return AlertRules.summary(modelData) + (AlertRules.isActive(modelData.id) ? "  ・ 今出ています" : "") }
+                stacked: true
+                Row {
+                    spacing: 20 * Theme.uiScale
+                    SettingsSwitch {
+                        anchors.verticalCenter: parent.verticalCenter
+                        checked: ruleRow.modelData.enabled
+                        onToggled: (v) => AlertRules.updateRule(ruleRow.modelData.id, { enabled: v })
+                    }
+                    WSStepper {
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: root.toShown(ruleRow.cond.value)
+                        from: root.toShown(root.gauge.limitMin)
+                        to: root.toShown(root.gauge.limitMax)
+                        step: root.step
+                        decimals: root.dec
+                        suffix: root.suffix
+                        onMoved: (v) => AlertRules.updateCondition(ruleRow.modelData.id, ruleRow.condIndex,
+                                                                   { value: Number(root.toBase(v).toFixed(3)) })
+                    }
+                    Text {
+                        visible: ruleRow.twoValues
+                        anchors.verticalCenter: parent.verticalCenter
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 24 * Theme.uiScale
+                        color: Theme.textSecondary
+                        text: "〜"
+                    }
+                    WSStepper {
+                        visible: ruleRow.twoValues
+                        anchors.verticalCenter: parent.verticalCenter
+                        value: root.toShown(ruleRow.cond.value2)
+                        from: root.toShown(root.gauge.limitMin)
+                        to: root.toShown(root.gauge.limitMax)
+                        step: root.step
+                        decimals: root.dec
+                        suffix: root.suffix
+                        onMoved: (v) => AlertRules.updateCondition(ruleRow.modelData.id, ruleRow.condIndex,
+                                                                   { value2: Number(root.toBase(v).toFixed(3)) })
+                    }
                 }
             }
         }
         SettingsRow {
-            visible: root.config.cautionEnabled === true
-            label: "注意値"
-            description: root.config.warnEnabled === true
-                         && (root.warnBelow ? Number(root.config.caution) <= Number(root.config.warn)
-                                            : Number(root.config.caution) >= Number(root.config.warn))
-                         ? "注意値が警告値より奥にあるため、注意は出ません(警告値より手前にしてください)" : ""
-            WSStepper {
-                value: root.toShown(root.config.caution !== undefined ? root.config.caution : root.defaultCautionBase())
-                from: root.toShown(root.config.min)
-                to: root.toShown(root.config.max)
-                step: root.step
-                decimals: root.dec
-                suffix: root.suffix
-                onMoved: (v) => root.save("caution", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.cautionEnabled === true
-            label: "注意音を鳴らす"
-            description: "注意値を超えたときに 1 回だけ鳴らします(音は 設定 > サウンド > 注意音)"
-            SettingsSwitch {
-                checked: root.config.cautionBeep !== false
-                onToggled: (v) => root.edit("cautionBeep", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.cautionEnabled === true
-            label: "注意の通知"
-            description: "注意値を超えたときに通知を出し(8 秒で消えます)、表示中は今の値を更新し続けます。"
-                         + "警告になれば警告の通知に、解除されれば「正常に戻りました」に変わります。"
-                         + "通知履歴には、解除されたときに最大値(最低値)と続いた時間を 1 件だけ残します"
-            SettingsSwitch {
-                checked: root.config.cautionPopup !== false
-                onToggled: (v) => root.edit("cautionPopup", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.cautionEnabled === true
-            label: "注意メッセージを表示"
-            description: "メーターの下に注意メッセージを出します。オフにすると、メッセージは出さずに色とアイコンだけで知らせます"
-            SettingsSwitch {
-                checked: root.config.showCautionMessage !== false
-                onToggled: (v) => root.edit("showCautionMessage", v)
-            }
-        }
-        SettingsRow {
-            visible: root.config.cautionEnabled === true
-            label: "注意メッセージ"
-            description: "メーターの下に出すメッセージと、注意の通知の見出し"
+            label: "この計測値のルールを追加"
+            description: "条件・音・通知・続いた時間などの細かい設定は 設定 > 警告・注意 で変えます"
             stacked: true
-            WSTextField {
-                width: 520 * Theme.uiScale
-                text: root.config.cautionMessage || ""
-                placeholder: root.titleTextOf() + "に注意"
-                maxLength: 24
-                onChanging: (t) => root.preview("cautionMessage", t)
-                onEdited: (t) => root.edit("cautionMessage", t)
+            Row {
+                spacing: 12 * Theme.uiScale
+                ActionButton { text: "警告を追加"; onClicked: AlertRules.addRule(root.config.metric, "warn") }
+                ActionButton { text: "注意を追加"; onClicked: AlertRules.addRule(root.config.metric, "caution") }
             }
         }
     }
-    // 以前の設定(warnPopup: true)は「1 回だけ」として扱う
-    readonly property string popupMode: config.warnPopupMode === "once" || config.warnPopupMode === "live"
-                                        || config.warnPopupMode === "off"
-                                        ? config.warnPopupMode : (config.warnPopup === true ? "once" : "off")
+    // この計測値を条件に使うルール(オフのものも)
+    readonly property var metricRules: { AlertRules.revision
+        return AlertRules.rules.filter(r => r.conditions.some(c => c.source === root.config.metric)) }
 
-    // 注意値の既定: 警告値の手前(範囲の 10%)。警告を使っていなければ、範囲の 8 割(燃料などは 2 割)
-    function defaultCautionBase() {
-        const span = maxBase - minBase
-        if (config.warnEnabled === true && config.warn !== undefined) {
-            const w = Number(config.warn)
-            return warnBelow ? Math.min(maxBase, w + span * 0.1) : Math.max(minBase, w - span * 0.1)
-        }
-        return warnBelow ? minBase + span * 0.2 : minBase + span * 0.8
-    }
     function titleTextOf() {
         const custom = String(config.titleText || "").trim()
         return custom !== "" ? custom : gauge.title

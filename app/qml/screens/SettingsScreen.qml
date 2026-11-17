@@ -31,6 +31,7 @@ Rectangle {
         SettingsCategory { icon: "android";       title: "Android Auto"; page: SettingsPageAndroidAuto {} },
         SettingsCategory { icon: "notifications"; title: "通知";         page: SettingsPageNotifications {} },
         SettingsCategory { icon: "directions_car"; title: "車両";        page: SettingsPageVehicle {} },
+        SettingsCategory { icon: "warning";       title: "警告・注意";   page: SettingsPageAlerts {} },
         SettingsCategory { icon: "videocam";      title: "カメラ";       page: SettingsPageCamera {} },
         SettingsCategory { icon: "monitor_heart"; title: "システム";    page: SettingsPageSystem {} },
         SettingsCategory { icon: "info";          title: "情報";         page: SettingsPageAbout {} }
