@@ -128,8 +128,9 @@ void AudioSettings::refreshAlsa() {
         alsaInputIds_ << d.id;
         inNames << d.name;
     }
+    // ログは英語にそろえるため、表示名(日本語)ではなく ALSA の機器名を出す
     log::info("AUDIO", QStringLiteral("ALSA outputs: %1 / inputs: %2")
-                           .arg(outNames.mid(1).join(QStringLiteral(", ")), inNames.mid(1).join(QStringLiteral(", "))));
+                           .arg(alsaOutputIds_.join(QStringLiteral(", ")), alsaInputIds_.join(QStringLiteral(", "))));
     if (outNames != outputNames_) {
         outputNames_ = outNames;
         emit outputsChanged();

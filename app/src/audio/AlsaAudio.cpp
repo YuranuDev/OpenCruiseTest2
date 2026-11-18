@@ -28,6 +28,30 @@ constexpr int kQueueKeepFrames = kRate * 4 / 10;   // 0.4 秒だけ残して捨�
 
 QString errorText(int err) { return QString::fromLocal8Bit(snd_strerror(err)); }
 
+/// HDMI / DisplayPort の PCM に、モニター・テレビがつながっているか(ELD を読む)。
+/// ELD は HDMI の機器が送ってくる情報で、つながっていないときは空(先頭が 0)。名前は基本ブロックの 16 バイト目から(長さは 4 バイト目の下位 5 ビット)
+int readMonitor(snd_ctl_t *ctl, int dev, QString *name) {
+    snd_ctl_elem_id_t *id = nullptr;
+    snd_ctl_elem_id_alloca(&id);
+    snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_PCM);
+    snd_ctl_elem_id_set_name(id, "ELD");
+    snd_ctl_elem_id_set_device(id, static_cast<unsigned>(dev));
+    snd_ctl_elem_info_t *info = nullptr;
+    snd_ctl_elem_info_alloca(&info);
+    snd_ctl_elem_info_set_id(info, id);
+    if (snd_ctl_elem_info(ctl, info) < 0 || snd_ctl_elem_info_get_type(info) != SND_CTL_ELEM_TYPE_BYTES) return -1;
+    const unsigned count = snd_ctl_elem_info_get_count(info);
+    snd_ctl_elem_value_t *value = nullptr;
+    snd_ctl_elem_value_alloca(&value);
+    snd_ctl_elem_value_set_id(value, id);
+    if (snd_ctl_elem_read(ctl, value) < 0) return -1;
+    const auto *b = static_cast<const unsigned char *>(snd_ctl_elem_value_get_bytes(value));
+    if (!b || count < 20 || b[0] == 0) return 0;
+    const unsigned len = std::min<unsigned>(b[4] & 0x1F, count - 20);
+    *name = QString::fromLatin1(reinterpret_cast<const char *>(b + 20), static_cast<int>(len)).trimmed();
+    return 1;
+}
+
 QList<DeviceInfo> listDevices(snd_pcm_stream_t stream) {
     QList<DeviceInfo> list;
     int card = -1;
@@ -41,7 +65,11 @@ QList<DeviceInfo> listDevices(snd_pcm_stream_t stream) {
             continue;
         }
         const QString cardId = QString::fromLocal8Bit(snd_ctl_card_info_get_id(info));
-        const QString cardName = QString::fromLocal8Bit(snd_ctl_card_info_get_name(info));
+        DeviceFacts f;
+        f.capture = stream == SND_PCM_STREAM_CAPTURE;
+        f.cardName = QString::fromLocal8Bit(snd_ctl_card_info_get_name(info));
+        f.driver = QString::fromLocal8Bit(snd_ctl_card_info_get_driver(info));
+        int hdmiCount = 0;
         int dev = -1;
         while (snd_ctl_pcm_next_device(ctl, &dev) == 0 && dev >= 0) {
             snd_pcm_info_t *pcmInfo = nullptr;
@@ -50,16 +78,55 @@ QList<DeviceInfo> listDevices(snd_pcm_stream_t stream) {
             snd_pcm_info_set_subdevice(pcmInfo, 0);
             snd_pcm_info_set_stream(pcmInfo, stream);
             if (snd_ctl_pcm_info(ctl, pcmInfo) < 0) continue;   // この向き(再生/録音)が無い
-            const QString pcmName = QString::fromLocal8Bit(snd_pcm_info_get_name(pcmInfo));
-            list.append({QStringLiteral("plughw:CARD=%1,DEV=%2").arg(cardId).arg(dev),
-                         QStringLiteral("%1 ・ %2").arg(cardName, pcmName.isEmpty() ? QStringLiteral("PCM %1").arg(dev) : pcmName)});
+            f.pcmId = QString::fromLocal8Bit(snd_pcm_info_get_id(pcmInfo));
+            f.pcmName = QString::fromLocal8Bit(snd_pcm_info_get_name(pcmInfo));
+            f.device = dev;
+            const bool hdmi = (f.pcmId + QLatin1Char(' ') + f.pcmName).contains(QLatin1String("HDMI"), Qt::CaseInsensitive)
+                              || f.pcmId.startsWith(QLatin1String("DP"), Qt::CaseInsensitive);
+            f.hdmiNumber = hdmi ? ++hdmiCount : 0;
+            f.monitorName.clear();
+            f.monitorState = hdmi ? readMonitor(ctl, dev, &f.monitorName) : -1;
+            list.append({QStringLiteral("plughw:CARD=%1,DEV=%2").arg(cardId).arg(dev), deviceLabel(f)});
         }
         snd_ctl_close(ctl);
+    }
+    // 同じ名前が並んだら(同じ種類のカードが 2 枚など)、見分けが付くように番号を付ける
+    for (int i = 0; i < list.size(); ++i) {
+        int n = 1;
+        for (int j = i + 1; j < list.size(); ++j)
+            if (list[j].name == list[i].name) list[j].name += QStringLiteral(" (%1)").arg(++n);
     }
     return list;
 }
 
 } // namespace
+
+QString deviceLabel(const DeviceFacts &f) {
+    const QString card = f.cardName.isEmpty() ? QStringLiteral("サウンドカード") : f.cardName;
+    const QString both = f.pcmId + QLatin1Char(' ') + f.pcmName;
+    // HDMI / DisplayPort(外部モニター・テレビ)。つながっていれば相手の名前
+    if (f.hdmiNumber > 0) {
+        QString s = QStringLiteral("HDMI / DisplayPort %1").arg(f.hdmiNumber);
+        if (f.monitorState == 1) s += f.monitorName.isEmpty() ? QStringLiteral(" ・ モニターに接続中") : QStringLiteral(" ・ ") + f.monitorName;
+        else if (f.monitorState == 0) s += QStringLiteral("(つながっていません)");
+        return s;
+    }
+    // USB の音声機器(USB スピーカー・ヘッドセット・USB マイクなど)はカードの名前が製品名
+    if (f.driver.contains(QLatin1String("USB"), Qt::CaseInsensitive))
+        return QStringLiteral("USB 音声 ・ %1").arg(card);
+    if (f.driver.contains(QLatin1String("Loopback"), Qt::CaseInsensitive) || card.contains(QLatin1String("Loopback")))
+        return QStringLiteral("ループバック(仮想の機器) ・ デバイス %1").arg(f.device);
+    if (both.contains(QLatin1String("Digital"), Qt::CaseInsensitive) || both.contains(QLatin1String("SPDIF"), Qt::CaseInsensitive)
+        || both.contains(QLatin1String("IEC958"), Qt::CaseInsensitive))
+        return QStringLiteral("デジタル(光・同軸) ・ %1").arg(card);
+    // 内蔵のアナログ(スピーカー・ヘッドホン端子 / 内蔵マイク・マイク端子)
+    if (both.contains(QLatin1String("Analog"), Qt::CaseInsensitive) || both.contains(QLatin1String("Headphone"), Qt::CaseInsensitive)
+        || both.contains(QLatin1String("Speaker"), Qt::CaseInsensitive) || both.contains(QLatin1String("Mic"), Qt::CaseInsensitive))
+        return (f.capture ? QStringLiteral("内蔵マイク・マイク端子 ・ %1") : QStringLiteral("スピーカー・ヘッドホン端子 ・ %1")).arg(card);
+    // 分からないものは、カード名と PCM の名前(PCM の名前も無ければ番号)
+    const QString pcm = f.pcmName.isEmpty() || f.pcmName == QLatin1String("PCM") ? QStringLiteral("デバイス %1").arg(f.device) : f.pcmName;
+    return QStringLiteral("%1 ・ %2").arg(card, pcm);
+}
 
 QList<DeviceInfo> outputDevices() { return listDevices(SND_PCM_STREAM_PLAYBACK); }
 QList<DeviceInfo> inputDevices() { return listDevices(SND_PCM_STREAM_CAPTURE); }

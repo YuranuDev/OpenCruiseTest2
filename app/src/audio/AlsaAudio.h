@@ -41,6 +41,21 @@ struct DeviceInfo {
     QString id;     ///< ALSA の機器名(snd_pcm_open に渡す)
     QString name;   ///< 表示名
 };
+/** @brief 表示名を作るための機器の情報(ALSA から読んだもの)。 */
+struct DeviceFacts {
+    bool capture = false;     ///< 録音の機器か
+    QString driver;           ///< カードのドライバー("HDA-Intel" / "USB-Audio" など)
+    QString cardName;         ///< カードの名前("HDA Intel PCH" など)
+    QString pcmId;            ///< PCM の id("ALC3232 Analog" / "HDMI 0" など)
+    QString pcmName;          ///< PCM の名前
+    int device = 0;           ///< PCM の番号
+    int hdmiNumber = 0;       ///< そのカードの中で何番目の HDMI / DisplayPort か(1 から。HDMI でなければ 0)
+    int monitorState = -1;    ///< HDMI のつながり: -1 = 分からない / 0 = つながっていない / 1 = つながっている
+    QString monitorName;      ///< つながっているモニター・テレビの名前(ELD から。分からなければ空)
+};
+/** @brief 画面に出す分かりやすい名前(「内蔵スピーカー・ヘッドホン(HDA Intel PCH)」「HDMI 1 ・ LG TV」など)。 */
+QString deviceLabel(const DeviceFacts &f);
+
 /** @brief 再生できる機器(サウンドカードの PCM ごと)。 */
 QList<DeviceInfo> outputDevices();
 /** @brief 録音できる機器。 */
