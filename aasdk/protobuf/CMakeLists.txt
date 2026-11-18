@@ -45,21 +45,35 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(STATUS "MacOS System Detected")
     find_package(protobuf REQUIRED CONFIG)
     find_package(absl)
+    include(FindProtobuf)
 else()
     # Linux specific command
-    find_path(Protobuf_INCLUDE_DIR google/protobuf/message.h PATHS /usr/include /usr/local/include)
-    find_library(Protobuf_LIBRARY protobuf PATHS /usr/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib/arm-linux-gnueabihf /usr/local/lib)
-    find_program(PROTOBUF_PROTOC_EXECUTABLE protoc)
-    message(STATUS "Found Protobuf include: ${Protobuf_INCLUDE_DIR}")
-    message(STATUS "Found Protobuf library: ${Protobuf_LIBRARY}")
-    message(STATUS "Found protoc: ${PROTOBUF_PROTOC_EXECUTABLE}")
-    if(NOT Protobuf_INCLUDE_DIR OR NOT Protobuf_LIBRARY OR NOT PROTOBUF_PROTOC_EXECUTABLE)
+    # OpenCruise fix: the original code found protobuf by hand (find_path / find_library / find_program into
+    # PROTOBUF_PROTOC_EXECUTABLE), set Protobuf_FOUND itself and then include()d FindProtobuf. On the second
+    # configure run the cached Protobuf_PROTOC_EXECUTABLE stayed empty, so the protobuf::protoc target was not
+    # created and the generated build used the literal command "protobuf::protoc"
+    # (make: "target pattern contains no '%'"). Use the normal find_package() instead:
+    #  1) protobuf's own CMake package if installed (newer protobuf; brings its Abseil dependencies and protoc)
+    #  2) otherwise CMake's FindProtobuf module (distribution packages such as libprotobuf-dev 3.21)
+    # A build directory configured with the old code may hold an empty Protobuf_PROTOC_EXECUTABLE in its cache,
+    # which stops find_program() from searching again. Drop it so that existing build directories recover.
+    if(DEFINED CACHE{Protobuf_PROTOC_EXECUTABLE} AND NOT Protobuf_PROTOC_EXECUTABLE)
+        unset(Protobuf_PROTOC_EXECUTABLE CACHE)
+    endif()
+    set(protobuf_MODULE_COMPATIBLE ON)   # the CMake package also provides protobuf_generate_cpp()
+    find_package(Protobuf CONFIG QUIET)
+    if(NOT Protobuf_FOUND)
+        find_package(Protobuf MODULE)
+    endif()
+    if(NOT Protobuf_FOUND OR NOT TARGET protobuf::protoc)
         message(FATAL_ERROR "Protobuf not found. Please install libprotobuf-dev and protobuf-compiler")
     endif()
-    set(Protobuf_FOUND TRUE)
+    get_target_property(_aap_protoc protobuf::protoc IMPORTED_LOCATION_RELEASE)
+    if(NOT _aap_protoc)
+        get_target_property(_aap_protoc protobuf::protoc IMPORTED_LOCATION)
+    endif()
+    message(STATUS "Found Protobuf ${Protobuf_VERSION} (protoc: ${_aap_protoc})")
 endif()
-
-include(FindProtobuf)
 
 # Turn off Path Appending
 set(PROTOBUF_GENERATE_CPP_APPEND_PATH OFF)
@@ -79,7 +93,13 @@ else()
     add_library(aap_protobuf SHARED ${PROTO_SRCS} ${PROTO_HDRS})
 endif()
 
-target_link_libraries(aap_protobuf PUBLIC ${PROTOBUF_LIBRARIES})
+# OpenCruise fix: link the imported target when it exists (it carries protobuf's include dirs and, for newer
+# protobuf, its Abseil dependencies); fall back to the plain library list otherwise
+if(TARGET protobuf::libprotobuf)
+    target_link_libraries(aap_protobuf PUBLIC protobuf::libprotobuf)
+else()
+    target_link_libraries(aap_protobuf PUBLIC ${PROTOBUF_LIBRARIES})
+endif()
 include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf

@@ -98,7 +98,8 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 
 - aasdk なしで UI だけビルド: `-DOPENCRUISE_ENABLE_AASDK=OFF`（Boost/libusb/protobuf 不要）
 - aasdk は同梱のものを `SKIP_BUILD_PROTOBUF=ON` / `SKIP_BUILD_ABSL=ON`（システムの protobuf 3.21 を使用）でビルドする。
-  Abseil が必要な新しい protobuf を使う場合はこの設定の見直しが必要。
+  protobuf は `find_package(Protobuf)` で探す(protobuf 自身の CMake 設定があればそれ、無ければ CMake の FindProtobuf)。
+  Abseil が必要な新しい protobuf(22 以降)は、CMake 設定が入っていれば Abseil の依存も付くはずだが未確認。
 - 実機接続には USB 権限が必要。aasdk の `DOCUMENTATION.md` にある udev ルール
   (`SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"`) を設定する。
   権限が無い場合、aasdk の `USBHub` は **エラーを出さず黙って無視する**ため、「待機中」のまま進まない。
@@ -353,6 +354,12 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
 4. バージョン応答の status は `uint16` を `MessageStatus` に単純キャストしており不一致値が `-1` にならない → 「`STATUS_SUCCESS` 以外は失敗」で判定。
 5. `USBHub` は USB 機器の open 失敗を黙殺し、非 AOAP 機器の検出ごとに 1 秒 sleep する → io スレッドを 2 本にして影響を緩和。権限エラーは UI から判別できない。
 6. `ControlServiceChannel::sendVoiceSessionFocusResponse` は実装が空（Promise が解決されない）→ 使っていない。
+7. **`aasdk/protobuf/CMakeLists.txt` の protobuf の探し方（修正済み）**
+   protobuf を手作業で探して `include(FindProtobuf)` していたため、2 回目以降の CMake 構成で `Protobuf_PROTOC_EXECUTABLE` が空のまま残り、
+   `protobuf::protoc` ターゲットが作られず、生成コマンドが文字列 `protobuf::protoc` のままになって
+   ビルドが失敗していた（make: `target pattern contains no '%'`）。`find_package(Protobuf)` に置き換え、
+   リンクは `protobuf::libprotobuf` ターゲットにした。古いビルドディレクトリの空のキャッシュも消して立て直す
+   （`patches/aasdk-protobuf-cmake.patch`。aasdk を更新する場合は再適用が必要）。
 
 ## 実機検証の際の見どころ（リスク）
 
