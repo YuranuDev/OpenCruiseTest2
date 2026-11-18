@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <initializer_list>
 
 namespace opencruise::alsa {
 
@@ -135,6 +137,120 @@ QString deviceLabel(const DeviceFacts &f) {
     // 分からないものは、カード名と PCM の名前(PCM の名前も無ければ番号)
     const QString pcm = f.pcmName.isEmpty() || f.pcmName == QLatin1String("PCM") ? QStringLiteral("デバイス %1").arg(f.device) : f.pcmName;
     return QStringLiteral("%1 ・ %2").arg(card, pcm);
+}
+
+namespace {
+
+snd_mixer_elem_t *findSwitch(snd_mixer_t *mixer, std::initializer_list<const char *> names) {
+    for (const char *name : names) {
+        snd_mixer_selem_id_t *sid = nullptr;
+        snd_mixer_selem_id_alloca(&sid);
+        snd_mixer_selem_id_set_name(sid, name);
+        snd_mixer_selem_id_set_index(sid, 0);
+        snd_mixer_elem_t *e = snd_mixer_find_selem(mixer, sid);
+        if (e && snd_mixer_selem_has_playback_switch(e)) return e;
+    }
+    return nullptr;
+}
+
+bool switchOn(snd_mixer_elem_t *e) {
+    int v = 0;
+    snd_mixer_selem_get_playback_switch(e, SND_MIXER_SCHN_FRONT_LEFT, &v);
+    return v != 0;
+}
+
+void setSwitch(snd_mixer_elem_t *e, bool on, const QString &what) {
+    if (switchOn(e) == on) return;
+    if (snd_mixer_selem_set_playback_switch_all(e, on ? 1 : 0) < 0)
+        log::warn("AUDIO", QStringLiteral("could not switch %1 %2").arg(what, on ? QStringLiteral("on") : QStringLiteral("off")));
+    else
+        log::info("AUDIO", QStringLiteral("%1 switched %2").arg(what, on ? QStringLiteral("on") : QStringLiteral("off")));
+}
+
+/// ヘッドホンの差し込み(カードのジャックの control。"Headphone Jack" / "Headset Jack" など、読むだけのもの)
+int readJack(int card) {
+    snd_ctl_t *ctl = nullptr;
+    if (snd_ctl_open(&ctl, QStringLiteral("hw:%1").arg(card).toLatin1().constData(), 0) < 0) return -1;
+    int state = -1;
+    snd_ctl_elem_list_t *list = nullptr;
+    snd_ctl_elem_list_alloca(&list);
+    if (snd_ctl_elem_list(ctl, list) == 0) {
+        const unsigned count = snd_ctl_elem_list_get_count(list);
+        if (count > 0 && snd_ctl_elem_list_alloc_space(list, count) == 0 && snd_ctl_elem_list(ctl, list) == 0) {
+            for (unsigned i = 0; i < snd_ctl_elem_list_get_used(list) && state != 1; ++i) {
+                if (snd_ctl_elem_list_get_interface(list, i) != SND_CTL_ELEM_IFACE_CARD) continue;
+                const QString name = QString::fromLatin1(snd_ctl_elem_list_get_name(list, i));
+                if (!name.endsWith(QLatin1String("Jack")) || name.contains(QLatin1String("Mic"))
+                    || !(name.contains(QLatin1String("Headphone")) || name.contains(QLatin1String("Headset")))) continue;
+                snd_ctl_elem_id_t *id = nullptr;
+                snd_ctl_elem_id_alloca(&id);
+                snd_ctl_elem_list_get_id(list, i, id);
+                snd_ctl_elem_value_t *value = nullptr;
+                snd_ctl_elem_value_alloca(&value);
+                snd_ctl_elem_value_set_id(value, id);
+                if (snd_ctl_elem_read(ctl, value) == 0) state = snd_ctl_elem_value_get_boolean(value, 0) ? 1 : 0;
+            }
+            snd_ctl_elem_list_free_space(list);
+        }
+    }
+    snd_ctl_close(ctl);
+    return state;
+}
+
+} // namespace
+
+OutputRouteState applyOutputRoute(int mode) {
+    OutputRouteState st;
+    QStringList cards;
+    int card = -1;
+    while (snd_card_next(&card) == 0 && card >= 0) {
+        snd_mixer_t *mixer = nullptr;
+        if (snd_mixer_open(&mixer, 0) < 0) continue;
+        const QByteArray hw = QStringLiteral("hw:%1").arg(card).toLatin1();
+        if (snd_mixer_attach(mixer, hw.constData()) < 0 || snd_mixer_selem_register(mixer, nullptr, nullptr) < 0
+            || snd_mixer_load(mixer) < 0) {
+            snd_mixer_close(mixer);
+            continue;
+        }
+        snd_mixer_elem_t *spk = findSwitch(mixer, {"Spk", "Speaker", "Speakers", "Ext Spk"});
+        snd_mixer_elem_t *hp = findSwitch(mixer, {"Headphone Jack", "Headphone", "Headphones"});
+        if (spk && hp) {
+            char *name = nullptr;
+            cards << (snd_card_get_name(card, &name) == 0 && name ? QString::fromLocal8Bit(name) : QStringLiteral("hw:%1").arg(card));
+            free(name);
+            const int plugged = readJack(card);
+            if (plugged > st.plugged) st.plugged = plugged;
+            if (mode >= 1 && mode <= 4) {
+                // 自動でスピーカーを消す仕組み(HDA の Auto-Mute)があれば止める(こちらで選んだ出口と食い違わないように)
+                snd_mixer_selem_id_t *sid = nullptr;
+                snd_mixer_selem_id_alloca(&sid);
+                snd_mixer_selem_id_set_name(sid, "Auto-Mute Mode");
+                if (snd_mixer_elem_t *am = snd_mixer_find_selem(mixer, sid); am && snd_mixer_selem_is_enumerated(am)) {
+                    const int items = snd_mixer_selem_get_enum_items(am);
+                    for (int i = 0; i < items; ++i) {
+                        char buf[64] = {};
+                        if (snd_mixer_selem_get_enum_item_name(am, i, sizeof buf, buf) == 0 && qstrcmp(buf, "Disabled") == 0) {
+                            unsigned cur = 0;
+                            snd_mixer_selem_get_enum_item(am, SND_MIXER_SCHN_MONO, &cur);
+                            if (static_cast<int>(cur) != i) snd_mixer_selem_set_enum_item(am, SND_MIXER_SCHN_MONO, static_cast<unsigned>(i));
+                        }
+                    }
+                }
+                bool wantSpk = true, wantHp = true;
+                if (mode == 1 && plugged >= 0) { wantSpk = plugged == 0; wantHp = plugged == 1; }   // 状態が分からなければ両方
+                else if (mode == 2) wantHp = false;
+                else if (mode == 3) wantSpk = false;
+                setSwitch(spk, wantSpk, QStringLiteral("speaker (%1)").arg(QString::fromLatin1(snd_mixer_selem_get_name(spk))));
+                setSwitch(hp, wantHp, QStringLiteral("headphone (%1)").arg(QString::fromLatin1(snd_mixer_selem_get_name(hp))));
+            }
+            st.speakerOn = st.speakerOn || switchOn(spk);
+            st.headphoneOn = st.headphoneOn || switchOn(hp);
+        }
+        snd_mixer_close(mixer);
+    }
+    st.available = !cards.isEmpty();
+    st.cards = cards.join(QStringLiteral("、"));
+    return st;
 }
 
 QList<DeviceInfo> outputDevices() { return listDevices(SND_PCM_STREAM_PLAYBACK); }

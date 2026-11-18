@@ -60,6 +60,25 @@ QString deviceLabel(const DeviceFacts &f);
 QList<DeviceInfo> outputDevices();
 /** @brief 録音できる機器。 */
 QList<DeviceInfo> inputDevices();
+/**
+ * @brief 内蔵の音の出口(スピーカー / ヘッドホン)の切り替え。
+ *
+ * スピーカーとヘッドホンが同じ出力(PCM)につながっている機器(Intel SOF + RT5682 の "Spk" / "Headphone Jack"、
+ * Intel HDA の "Speaker" / "Headphone" など)で、ミキサーのスイッチを入/切して音の出口を選ぶ。
+ * ヘッドホンを挿したらスピーカーを消す処理は、ふつうは PulseAudio などがしているが、ALSA へ直接出すこのアプリでは
+ * 働かないため、「挿したら切り替え」をここで行う(差し込みの状態はカードのジャックの control で読む)。
+ * mode: 0 = 変えない(システムのまま) / 1 = 挿したら切り替え / 2 = スピーカーだけ / 3 = ヘッドホンだけ / 4 = 両方
+ */
+struct OutputRouteState {
+    bool available = false;   ///< スピーカーとヘッドホンのスイッチが両方あるカードがあるか
+    QString cards;            ///< そのカードの名前(複数なら「、」でつなぐ)
+    int plugged = -1;         ///< ヘッドホンの差し込み: -1 = 分からない / 0 = 挿していない / 1 = 挿している
+    bool speakerOn = false;   ///< 切り替えた後のスピーカー
+    bool headphoneOn = false; ///< 切り替えた後のヘッドホン
+};
+/** @brief mode に合わせてスイッチを切り替え(mode 0 なら読むだけ)、今の状態を返す。 */
+OutputRouteState applyOutputRoute(int mode);
+
 /** @brief サウンドカードの構成を表す文字列(抜き差しの検出用。変わったら一覧を読み直す)。 */
 QString cardsSignature();
 

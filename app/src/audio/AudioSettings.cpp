@@ -91,6 +91,39 @@ AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
         if (alsa::cardsSignature() != cardSignature_) refreshAlsa();
     });
     cardWatch_.start();
+    outputRoute_ = std::clamp(store.value(QStringLiteral("audio/outputRoute"), 0).toInt(), 0, 4);
+    applyRoute();
+    // 「挿したら切り替え」と、設定画面の表示(差し込み・今の出口)のため、1 秒ごとに見る(開いて読むだけなので軽い)
+    jackWatch_.setInterval(1000);
+    connect(&jackWatch_, &QTimer::timeout, this, [this]() { applyRoute(); });
+    jackWatch_.start();
+#endif
+}
+
+void AudioSettings::setOutputRoute(int mode) {
+    mode = std::clamp(mode, 0, 4);
+    if (mode == outputRoute_) return;
+    outputRoute_ = mode;
+    openStore().setValue(QStringLiteral("audio/outputRoute"), mode);
+    log::info("AUDIO", QStringLiteral("output route: %1").arg(mode));
+    emit outputRouteChanged();
+    applyRoute();
+}
+
+void AudioSettings::applyRoute() {
+#ifdef OPENCRUISE_WITH_ALSA
+    const alsa::OutputRouteState st = alsa::applyOutputRoute(outputRoute_);
+    if (st.plugged != headphonePlugged_ && st.available)
+        log::info("AUDIO", QStringLiteral("headphone %1").arg(st.plugged == 1 ? QStringLiteral("plugged in") : st.plugged == 0 ? QStringLiteral("unplugged") : QStringLiteral("state unknown")));
+    if (st.available != routeAvailable_ || st.cards != routeCards_ || st.plugged != headphonePlugged_
+        || st.speakerOn != speakerOn_ || st.headphoneOn != headphoneOn_) {
+        routeAvailable_ = st.available;
+        routeCards_ = st.cards;
+        headphonePlugged_ = st.plugged;
+        speakerOn_ = st.speakerOn;
+        headphoneOn_ = st.headphoneOn;
+        emit outputRouteStateChanged();
+    }
 #endif
 }
 

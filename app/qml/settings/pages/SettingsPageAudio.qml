@@ -58,6 +58,24 @@ SettingsPage {
         title: "出力先"
         icon: "speaker"
 
+        // 内蔵の音の出口(スピーカーとヘッドホンが同じ出力の機器だけ。RT5682 の Spk / Headphone Jack、HDA の Speaker / Headphone)
+        SettingsRow {
+            visible: audioSettings.outputRouteAvailable
+            label: "内蔵の音の出口(スピーカー / ヘッドホン)"
+            description: "スピーカーとヘッドホンが同じ出力の機器(" + audioSettings.outputRouteCards + ")で、どちらから鳴らすかを選びます。"
+                         + "「挿したら切り替え」はヘッドホンを挿すとスピーカーを消します。"
+                         + "今: スピーカー " + (audioSettings.speakerOn ? "オン" : "オフ")
+                         + " ・ ヘッドホン " + (audioSettings.headphoneOn ? "オン" : "オフ")
+                         + (audioSettings.headphonePlugged === 1 ? "(ヘッドホンが挿さっています)"
+                            : audioSettings.headphonePlugged === 0 ? "(ヘッドホンは挿さっていません)" : "")
+            stacked: true
+            SettingsChoice {
+                model: ["変えない", "挿したら切り替え", "スピーカーだけ", "ヘッドホンだけ", "両方"]
+                currentIndex: audioSettings.outputRoute
+                onPicked: (i) => audioSettings.outputRoute = i
+            }
+        }
+
         SettingsRow {
             label: "マップ音声の出力先"
             stacked: true

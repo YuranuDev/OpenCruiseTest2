@@ -57,6 +57,15 @@ class AudioSettings : public QObject {
     Q_PROPERTY(int micDeviceIndex READ micDeviceIndex WRITE setMicDeviceIndex NOTIFY micChanged)
     /** 選択できる入力元の表示名。先頭は常に「システム既定」。接続の増減に追従する */
     Q_PROPERTY(QStringList inputNames READ inputNames NOTIFY inputsChanged)
+    /** 内蔵の音の出口: 0 = 変えない(システムのまま。既定) / 1 = 挿したら切り替え / 2 = スピーカーだけ / 3 = ヘッドホンだけ / 4 = 両方。
+     *  スピーカーとヘッドホンが同じ出力の機器で、ミキサーのスイッチを切り替える(alsa::applyOutputRoute)。保存する */
+    Q_PROPERTY(int outputRoute READ outputRoute WRITE setOutputRoute NOTIFY outputRouteChanged)
+    /** 出口を切り替えられる機器があるか / その名前 / ヘッドホンの差し込み(-1 = 分からない / 0 / 1) / 今のスピーカー・ヘッドホン */
+    Q_PROPERTY(bool outputRouteAvailable READ outputRouteAvailable NOTIFY outputRouteStateChanged)
+    Q_PROPERTY(QString outputRouteCards READ outputRouteCards NOTIFY outputRouteStateChanged)
+    Q_PROPERTY(int headphonePlugged READ headphonePlugged NOTIFY outputRouteStateChanged)
+    Q_PROPERTY(bool speakerOn READ speakerOn NOTIFY outputRouteStateChanged)
+    Q_PROPERTY(bool headphoneOn READ headphoneOn NOTIFY outputRouteStateChanged)
     /** ALSA の機器へ直接出しているか(設定画面の説明の切り替え用) */
     Q_PROPERTY(bool alsaDirect READ usesAlsa CONSTANT)
 
@@ -129,6 +138,14 @@ public:
     static bool usesAlsa();
     QStringList inputNames() const { return inputNames_; }
 
+    int outputRoute() const { return outputRoute_; }
+    void setOutputRoute(int mode);
+    bool outputRouteAvailable() const { return routeAvailable_; }
+    QString outputRouteCards() const { return routeCards_; }
+    int headphonePlugged() const { return headphonePlugged_; }
+    bool speakerOn() const { return speakerOn_; }
+    bool headphoneOn() const { return headphoneOn_; }
+
 signals:
     void volumesChanged();
     /** @brief マスター音量が変わった。 */
@@ -143,6 +160,8 @@ signals:
     void micChanged();
     /** @brief 入力デバイスの一覧が変わった。 */
     void inputsChanged();
+    void outputRouteChanged();
+    void outputRouteStateChanged();
 
 private:
     /** @brief 出力デバイスの一覧を取り直す。変化があれば通知する。 */
@@ -169,6 +188,15 @@ private:
     QString alsaSelected_[GroupCount];   ///< 選んだ ALSA の機器名。空ならシステム既定(default)
     QString alsaMicSelected_;
     QTimer cardWatch_;                   ///< サウンドカードの抜き差しを見る
+    /** @brief 内蔵の音の出口を今の設定に合わせ、状態を読み直す(ALSA のときだけ)。 */
+    void applyRoute();
+    int outputRoute_ = 0;
+    bool routeAvailable_ = false;
+    QString routeCards_;
+    int headphonePlugged_ = -1;
+    bool speakerOn_ = false;
+    bool headphoneOn_ = false;
+    QTimer jackWatch_;                   ///< 「挿したら切り替え」のとき、ヘッドホンの差し込みを見る
     QString cardSignature_;
 };
 
