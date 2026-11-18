@@ -1,5 +1,5 @@
 // ウィジェットの追加パネル。ジャンルごとのタブに、追加できるウィジェットをタイルのグリッドで並べる(WidgetRegistry の定義から自動生成)。
-// タイルをタップすると、エリア(今のページ)の空いている最初の場所に置かれ、パネルが閉じる。「初期配置に戻す」は 2 回押しで実行する
+// タイルをタップすると、エリア(今のページ)の空いている最初の場所に置かれ、パネルが閉じる(置ける場所が無ければパネルの下に知らせる)。「初期配置に戻す」は 2 回押しで実行する
 // (全ページが初期配置に戻る)。「車両」では一覧の上のスイッチで、メーターとグラフを切り替えて追加できる。
 // 数が多い「車両」は、分類(基本・エンジン・燃料・吸気…。WidgetRegistry.vehicleSections)ごとに見出しを付けて並べ、
 // 上のチップで分類を絞り込める。今データが来ていない計測値(このECUでは出ない項目・データ元なし)のものは、
@@ -26,8 +26,13 @@ Item {
     onGenreChanged: sectionFilter = ""
     readonly property var sectionList: WidgetRegistry.vehicleSections
     // 見出しごとのまとまり: [{ title, icon, noData, items }]。データが無いものは最後にまとめる
-    readonly property var blocks: {
-        if (open) { ecuRevisionTick }   // 開いている間は、データの有無の変化を取り込む
+    // 宣言的な束縛にはしない: データの有無(entryHasData)は車両の値(回転数・ECU の revision など)を読むので、束縛にすると
+    // 値が来るたびに(約 5〜10 回/秒)作り直され、タイルの Repeater も作り直されて、押している途中のタイルが消え、
+    // タップが効かなかった。決まったとき(開いた・ジャンル・分類・メーター/グラフ・データなしの表示を変えた)と、
+    // 開いている間の 2 秒ごとの見直しで、並びが変わったときだけ入れ替える(rebuildBlocks)。
+    property var blocks: []
+    property string blocksKey: ""
+    function computeBlocks() {
         const list = entries.filter(e => sectionFilter === "" || WidgetRegistry.sectionOf(e) === sectionFilter)
         if (!showVehicleSwitch) return list.length > 0 ? [{ title: "", icon: "", noData: false, items: list }] : []
         const out = []
@@ -39,13 +44,34 @@ Item {
         if (none.length > 0 && showNoData) out.push({ title: "データなし(今はデータが来ていない)", icon: "block", noData: true, items: none })
         return out
     }
-    // データの有無は ECU の値が来るたびに変わりうるので、開いている間だけ 2 秒ごとに見直す(毎回並べ直さないように)
-    property int ecuRevisionTick: 0
-    Timer { interval: 2000; repeat: true; running: root.open && root.showVehicleSwitch; onTriggered: root.ecuRevisionTick++ }
+    function rebuildBlocks() {
+        const out = computeBlocks()
+        // 並び(見出しと、各タイルの種類・計測値)が同じなら入れ替えない(タイルを作り直さない)
+        const key = JSON.stringify(out.map(b => [b.title, b.items.map(e => e.type + "/" + (e.config && e.config.metric !== undefined ? e.config.metric : ""))]))
+        if (key === blocksKey) return
+        blocksKey = key
+        blocks = out
+    }
+    onOpenChanged: {
+        if (open) rebuildBlocks()
+        else noSpaceShown = false
+    }
+    onEntriesChanged: rebuildBlocks()
+    onSectionFilterChanged: rebuildBlocks()
+    onShowNoDataChanged: rebuildBlocks()
+    Component.onCompleted: rebuildBlocks()
+    // データの有無は値が来るたびに変わりうるので、開いている間だけ 2 秒ごとに見直す(並びが変わったときだけ入れ替わる)
+    Timer { interval: 2000; repeat: true; running: root.open && root.showVehicleSwitch; onTriggered: root.rebuildBlocks() }
 
     readonly property real unit: Theme.uiScale
 
-    function show() { confirmReset = false; ecuRevisionTick++; open = true }
+    function show() { confirmReset = false; noSpaceShown = false; open = true; rebuildBlocks() }
+    // 置ける場所が無くて追加できなかったとき、パネルの下に知らせる(画面上部の通知は、ほかの通知
+    // (車両異常の警告など)に紛れて気づきにくく、「押しても何も起きない」ように見えていたため)
+    property bool noSpaceShown: false
+    function showNoSpace() { noSpaceShown = true; noSpaceTimer.restart() }
+    Timer { id: noSpaceTimer; interval: 5000; onTriggered: root.noSpaceShown = false }
+
     function close() { open = false }
 
     visible: scrim.opacity > 0
@@ -348,7 +374,9 @@ Item {
                                         id: cardMouse
                                         anchors.fill: parent
                                         onClicked: {
-                                            if (root.area && root.area.addWidget(modelData.type, modelData.config)) root.close()
+                                            if (!root.area) return
+                                            if (root.area.addWidget(modelData.type, modelData.config)) root.close()
+                                            else root.showNoSpace()   // 置ける場所が無い(このパネルの中に知らせる)
                                         }
                                     }
                                 }
@@ -367,6 +395,38 @@ Item {
                     text: "この分類のウィジェットはありません"
                 }
             }
+        }
+
+        // ---- 追加できなかったときの知らせ(下段のすぐ上) ----
+        Rectangle {
+            id: noSpaceBanner
+            z: 2
+            anchors { bottom: foot.top; left: parent.left; right: parent.right; bottomMargin: 8 * root.unit
+                      leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
+            height: noSpaceRow.implicitHeight + 24 * root.unit
+            radius: Theme.radius + 2
+            color: Theme.mix(Theme.panel, Theme.warn, 0.22)
+            border.width: 2
+            border.color: Theme.warn
+            opacity: root.noSpaceShown ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 160 } }
+            Row {
+                id: noSpaceRow
+                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 16 * root.unit; rightMargin: 16 * root.unit }
+                spacing: 12 * root.unit
+                MaterialIcon { anchors.verticalCenter: parent.verticalCenter; name: "warning"; size: 34 * root.unit; color: Theme.warn }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: noSpaceRow.width - 46 * root.unit
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 19 * root.unit
+                    color: Theme.textPrimary
+                    text: "このページには置ける場所がありません。ウィジェットを消すか小さくするか、別のページ(上の「＋」で増やせます)に切り替えてから追加してください"
+                }
+            }
+            MouseArea { anchors.fill: parent; onClicked: root.noSpaceShown = false }
         }
 
         // ---- 下段 ----
