@@ -5,6 +5,7 @@
 //  - 保存: widgetStore.layoutJson に { version: 2, current, pages: [{ id, name, widgets: [...], decor: [...] }] }。
 //    decor はそのページに置いた飾りの画像(キャラなど。DecorationStore が読み書きする。無ければ空)
 //    以前の形式(version 1 = 1 ページ分の widgets)は、1 ページ目として読み込む
+//    未保存のときは「ページ 1(初期配置)+ ページ 2(空)」で始める
 //  - 外からは currentArea(追加パネル・設定ダイアログの対象)と、addPage / removePage / renamePage / movePage /
 //    setCurrent / resetAll、settingsRequested(area, wid) / pickerRequested() を使う
 import QtQuick
@@ -117,7 +118,9 @@ Item {
                 pages = [{ name: "ページ 1", widgets: o.widgets }]   // 以前の形式(1 ページだけ)
             }
         } catch (e) { /* 未保存・壊れている場合は初期配置を使う */ }
-        if (pages === null) pages = [{ name: "ページ 1", widgets: null }]
+        // 未保存(初めて・初期配置に戻したとき)は、ページ 1 = 初期配置(12 × 6 マスが埋まっている)と、空のページ 2。
+        // ページ 1 だけだと空きが無く、最初からウィジェットを追加できなかったため
+        if (pages === null) pages = [{ name: "ページ 1", widgets: null }, { name: "ページ 2", widgets: [] }]
         // 先に保存内容をそろえてから、ページ(WidgetArea)を作る(作られたときに pageWidgets() で読むため)
         const st = {}
         const dst = {}
