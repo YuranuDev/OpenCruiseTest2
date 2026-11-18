@@ -62,8 +62,14 @@ QtObject {
     /// 計測値の分類(VIN / SEN の項目、ECU の項目どちらも)
     function groupOf(metric) {
         if (nodeMetrics[metric]) return nodeMetrics[metric].group
-        for (const p of ecu.params) if (p.id === metric) return p.group
-        return ""
+        const g = paramGroups[metric]
+        return g ? g : ""
+    }
+    /// ECU の項目の分類(id → 分類。ecu.params は変わらないので 1 回だけ作る)
+    readonly property var paramGroups: {
+        const out = {}
+        for (const p of ecu.params) out[p.id] = p.group
+        return out
     }
 
     // ---- 選び方 ----
@@ -74,13 +80,16 @@ QtObject {
         { id: "ecu",      title: "ECU だけ" }
     ]
     /// 実際に使う選び方(上書きの設定があれば、項目ごとの設定に関係なくそちら)
+    // 設定は変わったときだけ JavaScript に変換して持っておく(ecu.sourcePrefs を読むたびに変換すると、値を読むたびに重くなるため)
+    readonly property var prefsMap: ecu.sourcePrefs
+    readonly property string overrideMode: ecu.sourceOverride
     function pref(metric) {
-        if (ecu.sourceOverride !== "") return ecu.sourceOverride
-        const p = ecu.sourcePrefs[metric]; return p ? p : "auto"
+        if (overrideMode !== "") return overrideMode
+        const p = prefsMap[metric]; return p ? p : "auto"
     }
     /// 項目ごとの設定(上書きを考えない)
-    function itemPref(metric) { const p = ecu.sourcePrefs[metric]; return p ? p : "auto" }
-    readonly property bool overridden: ecu.sourceOverride !== ""
+    function itemPref(metric) { const p = prefsMap[metric]; return p ? p : "auto" }
+    readonly property bool overridden: overrideMode !== ""
     function setOverride(mode) { ecu.sourceOverride = mode }
     function setPref(metric, mode) { ecu.setSourcePref(metric, mode) }
 

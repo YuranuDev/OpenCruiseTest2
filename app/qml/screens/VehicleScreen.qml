@@ -6,7 +6,7 @@
 //   スイッチ・作動状態  バック・エンジン・ファン・燃料ポンプ・ブレーキなどの ON / OFF をランプで
 //   故障コード      現在起きている異常(赤)と過去の記録(黄)を分けて、コード・内容・状態を出す(消去はしない)
 //   データ元・ECU 情報  ノードごとの状態と、両方から取れる項目でどちらを使っているか、ECU の情報と通信の状態
-// 値は ecu.revision(約 5Hz)と車両信号の変化に合わせて書き換わる。
+// 値は 5 回/秒のタイマーでまとめて読み直す(refresh。重さ対策)。
 import QtQuick
 import QtQuick.Controls
 import OpenCruise
@@ -29,48 +29,72 @@ Rectangle {
     readonly property var current: pages[currentIndex]
 
     // ---- 項目(VIN / SEN の計測値は VehicleSignals、ECU だけの項目は ecu)。どちらも id で引く ----
-    function paramOf(id) { for (const p of ecu.params) if (p.id === id) return p; return null }
-    function isNode(id) { return !!VehicleSignals.nodeMetrics[id] }
-    function itemTitle(id) {
-        if (id === "gear") return "ギア"
-        if (isNode(id)) { const s = WidgetRegistry.gaugeSpecs[id]; return s ? s.title : id }
-        const p = paramOf(id); return p ? p.title : id
+    // 重さ対策: 値の表示は、値の束縛にしない。
+    //   以前は各タイル・各行が値を直接読む束縛だったため、車両信号(約 10 回/秒)や ECU(約 5 回/秒)が届くたびに、
+    //   全部の行が ecu.params(73 項目の一覧を毎回 JavaScript に変換する)などを読み直していて重かった。
+    //   今は、名前・単位などの変わらない情報は開いたときに 1 回だけ作り(meta)、値は 5 回/秒のタイマーでまとめて
+    //   作り直し(snap)、タイル・行は snap だけを読む。見た目(レイアウト)は同じで、表示の更新は 5 回/秒(ECU と同じ)。
+    property var meta: ({})          // id → { title, icon, unit, dec, node, note, kind }
+    property var snap: ({})          // id → { ok, num, text, tag, on }
+    property var liveIds: []         // ライブデータに出す項目(分類ごと){ group → [id] }
+    property var switchIds: []       // スイッチ・作動状態に出す項目
+    function buildMeta() {
+        const m = {}
+        for (const k of Object.keys(VehicleSignals.nodeMetrics)) {
+            const sp = WidgetRegistry.gaugeSpecs[k]
+            m[k] = k === "gear" ? { title: "ギア", icon: "mdi:car-shift-pattern", unit: "速", dec: 0, node: true, note: "", kind: "number" }
+                                : { title: sp ? sp.title : k, icon: sp ? sp.icon : "", unit: sp ? sp.units[0].label : "",
+                                    dec: sp ? sp.units[0].dec : 0, node: true, note: "", kind: "number" }
+        }
+        const params = ecu.params   // ここで 1 回だけ変換する
+        for (const p of params) if (!m[p.id]) m[p.id] = { title: p.title, icon: p.icon, unit: p.unit, dec: p.dec, node: false, note: p.note, kind: p.kind, group: p.group }
+        m.reverse = { title: "バック", icon: "mdi:car-back", unit: "", dec: 0, node: true, note: "", kind: "state" }
+        m.engine = { title: "エンジン始動", icon: "mdi:engine", unit: "", dec: 0, node: true, note: "", kind: "state" }
+        const live = {}
+        for (const g of VehicleSignals.numberGroups)
+            live[g.id] = Object.keys(VehicleSignals.nodeMetrics).filter(k => VehicleSignals.nodeMetrics[k].group === g.id)
+                .concat(params.filter(p => p.group === g.id && p.kind !== "bit" && VehicleSignals.mergedEcuIds.indexOf(p.id) < 0).map(p => p.id))
+        liveIds = live
+        switchIds = ["reverse", "engine"].concat(params.filter(p => p.kind === "bit").map(p => p.id))
+        meta = m
     }
-    function itemIcon(id) {
-        if (id === "gear") return "mdi:car-shift-pattern"
-        if (isNode(id)) { const s = WidgetRegistry.gaugeSpecs[id]; return s ? s.icon : "" }
-        const p = paramOf(id); return p ? p.icon : ""
+    /// 今の値をまとめて作る(タイマーから呼ぶ。ここで読む値は束縛にならない)
+    function refresh() {
+        const out = {}
+        for (const id of Object.keys(meta)) {
+            const mm = meta[id]
+            let ok = false, v = NaN, tag = "", text = "--", on = false
+            if (id === "reverse") { ok = true; on = reverseCamera.reverse; tag = "VIN" }
+            else if (id === "engine") { ok = can.dataAvailable; on = ok && can.engineRunning; tag = ok ? "VIN" : "" }
+            else if (mm.node) {
+                const src = VehicleSignals.sourceOf(id)
+                if (src !== "") {
+                    v = VehicleSignals.value(id)
+                    ok = !(id === "gear" && v <= 0)
+                    tag = src === "ecu" ? "ECU" : VehicleSignals.nodeMetrics[id].node
+                }
+            } else {
+                ok = ecu.has(id)
+                if (ok) { v = ecu.value(id); tag = "ECU"; on = v !== 0 }
+            }
+            const num = ok && !isNaN(v) ? Number(v).toFixed(mm.dec) : "--"
+            if (mm.node) text = num === "--" ? "--" : num + " " + mm.unit
+            else text = ok ? ecu.text(id) : "--"
+            if (!ok) tag = ""
+            out[id] = { ok: ok, num: num, text: text, tag: tag, on: on }
+        }
+        snap = out
     }
-    function itemUnit(id) {
-        if (id === "gear") return "速"
-        if (isNode(id)) { const s = WidgetRegistry.gaugeSpecs[id]; return s ? s.units[0].label : "" }
-        const p = paramOf(id); return p ? p.unit : ""
-    }
-    function itemDec(id) {
-        if (id === "gear") return 0
-        if (isNode(id)) { const s = WidgetRegistry.gaugeSpecs[id]; return s ? s.units[0].dec : 0 }
-        const p = paramOf(id); return p ? p.dec : 0
-    }
-    function has(id) {
-        if (isNode(id)) return VehicleSignals.has(id) && !(id === "gear" && VehicleSignals.value(id) <= 0)
-        ecu.revision; return ecu.has(id)
-    }
-    /// 数値だけ(単位なし。無ければ "--")
-    function numText(id) {
-        if (!has(id)) return "--"
-        const v = isNode(id) ? VehicleSignals.value(id) : (ecu.revision, ecu.value(id))
-        return Number(v).toFixed(itemDec(id))
-    }
-    /// 画面に出す文字(数値は単位つき。ECU の列挙・ビットは説明。無ければ "--")
-    function t(id) {
-        if (isNode(id)) { const n = numText(id); return n === "--" ? n : n + " " + itemUnit(id) }
-        ecu.revision; return ecu.text(id)
-    }
-    /// どのノードから来た値か("VIN" / "SEN" / "ECU"。無ければ "")
-    function sourceTag(id) {
-        if (isNode(id)) { if (!has(id)) return ""; const n = VehicleSignals.nodeOf(id); return n === "DIAG" ? "ECU" : n }
-        return has(id) ? "ECU" : ""
-    }
+    Component.onCompleted: { buildMeta(); refresh() }
+    Timer { interval: 200; repeat: true; running: root.visible; onTriggered: root.refresh() }
+
+    function itemTitle(id) { const m = meta[id]; return m ? m.title : id }
+    function itemIcon(id) { const m = meta[id]; return m ? m.icon : "" }
+    function itemUnit(id) { const m = meta[id]; return m ? m.unit : "" }
+    function has(id) { const x = snap[id]; return !!x && x.ok }
+    function numText(id) { const x = snap[id]; return x ? x.num : "--" }
+    function t(id) { const x = snap[id]; return x ? x.text : "--" }
+    function sourceTag(id) { const x = snap[id]; return x ? x.tag : "" }
 
     // ---- ヘッダー: 戻るボタン + タイトル ----
     Item {
@@ -412,7 +436,7 @@ Rectangle {
         property string itemId: ""
         readonly property real u: Theme.uiScale
         readonly property bool ok: root.has(itemId)
-        readonly property var p: root.isNode(itemId) ? null : root.paramOf(itemId)
+        readonly property var p: root.meta[itemId] || null
         width: parent ? parent.width : 0
         height: 60 * u
         Text {
@@ -432,7 +456,7 @@ Rectangle {
             font.pixelSize: 21 * row.u
             color: row.ok ? Theme.textPrimary : Theme.textSecondary
             elide: Text.ElideRight
-            text: root.t(row.itemId) + (row.ok || !row.p || row.p.note === "" ? "" : "(" + row.p.note + ")")
+            text: root.t(row.itemId) + (row.ok || !row.p || !row.p.note ? "" : "(" + row.p.note + ")")
         }
         SourceChip { id: liveChip; tag: root.sourceTag(row.itemId); anchors { right: parent.right; verticalCenter: parent.verticalCenter } }
         Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.panelBorder; opacity: 0.6 }
@@ -457,9 +481,7 @@ Rectangle {
                     id: gsec
                     required property var modelData
                     // 分類の中は、車両信号(VIN / SEN)の項目 → ECU だけの項目(車両信号にまとめた ECU の項目は出さない)
-                    readonly property var items: Object.keys(VehicleSignals.nodeMetrics).filter(k => VehicleSignals.nodeMetrics[k].group === modelData.id)
-                        .concat(ecu.params.filter(p => p.group === modelData.id && p.kind !== "bit"
-                                                      && VehicleSignals.mergedEcuIds.indexOf(p.id) < 0).map(p => p.id))
+                    readonly property var items: root.liveIds[modelData.id] || []
                     title: modelData.title
                     icon: modelData.icon
                     visible: items.length > 0 && (!lp.hideMissing || items.some(id => root.has(id)))
@@ -496,21 +518,13 @@ Rectangle {
                     readonly property real cellW: (width - spacing * (columns - 1)) / columns
                     Repeater {
                         // 車両信号(VIN)の状態 → ECU のスイッチ(ビット)。{ id, title, icon, known, on, tag }
-                        model: {
-                            ecu.revision
-                            const list = [
-                                { id: "reverse", title: "バック", icon: "mdi:car-back", known: true, on: reverseCamera.reverse, tag: "VIN" },
-                                { id: "engine", title: "エンジン始動", icon: "mdi:engine", known: can.dataAvailable, on: can.engineRunning, tag: can.dataAvailable ? "VIN" : "" }
-                            ]
-                            for (const p of ecu.params.filter(p => p.kind === "bit"))
-                                list.push({ id: p.id, title: p.title, icon: p.icon, known: ecu.has(p.id), on: ecu.has(p.id) && ecu.value(p.id) !== 0,
-                                            tag: ecu.has(p.id) ? "ECU" : "" })
-                            return list
-                        }
+                        // 車両信号(VIN)の状態 → ECU のスイッチ(ビット)。項目の並びは変わらない(値は root.snap から読む)
+                        model: root.switchIds
                         Rectangle {
-                            required property var modelData
-                            readonly property bool known: modelData.known
-                            readonly property bool on: modelData.on
+                            required property var modelData   // 項目の id
+                            readonly property var st: root.snap[modelData] || ({ ok: false, on: false, tag: "" })
+                            readonly property bool known: st.ok
+                            readonly property bool on: st.on
                             width: lamps.cellW
                             height: 88 * root.unit
                             radius: Theme.radius + 4
@@ -518,13 +532,13 @@ Rectangle {
                             border.width: on ? 2 : 1
                             border.color: on ? Theme.accent : Theme.panelBorder
                             opacity: known ? 1 : 0.5
-                            SourceChip { tag: modelData.tag; anchors { right: parent.right; top: parent.top; rightMargin: 8 * root.unit; topMargin: 8 * root.unit } }
+                            SourceChip { tag: parent.st.tag; anchors { right: parent.right; top: parent.top; rightMargin: 8 * root.unit; topMargin: 8 * root.unit } }
                             Row {
                                 anchors { left: parent.left; leftMargin: 14 * root.unit; verticalCenter: parent.verticalCenter }
                                 spacing: 12 * root.unit
                                 MaterialIcon {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    name: modelData.icon
+                                    name: root.itemIcon(modelData)
                                     size: 34 * root.unit
                                     color: parent.parent.on ? Theme.accent : Theme.textSecondary
                                 }
@@ -536,7 +550,7 @@ Rectangle {
                                         font.pixelSize: 19 * root.unit
                                         color: Theme.textPrimary
                                         elide: Text.ElideRight
-                                        text: modelData.title
+                                        text: root.itemTitle(modelData)
                                     }
                                     Text {
                                         font.family: Theme.fontFamily
@@ -715,10 +729,10 @@ Rectangle {
                     model: VehicleSignals.mergedIds
                     SettingsInfoRow {
                         required property var modelData
-                        readonly property string now: VehicleSignals.nodeOf(modelData)
+                        readonly property string now: root.sourceTag(modelData)   // "VIN" / "SEN" / "ECU"(5 回/秒で更新)
                         readonly property var mode: VehicleSignals.sourceModes.find(m => m.id === VehicleSignals.pref(modelData))
                         label: root.itemTitle(modelData)
-                        value: (now === "" ? "データなし" : now === "DIAG" ? "ECU" : now) + " を使用(" + (mode ? mode.title : "") + ")"
+                        value: (now === "" ? "データなし" : now) + " を使用(" + (mode ? mode.title : "") + ")"
                         valueColor: now === "" ? Theme.textSecondary : Theme.textPrimary
                     }
                 }
