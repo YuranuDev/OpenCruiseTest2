@@ -52,6 +52,7 @@ struct DeviceFacts {
     int hdmiNumber = 0;       ///< そのカードの中で何番目の HDMI / DisplayPort か(1 から。HDMI でなければ 0)
     int monitorState = -1;    ///< HDMI のつながり: -1 = 分からない / 0 = つながっていない / 1 = つながっている
     QString monitorName;      ///< つながっているモニター・テレビの名前(ELD から。分からなければ空)
+    bool cardHasSpeakerPcm = false;   ///< 同じカードに "Speakers" などスピーカー専用の再生 PCM があるか
 };
 /** @brief 画面に出す分かりやすい名前(「内蔵スピーカー・ヘッドホン(HDA Intel PCH)」「HDMI 1 ・ LG TV」など)。 */
 QString deviceLabel(const DeviceFacts &f);

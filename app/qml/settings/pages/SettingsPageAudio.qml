@@ -58,12 +58,13 @@ SettingsPage {
         title: "出力先"
         icon: "speaker"
 
-        // 内蔵の音の出口(スピーカーとヘッドホンが同じ出力の機器だけ。RT5682 の Spk / Headphone Jack、HDA の Speaker / Headphone)
+        // 内蔵の音の出口(スピーカーとヘッドホンのスイッチがある機器だけ。RT5682 の Spk / Headphone Jack、HDA の Speaker / Headphone)
         SettingsRow {
             visible: audioSettings.outputRouteAvailable
             label: "内蔵の音の出口(スピーカー / ヘッドホン)"
-            description: "スピーカーとヘッドホンが同じ出力の機器(" + audioSettings.outputRouteCards + ")で、どちらから鳴らすかを選びます。"
-                         + "「挿したら切り替え」はヘッドホンを挿すとスピーカーを消します。"
+            description: "スピーカーとヘッドホンの出口を、ミキサーのスイッチで入/切します(" + audioSettings.outputRouteCards + ")。"
+                         + "下の出力先で選んだ機器の音も、ここで切った出口からは出ません。"
+                         + "「挿したら切り替え」はヘッドホンを挿すとスピーカーを消し、抜くとヘッドホンを消します。"
                          + "今: スピーカー " + (audioSettings.speakerOn ? "オン" : "オフ")
                          + " ・ ヘッドホン " + (audioSettings.headphoneOn ? "オン" : "オフ")
                          + (audioSettings.headphonePlugged === 1 ? "(ヘッドホンが挿さっています)"

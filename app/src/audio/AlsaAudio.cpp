@@ -54,6 +54,23 @@ int readMonitor(snd_ctl_t *ctl, int dev, QString *name) {
     return 1;
 }
 
+/// そのカードに、スピーカー専用の再生 PCM("Speakers" など)があるか
+bool hasSpeakerPcm(snd_ctl_t *ctl) {
+    int dev = -1;
+    while (snd_ctl_pcm_next_device(ctl, &dev) == 0 && dev >= 0) {
+        snd_pcm_info_t *pcmInfo = nullptr;
+        snd_pcm_info_alloca(&pcmInfo);
+        snd_pcm_info_set_device(pcmInfo, static_cast<unsigned>(dev));
+        snd_pcm_info_set_subdevice(pcmInfo, 0);
+        snd_pcm_info_set_stream(pcmInfo, SND_PCM_STREAM_PLAYBACK);
+        if (snd_ctl_pcm_info(ctl, pcmInfo) < 0) continue;
+        const QString id = QString::fromLocal8Bit(snd_pcm_info_get_id(pcmInfo)) + QLatin1Char(' ')
+                           + QString::fromLocal8Bit(snd_pcm_info_get_name(pcmInfo));
+        if (id.contains(QLatin1String("Speaker"), Qt::CaseInsensitive)) return true;
+    }
+    return false;
+}
+
 QList<DeviceInfo> listDevices(snd_pcm_stream_t stream) {
     QList<DeviceInfo> list;
     int card = -1;
@@ -71,6 +88,7 @@ QList<DeviceInfo> listDevices(snd_pcm_stream_t stream) {
         f.capture = stream == SND_PCM_STREAM_CAPTURE;
         f.cardName = QString::fromLocal8Bit(snd_ctl_card_info_get_name(info));
         f.driver = QString::fromLocal8Bit(snd_ctl_card_info_get_driver(info));
+        f.cardHasSpeakerPcm = hasSpeakerPcm(ctl);
         int hdmiCount = 0;
         int dev = -1;
         while (snd_ctl_pcm_next_device(ctl, &dev) == 0 && dev >= 0) {
@@ -131,6 +149,17 @@ QString deviceLabel(const DeviceFacts &f) {
         return (f.capture ? QStringLiteral("スピーカーの戻り(エコー除去用) ・ %1") : QStringLiteral("スピーカー ・ %1")).arg(card);
     if (has("DMIC"))
         return QStringLiteral("内蔵マイク%1 ・ %2").arg(rate, card);
+    // Intel SOF の "Port0" / "Port1" のような番号だけの PCM: ヘッドセット用コーデック(RT5682 など)のカードで、
+    // スピーカーが別の PCM("Speakers")になっているなら、残りの "Port…" はヘッドホン端子(録音はヘッドセットのマイク)
+    static const char *const kHeadsetCodecs[] = {"rt5682", "rt5682s", "rt5640", "rt5645", "rt5650", "rt711", "rt712", "da7219",
+                                                 "nau8825", "cs42l42", "es8336", "es8316", "rt5672"};
+    if (f.pcmId.startsWith(QLatin1String("Port"), Qt::CaseInsensitive)) {
+        bool codec = false;
+        for (const char *c : kHeadsetCodecs)
+            if ((f.cardName + QLatin1Char(' ') + f.driver).contains(QLatin1String(c), Qt::CaseInsensitive)) codec = true;
+        if (codec || f.cardHasSpeakerPcm)
+            return (f.capture ? QStringLiteral("ヘッドセットのマイク ・ %1") : QStringLiteral("ヘッドホン端子 ・ %1")).arg(card);
+    }
     // スピーカーとヘッドホンが同じ PCM の機器(Intel HDA の "ALC… Analog" など。ヘッドホンを挿すとスピーカーが消える)
     if (has("Analog") || has("Mic"))
         return (f.capture ? QStringLiteral("内蔵マイク・マイク端子 ・ %1") : QStringLiteral("スピーカー・ヘッドホン端子 ・ %1")).arg(card);
