@@ -119,9 +119,18 @@ QString deviceLabel(const DeviceFacts &f) {
     if (both.contains(QLatin1String("Digital"), Qt::CaseInsensitive) || both.contains(QLatin1String("SPDIF"), Qt::CaseInsensitive)
         || both.contains(QLatin1String("IEC958"), Qt::CaseInsensitive))
         return QStringLiteral("デジタル(光・同軸) ・ %1").arg(card);
-    // 内蔵のアナログ(スピーカー・ヘッドホン端子 / 内蔵マイク・マイク端子)
-    if (both.contains(QLatin1String("Analog"), Qt::CaseInsensitive) || both.contains(QLatin1String("Headphone"), Qt::CaseInsensitive)
-        || both.contains(QLatin1String("Speaker"), Qt::CaseInsensitive) || both.contains(QLatin1String("Mic"), Qt::CaseInsensitive))
+    const auto has = [&both](const char *word) { return both.contains(QLatin1String(word), Qt::CaseInsensitive); };
+    const QString rate = has("16k") ? QStringLiteral(" 16kHz") : QString();
+    // スピーカーとヘッドホンが別の PCM になっている機器(Intel SOF + RT5682 などのヘッドセット用コーデック +
+    // スピーカー用アンプの構成。PCM の名前が "Headset" / "Speakers" / "DMIC" など)は、それぞれ別の名前にする
+    if (has("Headset") || has("Headphone") || has("Jack"))
+        return (f.capture ? QStringLiteral("ヘッドセットのマイク ・ %1") : QStringLiteral("ヘッドホン端子 ・ %1")).arg(card);
+    if (has("Speaker") || has("Spk") || has("Amp"))
+        return (f.capture ? QStringLiteral("スピーカーの戻り(エコー除去用) ・ %1") : QStringLiteral("スピーカー ・ %1")).arg(card);
+    if (has("DMIC"))
+        return QStringLiteral("内蔵マイク%1 ・ %2").arg(rate, card);
+    // スピーカーとヘッドホンが同じ PCM の機器(Intel HDA の "ALC… Analog" など。ヘッドホンを挿すとスピーカーが消える)
+    if (has("Analog") || has("Mic"))
         return (f.capture ? QStringLiteral("内蔵マイク・マイク端子 ・ %1") : QStringLiteral("スピーカー・ヘッドホン端子 ・ %1")).arg(card);
     // 分からないものは、カード名と PCM の名前(PCM の名前も無ければ番号)
     const QString pcm = f.pcmName.isEmpty() || f.pcmName == QLatin1String("PCM") ? QStringLiteral("デバイス %1").arg(f.device) : f.pcmName;
