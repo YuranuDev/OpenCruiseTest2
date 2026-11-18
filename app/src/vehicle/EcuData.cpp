@@ -62,9 +62,9 @@ const Param kParams[] = {
     {"ecuRpm",      0x00, 20, 2, -1, Kind::Number, 0.25,     0,    "rpm",   "エンジン回転数",         "engine", 0, 0, 8000, 0, 16383, 500, "mdi:gauge", false, "回転数のメーターと同じ値"},
     {"ecuSpeed",    0x00, 22, 1, -1, Kind::Number, 1,        0,    "km/h",  "車速",                   "drive",  0, 0, 180, 0, 255, 10,  "mdi:speedometer", false, "スピードメーターと同じ値"},
     {"ecuCoolant",  0x00, 14, 1, -1, Kind::Number, 1,      -40,    "℃",     "水温",                   "engine", 0, 40, 130, -40, 215, 5, "mdi:coolant-temperature", false, "水温計と同じ値"},
-    {"ignition",    0x00, 23, 1, -1, Kind::Number, 0.5,    -64,    "°",     "点火時期(1番)",          "engine", 1, -10, 50, -64, 63.5, 2, "flash_on", true, ""},
+    {"ignition",    0x00, 23, 1, -1, Kind::Number, 0.5,    -64,    "deg",   "点火時期(1番)",          "engine", 1, -10, 50, -64, 63.5, 2, "flash_on", true, ""},
     {"idleTarget",  0x00, 35, 1, -1, Kind::Number, 7.84314,  0,    "rpm",   "目標アイドル回転数",     "engine", 0, 0, 1500, 0, 2000, 50, "mdi:engine-outline", true, ""},
-    {"vvtDiff",     0x02, 19, 1, -1, Kind::Number, 0.352941, -45,  "°",     "VVT 目標−実際の差",      "engine", 1, -20, 20, -45, 45, 2, "mdi:valve", true, ""},
+    {"vvtDiff",     0x02, 19, 1, -1, Kind::Number, 0.352941, -45,  "deg",   "VVT 目標−実際の差",      "engine", 1, -20, 20, -45, 45, 2, "mdi:valve", true, ""},
     // ---- 燃料 ----
     {"fuelStatusB1",0x00, 11, 1, -1, Kind::Enum,   1,        0,    "",      "燃料系の状態 B1",        "fuel",   0, 0, 0, 0, 0, 0, "mdi:fuel", false, ""},
     {"fuelStatusB2",0x00, 12, 1, -1, Kind::Enum,   1,        0,    "",      "燃料系の状態 B2",        "fuel",   0, 0, 0, 0, 0, 0, "mdi:fuel", false, ""},
