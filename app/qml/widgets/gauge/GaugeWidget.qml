@@ -108,24 +108,20 @@ WidgetBase {
     }
 
     // ---------------------------------------------------------------- 値
-    // データ元(現状は VehicleDataManager のモック)。束縛の依存を確実に取るため、プロパティを直接読む
+    // データ元: 車両信号(VIN / SEN ノード)の計測値は VehicleSignals(ECU と両方にある項目は、設定の選び方でどちらか)、
+    // ECU だけの計測値は ecu(EcuData)
+    readonly property string ecuId: gauge.ecu || ""
     readonly property real sourceValue: {
-        switch (metric) {
-        case "rpm": return can.rpm
-        case "speed": return can.speedKmh
-        case "coolant": return can.coolantTempC
-        case "fuel": return can.fuelPercent
-        case "oilTemp": return can.oilTempC
-        case "oilPressure": return can.oilPressureBar
-        case "voltage": return can.batteryVolts
-        case "throttle": return can.throttlePercent
-        case "brake": return can.brakePercent
-        default: return can.boostBar
-        }
+        if (ecuId !== "") { ecu.revision; const v = ecu.value(ecuId); return isNaN(v) ? 0 : v }
+        const v = VehicleSignals.value(metric)
+        return isNaN(v) ? 0 : v
     }
     readonly property real rawValue: toShown(sourceValue)
     // データ源があるか(無いときは「データなし」: 針は最小値で止め、数値は「--」、警告・ピーク表示は出さない)
-    readonly property bool hasData: can.dataAvailable
+    // ECU の計測値は、その項目の値が来ているか(このECUで出ない項目(FF)は「データなし」)
+    readonly property bool hasData: ecuId !== "" ? (ecu.revision, ecu.has(ecuId)) : VehicleSignals.has(metric)
+    // 今の値がダミーか(右上の「モック」)
+    readonly property bool mockData: ecuId !== "" ? ecu.linkState === "mock" : VehicleSignals.isMock(metric)
     onHasDataChanged: {
         if (hasData) resetPeak(); else peak = NaN
         // データが来た: オープニング(起動画面がまだ出ていれば、消えてから)
@@ -136,15 +132,40 @@ WidgetBase {
             openingAnim.stop()
         }
     }
-    // 針・数値は滑らかに追従させる(データは約 10Hz)
+    // 針・数値は滑らかに追従させる
     // なめらかにするのは基本単位の値(換算前)。単位を変えたときは、換算した値がすぐに出る(途中の値を経由しない)
     // 見えていない間は針・数値を動かさない(描き直しを止める)。警告の判定・最大値は rawValue で続ける。
     // 見えるようになったら、今の値へ寄せる
+    // 更新の遅いデータ(エンジン ECU は約 5Hz)でも針がカクカクしないよう、追従にかける時間を「値が変わる間隔」に合わせる:
+    //   - 間隔は値が変わるたびに測り、ならす(updateMs)。速いデータ(VIN / SEN、ダミー)は従来どおり 120ms
+    //   - 遅いデータは、次の値が来るのと同じころに着くように動かす(間隔の 1.15 倍、最大 340ms。着いて止まる間を作らない)。
+    //     動き始めが速い曲線(OutSine)なので、間隔の半分の時間で約 7 割進み、反応の遅れは小さい
+    //     (先読み・移動平均で値をずらす方法は使わない。針は常に届いた実際の値へ向かい、行き過ぎない)
     readonly property real liveBase: hasData ? sourceValue : (config.min !== undefined ? Number(config.min) : 0)
     property real smoothBase: liveBase
-    onLiveBaseChanged: if (onScreen) smoothBase = liveBase
+    property real updateMs: 100          // 値が変わる間隔(ならした値)
+    property double lastChangeAt: 0
+    readonly property int followMs: updateMs <= 120 ? 120 : Math.min(340, Math.round(updateMs * 1.15))
+    onLiveBaseChanged: {
+        const now = Date.now()
+        const dt = now - lastChangeAt
+        lastChangeAt = now
+        // 止まっていた後(1 秒以上)の変化は数えない。急に速くなったときはすぐ合わせ、遅くなるときはゆっくり合わせる
+        if (dt > 0 && dt < 1000) updateMs = dt < updateMs ? updateMs * 0.5 + dt * 0.5 : updateMs * 0.8 + dt * 0.2
+        if (onScreen) smoothBase = liveBase
+    }
     onOnScreenChanged: if (onScreen) smoothBase = liveBase
-    Behavior on smoothBase { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+    // なめらか表示を使うか: メーターごとの設定 config.smoothing(既定オン)。設定の「針のなめらか表示」の上書き
+    // (appSettings.gaugeSmoothingOverride: 1 = すべてオン / 2 = すべてオフ)があればそちら。
+    // オフのときは、届いた値をそのまま出す(針は値が来るたびに飛ぶが、遅れはまったく無い)
+    readonly property bool smoothingOn: {
+        const ov = typeof appSettings !== "undefined" && appSettings ? appSettings.gaugeSmoothingOverride : 0
+        return ov === 1 ? true : ov === 2 ? false : config.smoothing !== false
+    }
+    Behavior on smoothBase {
+        enabled: root.smoothingOn
+        NumberAnimation { duration: root.followMs; easing.type: root.followMs > 120 ? Easing.OutSine : Easing.OutQuad }
+    }
     readonly property real shown: toShown(openingActive ? openingBase : (openingHold ? openingStartBase : smoothBase))
 
     // ---------------------------------------------------------------- オープニング(針を左端 → 右端 → 今の値へ振る)
@@ -478,6 +499,8 @@ WidgetBase {
     Rectangle {
         id: mockTag
         z: 2
+        // 実際の通信のデータなら出さない(ダミーのときと、データが無いときだけ)
+        visible: !root.hasData || root.mockData
         anchors { top: parent.top; right: parent.right; topMargin: root.m * 0.7; rightMargin: root.m }
         width: mockText.implicitWidth + 14
         height: mockText.implicitHeight + 4

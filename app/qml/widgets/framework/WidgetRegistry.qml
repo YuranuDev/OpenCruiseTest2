@@ -28,7 +28,7 @@ QtObject {
     // ---- ジャンル(追加パネルの分類) ----
     readonly property var genres: [
         { id: "clock",        name: "時計・あいさつ",     icon: "schedule" },
-        { id: "vehicle",      name: "車載連携",           icon: "directions_car" },
+        { id: "vehicle",      name: "車両",               icon: "directions_car" },
         { id: "androidauto",  name: "Android Auto連携",   icon: "smartphone" },
         { id: "notification", name: "通知連携",           icon: "notifications" }
     ]
@@ -94,7 +94,8 @@ QtObject {
     //   warnBelow        true なら「警告値以下」で警告(燃料など)
     //   warnMessage      警告メッセージの入力欄の例
     //   negLabel / posLabel  0 をまたぐ範囲で、マイナス側・プラス側の目盛りを分けるときの呼び名(ターボ圧の負圧・正圧など)
-    readonly property var gaugeSpecs: ({
+    // エンジン ECU(K-Line)の計測値(ecuGaugeSpecs())も、ここに足す(ecu: 項目の id、group: 分類)
+    readonly property var gaugeSpecs: Object.assign({
         boost: { title: "ターボ圧", icon: "mdi:car-turbocharger",
                  units: [{ id: "bar", label: "bar", scale: 1, dec: 2, step: 0.1, stepDec: 1 },
                          { id: "psi", label: "psi", scale: 14.5038, dec: 1, step: 1, stepDec: 0 }],
@@ -135,7 +136,66 @@ QtObject {
         brake: { title: "ブレーキ", icon: "mdi:car-brake-worn-linings",
                  units: [{ id: "pct", label: "%", scale: 1, dec: 0, step: 10, stepDec: 0 }],
                  limitMin: 0, limitMax: 100, minSpan: 20, warnMessage: "強くブレーキを踏んでいます" }
-    })
+    }, ecuGaugeSpecs())
+
+    // ---- エンジン ECU(K-Line / KWP2000)の計測値 ----
+    // 定義は C++ の EcuData(context property `ecu`。項目は docs/reference/kei_kline_params.csv)。
+    // gauge: true の項目(回転数・車速・水温・電圧・アクセルなど、車両信号と同じ値のものを除く。そちらは VehicleSignals で 1 つにまとめる)を、
+    // メーター・グラフの種類と警告の条件にする
+    function decimalsOf(step) {
+        const t = String(step)
+        return t.indexOf(".") < 0 ? 0 : t.length - t.indexOf(".") - 1
+    }
+    function ecuGaugeSpecs() {
+        const out = {}
+        if (typeof ecu === "undefined" || !ecu) return out
+        for (const p of ecu.params) {
+            if (!p.gauge) continue
+            const units = [{ id: "base", label: p.unit, scale: 1, dec: p.dec, step: p.step, stepDec: decimalsOf(p.step) }]
+            if (p.unit === "℃")
+                units.push({ id: "f", label: "℉", scale: 1.8, offset: 32, dec: p.dec, step: p.step, stepDec: decimalsOf(p.step) })
+            out[p.id] = { title: p.title, icon: p.icon, units: units, limitMin: p.limitMin, limitMax: p.limitMax,
+                          minSpan: Math.max(p.step * 2, (p.max - p.min) / 10), warnMessage: p.title + "の警告",
+                          ecu: p.id, group: p.group, note: p.note }
+        }
+        return out
+    }
+    // メーターの種類(追加パネルの「車両」→ 分類ごと)。既定は半円のシンプル
+    function ecuTypes() {
+        const list = []
+        if (typeof ecu === "undefined" || !ecu) return list
+        for (const p of ecu.params) {
+            if (!p.gauge) continue
+            list.push({
+                type: "ecu_" + p.id, genre: "vehicle", section: p.group, name: p.title, icon: p.icon,
+                description: "ECU の" + p.title + (p.note !== "" ? "。" + p.note : ""),
+                component: gaugeComp, settings: gaugeSettings,
+                defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+                defaultConfig: gaugeConfig({ metric: p.id, unit: "base", min: p.min, max: p.max,
+                                             dialStyle: "minimal", startAngle: -90, endAngle: 90 }),
+                dragStart: "hold", mock: true
+            })
+        }
+        return list
+    }
+    // 追加パネルの「車両」の分類(表示順)。データ元(VIN / SEN / ECU)では分けず、走行・エンジン・燃料…の分類だけ(VehicleSignals)
+    readonly property var vehicleSections: typeof ecu === "undefined" || !ecu ? []
+        : VehicleSignals.numberGroups.map(g => ({ id: g.id, title: g.title, icon: g.icon }))
+    // 追加パネルの項目(種類またはグラフの項目)の分類
+    function sectionOf(entry) {
+        if (entry.section) return entry.section
+        const cfg = entry.config || entry.defaultConfig
+        const g = cfg && cfg.metric !== undefined && typeof ecu !== "undefined" && ecu ? VehicleSignals.groupOf(cfg.metric) : ""
+        return g !== "" ? g : "other"
+    }
+    // 追加パネルの項目(種類またはグラフの項目)の計測値に、今データが来ているか(車両以外は常に true)
+    function entryHasData(entry) {
+        const cfg = entry.config || entry.defaultConfig
+        const spec = cfg && cfg.metric !== undefined ? gaugeSpecs[cfg.metric] : null
+        if (!spec) return true
+        if (spec.ecu) return typeof ecu !== "undefined" && ecu && ecu.has(spec.ecu)
+        return VehicleSignals.has(cfg.metric)
+    }
 
     // メーターの共通の既定値に、種類ごとの値を重ねる
     function gaugeConfig(extra) {
@@ -313,9 +373,9 @@ QtObject {
             defaultConfig: { metric: "boost", windowSec: 60, autoScale: false, fill: true, showStats: true },
             dragStart: "hold", mock: true
         }
-    ]
+    ].concat(ecuTypes())
 
-    // ---- グラフ(追加パネルの「車載連携」→「グラフ」) ----
+    // ---- グラフ(追加パネルの「車両」→「グラフ」) ----
     // 計測値ごとに、メーターの既定(範囲・警告値)を引き継いだグラフの項目を作る
     function graphConfigFor(metric) {
         for (let i = 0; i < types.length; ++i) {
@@ -334,8 +394,8 @@ QtObject {
             if (t.component !== gaugeComp || !t.defaultConfig) continue
             const spec = gaugeSpecs[t.defaultConfig.metric]
             if (!spec) continue
-            list.push({ type: "graph", name: spec.title + "のグラフ", icon: spec.icon, mock: t.mock,
-                        description: "直近の" + spec.title + "の変化を折れ線グラフで表示(最大・最小・平均、警告線あり)",
+            list.push({ type: "graph", name: spec.title + "のグラフ", icon: spec.icon, mock: t.mock, section: sectionOf(t),
+                        description: "直近の" + spec.title + "の変化を折れ線で(最大・最小・平均)",
                         config: graphConfigFor(t.defaultConfig.metric) })
         }
         return list

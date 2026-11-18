@@ -15,6 +15,7 @@ Rectangle {
     id: root
     color: "transparent"   // 背景は Main.qml の ThemeBackground(テーマの背景色・模様・画像)
     signal openSettings()
+    signal openVehicle()
     signal goHome()
     signal openAndroidAuto()
 
@@ -82,6 +83,7 @@ Rectangle {
         enabled: !root.showAa
         aaAvailable: androidAuto.stateKey === "streaming"
         onOpenSettings: root.openSettings()
+        onOpenVehicle: root.openVehicle()
         onOpenAndroidAuto: root.openAndroidAuto()
         aaArea: aaWidgets
     }
@@ -554,7 +556,7 @@ Rectangle {
                 onClicked: root.showMock("オーディオ操作")
             }
             LauncherTile {
-                x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                x: 4 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
                 icon: "dashboard_customize"; title: "編集"
                 selected: root.showAa ? root.aaEditing : launcher.editing
                 // フルスクリーンでない Android Auto 画面なら、その画面のウィジェットと映像の場所を編集する。それ以外は初期画面で編集
@@ -565,9 +567,9 @@ Rectangle {
                 }
             }
             LauncherTile {
-                x: 4 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
-                icon: "directions_car"; title: "車両連携"
-                onClicked: root.showMock("車両連携")
+                x: 3 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit
+                icon: "directions_car"; title: "車両"
+                onClicked: { root.menuOpen = false; root.openVehicle() }
             }
             LauncherTile {
                 x: 5 * (sheetButtons.cellW + Theme.margin); width: sheetButtons.cellW; height: sheetButtons.height; unit: root.sheetUnit

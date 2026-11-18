@@ -13,9 +13,12 @@
 //     showOnGauge  同じ計測値のメーターに、範囲(目盛りの帯)と状態(色・点滅・帯のメッセージ)を出す
 //     unit         画面での単位(数値の条件。計測値の単位の id。保存する値は基本単位のまま) }
 // 条件(source)に使える値:
-//   数値: メーターの計測値(WidgetRegistry.gaugeSpecs。範囲はメーターの目盛りに関係なく、計測値の限界まで使える)と、
+//   数値: メーターの計測値(WidgetRegistry.gaugeSpecs。エンジン ECU(K-Line)の計測値を含む。範囲はメーターの目盛りに関係なく、
+//         計測値の限界まで使える)と、
 //         extraNumbers(ギア・スマホの電池)。op: "above"(以上)/ "below"(以下)/ "outside"(範囲外)/ "inside"(範囲内)
-//   状態: boolSources(エンジン・バック・Android Auto・スマホ・車両データ)。op: "on" / "off"
+//   状態: boolSources(エンジン・バック・Android Auto・スマホ・車両データ・故障コード(現在 / 過去)・チェックランプ)。op: "on" / "off"
+//   車両異常: 故障コードの「現在」(警告)と「過去」(注意)の既定のルールを入れておく(defaultDtcRules。版 2 で足した)。
+//         通知の本文はコードと内容(ecu.dtcSummary)
 //   ドア・ロックなど外部機器の信号は、データ元ができたら boolSources に 1 行足すだけで使える。
 // 数値の条件は、いったん満たしたら、範囲の 2% 戻るまで解除しない(境目でちらつかないように)。
 //
@@ -47,11 +50,54 @@ QtObject {
         reverse:  { title: "バック(リバース)", icon: "mdi:car-back", onText: "バックに入っている", offText: "バックではない" },
         aa:       { title: "Android Auto", icon: "android", onText: "接続している", offText: "接続していない" },
         phone:    { title: "スマホ", icon: "smartphone", onText: "接続している", offText: "接続していない" },
-        vehicle:  { title: "車両データ", icon: "directions_car", onText: "受信している", offText: "受信していない" }
+        vehicle:  { title: "車両データ", icon: "directions_car", onText: "受信している", offText: "受信していない" },
+        // エンジン ECU(K-Line)の車両異常。故障コードの「現在」は現在起きている・起きかけているもの、「過去」は記録だけのもの
+        dtcCurrent: { title: "故障コード(現在)", icon: "mdi:car-wrench", onText: "ある", offText: "ない" },
+        dtcPast:    { title: "故障コード(過去)", icon: "history", onText: "ある", offText: "ない" },
+        mil:        { title: "チェックランプ", icon: "mdi:engine-outline", onText: "点灯している", offText: "消えている" }
     })
-    // 条件の選択肢に出す順(計測値 → そのほかの数値 → 状態)
-    readonly property var sourceIds: Object.keys(WidgetRegistry.gaugeSpecs).concat(Object.keys(extraNumbers))
-                                     .concat(Object.keys(boolSources))
+    // 条件の選択肢に出す順: 計測値を分類(走行・エンジン・燃料…。VehicleSignals)ごとに(各分類の中は車両信号 → ECU)
+    //   → そのほかの数値(スマホの電池) → 車両異常 → 状態。データ元(VIN / SEN / ECU)では分けない
+    readonly property var sourceIds: {
+        const specs = WidgetRegistry.gaugeSpecs
+        const numbers = Object.keys(specs).concat(Object.keys(extraNumbers))
+        const out = []
+        for (const g of VehicleSignals.numberGroups) {
+            const inGroup = numbers.filter(k => VehicleSignals.groupOf(k) === g.id)
+            for (const k of inGroup.filter(k => !(specs[k] && specs[k].ecu))) out.push(k)
+            for (const k of inGroup.filter(k => specs[k] && specs[k].ecu)) out.push(k)
+        }
+        for (const k of numbers) if (out.indexOf(k) < 0) out.push(k)   // 分類の無い数値(スマホの電池など)
+        const diag = ["dtcCurrent", "dtcPast", "mil"]
+        return out.concat(diag).concat(Object.keys(boolSources).filter(k => diag.indexOf(k) < 0))
+    }
+    // 選択肢・設定画面の見出しの分類: "g:<分類>"(車両の計測値)/ "number"(そのほかの数値)/ "diag"(車両異常)/ "state"
+    function sourceGroup(source) {
+        if (numberSpec(source)) {
+            const g = VehicleSignals.groupOf(source)
+            return g !== "" ? "g:" + g : "number"
+        }
+        if (source === "dtcCurrent" || source === "dtcPast" || source === "mil") return "diag"
+        return "state"
+    }
+    // 分類の一覧(sourceIds の順)と、短い名前(選択肢用)
+    readonly property var sourceGroups: {
+        const out = []
+        for (const id of sourceIds) { const g = sourceGroup(id); if (out.indexOf(g) < 0) out.push(g) }
+        return out
+    }
+    function sourceGroupShort(group) {
+        if (group === "number") return "そのほかの数値"
+        if (group === "diag") return "車両異常"
+        if (group === "state") return "状態"
+        return VehicleSignals.groupTitle(group.slice(2))
+    }
+    function sourceGroupTitle(group) {
+        if (group === "number") return "そのほかの数値(スマホの電池)"
+        if (group === "diag") return "車両異常(故障コード・チェックランプ)"
+        if (group === "state") return "状態(エンジン・バック・Android Auto・スマホ・車両データ)"
+        return VehicleSignals.groupTitle(group.slice(2))
+    }
 
     function isNumber(source) { return numberSpec(source) !== null }
     function numberSpec(source) { return WidgetRegistry.gaugeSpecs[source] || extraNumbers[source] || null }
@@ -80,24 +126,23 @@ QtObject {
     // 今の値(数値の条件はデータが無ければ undefined。そのときは条件を満たさない)
     function readSource(source) {
         switch (source) {
-        case "rpm": return can.dataAvailable ? can.rpm : undefined
-        case "speed": return can.dataAvailable ? can.speedKmh : undefined
-        case "coolant": return can.dataAvailable ? can.coolantTempC : undefined
-        case "fuel": return can.dataAvailable ? can.fuelPercent : undefined
-        case "oilTemp": return can.dataAvailable ? can.oilTempC : undefined
-        case "oilPressure": return can.dataAvailable ? can.oilPressureBar : undefined
-        case "voltage": return can.dataAvailable ? can.batteryVolts : undefined
-        case "throttle": return can.dataAvailable ? can.throttlePercent : undefined
-        case "brake": return can.dataAvailable ? can.brakePercent : undefined
-        case "boost": return can.dataAvailable ? can.boostBar : undefined
-        case "gear": return can.dataAvailable ? can.gear : undefined
+        // 車両信号(VIN / SEN)の計測値(ECU と両方にある項目は、設定の選び方で選んだ方)
+        case "rpm": case "speed": case "coolant": case "fuel": case "oilTemp": case "oilPressure":
+        case "voltage": case "throttle": case "brake": case "boost": case "gear":
+            return VehicleSignals.has(source) ? VehicleSignals.value(source) : undefined
         case "phoneBattery": return phoneStatus.connected && phoneStatus.batteryLevel >= 0 ? phoneStatus.batteryLevel : undefined
         case "engine": return can.engineRunning
         case "reverse": return reverseCamera.reverse
         case "aa": return androidAuto.stateKey === "connected" || androidAuto.stateKey === "streaming"
         case "phone": return phoneStatus.connected
         case "vehicle": return can.dataAvailable
+        case "dtcCurrent": return ecu.available ? ecu.currentDtcCount > 0 : undefined
+        case "dtcPast": return ecu.available ? ecu.pastDtcCount > 0 : undefined
+        case "mil": return ecu.available ? ecu.milOn : undefined
         }
+        // エンジン ECU の計測値(このECUで出ない項目・データ元なしなら undefined)
+        const spec = WidgetRegistry.gaugeSpecs[source]
+        if (spec && spec.ecu) return ecu.has(spec.ecu) ? ecu.value(spec.ecu) : undefined
         return undefined
     }
 
@@ -169,20 +214,36 @@ QtObject {
         } catch (e) {
             console.warn("[ALERTS] could not read the saved alert rules; rebuilding them from the gauge settings")
         }
+        let version = 0
+        try { version = widgetStore.alertRulesJson !== "" ? (JSON.parse(widgetStore.alertRulesJson).version || 1) : 0 } catch (e) { }
         rules = (list !== null ? list : migrate()).map(normalize)
+        // 版 2: 車両異常(故障コード)のルールを足す(前の版で保存したルールにも、1 回だけ足す)
+        if (version < 2) rules = rules.concat(defaultDtcRules().filter(d => !rules.some(r => r.id === d.id)).map(normalize))
         loaded = true
-        if (list === null) save()
+        if (list === null || version < 2) save()
         ++revision
         resetStates()
     }
     function save() {
-        widgetStore.alertRulesJson = JSON.stringify({ version: 1, rules: rules })
+        widgetStore.alertRulesJson = JSON.stringify({ version: 2, rules: rules })
     }
     function changed() {
         rules = rules.slice()
         save()
         ++revision
         evaluate()
+    }
+
+    // 車両異常(エンジン ECU の故障コード)の既定のルール: 現在起きているものは警告(警告音・通知)、過去の記録は注意(通知 1 回)
+    function defaultDtcRules() {
+        return [
+            { id: "dtc-current", enabled: true, level: "warn", conditions: [{ source: "dtcCurrent", op: "on", value: 0, value2: 0 }],
+              holdSec: 0, armedOnly: false, message: "車両に異常があります", banner: true, beep: true, popup: "live",
+              popupDetail: true, showOnGauge: false, unit: "" },
+            { id: "dtc-past", enabled: true, level: "caution", conditions: [{ source: "dtcPast", op: "on", value: 0, value2: 0 }],
+              holdSec: 0, armedOnly: false, message: "過去の車両異常の記録があります", banner: true, beep: false, popup: "once",
+              popupDetail: true, showOnGauge: false, unit: "" }
+        ]
     }
 
     // ---- 変更(設定画面・メーターの設定から) ----
@@ -314,6 +375,7 @@ QtObject {
         const v = readSource(c.source)
         if (v === undefined || v === null) return false
         if (typeof v === "boolean") return c.op === "off" ? !v : v
+        if (boolSources[c.source]) return c.op === "off" ? !v : !!v
         const h = active ? hysteresisOf(c.source) : 0
         const lo = Math.min(c.value, c.value2), hi = Math.max(c.value, c.value2)
         switch (c.op) {
@@ -432,6 +494,12 @@ QtObject {
     }
     // 通知の本文: 今の値(と、その間の最大・最小値)。詳細つきなら条件も
     function noticeText(r, ep, live) {
+        // 車両異常(故障コード)は、コードと内容を本文にする(現在のものは赤の警告、過去のものは黄の注意として出る)
+        for (const dc of r.conditions) {
+            if (dc.op !== "on") continue
+            if (dc.source === "dtcCurrent" || dc.source === "mil") return ecu.dtcSummary("current")
+            if (dc.source === "dtcPast") return ecu.dtcSummary("past")
+        }
         const c = primaryNumber(r)
         const detail = r.popupDetail ? "(" + summary(r, true) + ")" : ""
         if (!c) return live ? detail.replace(/^\(|\)$/g, "") : ""

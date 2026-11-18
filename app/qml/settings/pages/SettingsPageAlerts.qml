@@ -3,7 +3,8 @@
 // 混み合わないよう、センサー(条件に使える値。水温・油圧・バックなど)ごとの箱に分ける。箱はタップで開閉し、
 // 閉じているときは「ルール n 件(オン m 件)・今出ています」だけを出す。ルールは、そのセンサーの箱の中で足す
 // (ルールは最初の条件のセンサーの箱に入る。最初の条件のセンサーを変えると、その箱へ移る)。
-// 上が数値(メーターの計測値・ギア・スマホの電池)、下が状態(エンジン・バック・Android Auto など)。
+// 上から、車両の計測値を分類(走行・エンジン・燃料…。データ元のノードでは分けない)ごとに、そのほかの数値(スマホの電池)、
+// 車両異常(故障コード・チェックランプ)、状態(エンジン・バック・Android Auto など)。
 // 1 件ごとのカード: 見出し(段階・メッセージ・今出ているか・オン/オフ)と条件のまとめ。タップで開いて細かく変える。
 // 一覧の Repeater は件数だけを model にする(値を変えるたびに作り直さない。数値の長押しの連続変化が途切れないように)。
 import QtQuick
@@ -43,7 +44,9 @@ SettingsPage {
             readonly property string source: modelData
             readonly property bool isNumber: AlertRules.isNumber(source)
             // 数値・状態それぞれの最初の箱の上に見出しを出す
-            readonly property bool firstOfKind: index === 0 || AlertRules.isNumber(AlertRules.sourceIds[index - 1]) !== isNumber
+            // 分類(基本の数値・ECU の分類・車両異常・状態)ごとに、最初の箱の上に見出しを出す
+            readonly property string groupId: AlertRules.sourceGroup(source)
+            readonly property bool firstOfKind: index === 0 || AlertRules.sourceGroup(AlertRules.sourceIds[index - 1]) !== groupId
             // この箱に入るルール(最初の条件がこのセンサーのもの)の、AlertRules.rules の中での番号
             readonly property var ruleIdx: { AlertRules.revision
                 const out = []
@@ -72,7 +75,7 @@ SettingsPage {
                     font.pixelSize: 21 * page.unit
                     font.bold: true
                     color: Theme.textSecondary
-                    text: sensorBlock.isNumber ? "数値(メーターの計測値・ギア・スマホの電池)" : "状態(エンジン・バック・Android Auto・スマホ・車両データ)"
+                    text: AlertRules.sourceGroupTitle(sensorBlock.groupId)
                 }
             }
 
@@ -271,20 +274,30 @@ SettingsPage {
                             readonly property var spec: AlertRules.numberSpec(cond.source)
                             readonly property var u: AlertRules.unitOf(card.rule, cond.source)
                             readonly property bool twoValues: cond.op === "outside" || cond.op === "inside"
+                            // センサーを選ぶときに開いている分類(最初は今のセンサーの分類)
+                            property string pickGroup: AlertRules.sourceGroup(cond.source)
                             label: index === 0 ? "条件" : "かつ"
                             description: AlertRules.conditionText(card.rule, cond)
                             stacked: true
                             Column {
                                 width: condRow.width
                                 spacing: 12 * page.unit
+                                // センサーは 2 段で選ぶ: 分類(基本・ECU の分類・車両異常・状態)→ その中のセンサー(選択肢が多いので)
                                 SettingsChoice {
                                     maxWidth: condRow.width
-                                    model: AlertRules.sourceIds.map(id => AlertRules.sourceTitle(id))
-                                    currentIndex: AlertRules.sourceIds.indexOf(condRow.cond.source)
+                                    model: AlertRules.sourceGroups.map(g => AlertRules.sourceGroupShort(g))
+                                    currentIndex: AlertRules.sourceGroups.indexOf(condRow.pickGroup)
+                                    onPicked: (i) => condRow.pickGroup = AlertRules.sourceGroups[i]
+                                }
+                                SettingsChoice {
+                                    readonly property var ids: AlertRules.sourceIds.filter(id => AlertRules.sourceGroup(id) === condRow.pickGroup)
+                                    maxWidth: condRow.width
+                                    model: ids.map(id => AlertRules.sourceTitle(id))
+                                    currentIndex: ids.indexOf(condRow.cond.source)
                                     onPicked: (i) => {
                                         // 最初の条件のセンサーを変えると、ルールはそのセンサーの箱へ移る(箱もそちらを開く)
-                                        if (condRow.index === 0) page.openSensor = AlertRules.sourceIds[i]
-                                        AlertRules.updateCondition(card.rule.id, condRow.index, { source: AlertRules.sourceIds[i] })
+                                        if (condRow.index === 0) page.openSensor = ids[i]
+                                        AlertRules.updateCondition(card.rule.id, condRow.index, { source: ids[i] })
                                     }
                                 }
                                 SettingsChoice {

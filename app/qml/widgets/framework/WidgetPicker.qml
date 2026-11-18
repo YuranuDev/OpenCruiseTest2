@@ -1,6 +1,9 @@
-// ウィジェットの追加パネル。ジャンルごとのタブに、追加できるウィジェットを並べる(WidgetRegistry の定義から自動生成)。
-// 追加するとエリア(今のページ)の空いている最初の場所に置かれ、パネルが閉じる。「初期配置に戻す」は 2 回押しで実行する
-// (全ページが初期配置に戻る)。「車載連携」では一覧の上のスイッチで、メーターとグラフを切り替えて追加できる。
+// ウィジェットの追加パネル。ジャンルごとのタブに、追加できるウィジェットをタイルのグリッドで並べる(WidgetRegistry の定義から自動生成)。
+// タイルをタップすると、エリア(今のページ)の空いている最初の場所に置かれ、パネルが閉じる。「初期配置に戻す」は 2 回押しで実行する
+// (全ページが初期配置に戻る)。「車両」では一覧の上のスイッチで、メーターとグラフを切り替えて追加できる。
+// 数が多い「車両」は、分類(基本・エンジン・燃料・吸気…。WidgetRegistry.vehicleSections)ごとに見出しを付けて並べ、
+// 上のチップで分類を絞り込める。今データが来ていない計測値(このECUでは出ない項目・データ元なし)のものは、
+// 分類に関係なく最後の「データなし」の見出しの下にまとめる。
 import QtQuick
 import OpenCruise
 
@@ -16,10 +19,33 @@ Item {
     readonly property bool showVehicleSwitch: genre === "vehicle"
     readonly property var entries: showVehicleSwitch && vehicleMode === "graph" ? WidgetRegistry.graphEntries()
                                                                               : WidgetRegistry.ofGenre(genre)
+    // データが来ていないものも出すか(「車両」だけ。下のチップで切り替える)
+    property bool showNoData: true
+    // 分類での絞り込み(「車両」だけ。"" = すべて)
+    property string sectionFilter: ""
+    onGenreChanged: sectionFilter = ""
+    readonly property var sectionList: WidgetRegistry.vehicleSections
+    // 見出しごとのまとまり: [{ title, icon, noData, items }]。データが無いものは最後にまとめる
+    readonly property var blocks: {
+        if (open) { ecuRevisionTick }   // 開いている間は、データの有無の変化を取り込む
+        const list = entries.filter(e => sectionFilter === "" || WidgetRegistry.sectionOf(e) === sectionFilter)
+        if (!showVehicleSwitch) return list.length > 0 ? [{ title: "", icon: "", noData: false, items: list }] : []
+        const out = []
+        for (const sec of WidgetRegistry.vehicleSections) {
+            const items = list.filter(e => WidgetRegistry.sectionOf(e) === sec.id && WidgetRegistry.entryHasData(e))
+            if (items.length > 0) out.push({ title: sec.title, icon: sec.icon, noData: false, items: items })
+        }
+        const none = list.filter(e => !WidgetRegistry.entryHasData(e))
+        if (none.length > 0 && showNoData) out.push({ title: "データなし(今はデータが来ていない)", icon: "block", noData: true, items: none })
+        return out
+    }
+    // データの有無は ECU の値が来るたびに変わりうるので、開いている間だけ 2 秒ごとに見直す(毎回並べ直さないように)
+    property int ecuRevisionTick: 0
+    Timer { interval: 2000; repeat: true; running: root.open && root.showVehicleSwitch; onTriggered: root.ecuRevisionTick++ }
 
     readonly property real unit: Theme.uiScale
 
-    function show() { confirmReset = false; open = true }
+    function show() { confirmReset = false; ecuRevisionTick++; open = true }
     function close() { open = false }
 
     visible: scrim.opacity > 0
@@ -106,145 +132,239 @@ Item {
             }
         }
 
-        // ---- 中段: そのジャンルのウィジェット ----
+        // ---- 中段: そのジャンルのウィジェット(タイルを並べたグリッド。分類ごとに見出し。データが無いものは最後) ----
         Flickable {
             id: flick
             anchors { top: head.bottom; bottom: foot.top; left: parent.left; right: parent.right
                       leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5 }
             clip: true
             contentWidth: width
-            contentHeight: list.height
+            contentHeight: list.height + Theme.margin
             boundsBehavior: Flickable.StopAtBounds
             interactive: contentHeight > height
 
             Column {
                 id: list
                 width: flick.width
-                spacing: Theme.margin * 0.7
+                spacing: Theme.margin * 0.6
 
-                // 「車載連携」だけ: メーター / グラフの切り替え
-                Row {
+                // 「車両」だけ: メーター / グラフの切り替えと、分類で絞り込むチップ
+                Item {
                     visible: root.showVehicleSwitch
-                    spacing: Theme.margin * 0.6
+                    width: list.width
+                    height: 60 * root.unit
+                    Row {
+                        spacing: Theme.margin * 0.6
+                        Repeater {
+                            model: [{ id: "gauge", label: "メーター", icon: "mdi:gauge" },
+                                    { id: "graph", label: "グラフ", icon: "show_chart" }]
+                            Rectangle {
+                                required property var modelData
+                                readonly property bool on: root.vehicleMode === modelData.id
+                                width: 200 * root.unit
+                                height: 60 * root.unit
+                                radius: height / 2
+                                color: on ? Theme.accentFill : Theme.mix(Theme.panel, Theme.accent, modeMouse.pressed ? 0.3 : 0)
+                                border.width: on ? 2 : 1
+                                border.color: on ? Theme.accent : Theme.panelBorder
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 8 * root.unit
+                                    MaterialIcon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: modelData.icon
+                                        size: 28 * root.unit
+                                        color: parent.parent.on ? Theme.textOnAccent : Theme.accent
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        font.family: Theme.fontFamily
+                                        font.bold: true
+                                        font.pixelSize: 21 * root.unit
+                                        color: parent.parent.on ? Theme.textOnAccent : Theme.textPrimary
+                                        text: modelData.label
+                                    }
+                                }
+                                MouseArea { id: modeMouse; anchors.fill: parent; onClicked: root.vehicleMode = modelData.id }
+                            }
+                        }
+                    }
+                    // データが来ていないものを出す / 隠す
+                    Rectangle {
+                        anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                        width: noDataRow.implicitWidth + 32 * root.unit
+                        height: 46 * root.unit
+                        radius: height / 2
+                        color: Theme.mix(Theme.panel, Theme.accent, noDataMouse.pressed ? 0.2 : 0)
+                        border.width: 1
+                        border.color: root.showNoData ? Theme.panelBorder : Theme.accent
+                        Row {
+                            id: noDataRow
+                            anchors.centerIn: parent
+                            spacing: 6 * root.unit
+                            MaterialIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                name: root.showNoData ? "visibility" : "visibility_off"
+                                size: 22 * root.unit
+                                color: root.showNoData ? Theme.textSecondary : Theme.accent
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 18 * root.unit
+                                color: Theme.textPrimary
+                                text: root.showNoData ? "データなしも表示" : "データなしを隠す"
+                            }
+                        }
+                        MouseArea { id: noDataMouse; anchors.fill: parent; onClicked: root.showNoData = !root.showNoData }
+                    }
+                }
+                Flow {
+                    visible: root.showVehicleSwitch
+                    width: list.width
+                    spacing: 8 * root.unit
                     Repeater {
-                        model: [{ id: "gauge", label: "メーター", icon: "mdi:gauge" },
-                                { id: "graph", label: "グラフ", icon: "show_chart" }]
+                        model: [{ id: "", title: "すべて" }].concat(root.sectionList)
                         Rectangle {
                             required property var modelData
-                            readonly property bool on: root.vehicleMode === modelData.id
-                            width: 220 * root.unit
-                            height: 64 * root.unit
+                            readonly property bool on: root.sectionFilter === modelData.id
+                            width: chipText.implicitWidth + 32 * root.unit
+                            height: 46 * root.unit
                             radius: height / 2
-                            color: on ? Theme.accentFill : Theme.mix(Theme.panel, Theme.accent, modeMouse.pressed ? 0.3 : 0)
+                            color: on ? Theme.mix(Theme.panel, Theme.accent, 0.3) : Theme.mix(Theme.panel, Theme.accent, chipMouse.pressed ? 0.2 : 0)
                             border.width: on ? 2 : 1
                             border.color: on ? Theme.accent : Theme.panelBorder
-                            Row {
+                            Text {
+                                id: chipText
                                 anchors.centerIn: parent
-                                spacing: 8 * root.unit
-                                MaterialIcon {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    name: modelData.icon
-                                    size: 30 * root.unit
-                                    color: parent.parent.on ? Theme.textOnAccent : Theme.accent
-                                }
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: 22 * root.unit
-                                    color: parent.parent.on ? Theme.textOnAccent : Theme.textPrimary
-                                    text: modelData.label
-                                }
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 18 * root.unit
+                                font.bold: parent.on
+                                color: Theme.textPrimary
+                                text: modelData.title
                             }
-                            MouseArea { id: modeMouse; anchors.fill: parent; onClicked: root.vehicleMode = modelData.id }
+                            MouseArea { id: chipMouse; anchors.fill: parent; onClicked: root.sectionFilter = modelData.id }
                         }
                     }
                 }
 
+                // 分類ごとの見出し + タイルのグリッド
                 Repeater {
-                    model: root.entries
-                    Rectangle {
+                    model: root.blocks
+                    Column {
+                        id: block
                         required property var modelData
                         width: list.width
-                        height: 112 * root.unit
-                        radius: Theme.radius + 4
-                        color: Theme.mix(Theme.panel, Theme.accent, cardMouse.pressed ? 0.3 : 0)
-                        border.width: cardMouse.pressed ? 2 : 1
-                        border.color: cardMouse.pressed ? Theme.accent : Theme.panelBorder
-                        scale: cardMouse.pressed ? 0.985 : 1
-                        Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
-
-                        MaterialIcon {
-                            id: cardIcon
-                            anchors { left: parent.left; leftMargin: 22 * root.unit; verticalCenter: parent.verticalCenter }
-                            name: modelData.icon
-                            size: 52 * root.unit
-                            color: Theme.accent
+                        spacing: Theme.margin * 0.5
+                        Row {
+                            visible: block.modelData.title !== ""
+                            spacing: 8 * root.unit
+                            topPadding: 6 * root.unit
+                            MaterialIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                name: block.modelData.icon
+                                size: 24 * root.unit
+                                color: block.modelData.noData ? Theme.textSecondary : Theme.accent
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                font.family: Theme.fontFamily
+                                font.bold: true
+                                font.pixelSize: 20 * root.unit
+                                color: Theme.textSecondary
+                                text: block.modelData.title + "(" + block.modelData.items.length + ")"
+                            }
                         }
-                        Column {
-                            anchors { left: cardIcon.right; leftMargin: 20 * root.unit; right: addLabel.left; rightMargin: 16 * root.unit
-                                      verticalCenter: parent.verticalCenter }
-                            spacing: 4 * root.unit
-                            Row {
-                                spacing: 10 * root.unit
-                                Text {
-                                    font.family: Theme.fontFamily
-                                    font.bold: true
-                                    font.pixelSize: 26 * root.unit
-                                    color: Theme.textPrimary
-                                    text: modelData.name
-                                }
+                        Grid {
+                            id: grid
+                            readonly property int cols: Math.max(2, Math.floor((list.width + spacing) / (210 * root.unit + spacing)))
+                            readonly property real cellW: (list.width - spacing * (cols - 1)) / cols
+                            columns: cols
+                            spacing: Theme.margin * 0.5
+                            Repeater {
+                                model: block.modelData.items
                                 Rectangle {
-                                    visible: modelData.mock
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: tag.implicitWidth + 14
-                                    height: tag.implicitHeight + 6
-                                    radius: height / 2
-                                    color: "transparent"
-                                    border.color: Theme.warn
+                                    required property var modelData
+                                    width: grid.cellW
+                                    height: 176 * root.unit
+                                    radius: Theme.radius + 4
+                                    opacity: block.modelData.noData ? 0.6 : 1
+                                    color: Theme.mix(Theme.panel, Theme.accent, cardMouse.pressed ? 0.3 : 0.04)
+                                    border.width: cardMouse.pressed ? 2 : 1
+                                    border.color: cardMouse.pressed ? Theme.accent : Theme.panelBorder
+                                    scale: cardMouse.pressed ? 0.97 : 1
+                                    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+
+                                    MaterialIcon {
+                                        id: cardIcon
+                                        anchors { top: parent.top; topMargin: 16 * root.unit; horizontalCenter: parent.horizontalCenter }
+                                        name: modelData.icon
+                                        size: 50 * root.unit
+                                        color: block.modelData.noData ? Theme.textSecondary : Theme.accent
+                                    }
+                                    // 右上: モック / データなし
+                                    Rectangle {
+                                        visible: modelData.mock || block.modelData.noData
+                                        anchors { top: parent.top; right: parent.right; margins: 8 * root.unit }
+                                        width: tag.implicitWidth + 12
+                                        height: tag.implicitHeight + 4
+                                        radius: height / 2
+                                        color: "transparent"
+                                        border.color: block.modelData.noData ? Theme.textSecondary : Theme.warn
+                                        Text {
+                                            id: tag
+                                            anchors.centerIn: parent
+                                            font.family: Theme.fontFamily
+                                            text: block.modelData.noData ? "データなし" : "モック"
+                                            color: block.modelData.noData ? Theme.textSecondary : Theme.warn
+                                            font.pixelSize: 12 * root.unit
+                                        }
+                                    }
                                     Text {
-                                        id: tag
-                                        anchors.centerIn: parent
+                                        id: cardName
+                                        anchors { top: cardIcon.bottom; topMargin: 8 * root.unit; left: parent.left; right: parent.right
+                                                  leftMargin: 10 * root.unit; rightMargin: 10 * root.unit }
+                                        horizontalAlignment: Text.AlignHCenter
                                         font.family: Theme.fontFamily
-                                        text: "モックデータ"
-                                        color: Theme.warn
-                                        font.pixelSize: 13 * root.unit
+                                        font.bold: true
+                                        font.pixelSize: 21 * root.unit
+                                        color: Theme.textPrimary
+                                        elide: Text.ElideRight
+                                        text: modelData.name
+                                    }
+                                    Text {
+                                        anchors { top: cardName.bottom; topMargin: 4 * root.unit; left: parent.left; right: parent.right
+                                                  leftMargin: 10 * root.unit; rightMargin: 10 * root.unit }
+                                        horizontalAlignment: Text.AlignHCenter
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 15 * root.unit
+                                        color: Theme.textSecondary
+                                        wrapMode: Text.WordWrap
+                                        maximumLineCount: 2
+                                        elide: Text.ElideRight
+                                        text: modelData.description
+                                    }
+                                    MouseArea {
+                                        id: cardMouse
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            if (root.area && root.area.addWidget(modelData.type, modelData.config)) root.close()
+                                        }
                                     }
                                 }
                             }
-                            Text {
-                                width: parent.width
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 19 * root.unit
-                                color: Theme.textSecondary
-                                elide: Text.ElideRight
-                                text: modelData.description
-                            }
-                        }
-                        Rectangle {
-                            id: addLabel
-                            anchors { right: parent.right; rightMargin: 22 * root.unit; verticalCenter: parent.verticalCenter }
-                            width: 112 * root.unit
-                            height: 56 * root.unit
-                            radius: Theme.radius
-                            color: Theme.accentFill
-                            Text {
-                                anchors.centerIn: parent
-                                font.family: Theme.fontFamily
-                                font.bold: true
-                                font.pixelSize: 22 * root.unit
-                                color: Theme.textOnAccent
-                                text: "追加"
-                            }
-                        }
-                        MouseArea {
-                            id: cardMouse
-                            anchors.fill: parent
-                            onClicked: {
-                                if (root.area && root.area.addWidget(modelData.type, modelData.config)) root.close()
-                            }
                         }
                     }
+                }
+                Text {
+                    visible: root.blocks.length === 0
+                    width: list.width
+                    horizontalAlignment: Text.AlignHCenter
+                    topPadding: 40 * root.unit
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 20 * root.unit
+                    color: Theme.textSecondary
+                    text: "この分類のウィジェットはありません"
                 }
             }
         }

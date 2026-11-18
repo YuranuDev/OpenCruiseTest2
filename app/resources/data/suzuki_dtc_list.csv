@@ -1,0 +1,1460 @@
+コード,系統,区分,名称(日本語),検出条件・詳細(日本語),名称(英語),検出条件・詳細(英語),生データ(2バイト)
+P0008,パワートレイン(エンジン/AT),汎用(SAE),エンジン位置システム性能 バンク1,,Engine Position System Performance. Bank 1,,00 08
+P0009,パワートレイン(エンジン/AT),汎用(SAE),エンジン位置システム性能 バンク2,,Engine Position System Performance. Bank 2,,00 09
+P0010,パワートレイン(エンジン/AT),汎用(SAE),カムシャフト位置アクチュエーター回路;「A」カムシャフト位置アクチュエーター回路/断線,オイルコントロールバルブ回路の断線または短絡。,"Camshaft position actuator circuit; ""A"" Camshaft Position Actuator Circuit / Open",Oil control valve circuit open or short.,00 10
+P0011,パワートレイン(エンジン/AT),汎用(SAE),カムシャフト位置 – タイミング進角しすぎまたはシステム性能;「A」カムシャフト位置タイミング進角しすぎまたはシステム性能,バルブタイミング進角の実際値が目標値に達しない、またはECMが最遅角を指令しているのにバルブタイミングが進角している。,"Camshaft position – timing over-advanced or system performance; ""A"" Camshaft Position Timing Over Advanced or System Performance","Actual value of advanced valve timing does not reach target value, or valve timing is advanced although ECM command is most retarding.",00 11
+P0012,パワートレイン(エンジン/AT),汎用(SAE),カムシャフト位置 – タイミング遅角しすぎ,バルブタイミング進角の実際値が目標値に達しない、またはECMが最遅角を指令しているのにバルブタイミングが進角している。,Camshaft position – timing over-retarded,"Actual value of advanced valve timing does not reach target value, or valve timing is advanced although ECM command is most retarding.",00 12
+P0013,パワートレイン(エンジン/AT),汎用(SAE),排気カムシャフト位置(CMP)アクチュエーターソレノイド制御回路 バンク1,,Exhaust Camshaft Position (CMP) Actuator Solenoid Control Circuit Bank 1,,00 13
+P0014,パワートレイン(エンジン/AT),汎用(SAE),排気カムシャフト位置(CMP)システム性能 バンク1,,Exhaust Camshaft Position (CMP) System Performance Bank 1,,00 14
+P0015,パワートレイン(エンジン/AT),汎用(SAE),VVT遅角異常(排気側),,VVT retardation abnormality EX,,00 15
+P0016,パワートレイン(エンジン/AT),汎用(SAE),クランク位置 – カム位置の相関,カムシャフト位置センサー信号の入力が不正,Crankshaft Position – Camshaft Position Correlation,Camshaft position sensor signal is incorrect input,00 16
+P0017,パワートレイン(エンジン/AT),汎用(SAE),クランク位置(CKP)- 排気カム位置(CMP)の相関 バンク1,,Crankshaft Position (CKP) - Exhaust Camshaft Position (CMP) Correlation Bank 1,,00 17
+P0018,パワートレイン(エンジン/AT),汎用(SAE),クランク位置(CKP)- 吸気カム位置(CMP)の相関 バンク2,,Crankshaft Position (CKP) - Intake Camshaft Position (CMP) Correlation Bank 2,,00 18
+P0019,パワートレイン(エンジン/AT),汎用(SAE),クランク位置(CKP)- 排気カム位置(CMP)の相関 バンク2,,Crankshaft Position (CKP) - Exhaust Camshaft Position (CMP) Correlation Bank 2,,00 19
+P0020,パワートレイン(エンジン/AT),汎用(SAE),吸気カムシャフト位置(CMP)アクチュエーターソレノイド制御回路 バンク2,,Intake Camshaft Position (CMP) Actuator Solenoid Control Circuit Bank 2,,00 20
+P0021,パワートレイン(エンジン/AT),汎用(SAE),吸気カムシャフト位置(CMP)システム性能 バンク2,,Intake Camshaft Position (CMP) System Performance Bank 2,,00 21
+P0023,パワートレイン(エンジン/AT),汎用(SAE),排気カムシャフト位置(CMP)アクチュエーターソレノイド制御回路 バンク2,,Exhaust Camshaft Position (CMP) Actuator Solenoid Control Circuit Bank 2,,00 23
+P0024,パワートレイン(エンジン/AT),汎用(SAE),排気カムシャフト位置(CMP)システム性能 バンク2,,Exhaust Camshaft Position (CMP) System Performance Bank 2,,00 24
+P0030,パワートレイン(エンジン/AT),汎用(SAE),O2センサー(HO2S)ヒーター制御回路(センサー1),A/Fセンサーヒーターを規定時間以上ONにしても、A/Fセンサー素子のインピーダンスが200秒以上規定範囲外(高すぎまたは低すぎ)。,HO2S heater control circuit (Sensor-1),Impedance of A/F sensor element is higher than or lower than specified range for more than 200 sec. even though A/F sensor heater is turned ON for more than specified time.,00 30
+P0031,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 低(センサー1),ヒーターON時にヒーター電流が規定値未満;A/Fセンサーヒーターの制御デューティが規定値未満なのに、A/Fセンサー回路電圧が規定時間以上連続して規定値より低い。,HO2S heater control circuit low (Sensor-1),Heater current is less than specification while heater ON; A/F sensor circuit voltage is lower than specification for more than specified time continuously even though control duty ratio of A/F sensor heater is less than specification.,00 31
+P0032,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 高(センサー1),ヒーターON時にヒーター電流が規定値超;A/Fセンサーヒーターの制御デューティが規定値超なのに、A/Fセンサー回路電圧が規定時間以上連続して規定値より高い。,HO2S heater control circuit high (Sensor-1),Heater current is more than specification while heater ON; A/F sensor circuit voltage is higher than specification for more than specified time continuously even though control duty ratio of A/F sensor heater is more than specification.,00 32
+P0036,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路(センサー2),,HO2S heater control circuit (Sensor-2),,00 36
+P0037,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 低(センサー2),ヒーターON時にヒーター電流が規定値未満;HO2S-2ヒーターの制御デューティが規定値未満なのに、HO2S-2回路電圧が規定時間以上連続して規定値より低い。,HO2S heater control circuit low (Sensor-2),Heater current is less than specification while heater ON; HO2S-2 circuit voltage is lower than specification for more than specified time continuously even though control duty ratio of HO2S-2 heater is less than specification.,00 37
+P0038,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 高(センサー2),ヒーターON時にヒーター電流が規定値超;HO2S-2ヒーターの制御デューティが規定値超なのに、HO2S-2回路電圧が規定時間以上連続して規定値より高い,HO2S heater control circuit high (Sensor-2),Heater current is more than specification while heater ON; HO2S-2 circuit voltage is higher than specification for more than specified time continuously even though control duty ratio of HO2S-2 heater is more than specification,00 38
+P0045,パワートレイン(エンジン/AT),汎用(SAE),ターボ過給圧制御ソレノイド回路/断線,過給圧制御ソレノイド回路の断線または短絡,Turbo Charger Boost Control Solenoid Circuit/Open,Boost pressure control solenoid circuit is open or short,00 45
+P0050,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 バンク2 センサー1,,HO2S Heater Control Circuit Bank 2 Sensor 1,,00 50
+P0051,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 低電圧 バンク2 センサー1,,HO2S Heater Control Circuit Low Voltage Bank 2 Sensor 1,,00 51
+P0052,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 高電圧 バンク2 センサー1,,HO2S Heater Control Circuit High Voltage Bank 2 Sensor 1,,00 52
+P0056,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 バンク2 センサー2,,HO2S Heater Control Circuit Bank 2 Sensor 2,,00 56
+P0057,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 低電圧 バンク2 センサー2,,HO2S Heater Control Circuit Low Voltage Bank 2 Sensor 2,,00 57
+P0058,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター制御回路 高電圧 バンク2 センサー2,,HO2S Heater Control Circuit High Voltage Bank 2 Sensor 2,,00 58
+P0069,パワートレイン(エンジン/AT),汎用(SAE),吸気管圧力と大気圧の相関,,Manifold Absolute Pressure-Barometric Pressure Correlation,,00 69
+P0070,パワートレイン(エンジン/AT),汎用(SAE),外気温センサー回路の異常,吸気温センサー回路の断線または短絡;外気温センサー信号の入力が低いまたは高い,External Air Temperature Sensor Circuit Malfunction,IAT sensor circuit is open or short; External air temperature sensor signal low or high input,00 70
+P0087,パワートレイン(エンジン/AT),汎用(SAE),燃料レール/システム圧力が低すぎる,燃料流量が少なすぎるまたは多すぎる;燃料流量アクチュエーター制御信号回路の入力が低いまたは高い,Fuel Rail/System Pressure Too Low,Fuel flow is too low or too high; Fuel flow actuator control signal circuit low or high input,00 87
+P0088,パワートレイン(エンジン/AT),汎用(SAE),燃料レール/システム圧力が高すぎる,,Fuel Rail/System Pressure Too High,,00 88
+P0089,パワートレイン(エンジン/AT),汎用(SAE),燃圧レギュレーターの性能不良,燃料レール圧が低すぎるまたは高すぎる;燃圧レギュレーター制御信号の入力が低いまたは高い,Fuel pressure regulator performance problem,Fuel rail pressure is too low or too high; Fuel pressure regulator control signal low or high input,00 89
+P0090,パワートレイン(エンジン/AT),汎用(SAE),燃圧レギュレーター制御回路,,Fuel Pressure Regulator Control Circuit,,00 90
+P0100,パワートレイン(エンジン/AT),汎用(SAE),エアフローメーター(MAF)回路,MAFセンサー信号の入力が低いまたは高い,Mass Air Flow Circuit,MAF sensor signal is low or high input,01 00
+P0101,パワートレイン(エンジン/AT),汎用(SAE),エアフローメーター回路 範囲/性能,MAFセンサーの計測量が規定値より多いまたは少ない。,Mass air flow circuit range/performance,MAF sensor volume is more than specification or less than specification.,01 01
+P0102,パワートレイン(エンジン/AT),汎用(SAE),エアフローメーター回路 入力低,MAFセンサーの出力電圧が規定値未満。,Mass air flow circuit low input,Output voltage of MAF sensor is less than specification.,01 02
+P0103,パワートレイン(エンジン/AT),汎用(SAE),エアフローメーター回路 入力高,MAFセンサーの出力電圧が規定値超。,Mass air flow circuit high input,Output voltage of MAF sensor is more than specification.,01 03
+P0105,パワートレイン(エンジン/AT),汎用(SAE),吸気管圧力(MAP)回路の異常,低圧・高負圧・低電圧(またはMAPセンサー回路の地絡);高圧・低負圧・高電圧(またはMAPセンサー回路の断線),Manifold absolute pressure (MAP) circuit malfunction,Low pressure-high vacuum-low voltage (or MAP sensor circuit shorted to ground); High pressure-low vacuum-high voltage (or MAP sensor circuit open),01 05
+P0106,パワートレイン(エンジン/AT),汎用(SAE),吸気管圧力回路 範囲/性能,吸気管圧力の最大値と最小値の差が規定値未満、または大気圧と吸気管圧力の差が規定値未満。,Manifold absolute pressure circuit range/performance,Difference between Max. manifold absolute pressure value and Min. manifold pressure value is less than specification or difference between barometric pressure value and manifold pressure value is less than specification.,01 06
+P0107,パワートレイン(エンジン/AT),汎用(SAE),吸気管圧力(MAP)回路 入力低;吸気管圧力/大気圧回路 低,MAPセンサーの出力電圧が規定値未満。,Manifold absolute pressure (MAP) circuit low input; Manifold Absolute Pressure / Barometric Pressure Circuit Low,Output voltage of MAP sensor is less than specification.,01 07
+P0108,パワートレイン(エンジン/AT),汎用(SAE),吸気管圧力(MAP)回路 入力高;吸気管圧力/大気圧回路 高,MAPセンサーの出力電圧が規定値超。,Manifold absolute pressure (MAP) circuit high input; Manifold Absolute Pressure / Barometric Pressure Circuit High,Output voltage of MAP sensor is more than specification.,01 08
+P0110,パワートレイン(エンジン/AT),汎用(SAE),吸気温回路の異常;エアフローメーター回路,吸気温回路 入力低;吸気温回路 入力高,Intake air temp. circuit malfunction; Mass Air Flow Circuit,Intake air temp. circuit low input; Intake air temp. circuit high input,01 10
+P0111,パワートレイン(エンジン/AT),汎用(SAE),吸気温センサー回路 範囲/性能,エンジン始動からの吸気温の変化が規定温度未満。,Intake air temperature sensor circuit range/performance,Variation of intake air temperature from engine start is less than specified temperature.,01 11
+P0112,パワートレイン(エンジン/AT),汎用(SAE),吸気温センサー1回路 低,吸気温(IAT)センサーの回路電圧が規定値未満。,Intake air temperature sensor 1 circuit low,Circuit voltage of IAT sensor is less than specification.,01 12
+P0113,パワートレイン(エンジン/AT),汎用(SAE),吸気温センサー1回路 高,吸気温(IAT)センサーの回路電圧が規定値超。,Intake air temperature sensor 1 circuit high,Circuit voltage of IAT sensor is more than specification.,01 13
+P0115,パワートレイン(エンジン/AT),汎用(SAE),水温回路の異常,水温回路 入力低;水温回路 入力高,Engine coolant temp. circuit malfunction,Engine coolant temp. circuit low input; Engine coolant temp. circuit high input,01 15
+P0116,パワートレイン(エンジン/AT),汎用(SAE),水温回路 範囲/性能;水温センサー1回路 範囲/性能,エンジン始動から規定時間たっても水温が規定温度未満。,Engine coolant temperature circuit range/performance; Engine Coolant Temperature Sensor 1 Circuit Range/Performance,Engine coolant temperature is less than specified temperature for specified time from engine start.,01 16
+P0117,パワートレイン(エンジン/AT),汎用(SAE),水温回路 低,水温(ECT)センサーの回路電圧が規定値未満。,Engine coolant temperature circuit low,Circuit voltage of ECT sensor is less than specification.,01 17
+P0118,パワートレイン(エンジン/AT),汎用(SAE),水温回路 高,水温(ECT)センサーの回路電圧が規定値超。,Engine coolant temperature circuit high,Circuit voltage of ECT sensor is more than specification.,01 18
+P0119,パワートレイン(エンジン/AT),汎用(SAE),水温(ECT)センサー回路の断続的な異常,,Engine Coolant Temperature (ECT) Sensor Circuit Intermittent,,01 19
+P011B,パワートレイン(エンジン/AT),汎用(SAE),水温と吸気温の相関,,Engine Coolant Temperature/Intake Air Temperature Correlation,,01 1B
+P0120,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置回路の異常,スロットル位置回路 入力低;スロットル位置回路 入力高,Throttle position circuit malfunction,Throttle position circuit low input; Throttle position circuit high input,01 20
+P0121,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置センサー回路 範囲/性能,実際のスロットル開度とECMが計算した開度の差が規定外;スロットル位置(TP)センサーの性能不良,Throttle position sensor circuit range/performance,Difference between actual throttle opening and opening calculated by ECM is out of specification; Poor performance of TP sensor,01 21
+P0122,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置センサー回路 低,スロットル位置(TP)センサーの出力電圧が規定値未満。,Throttle position sensor circuit low,Output voltage of TP sensor is less than specification.,01 22
+P0123,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置センサー回路 高,スロットル位置(TP)センサーの出力電圧が規定値超。,Throttle position sensor circuit high,Output voltage of TP sensor is more than specification.,01 23
+P0125,パワートレイン(エンジン/AT),汎用(SAE),クローズドループ燃料制御に必要な水温に達しない,,Insufficient Coolant Temperature for Closed-Loop Fuel Control,,01 25
+P0128,パワートレイン(エンジン/AT),汎用(SAE),サーモスタット,,Coolant Thermostat,,01 28
+P0130,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路の異常(センサー1),O2センサーの最小出力電圧が規定値より高い;O2センサーの最大出力電圧が規定値より低い,HO2S circuit malfunction (Sensor-1),Min. output voltage of HO2S-higher than specification; Max. output voltage of HO2S-lower than specification,01 30
+P0131,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 低電圧(センサー1),HO2S-1の最大出力電圧が規定値未満。,O2 sensor (HO2S) circuit low voltage (Sensor-1),Max. output voltage of HO2S-1 is less than specification.,01 31
+P0132,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 高電圧(センサー1),HO2S-1の最小出力電圧が規定値超。,O2 sensor (HO2S) circuit high voltage (Sensor-1),Min. output voltage of HO2S-1 is more than specification.,01 32
+P0133,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 応答遅れ(センサー1),HO2S-1出力電圧のリッチ⇔リーンの応答時間が規定値より長い。,O2 sensor (HO2S) circuit slow response (Sensor-1),Response time of HO2S-1 output voltage between rich and lean is longer than specification.,01 33
+P0134,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 反応なし(センサー1),HO2S-1の出力電圧が規定値超または規定値未満(またはHO2S-1回路の断線・短絡)。,O2 sensor (HO2S) circuit no activity detected (Sensor-1),Output voltage of HO2S-1 is more than specification or less than specification. (or HO2S-1 circuit open or short),01 34
+P0135,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター回路の異常(センサー1),ヒーターOFF時に端子電圧が規定値より低い、またはヒーターON時に規定値より高い。,HO2S heater circuit malfunction (Sensor-1),Terminal voltage is lower than specification at heater OFF or it is higher at heater ON.,01 35
+P0136,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路の異常(センサー2),HO2S-2の電圧が規定値より高い,HO2S circuit malfunction (Sensor-2),HO2S-2 voltage is higher than specification,01 36
+P0137,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 低電圧(センサー2),高負荷(高速)走行中にHO2S-2電圧が0.4V未満の状態が規定時間以上続き、かつHO2S-2の最大電圧と最小電圧の差が0.2V未満の状態が規定時間続いた。,O2 sensor (HO2S) circuit low voltage (Sensor-2),HO2S-2 voltage is lower than 0.4 V for more than specified time continuously while vehicle is driving with high engine load (high speed). And HO2S-2 max. voltage minus HO2S-2 min. voltage is less than 0.2 V for specified time continuously.,01 37
+P0138,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 高電圧(センサー2),高負荷(高速)走行中にHO2S-2電圧が0.85V超の状態が規定時間以上続き、かつHO2S-2の最大電圧と最小電圧の差が0.2V未満の状態が規定時間続いた。,O2 sensor (HO2S) circuit high voltage (Sensor-2),HO2S-2 voltage is higher than 0.85 V for more than specified time continuously while vehicle is driving with high engine load (high speed). And HO2S-2 max. voltage minus HO2S-2 min. voltage is less than 0.2 V for specified time continuously.,01 38
+P0139,パワートレイン(エンジン/AT),汎用(SAE),O2センサーのリッチ→リーン応答遅れ(センサー2);O2センサー回路の応答遅れ(センサー2),,O2 Sensor Delayed Response Rich to Lean (Sensor 2); 02 Sensor Circuit Slow Response (Sensor 2),,01 39
+P0140,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 反応なし(センサー2),エンジン暖機後もHO2S-2の出力電圧が規定値超。,O2 sensor (HO2S) circuit no activity detected (Sensor-2),Output voltage of HO2S-2 is more than specification after warming up engine.,01 40
+P0141,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター回路の異常(センサー2),ヒーターOFF時に端子電圧が規定値より低い、またはヒーターON時に規定値より高い(またはヒーター回路の断線・短絡)。,HO2S heater circuit malfunction (Sensor-2),Terminal voltage is lower than specification at heater OFF or it is higher at heater ON. (or heater circuit or short),01 41
+P0151,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 低電圧 バンク2 センサー1,,HO2S Circuit Low Voltage Bank 2 Sensor 1,,01 51
+P0152,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 高電圧 バンク2 センサー1,,HO2S Circuit High Voltage Bank 2 Sensor 1,,01 52
+P0153,パワートレイン(エンジン/AT),汎用(SAE),O2センサー 応答遅れ バンク2 センサー1,,HO2S Slow Response Bank 2 Sensor 1,,01 53
+P0154,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 反応不足 バンク2 センサー1,,HO2S Circuit Insufficient Activity Bank 2 Sensor 1,,01 54
+P0155,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター性能 バンク2 センサー1,,HO2S Heater Performance Bank 2 Sensor 1,,01 55
+P0157,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 低電圧 バンク2 センサー2,,HO2S Circuit Low Voltage Bank 2 Sensor 2,,01 57
+P0158,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 高電圧 バンク2 センサー2,,HO2S Circuit High Voltage Bank 2 Sensor 2,,01 58
+P0160,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 反応不足 バンク2 センサー2,,HO2S Circuit Insufficient Activity Bank 2 Sensor 2,,01 60
+P0161,パワートレイン(エンジン/AT),汎用(SAE),O2センサーヒーター性能 バンク2 センサー2,,HO2S Heater Performance Bank 2 Sensor 2,,01 61
+P0168,パワートレイン(エンジン/AT),汎用(SAE),燃料温度が高すぎる,,Fuel Temperature Too High,,01 68
+P0170,パワートレイン(エンジン/AT),汎用(SAE),燃料補正,燃料噴射量の学習値が一定期間以上更新されない。,Fuel Trim,Learned value of fuel injection amount is not updated for longer than a certain period.,01 70
+P0171,パワートレイン(エンジン/AT),汎用(SAE),(燃料)システムが薄すぎる(リーン),合計燃料補正が規定時間以上、規定値より大きい(リッチ側への補正が大きい)。,(Fuel) System too lean,Total fuel trim is larger than specification for specified time or longer. (Fuel trim toward rich side is large.),01 71
+P0172,パワートレイン(エンジン/AT),汎用(SAE),(燃料)システムが濃すぎる(リッチ),合計燃料補正が規定時間以上、規定値より小さい(リーン側への補正が大きい)。,(Fuel) System too rich,Total fuel trim is smaller than specification for specified time or longer. (Fuel trim toward lean side is large.),01 72
+P0180,パワートレイン(エンジン/AT),汎用(SAE),燃料温度センサー回路の異常,燃料温度回路の断線または短絡,Fuel Temperature Sensor Circuit Malfunction,Fuel temperature circuit is open or short,01 80
+P0190,パワートレイン(エンジン/AT),汎用(SAE),燃料レール圧センサー回路の異常,燃圧信号の入力が低いまたは高い,Fuel Rail Pressure Sensor Circuit Malfunction,Fuel pressure signal is low or high input,01 90
+P0197,パワートレイン(エンジン/AT),汎用(SAE),油温センサー系 低異常,,Engine oil temperature sensor system LOW error,,01 97
+P0198,パワートレイン(エンジン/AT),汎用(SAE),油温センサー系 高異常,,Engine oil temperature sensor system HIGH abnormality,,01 98
+P0200,パワートレイン(エンジン/AT),汎用(SAE),インジェクター回路,インジェクター回路の電圧が低すぎるまたは高すぎる,Injector Circuit,Fuel injector circuit voltage is too low or too high,02 00
+P0201,パワートレイン(エンジン/AT),汎用(SAE),インジェクター回路の異常 – 1番,1番インジェクター電流の入力が低いまたは高い,Injector Circuit Malfunction – Cylinder 1,Fuel injector No.1 current is low or high input,02 01
+P0202,パワートレイン(エンジン/AT),汎用(SAE),インジェクター回路の異常 – 2番,2番インジェクター電流の入力が低いまたは高い,Injector Circuit Malfunction – Cylinder 2,Fuel injector No.2 current is low or high input,02 02
+P0203,パワートレイン(エンジン/AT),汎用(SAE),インジェクター回路の異常 – 3番,3番インジェクター電流の入力が低いまたは高い,Injector Circuit Malfunction – Cylinder 3,Fuel injector No.3 current is low or high input,02 03
+P0204,パワートレイン(エンジン/AT),汎用(SAE),インジェクター回路の異常 – 4番,4番インジェクター電流の入力が低いまたは高い,Injector Circuit Malfunction – Cylinder 4,Fuel injector No.4 current is low or high input,02 04
+P0205,パワートレイン(エンジン/AT),汎用(SAE),5番インジェクター制御回路,,Injector 5 Control Circuit,,02 05
+P0206,パワートレイン(エンジン/AT),汎用(SAE),6番インジェクター制御回路,,Injector 6 Control Circuit,,02 06
+P0217,パワートレイン(エンジン/AT),汎用(SAE),エンジン水温の過熱状態,,Engine Coolant Over Temperature Condition,,02 17
+P0219,パワートレイン(エンジン/AT),汎用(SAE),エンジン過回転状態,,Engine Overspeed Condition,,02 19
+P0220,パワートレイン(エンジン/AT),汎用(SAE),スロットル/ペダル位置センサー/スイッチ「B」回路,,Throttle / Pedal Position Sensor / Switch “B” Circuit,,02 20
+P0221,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置(TP)センサー2の性能,,Throttle Position (TP) Sensor 2 Performance,,02 21
+P0222,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置センサー(サブ)回路 低,スロットル位置センサー(サブ)の出力電圧が規定値より低い。,Throttle position sensor (sub) circuit low,Output voltage of throttle position sensor (sub) is lower than specification.,02 22
+P0223,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置センサー(サブ)回路 高,スロットル位置センサー(サブ)の出力電圧が規定値より高い。,Throttle position sensor (sub) circuit high,Output voltage of throttle position sensor (sub) is higher than specification.,02 23
+P0225,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー1回路,アクセルペダル位置センサー1信号の入力が低いまたは高い,Pedal Position Sensor 1 Circuit,Accelerator pedal position sensor 1 signal is low or high input,02 25
+P0230,パワートレイン(エンジン/AT),汎用(SAE),燃料ポンプ一次回路,,Fuel Pump Primary Circuit,,02 30
+P0231,パワートレイン(エンジン/AT),汎用(SAE),燃料ポンプ二次回路 低,燃料流量アクチュエーター回路の断線または短絡,Fuel Pump Secondary Circuit Low,Fuel flow actuator circuit is open or short,02 31
+P0234,パワートレイン(エンジン/AT),汎用(SAE),ターボ/スーパーチャージャー「A」過給圧過大(オーバーブースト),,Turbocharger / Supercharger “A” Overboost Condition,,02 34
+P0235,パワートレイン(エンジン/AT),汎用(SAE),ターボ圧センサー回路の異常;ターボ/スーパーチャージャー過給圧センサー「A」回路,過給圧信号の入力が低いまたは高い,Turbo Pressure Sensor Circuit Malfunction; Turbocharger / Supercharger Boost Sensor “A” Circuit,Boost pressure signal is low or high input,02 35
+P0261,パワートレイン(エンジン/AT),汎用(SAE),1番インジェクター回路 低,,Cylinder 1 Injector Circuit Low,,02 61
+P0262,パワートレイン(エンジン/AT),汎用(SAE),1番インジェクター回路 高,,Cylinder 1 Injector Circuit High,,02 62
+P0263,パワートレイン(エンジン/AT),汎用(SAE),1番気筒の寄与度/バランス,エンジン回転変動を検出(1番気筒の不具合),Cylinder 1 Contribution/Balance,Detection of engine speed fluctuation (problem on cylinder No.1),02 63
+P0264,パワートレイン(エンジン/AT),汎用(SAE),2番インジェクター回路 低,,Cylinder 2 Injector Circuit Low,,02 64
+P0265,パワートレイン(エンジン/AT),汎用(SAE),2番インジェクター回路 高,,Cylinder 2 Injector Circuit High,,02 65
+P0266,パワートレイン(エンジン/AT),汎用(SAE),2番気筒の寄与度/バランス,エンジン回転変動を検出(2番気筒の不具合),Cylinder 2 Contribution/Balance,Detection of engine speed fluctuation (problem on cylinder No.2),02 66
+P0267,パワートレイン(エンジン/AT),汎用(SAE),3番インジェクター回路 低,,Cylinder 3 Injector Circuit Low,,02 67
+P0268,パワートレイン(エンジン/AT),汎用(SAE),3番インジェクター回路 高,,Cylinder 3 Injector Circuit High,,02 68
+P0269,パワートレイン(エンジン/AT),汎用(SAE),3番気筒の寄与度/バランス,エンジン回転変動を検出(3番気筒の不具合),Cylinder 3 Contribution/Balance,Detection of engine speed fluctuation (problem on cylinder No.3),02 69
+P0270,パワートレイン(エンジン/AT),汎用(SAE),4番インジェクター回路 低,,Cylinder 4 Injector Circuit Low,,02 70
+P0271,パワートレイン(エンジン/AT),汎用(SAE),4番インジェクター回路 高,,Cylinder 4 Injector Circuit High,,02 71
+P0272,パワートレイン(エンジン/AT),汎用(SAE),4番気筒の寄与度/バランス,エンジン回転変動を検出(4番気筒の不具合),Cylinder 4 Contribution/Balance,Detection of engine speed fluctuation (problem on cylinder No.4),02 72
+P0273,パワートレイン(エンジン/AT),汎用(SAE),5番インジェクター制御回路 低電圧,,Injector 5 Control Circuit Low Voltage,,02 73
+P0274,パワートレイン(エンジン/AT),汎用(SAE),5番インジェクター制御回路 高電圧,,Injector 5 Control Circuit High Voltage,,02 74
+P0276,パワートレイン(エンジン/AT),汎用(SAE),6番インジェクター制御回路 低電圧,,Injector 6 Control Circuit Low Voltage,,02 76
+P0277,パワートレイン(エンジン/AT),汎用(SAE),6番インジェクター制御回路 高電圧,,Injector 6 Control Circuit High Voltage,,02 77
+P0300,パワートレイン(エンジン/AT),汎用(SAE),ランダム失火を検出,三元触媒を損傷させるレベルの失火。,Random misfire detected,Misfire of such level as to cause damage to three way catalyst.,03 00
+P0301,パワートレイン(エンジン/AT),汎用(SAE),1番気筒の失火を検出,排気ガスを悪化させるが三元触媒は損傷させないレベルの失火。,Cylinder 1 misfire detected,Misfire of such level as to deteriorate emission but not to cause damage to three way catalyst.,03 01
+P0302,パワートレイン(エンジン/AT),汎用(SAE),2番気筒の失火を検出,排気ガスを悪化させるが三元触媒は損傷させないレベルの失火。,Cylinder 2 misfire detected,Misfire of such level as to deteriorate emission but not to cause damage to three way catalyst.,03 02
+P0303,パワートレイン(エンジン/AT),汎用(SAE),3番気筒の失火を検出,排気ガスを悪化させるが三元触媒は損傷させないレベルの失火。,Cylinder 3 misfire detected,Misfire of such level as to deteriorate emission but not to cause damage to three way catalyst.,03 03
+P0304,パワートレイン(エンジン/AT),汎用(SAE),4番気筒の失火を検出,排気ガスを悪化させるが三元触媒は損傷させないレベルの失火。,Cylinder 4 misfire detected,Misfire of such level as to deteriorate emission but not to cause damage to three way catalyst.,03 04
+P0305,パワートレイン(エンジン/AT),汎用(SAE),5番気筒の失火を検出,,Cylinder 5 Misfire Detected,,03 05
+P0306,パワートレイン(エンジン/AT),汎用(SAE),6番気筒の失火を検出,,Cylinder 6 Misfire Detected,,03 06
+P0324,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー(KS)モジュール性能,,Knock Sensor (KS) Module Performance,,03 24
+P0325,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー回路の異常,ノックセンサー回路 入力低;ノックセンサー回路 入力高,Knock sensor circuit malfunction,Knock sensor circuit low input; Knock sensor circuit high input,03 25
+P0326,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー(KS)システム性能 バンク1,,Knock Sensor (KS) System Performance Bank 1,,03 26
+P0327,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー回路 低,ノックセンサーの出力電圧が規定値未満。,Knock sensor circuit low,Output voltage of knock sensor is less than specification.,03 27
+P0328,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー回路 高,ノックセンサーの出力電圧が規定値超。,Knock sensor circuit high,Output voltage of knock sensor is more than specification.,03 28
+P0331,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー(KS)システム性能 バンク2,,Knock Sensor (KS) System Performance Bank 2,,03 31
+P0332,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー(KS)回路 低電圧 バンク2,,Knock Sensor (KS) Circuit Low Voltage Bank 2,,03 32
+P0333,パワートレイン(エンジン/AT),汎用(SAE),ノックセンサー(KS)回路 高電圧 バンク2,,Knock Sensor (KS) Circuit High Voltage Bank 2,,03 33
+P0335,パワートレイン(エンジン/AT),汎用(SAE),クランク角センサー回路,スターター信号が入力されているのに規定時間クランク角(CKP)センサーの信号がない;クランキング中に2秒間信号がない,Crankshaft position sensor circuit,No signal of CKP sensor for specified time even if starting motor signal is inputting; No signal for 2 sec. During engine cranking,03 35
+P0336,パワートレイン(エンジン/AT),汎用(SAE),クランク角センサー「A」回路 範囲/性能,,"Crankshaft Position Sensor ""A"" Circuit Range/Performance",,03 36
+P0338,パワートレイン(エンジン/AT),汎用(SAE),クランク角(CKP)センサー回路 デューティ比が高い,,Crankshaft Position (CKP) Sensor Circuit High Duty Cycle,,03 38
+P0340,パワートレイン(エンジン/AT),汎用(SAE),カム角センサー回路,カム角(CMP)センサーのパルスが規定外;エンジン運転中に信号がない,Camshaft position sensor circuit,CMP sensor pulse is out of specification; No signal during engine running,03 40
+P0341,パワートレイン(エンジン/AT),汎用(SAE),吸気カム角(CMP)センサー性能 バンク1,,Intake Camshaft Position (CMP) Sensor Performance Bank 1,,03 41
+P0342,パワートレイン(エンジン/AT),汎用(SAE),吸気カム角(CMP)センサー回路 低電圧 バンク1,,Intake Camshaft Position (CMP) Sensor Circuit Low Voltage Bank 1,,03 42
+P0343,パワートレイン(エンジン/AT),汎用(SAE),吸気カム角(CMP)センサー回路 高電圧 バンク1,,Intake Camshaft Position (CMP) Sensor Circuit High Voltage Bank 1,,03 43
+P0346,パワートレイン(エンジン/AT),汎用(SAE),吸気カム角(CMP)センサー性能 バンク2,,Intake Camshaft Position (CMP) Sensor Performance Bank 2,,03 46
+P0347,パワートレイン(エンジン/AT),汎用(SAE),吸気カム角(CMP)センサー回路 低電圧 バンク2,,Intake Camshaft Position (CMP) Sensor Circuit Low Voltage Bank 2,,03 47
+P0348,パワートレイン(エンジン/AT),汎用(SAE),吸気カム角(CMP)センサー回路 高電圧 バンク2,,Intake Camshaft Position (CMP) Sensor Circuit High Voltage Bank 2,,03 48
+P0350,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル一次/二次回路の異常,,Ignition coil primary/secondary circuit malfunction,,03 50
+P0351,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「A」一次/二次回路,,"Ignition Coil ""A"" Primary / Secondary Circuit",,03 51
+P0352,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「B」一次/二次回路,,"Ignition Coil ""B"" Primary / Secondary Circuit",,03 52
+P0353,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「C」一次/二次回路,,"Ignition Coil ""C"" Primary / Secondary Circuit",,03 53
+P0354,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「D」一次/二次回路,,"Ignition Coil ""D"" Primary / Secondary Circuit",,03 54
+P0365,パワートレイン(エンジン/AT),汎用(SAE),カム角センサー系の異常(排気側),,Cam angle sensor system error EX,,03 65
+P0366,パワートレイン(エンジン/AT),汎用(SAE),排気カム角(CMP)センサー性能 バンク1,,Exhaust Camshaft Position (CMP) Sensor Performance Bank 1,,03 66
+P0367,パワートレイン(エンジン/AT),汎用(SAE),排気カム角(CMP)センサー回路 低電圧 バンク1,,Exhaust Camshaft Position (CMP) Sensor Circuit Low Voltage Bank 1,,03 67
+P0368,パワートレイン(エンジン/AT),汎用(SAE),排気カム角(CMP)センサー回路 高電圧 バンク1,,Exhaust Camshaft Position (CMP) Sensor Circuit High Voltage Bank 1,,03 68
+P0380,パワートレイン(エンジン/AT),汎用(SAE),グロープラグモジュール制御回路,グロープラグ制御回路の断線または短絡,Glow Plug Module Control Circuit,Glow plug control circuit is open or short,03 80
+P0382,パワートレイン(エンジン/AT),汎用(SAE),グロープラグ/ヒーター回路Bの異常,プレ/アフターグロー制御回路の断線または短絡,Glow Plug / Heater Circuit B Malfunction,Pre / post-heating control circuit is open or short,03 82
+P0391,パワートレイン(エンジン/AT),汎用(SAE),排気カム角(CMP)センサー性能 バンク2,,Exhaust Camshaft Position (CMP) Sensor Performance Bank 2,,03 91
+P0392,パワートレイン(エンジン/AT),汎用(SAE),排気カム角(CMP)センサー回路 低電圧 バンク2,,Exhaust Camshaft Position (CMP) Sensor Circuit Low Voltage Bank 2,,03 92
+P0393,パワートレイン(エンジン/AT),汎用(SAE),排気カム角(CMP)センサー回路 高電圧 バンク2,,Exhaust Camshaft Position (CMP) Sensor Circuit High Voltage Bank 2,,03 93
+P0400,パワートレイン(エンジン/AT),汎用(SAE),EGR流量の異常を検出,EGR流量が多すぎるまたは少なすぎる,Exhaust gas recirculation (EGR) flow malfunction detected,Excessive or insufficient EGR flow,04 00
+P0401,パワートレイン(エンジン/AT),汎用(SAE),EGR流量不足を検出,EGRバルブ開時と閉時の吸気管圧力の差が規定値未満。,Exhaust gas recirculation flow insufficient detected,Difference in intake manifold absolute pressure between opened EGR valve and closed EGR valve is less than specification.,04 01
+P0402,パワートレイン(エンジン/AT),汎用(SAE),EGR流量過多を検出,EGRバルブ開時と閉時の吸気管圧力の差が規定値超。,Exhaust gas recirculation flow excessive detected,Difference in intake manifold absolute pressure between opened EGR valve and closed EGR valve is more than specification.,04 02
+P0403,パワートレイン(エンジン/AT),汎用(SAE),EGR制御回路,4極のうち1極以上で、出力が出力指令と異なる。,Exhaust gas recirculation control circuit,Output voltage is different from output command with more than one pole out of 4 poles.,04 03
+P0409,パワートレイン(エンジン/AT),汎用(SAE),EGRセンサー回路,EGRバルブ位置センサー信号の入力が低いまたは高い,Exhaust Gas Recirculation Sensor Circuit,EGR valve position sensor signal is low or high input,04 09
+P0420,パワートレイン(エンジン/AT),汎用(SAE),触媒の浄化効率がしきい値未満,HO2S-1とHO2S-2の出力波形が似ている(HO2S-1の電圧変化からHO2S-2の電圧変化までの時間が規定値より短い)。,Catalyst system efficiency below threshold,Output waveforms of HO2S-1 and HO2S-2 are similar. (Time from output voltage change of HO2S-1 to that of HO2S-2 is shorter than specification.),04 20
+P0430,パワートレイン(エンジン/AT),汎用(SAE),触媒の浄化効率低下 バンク2,,Catalyst System Low Efficiency Bank 2,,04 30
+P0442,パワートレイン(エンジン/AT),汎用(SAE),エバポ(EVAP)システムの小さな漏れを検出,,Evaporative Emission (EVAP) System Small Leak Detected,,04 42
+P0443,パワートレイン(エンジン/AT),汎用(SAE),エバポのパージ制御バルブ回路(パージ制御バルブ回路の異常),キャニスターパージバルブのモニター信号が指令信号と異なる(回路の断線または地絡);パージ制御バルブ回路の断線または地絡,Evaporative emission system purge control valve circuit (Purge control valve circuit malfunction),Monitor signal of EVAP canister purge valve is different from command signal. (circuit open or shorted to ground); Purge control valve circuit is open or shorted to ground,04 43
+P0449,パワートレイン(エンジン/AT),汎用(SAE),エバポシステムのベントバルブ/ソレノイド回路,,Evaporative Emission System Vent Valve/Solenoid Circuit,,04 49
+P0452,パワートレイン(エンジン/AT),汎用(SAE),エバポシステム圧力センサー 入力低,,EVAP System pressure sensor low input,,04 52
+P0453,パワートレイン(エンジン/AT),汎用(SAE),燃料タンク圧(FTP)センサー回路 高電圧,,Fuel Tank Pressure (FTP) Sensor Circuit High Voltage,,04 53
+P0456,パワートレイン(エンジン/AT),汎用(SAE),エバポシステムの漏れを検出(小),エバポシステムの漏れを検出,EVAP System leak detected (small),Evaporative Emission System leak detected,04 56
+P0458,パワートレイン(エンジン/AT),汎用(SAE),エバポシステムのパージ制御バルブ回路 低,,Evaporative Emission System Purge Control Valve Circuit Low,,04 58
+P0459,パワートレイン(エンジン/AT),汎用(SAE),エバポシステムのパージ制御バルブ回路 高,,Evaporative Emission System Purge Control Valve Circuit High,,04 59
+P0461,パワートレイン(エンジン/AT),汎用(SAE),燃料レベルセンサー「A」回路 範囲/性能,,"Fuel Level Sensor ""A"" Circuit Range/Performance",,04 61
+P0462,パワートレイン(エンジン/AT),汎用(SAE),燃料レベルセンサー回路 低,燃料レベルセンサーの回路電圧が規定値未満。,Fuel level sensor circuit low,Circuit voltage of fuel level sensor is less than specification.,04 62
+P0463,パワートレイン(エンジン/AT),汎用(SAE),燃料レベルセンサー回路 高,燃料レベルセンサーの回路電圧が規定値超。,Fuel level sensor circuit high,Circuit voltage of fuel level sensor is more than specification.,04 63
+P0480,パワートレイン(エンジン/AT),汎用(SAE),ラジエーターファン低速制御系の異常;ファン1制御回路,ラジエーターファン(低速)制御回路の入力が低いまたは高い,Radiator Cooling Fan Low Speed Control System Malfunction; Fan 1 Control Circuit,Radiator low speed cooling fan control circuit is low or high input,04 80
+P0481,パワートレイン(エンジン/AT),汎用(SAE),ファン2(A/Cコンデンサーファンまたは高速ファン)制御回路,A/Cコンデンサーファンリレーのモニター信号が指令信号と異なる;ファン指令を出していないのにA/Cコンデンサーファンリレーの端子電圧が低い,Fan 2 (A/C condenser fan or High Speed Fan) control circuit,Monitor signal of A/C condenser fan relay is different from command signal; A/C condenser fan relay terminal voltage is low when fan command is not outputted,04 81
+P0482,パワートレイン(エンジン/AT),汎用(SAE),ファン3制御回路,,Fan 3 Control Circuit,,04 82
+P0487,パワートレイン(エンジン/AT),汎用(SAE),EGRスロットル位置制御回路,EGRバルブ位置センサー回路の断線または短絡,Exhaust Gas Recirculation Throttle Position Control Circuit,EGR valve position sensor circuit open or short,04 87
+P0498,パワートレイン(エンジン/AT),汎用(SAE),エバポ(EVAP)ベントソレノイドバルブ制御回路 低電圧,,Evaporative Emission (EVAP) Vent Solenoid Valve Control Circuit Low Voltage,,04 98
+P0499,パワートレイン(エンジン/AT),汎用(SAE),エバポ(EVAP)ベントソレノイドバルブ制御回路 高電圧,,Evaporative Emission (EVAP) Vent Solenoid Valve Control Circuit High Voltage,,04 99
+P0500,パワートレイン(エンジン/AT),汎用(SAE),車速センサー(VSS)の異常,燃料カット中に規定時間以上車速信号がない、または規定回転数以上かつDレンジ(AT)で走行しているのに車速信号が入力されない;Dレンジ走行中または減速時の燃料カット中に信号がない,Vehicle speed sensor (VSS) malfunction,"No VSS signal during fuel cut for specified time or longer, or VSS signal is not input even if vehicle is driving with more than specified engine speed and D-range (A/T); No signal while running in “D” range or during fuel cut at decelerating",05 00
+P0504,パワートレイン(エンジン/AT),汎用(SAE),ブレーキスイッチ「A」/「B」の相関,,"Brake Switch ""A""/""B"" Correlation",,05 04
+P0505,パワートレイン(エンジン/AT),汎用(SAE),アイドル回転制御(ISC)システム,ISC制御デューティのパルスがモニター信号で検出されない。,Idle air control system,IAC control duty pulse is not detected in its monitor signal.,05 05
+P0506,パワートレイン(エンジン/AT),汎用(SAE),アイドル回転制御システム 回転数が予想より低い,,Idle Air Control System RPM Lower Than Expected,,05 06
+P0507,パワートレイン(エンジン/AT),汎用(SAE),アイドル回転制御システム 回転数が予想より高い,,Idle Air Control System RPM Higher Than Expected,,05 07
+P050A,パワートレイン(エンジン/AT),汎用(SAE),冷間始動時のアイドル回転制御システム性能,,Cold Start Idle Air Control System Performance,,05 0A
+P050B,パワートレイン(エンジン/AT),汎用(SAE),冷間始動時の点火時期制御性能,,Cold Start Ignition Timing Performance,,05 0B
+P0513,パワートレイン(エンジン/AT),汎用(SAE),イモビライザーキーが不正,イモビライザー制御モジュールとの通信エラー,Incorrect Immobilizer Key,Communication error with immobilizer control module,05 13
+P0515,パワートレイン(エンジン/AT),汎用(SAE),バッテリー温度センサー回路,,Battery Temperature Sensor Circuit,,05 15
+P0520,パワートレイン(エンジン/AT),汎用(SAE),油圧センサー/スイッチ回路,,Engine Oil Pressure Sensor / Switch Circuit,,05 20
+P0530,パワートレイン(エンジン/AT),汎用(SAE),A/C圧力センサー回路の異常,A/C圧力センサー回路の断線または短絡,A/C Pressure Sensor Circuit Malfunction,A/C pressure sensor circuit is open or short,05 30
+P0532,パワートレイン(エンジン/AT),汎用(SAE),A/C冷媒圧センサー回路 低,A/C冷媒圧センサーの出力電圧が規定値未満。,A/C refrigerant pressure sensor circuit low,Output voltage of A/C refrigerant pressure sensor is less than specification.,05 32
+P0533,パワートレイン(エンジン/AT),汎用(SAE),A/C冷媒圧センサー回路 高,A/C冷媒圧センサーの出力電圧が規定値超。,A/C refrigerant pressure sensor circuit high,Output voltage of A/C refrigerant pressure sensor is more than specification.,05 33
+P0555,パワートレイン(エンジン/AT),汎用(SAE),ブレーキブースタースイッチ系の異常,,Brake booster switch system error,,05 55
+P0560,パワートレイン(エンジン/AT),汎用(SAE),システム電圧,電源電圧の入力が低いまたは高い,System Voltage,Power supply voltage is low or high input,05 60
+P0562,パワートレイン(エンジン/AT),汎用(SAE),システム電圧 低,,System Voltage Low,,05 62
+P0563,パワートレイン(エンジン/AT),汎用(SAE),システム電圧 高,,System Voltage High,,05 63
+P0571,パワートレイン(エンジン/AT),汎用(SAE),ブレーキスイッチ回路,ブレーキスイッチ信号が入力されない,Brake Switch Circuit,Brake switch signal is not input,05 71
+P0572,パワートレイン(エンジン/AT),汎用(SAE),ブレーキスイッチ系 低異常,,Brake switch system LOW abnormality,,05 72
+P0573,パワートレイン(エンジン/AT),汎用(SAE),ブレーキスイッチ系 高異常,,Brake switch system HIGH abnormality,,05 73
+P0575,パワートレイン(エンジン/AT),汎用(SAE),クルーズコントロール入力回路,,Cruise Control Input Circuit,,05 75
+P0600,パワートレイン(エンジン/AT),汎用(SAE),シリアル通信リンク,,Serial Communication Link,,06 00
+P0601,パワートレイン(エンジン/AT),汎用(SAE),制御モジュール内部メモリのチェックサムエラー,データ書き込みエラーまたはチェックサムエラー;ECMへの書き込み時のデータ書き込みエラー(またはチェックサムエラー),Internal control module memory check sum error,Data write error or check sum error; Data write error (or check sum error) when written into ECM,06 01
+P0602,パワートレイン(エンジン/AT),汎用(SAE),制御モジュールのプログラミングエラー,データのプログラミングエラー。,Control module programming error,Data programming error.,06 02
+P0603,パワートレイン(エンジン/AT),汎用(SAE),ECMの機能,,ECM Function,,06 03
+P0604,パワートレイン(エンジン/AT),汎用(SAE),制御モジュール内部の故障;制御モジュール内部RAMのエラー,エンジン制御モジュール内部の故障(システムエラー),Control Module Internal Fail; Internal Control Module Random Access Memory (RAM) Error,Engine control module internal faulty (system error),06 04
+P0605,パワートレイン(エンジン/AT),汎用(SAE),制御モジュールのプログラムエラー;ECM内部エラー(ROMエラー),,Control Module Program Error; ECM internal error (ROM error),,06 05
+P0606,パワートレイン(エンジン/AT),汎用(SAE),制御モジュールのプログラムエラー,エンジン制御モジュール内部の故障(システムエラー),Control Module Program Error,Engine control module internal faulty (system error),06 06
+P0607,パワートレイン(エンジン/AT),汎用(SAE),制御モジュールの性能,データのプログラミングエラー。,Control module performance,Data programming error.,06 07
+P060A,パワートレイン(エンジン/AT),汎用(SAE),SMP(サブマイコン)のエラー,,SMP (sub-microprocessor) error,,06 0A
+P060B,パワートレイン(エンジン/AT),汎用(SAE),制御モジュール内部のA/D変換処理性能,,Internal Control Module A/D Processing Performance,,06 0B
+P060C,パワートレイン(エンジン/AT),汎用(SAE),HCU内部エラー(CPU),,HCU internal error (CPU),,06 0C
+P0615,パワートレイン(エンジン/AT),汎用(SAE),スターターリレー回路の異常,,Starter Relay Circuit Malfunction,,06 15
+P0616,パワートレイン(エンジン/AT),汎用(SAE),スターターリレー回路 低,停車状態でエンジンを始動したのにスターター信号が低電圧。,Starter relay circuit low,Starter signal is low voltage even though engine is started with vehicle at stop.,06 16
+P0617,パワートレイン(エンジン/AT),汎用(SAE),スターターリレー回路 高,エンジン運転中に規定時間スターター信号が高電圧。,Starter relay circuit high,Starter signal is high voltage for specified time while engine is running.,06 17
+P0620,パワートレイン(エンジン/AT),汎用(SAE),発電機制御回路,発電機制御を最大にしてもバッテリー電圧が規定値より低い/最小にしても高い(電気負荷20A未満の条件)。,Generator control circuit,"Battery voltage is higher than specification even through generator control is maximum regulation, or battery voltage is lower than specification even through generator control is minimum regulation and electric load is less than 20 A.",06 20
+P0625,パワートレイン(エンジン/AT),汎用(SAE),発電機フィールド端子回路 低,発電機制御を最大にしても規定時間以上フィールドコイルのデューティが100%(低電圧)、またはエンジン始動時にフィールドコイルのデューティが100%(低電圧)。,Generator field terminal circuit low,"Generator field coil duty is 100% (low voltage) for more than specified time even through generator control is maximum regulation, or generator field coil duty is 100% (low voltage) when engine is starting.",06 25
+P0626,パワートレイン(エンジン/AT),汎用(SAE),発電機フィールド端子回路 高,発電機制御を最小にしても規定時間以上フィールドコイルのデューティが0%(高電圧),Generator field terminal circuit high,Generator field coil duty is 0% (high voltage) for more than specified time even through generator control is minimum regulation,06 26
+P0627,パワートレイン(エンジン/AT),汎用(SAE),燃料ポンプA制御回路/断線,,Fuel pump A control circuit / Open,,06 27
+P0628,パワートレイン(エンジン/AT),汎用(SAE),燃料ポンプリレー制御回路 低電圧,,Fuel Pump Relay Control Circuit Low Voltage,,06 28
+P0629,パワートレイン(エンジン/AT),汎用(SAE),燃料ポンプリレー制御回路 高電圧,,Fuel Pump Relay Control Circuit High Voltage,,06 29
+P062F,パワートレイン(エンジン/AT),汎用(SAE),制御モジュールのEEPROM故障,エンジン制御モジュール内部の故障(システムエラー),Control Module EEPROM Failure,Engine control module internal faulty (system error),06 2F
+P0630,パワートレイン(エンジン/AT),汎用(SAE),VIN(車台番号)が未書き込みまたは不一致(ECM/PCM),,VIN Not Programmed or Incompatible-ECM/PCM,,06 30
+P0638,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御の範囲/性能の異常,,Throttle Actuator Control Range / Performance Malfunction,,06 38
+P0641,パワートレイン(エンジン/AT),汎用(SAE),センサー基準電圧1回路/断線,センサー電源1の電圧が低すぎるまたは高すぎる,Sensor Reference Voltage 1 Circuit/ Open,Sensor power source 1 voltage is too low or too high,06 41
+P0642,パワートレイン(エンジン/AT),汎用(SAE),5V基準電圧1回路 低電圧,,5 Volt Reference 1 Circuit Low Voltage,,06 42
+P0643,パワートレイン(エンジン/AT),汎用(SAE),5V基準電圧1回路 高電圧,,5 Volt Reference 1 Circuit High Voltage,,06 43
+P0645,パワートレイン(エンジン/AT),汎用(SAE),A/Cリレー制御回路,A/Cリレー制御回路の断線または短絡,A/C Relay Control Circuit,A/C relay control circuit is open or short,06 45
+P0646,パワートレイン(エンジン/AT),汎用(SAE),A/Cクラッチリレー制御回路 低,,A/C Clutch Relay Control Circuit Low,,06 46
+P0647,パワートレイン(エンジン/AT),汎用(SAE),A/Cクラッチリレー制御回路 高,,A/C Clutch Relay Control Circuit High,,06 47
+P0649,パワートレイン(エンジン/AT),汎用(SAE),スピードコントロールランプ制御回路,,Speed Control Lamp Control Circuit,,06 49
+P0651,パワートレイン(エンジン/AT),汎用(SAE),センサー基準電圧2回路/断線,センサー電源2の電圧が低すぎるまたは高すぎる,Sensor Reference Voltage 2 Circuit/ Open,Sensor power source 2 voltage is too low or too high,06 51
+P0652,パワートレイン(エンジン/AT),汎用(SAE),5V基準電圧2回路 低電圧,,5 Volt Reference 2 Circuit Low Voltage,,06 52
+P0653,パワートレイン(エンジン/AT),汎用(SAE),5V基準電圧2回路 高電圧,,5 Volt Reference 2 Circuit High Voltage,,06 53
+P0657,パワートレイン(エンジン/AT),汎用(SAE),アクチュエーター電源電圧「A」回路/断線,,Actuator Supply Voltage “A” Circuit / Open,,06 57
+P0660,パワートレイン(エンジン/AT),汎用(SAE),可変吸気(インマニチューニング)バルブ回路/断線,可変吸気用負圧ソレノイドバルブのモニター信号が指令信号と異なる(回路の断線または地絡),Intake manifold tuning valve circuit / open,Monitor signal of intake manifold tuning vacuum solenoid valve is different from command signal. (circuit open or shorted to ground),06 60
+P0683,パワートレイン(エンジン/AT),汎用(SAE),グロープラグ制御モジュールとPCMの通信回路,,Glow Plug Control Module to PCM Communication Circuit,,06 83
+P0685,パワートレイン(エンジン/AT),汎用(SAE),メインリレー制御回路の異常;ECM/PCM電源リレー制御回路/断線,メインリレー制御信号の入力が低いまたは高い,Main Relay Control Circuit Malfunction; ECM/PCM Power Relay Control Circuit / Open,Main relay control signal is low or high input,06 85
+P0686,パワートレイン(エンジン/AT),汎用(SAE),エンジン制御イグニッションリレー制御回路 低電圧,,Engine Controls Ignition Relay Control Circuit Low Voltage,,06 86
+P0687,パワートレイン(エンジン/AT),汎用(SAE),エンジン制御イグニッションリレー制御回路 高電圧,,Engine Controls Ignition Relay Control Circuit High Voltage,,06 87
+P0689,パワートレイン(エンジン/AT),汎用(SAE),エンジン制御イグニッションリレーのフィードバック回路 低電圧,,Engine Controls Ignition Relay Feedback Circuit Low Voltage,,06 89
+P0690,パワートレイン(エンジン/AT),汎用(SAE),エンジン制御イグニッションリレーのフィードバック回路 高電圧,,Engine Controls Ignition Relay Feedback Circuit High Voltage,,06 90
+P0691,パワートレイン(エンジン/AT),汎用(SAE),冷却ファンリレー1制御回路 低電圧,,Cooling Fan Relay 1 Control Circuit Low Voltage,,06 91
+P0692,パワートレイン(エンジン/AT),汎用(SAE),ファン1制御回路 高,,Fan 1 Control Circuit High,,06 92
+P0693,パワートレイン(エンジン/AT),汎用(SAE),冷却ファンリレー2制御回路 低電圧,,Cooling Fan Relay 2 Control Circuit Low Voltage,,06 93
+P0694,パワートレイン(エンジン/AT),汎用(SAE),ファン2制御回路 高,,Fan 2 Control circuit high,,06 94
+P0697,パワートレイン(エンジン/AT),汎用(SAE),センサー基準電圧「C」回路/断線,,Sensor Reference Voltage “C” Circuit / Open,,06 97
+P0698,パワートレイン(エンジン/AT),汎用(SAE),5V基準電圧3回路 低電圧,,5 Volt Reference 3 Circuit Low Voltage,,06 98
+P0699,パワートレイン(エンジン/AT),汎用(SAE),5V基準電圧3回路 高電圧,,5 Volt Reference 3 Circuit High Voltage,,06 99
+P0702,パワートレイン(エンジン/AT),汎用(SAE),トランスミッション制御系の電気的異常,,Transmission Control System Electrical,,07 02
+P0703,パワートレイン(エンジン/AT),汎用(SAE),ブレーキスイッチ「B」回路,,"Brake Switch ""B"" Circuit",,07 03
+P0704,パワートレイン(エンジン/AT),汎用(SAE),クラッチスイッチ入力回路,,Clutch Switch Input Circuit,,07 04
+P0705,パワートレイン(エンジン/AT),汎用(SAE),温度センサー回路の異常;トランスミッションレンジセンサー回路の異常(PRNDL入力),;複数の信号が同時に入力されている。,Temperature Sensor Circuit Malfunction; Transmission Range Sensor Circuit Malfunction (PRNDL Input),; Multiple signals are inputted simultaneously.,07 05
+P0707,パワートレイン(エンジン/AT),汎用(SAE),トランスミッションレンジセンサー回路 低,センサー信号が入力されない。,Transmission Range Sensor Circuit Low,No sensor signal is inputted.,07 07
+P0710,パワートレイン(エンジン/AT),汎用(SAE),トランスミッション温度センサー回路の異常,,Transmission Temperature Sensor Circuit Malfunction,,07 10
+P0711,パワートレイン(エンジン/AT),汎用(SAE),AT油温センサー「A」回路 範囲/性能,トランスミッション温度センサーの信号が規定時間連続して変化しない。,"Transmission Fluid Temperature Sensor ""A"" circuit Range / Performance",Transmission temperature sensor signal is no change for specified time continuously.,07 11
+P0712,パワートレイン(エンジン/AT),汎用(SAE),AT油温センサー「A」回路 低,センサー出力電圧が低すぎる。,"Transmission Fluid Temperature Sensor ""A"" Circuit Low",Sensor output voltage is too low.,07 12
+P0713,パワートレイン(エンジン/AT),汎用(SAE),AT油温センサー「A」回路 高,センサー出力電圧が高すぎる。,"Transmission Fluid Temperature Sensor ""A"" Circuit High",Sensor output voltage is too high.,07 13
+P0715,パワートレイン(エンジン/AT),汎用(SAE),インプット/タービン回転センサー回路の異常,,Input / Turbine Speed Sensor Circuit Malfunction,,07 15
+P0716,パワートレイン(エンジン/AT),汎用(SAE),インプット/タービン回転センサー「A」回路 範囲/性能,,"Input/Turbine Speed Sensor ""A"" Circuit Range/Performance",,07 16
+P0717,パワートレイン(エンジン/AT),汎用(SAE),インプット/タービン回転センサー回路 信号なし,出力軸回転センサーの信号は入力されているのに、このセンサーの信号が検出されない。,Input / Turbine Speed Sensor Circuit No Signal,No sensor signal is detected although output speed sensor signal is inputted.,07 17
+P0720,パワートレイン(エンジン/AT),汎用(SAE),出力軸回転センサー回路の異常,,Output Shaft Speed Sensor Circuit Malfunction,,07 20
+P0721,パワートレイン(エンジン/AT),汎用(SAE),出力軸回転センサー回路 範囲/性能,,Output Speed Sensor Circuit Range/Performance,,07 21
+P0722,パワートレイン(エンジン/AT),汎用(SAE),出力軸回転センサー回路 信号なし,入力軸回転センサーの信号は入力されているのに、このセンサーの信号が入力されない。,Output Speed Sensor Circuit No Signal,No sensor signal is inputted although input speed sensor signal is inputted.,07 22
+P0725,パワートレイン(エンジン/AT),汎用(SAE),エンジン回転入力回路の異常,,Engine Speed Input Circuit Malfunction,,07 25
+P0727,パワートレイン(エンジン/AT),汎用(SAE),エンジン回転入力回路 信号なし,入力軸回転センサーの信号は入力されているのに、エンジン回転信号が入力されない。,Engine Speed Input Circuit No Signal,No engine speed signal is inputted although input speed sensor signal is inputted.,07 27
+P0730,パワートレイン(エンジン/AT),汎用(SAE),ギア比が不正,,Incorrect Gear Ratio,,07 30
+P0741,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ(ロックアップクラッチ)回路の性能不良またはOFF固着,TCMがTCCソレノイドをON指令しているのに、エンジンと入力軸の回転差が大きすぎる。,Torque converter clutch (lock-up clutch) circuit performance or stuck off,Difference in revolution between engine and input shaft is too large although TCM is commanding TCC solenoid to turn ON.,07 41
+P0742,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ回路 ON固着,TCMがTCCソレノイドをOFF指令しているのに、エンジンと入力軸の回転差が小さすぎる。,Torque Converter Clutch Circuit Stuck On,Difference in revolution between engine and input shaft is too small although TCM is commanding TCC solenoid to turn OFF.,07 42
+P0743,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ回路の電気的異常,,Torque Converter Clutch Circuit Electrical,,07 43
+P0746,パワートレイン(エンジン/AT),汎用(SAE),セカンダリ圧制御ソレノイドの異常/OFF固着,,Secondary pressure control solenoid error / OFF sticking,,07 46
+P0747,パワートレイン(エンジン/AT),汎用(SAE),セカンダリ圧制御ソレノイドの異常/ON固着,,Secondary pressure control solenoid error / ON sticking,,07 47
+P0751,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「A」の性能不良またはOFF固着,TCMは2速を指令しているのに、実際のギアが3速。,"Shift Solenoid ""A"" Performance or Stuck Off",Actual gear position is 3rd gear although TCM command is for 2nd gear.,07 51
+P0752,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「A」ON固着,TCMは3速を指令しているのに、実際のギアが2速。,"Shift Solenoid ""A"" Stuck On",Actual gear position is 2nd gear although TCM command is for 3rd gear.,07 52
+P0753,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイドAの電気的異常,,Shift Solenoid A Electrical,,07 53
+P0756,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「B」の性能不良またはOFF固着,TCMは4速を指令しているのに、実際のギアが3速。,"Shift Solenoid ""B"" Performance or Stuck Off",Actual gear position is 3rd gear although TCM command is for 4th gear.,07 56
+P0757,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「B」ON固着,TCMは3速を指令しているのに、実際のギアが4速。,"Shift Solenoid ""B"" Stuck On",Actual gear position is 4th gear although TCM command is for 3rd gear.,07 57
+P0758,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイドBの電気的異常,,Shift Solenoid B Electrical,,07 58
+P0763,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイドCの電気的異常,,Shift Solenoid C Electrical,,07 63
+P0768,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイドDの電気的異常,,Shift Solenoid D Electrical,,07 68
+P0771,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイドEの性能不良またはOFF固着,,Shift Solenoid-E Performance or Stuck OFF,,07 71
+P0772,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイドE ON固着,,Shift Solenoid-E Stuck ON,,07 72
+P0776,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「B」の性能,,"Pressure Control Solenoid ""B"" Performance",,07 76
+P0777,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「B」ON固着,,"Pressure Control Solenoid ""B"" Stuck On",,07 77
+P077C,パワートレイン(エンジン/AT),汎用(SAE),出力軸回転センサー 低異常,,Output shaft rotation sensor LOW error,,07 7C
+P077D,パワートレイン(エンジン/AT),汎用(SAE),出力軸回転センサー 高異常,,Output shaft rotation sensor HIGH error,,07 7D
+P0781,パワートレイン(エンジン/AT),汎用(SAE),1-2速変速,,1-2 Shift,,07 81
+P0787,パワートレイン(エンジン/AT),汎用(SAE),シフト/タイミングソレノイド制御回路 低,TCMがタイミングソレノイドをON指令しているのに、端子電圧が低い。,Shift / Timing Solenoid Control Circuit Low,Voltage of timing solenoid terminal is low although TCM is commanding timing solenoid to turn ON.,07 87
+P0788,パワートレイン(エンジン/AT),汎用(SAE),シフト/タイミングソレノイド制御回路 高,TCMがタイミングソレノイドをOFF指令しているのに、端子電圧が高い。,Shift / Timing Solenoid Control Circuit High,Voltage of timing solenoid terminal is high although TCM is commanding timing solenoid to turn OFF.,07 88
+P0793,パワートレイン(エンジン/AT),汎用(SAE),中間軸回転センサー「A」回路 信号なし;セカンダリプーリー回転センサー系の異常,,"Intermediate Shaft Speed Sensor ""A"" Circuit No Signal; Secondary pulley rotation sensor system error",,07 93
+P0796,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「C」の性能不良/OFF固着;ローブレーキソレノイドOFF固着,,"Pressure Control Solenoid ""C"" Performance/Stuck Off; Low brake solenoid OFF sticking",,07 96
+P0797,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「C」ON固着,,"Pressure Control Solenoid ""C"" Stuck ON",,07 97
+P07BE,パワートレイン(エンジン/AT),汎用(SAE),パーキングポジションスイッチ系の異常,,Parking position switch system error,,07 BE
+P07BF,パワートレイン(エンジン/AT),汎用(SAE),タービン回転センサー系 低異常,,Turbine rotation sensor system LOW error,,07 BF
+P07C0,パワートレイン(エンジン/AT),汎用(SAE),タービン回転センサー系 高異常,,Turbine rotation sensor system HIGH abnormality,,07 C0
+P07C1,パワートレイン(エンジン/AT),汎用(SAE),入力軸回転センサー系 低異常,,Input shaft rotation sensor system LOW error,,07 C1
+P07C2,パワートレイン(エンジン/AT),汎用(SAE),入力軸回転センサー系 高異常,,Input shaft rotation sensor system HIGH error,,07 C2
+P0805,パワートレイン(エンジン/AT),汎用(SAE),クラッチ位置センサー系の異常,,Clutch position sensor system error,,08 05
+P080A,パワートレイン(エンジン/AT),汎用(SAE),クラッチ接点学習が未完了,,Clutch contact learning not set,,08 0A
+P081D,パワートレイン(エンジン/AT),汎用(SAE),ニュートラル入力回路,ニュートラルポジションスイッチ信号回路の測定電圧が、規定時間連続して規定どおりでない。,Neutral Input Circuit,Measured voltage of neutral position switch signal circuit is not as specified for specified time continuously.,08 1D
+P0826,パワートレイン(エンジン/AT),汎用(SAE),マニュアルモード操作スイッチ回路,,Manual Mode Control Switch Circuit,,08 26
+P083F,パワートレイン(エンジン/AT),汎用(SAE),クラッチペダルスイッチ「A」/「B」の相関,,"Clutch Pedal Switch ""A""/""B"" Correlation",,08 3F
+P0840,パワートレイン(エンジン/AT),汎用(SAE),オイルセンサー系の異常,,Oil sensor system error,,08 40
+P0841,パワートレイン(エンジン/AT),汎用(SAE),AT油圧センサー/スイッチ「A」回路 範囲/性能;油圧センサー系の特性異常,,"Transmission Fluid Pressure Sensor / Switch ""A"" Circuit Range / Performance; Abnormal hydraulic sensor system characteristics",,08 41
+P0842,パワートレイン(エンジン/AT),汎用(SAE),AT油圧センサー/スイッチ「A」回路 低,,"Transmission Fluid Pressure Sensor/Switch ""A"" Circuit Low",,08 42
+P0843,パワートレイン(エンジン/AT),汎用(SAE),AT油圧センサー/スイッチ「A」回路 高,,"Transmission Fluid Pressure Sensor/Switch ""A"" Circuit High",,08 43
+P0846,パワートレイン(エンジン/AT),汎用(SAE),油圧スイッチ系の異常,,Hydraulic switch system abnormality,,08 46
+P0847,パワートレイン(エンジン/AT),汎用(SAE),AT油圧センサー/スイッチ「B」回路 低,,"Transmission Fluid Pressure Sensor/Switch ""B"" Circuit Low",,08 47
+P0848,パワートレイン(エンジン/AT),汎用(SAE),AT油圧センサー/スイッチ「B」回路 高,,"Transmission Fluid Pressure Sensor/Switch ""B"" Circuit High",,08 48
+P0882,パワートレイン(エンジン/AT),汎用(SAE),TCM電源 低信号異常,,TCM power supply low signal abnormality,,08 82
+P0883,パワートレイン(エンジン/AT),汎用(SAE),TCM電源 高信号異常,,TCM power supply high signal abnormality,,08 83
+P0904,パワートレイン(エンジン/AT),汎用(SAE),セレクト位置センサー系の異常,,Select position sensor system error,,09 04
+P0914,パワートレイン(エンジン/AT),汎用(SAE),シフト位置センサー系の異常,,Shift position sensor system error,,09 14
+P0944,パワートレイン(エンジン/AT),汎用(SAE),作動油圧の低下異常,,Low working pressure abnormality,,09 44
+P0945,パワートレイン(エンジン/AT),汎用(SAE),油圧ポンプリレー回路/断線;電動オイルポンプリレー電源系の異常,,Hydraulic Pump Relay Circuit/Open; Electric oil pump relay power system error,,09 45
+P0961,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「A」制御回路 範囲/性能,制御ソレノイドバルブ回路の実電流と、ECMが計算した電流の差が規定値超。,"Pressure Control Solenoid ""A"" Control Circuit Range / Performance",Difference between actual current of control solenoid valve circuit and current of control solenoid valve circuit calculated by ECM is more than specification.,09 61
+P0962,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「A」制御回路 低,圧力制御ソレノイド回路に電流が流れていない。,"Pressure Control Solenoid ""A"" Control Circuit Low",No electric flow is detected on pressure control solenoid circuit.,09 62
+P0963,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「A」制御回路 高,圧力制御ソレノイド回路に電流が流れすぎている。,"Pressure Control Solenoid ""A"" Control Circuit High",Too much electric flow is detected on pressure control solenoid circuit.,09 63
+P0965,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「B」制御回路 範囲/性能;プライマリ圧ソレノイドの特性異常,,"Pressure Control Solenoid ""B"" Control Circuit Range/Performance; Abnormal primary pressure solenoid characteristics",,09 65
+P0966,パワートレイン(エンジン/AT),汎用(SAE),「B」制御回路 低,,"""B"" Control Circuit Low",,09 66
+P0967,パワートレイン(エンジン/AT),汎用(SAE),「B」制御回路 高,,"""B"" Control Circuit High",,09 67
+P0969,パワートレイン(エンジン/AT),汎用(SAE),クラッチ制御ソレノイド系の特性異常,,Clutch control solenoid system characteristic error,,09 69
+P0970,パワートレイン(エンジン/AT),汎用(SAE),「C」制御回路 低,,"""C"" Control Circuit Low",,09 70
+P0971,パワートレイン(エンジン/AT),汎用(SAE),「C」制御回路 高,,"""C"" Control Circuit High",,09 71
+P0973,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「A」制御回路 低,TCMがシフトソレノイドをON指令しているのに、端子電圧が低い。,"Shift Solenoid ""A"" Control Circuit Low",Voltage of shift solenoid terminal is low although TCM is commanding shift solenoid to turn ON.,09 73
+P0974,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「A」制御回路 高,TCMがシフトソレノイドをOFF指令しているのに、端子電圧が高い。,"Shift Solenoid ""A"" Control Circuit High",Voltage of shift solenoid terminal is high although TCM is commanding shift solenoid to turn OFF.,09 74
+P0976,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「B」制御回路 低,TCMがシフトソレノイドをON指令しているのに、端子電圧が低い。,"Shift Solenoid ""B"" Control Circuit Low",Voltage of shift solenoid terminal is low although TCM is commanding shift solenoid to turn ON.,09 76
+P0977,パワートレイン(エンジン/AT),汎用(SAE),シフトソレノイド「B」制御回路 高,TCMがシフトソレノイドをOFF指令しているのに、端子電圧が高い。,"Shift Solenoid ""B"" Control Circuit High",Voltage of shift solenoid terminal is high although TCM is commanding shift solenoid to turn OFF.,09 77
+P0985,パワートレイン(エンジン/AT),汎用(SAE),「E」制御回路 低,,"""E"" Control Circuit Low",,09 85
+P0986,パワートレイン(エンジン/AT),汎用(SAE),「E」制御回路 高,,"""E"" Control Circuit High",,09 86
+P0A06,パワートレイン(エンジン/AT),汎用(SAE),電動ウォーターポンプの断線異常,,Electric water pump disconnection abnormality,,0A 06
+P0A0A,パワートレイン(エンジン/AT),汎用(SAE),サービスプラグのインターロック系の異常,,Service plug interlock system error,,0A 0A
+P0A0C,パワートレイン(エンジン/AT),汎用(SAE),サービスプラグのインターロック系 低異常,,Service plug interlock system LOW error,,0A 0C
+P0A0D,パワートレイン(エンジン/AT),汎用(SAE),サービスプラグのインターロック系 高異常,,Service plug interlock system HIGH error,,0A 0D
+P0A2A,パワートレイン(エンジン/AT),汎用(SAE),駆動モーター温度センサー系の異常,,Drive motor temperature sensor system error,,0A 2A
+P0A2F,パワートレイン(エンジン/AT),汎用(SAE),駆動モーターの過熱異常,,Drive motor heating abnormality,,0A 2F
+P0A3C,パワートレイン(エンジン/AT),汎用(SAE),インバーター内部の過熱異常,,Inverter internal heating abnormality,,0A 3C
+P0A3F,パワートレイン(エンジン/AT),汎用(SAE),駆動モーター位置センサー系の異常,,Drive motor position sensor system error,,0A 3F
+P0A42,パワートレイン(エンジン/AT),汎用(SAE),駆動モーター位置センサー系 高異常,,Drive motor position sensor system HIGH error,,0A 42
+P0A51,パワートレイン(エンジン/AT),汎用(SAE),電流センサー系の異常,,Current sensor system error,,0A 51
+P0A5A,パワートレイン(エンジン/AT),汎用(SAE),発電機電流センサー回路 範囲/性能,,Generator Current Sensor Circuit Range / Performance,,0A 5A
+P0A5D,パワートレイン(エンジン/AT),汎用(SAE),U相電流の異常,,U-phase current abnormality,,0A 5D
+P0A5F,パワートレイン(エンジン/AT),汎用(SAE),U相過電流の異常,,U-phase overcurrent abnormality,,0A 5F
+P0A60,パワートレイン(エンジン/AT),汎用(SAE),V相電流の異常,,V-phase current abnormality,,0A 60
+P0A62,パワートレイン(エンジン/AT),汎用(SAE),V相過電流の異常,,V-phase overcurrent abnormality,,0A 62
+P0A63,パワートレイン(エンジン/AT),汎用(SAE),W相電流の異常,,W phase current abnormality,,0A 63
+P0A65,パワートレイン(エンジン/AT),汎用(SAE),W相過電流の異常,,W phase overcurrent abnormality,,0A 65
+P0A7D,パワートレイン(エンジン/AT),汎用(SAE),充電率の異常低下,,Abnormal charge rate decrease,,0A 7D
+P0A82,パワートレイン(エンジン/AT),汎用(SAE),冷却ファンの異常,,Cooling fan abnormality,,0A 82
+P0A8D,パワートレイン(エンジン/AT),汎用(SAE),12Vバッテリー電源系 低異常,,12V battery power system LOW error,,0A 8D
+P0A8E,パワートレイン(エンジン/AT),汎用(SAE),12Vバッテリー電源系 高異常,,12V battery power system HIGH error,,0A 8E
+P0A95,パワートレイン(エンジン/AT),汎用(SAE),サービスプラグの異常,,Service plug error,,0A 95
+P0AA6,パワートレイン(エンジン/AT),汎用(SAE),高電圧系の絶縁異常,,High voltage system insulation abnormality,,0A A6
+P0AA7,パワートレイン(エンジン/AT),汎用(SAE),絶縁劣化検出回路の異常,,Insulation deterioration detection circuit error,,0A A7
+P0AC1,パワートレイン(エンジン/AT),汎用(SAE),電流センサー1系 低異常,,Current sensor 1 system LOW abnormality,,0A C1
+P0AC2,パワートレイン(エンジン/AT),汎用(SAE),電流センサー1系 高異常,,Current sensor 1 system HIGH abnormality,,0A C2
+P0AED,パワートレイン(エンジン/AT),汎用(SAE),インバーター基板温度センサー系の異常,,Inverter board temperature sensor system error,,0A ED
+P0B10,パワートレイン(エンジン/AT),汎用(SAE),電流センサー2系 低異常,,Current sensor 2 system LOW abnormality,,0B 10
+P0B11,パワートレイン(エンジン/AT),汎用(SAE),電流センサー2系 高異常,,Current sensor 2 system HIGH abnormality,,0B 11
+P0BE5,パワートレイン(エンジン/AT),汎用(SAE),U相電流センサー系の異常,,U-phase current sensor system error,,0B E5
+P0BE6,パワートレイン(エンジン/AT),汎用(SAE),U相電流センサー系のオフセット異常,,U-phase current sensor system offset error,,0B E6
+P0BE9,パワートレイン(エンジン/AT),汎用(SAE),V相電流センサー系の異常,,V-phase current sensor system error,,0B E9
+P0BEA,パワートレイン(エンジン/AT),汎用(SAE),V相電流センサー系のオフセット異常,,V-phase current sensor system offset error,,0B EA
+P0BED,パワートレイン(エンジン/AT),汎用(SAE),W相電流センサー系の異常,,W-phase current sensor system error,,0B ED
+P0BEE,パワートレイン(エンジン/AT),汎用(SAE),W相電流センサー系のオフセット異常,,W-phase current sensor system offset error,,0B EE
+P0C01,パワートレイン(エンジン/AT),汎用(SAE),駆動モーターの過電流異常,,Drive motor overcurrent abnormality,,0C 01
+P0C0C,パワートレイン(エンジン/AT),汎用(SAE),インバーター内部電圧 低異常,,Inverter internal voltage LOW error,,0C 0C
+P0C52,パワートレイン(エンジン/AT),汎用(SAE),駆動モーター位置センサー電源系 低異常,,Drive motor position sensor power system LOW error,,0C 52
+P103D,パワートレイン(エンジン/AT),メーカー独自,A/C信号回路の異常,A/C信号回路の入力が低いまたは高い,A/C signal circuit malfunction,A/C signal circuit low or high input,10 3D
+P1101,パワートレイン(エンジン/AT),メーカー独自,大気圧センサー回路の異常,,Barometric Pressure Sensor Circuit Malfunction,,11 01
+P1169,パワートレイン(エンジン/AT),メーカー独自,コンデンサーバルブ機能1,,Condenser Valve Function 1,,11 69
+P1170,パワートレイン(エンジン/AT),メーカー独自,コンデンサーバルブ機能2,,Condenser Valve Function 2,,11 70
+P1171,パワートレイン(エンジン/AT),メーカー独自,ECMの機能,,ECM Function,,11 71
+P1201,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.1-2系の異常,,Injector NO.1-2 system abnormality,,12 01
+P1202,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.2-2系の異常,,Injector NO.2-2 system abnormality,,12 02
+P1203,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.3-2系の異常,,Injector NO.3-2 system abnormality,,12 03
+P1204,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.4-2系の異常,,Injector NO.4-2 system abnormality,,12 04
+P1250,パワートレイン(エンジン/AT),メーカー独自,EFEヒーター回路の故障,,EFE heater circuit failure,,12 50
+P1261,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.1-2系 低異常,,Injector NO.1-2 system LOW abnormality,,12 61
+P1262,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.1-2系 高異常,,Injector NO.1-2 system HIGH abnormality,,12 62
+P1264,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.2-2系 低異常,,Injector NO.2-2 system LOW abnormality,,12 64
+P1265,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.2-2系 高異常,,Injector NO.2-2 system HIGH abnormality,,12 65
+P1267,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.3-2系 低異常,,Injector NO.3-2 system LOW abnormality,,12 67
+P1268,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.3-2系 高異常,,Injector NO.3-2 system HIGH abnormality,,12 68
+P1270,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.4-2系 低異常,,Injector NO.4-2 system LOW abnormality,,12 70
+P1271,パワートレイン(エンジン/AT),メーカー独自,インジェクターNo.4-2系 高異常,,Injector NO.4-2 system HIGH abnormality,,12 71
+P1300,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止(アイドリングストップ)コントローラー内部エラー,,ENG A-STOP Controller internal error,,13 00
+P1302,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止コントローラー電源系の地絡,,ENG A-STOP controller power system ground fault,,13 02
+P1303,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止コントローラー電源系,,ENG A-STOP controller power system,,13 03
+P1305,パワートレイン(エンジン/AT),メーカー独自,ECU内部エラー(メモリーエラー),,ECU internal error (memory error),,13 05
+P130A,パワートレイン(エンジン/AT),メーカー独自,バッテリーマネジメントユニット内部の性能,補助電源モジュール(リチウムイオン電池)内部の故障(プログラミングエラーまたは内部メモリーエラー)。,Internal Battery Management Unit Performance,Auxiliary power module (lithium-ion battery) internal failure (programming error or internal memory error).,13 0A
+P130B,パワートレイン(エンジン/AT),メーカー独自,バッテリーマネジメントユニット内部の性能,補助電源モジュール(リチウムイオン電池)内部回路の故障。,Internal Battery Management Unit Performance,Auxiliary power module (lithium-ion battery) internal circuit failure.,13 0B
+P130C,パワートレイン(エンジン/AT),メーカー独自,BMU内部の異常,,BMU internal abnormality,,13 0C
+P1311,パワートレイン(エンジン/AT),メーカー独自,スターター駆動回路系の断線/地絡,,Starter drive circuit system disconnection / ground fault,,13 11
+P1312,パワートレイン(エンジン/AT),メーカー独自,スターター駆動回路系,,Starter drive circuit system,,13 12
+P1313,パワートレイン(エンジン/AT),メーカー独自,スターター寿命判定,,Starter life judgment,,13 13
+P1314,パワートレイン(エンジン/AT),メーカー独自,スターター作動回数が未入力,,No starter operation count entered,,13 14
+P1320,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー電流センサー「A」回路 範囲/性能,最大電流と最小電流の差が規定時間連続して規定値より小さい。,"ENG A-STOP Battery Current Sensor ""A"" Circuit Range/Performance",Difference between maximum current and minimum current is lower than specified value for specified time continuously.,13 20
+P1321,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー電流センサー「A」回路 低,電気負荷電流センサー回路の測定電圧が規定時間連続して0.2V未満。,"ENG A-STOP Battery Current Sensor ""A"" Circuit Low",Measured voltage of electric load current sensor circuit is lower than 0.2 V for specified time continuously.,13 21
+P1322,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー電流センサー「A」回路 高,電気負荷電流センサー回路の測定電圧が規定時間連続して4.8V超。,"ENG A-STOP Battery Current Sensor ""A"" Circuit High",Measured voltage of electric load current sensor circuit is higher than 4.8 V for specified time continuously.,13 22
+P1323,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー電圧センサー回路 範囲/性能,ECMが測るバッテリー電圧と、補助電源モジュール(リチウムイオン電池)のバッテリー電圧の差が規定範囲外。,ENG A-STOP Battery Voltage Sensor Circuit Range/Performance,Difference between battery voltage of ECM and battery voltage of auxiliary power module (lithium-ion battery) is out of specified range.,13 23
+P1324,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー電圧センサー回路 低,ECMが測るバッテリー電圧が規定値より低い。,ENG A-STOP Battery Voltage Sensor Circuit Low,Battery voltage of ECM is lower than specified value.,13 24
+P1326,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー温度センサー回路 低,バッテリー温度センサー回路の測定電圧が規定時間連続して0.2V未満。,ENG A-STOP Battery Temperature Sensor Circuit Low,Measured voltage of battery temperature sensor circuit is lower than 0.2 V for specified time continuously.,13 26
+P1327,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリー温度センサー回路 高,バッテリー温度センサー回路の測定電圧が規定時間連続して4.7V超。,ENG A-STOP Battery Temperature Sensor Circuit High,Measured voltage of battery temperature sensor circuit is higher than 4.7 V for specified time continuously.,13 27
+P1329,パワートレイン(エンジン/AT),メーカー独自,バッテリーマネジメントユニットの電流センサー回路,補助電源モジュール(リチウムイオン電池)内の各内部回路電流の差が規定値より大きい。,Battery Management Unit Current Sensor Circuit,Difference between each of internal circuit current in auxiliary power module (lithium-ion battery) is higher than specified value.,13 29
+P132F,パワートレイン(エンジン/AT),メーカー独自,電流センサーの断線故障,,Current sensor disconnection failure,,13 2F
+P1330,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1の異常,,DCDC converter 1 error,,13 30
+P1331,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1 ON信号系の断線,,DCDC converter 1ON signal system disconnection,,13 31
+P1332,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1 ON信号系の地絡,,DCDC converter 1ON signal system ground fault,,13 32
+P1333,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1 ON信号系,,DCDC converter 1ON signal system,,13 33
+P1340,パワートレイン(エンジン/AT),メーカー独自,ECMが検出:自動停止系のローリングカウント異常,,ECM detection A-STOP Rolling count error,,13 40
+P1341,パワートレイン(エンジン/AT),メーカー独自,ECMが検出:自動停止系のチェックサム異常,,ECM detection A-STOP checksum error,,13 41
+P1342,パワートレイン(エンジン/AT),メーカー独自,ECMのローリングカウント異常,,ECM rolling count error,,13 42
+P1343,パワートレイン(エンジン/AT),メーカー独自,ECMから不正なデータを受信;ECMのローリングカウント異常,ECMからの不正なCANデータを検出。,Invalid Data Received From ECM; ECM rolling count error,Invalid CAN data from ECM is detected.,13 43
+P1344,パワートレイン(エンジン/AT),メーカー独自,ABS/ESPのローリングカウント異常,,ABS / ESP rolling count error,,13 44
+P1345,パワートレイン(エンジン/AT),メーカー独自,ABS/ESPのチェックサム異常,,ABS / ESP checksum error,,13 45
+P1346,パワートレイン(エンジン/AT),メーカー独自,TCMのローリングカウント異常,,TCM rolling count abnormality,,13 46
+P1347,パワートレイン(エンジン/AT),メーカー独自,TCMのチェックサム異常,,TCM checksum error,,13 47
+P1348,パワートレイン(エンジン/AT),メーカー独自,パワステのローリングカウント異常,,P / S rolling count abnormality,,13 48
+P1349,パワートレイン(エンジン/AT),メーカー独自,パワステのチェックサム異常,,P / S checksum error,,13 49
+P134A,パワートレイン(エンジン/AT),メーカー独自,BMUのローリングカウント異常,,BMU rolling count error,,13 4A
+P1350,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1 低発熱異常,,DCDC converter 1 Low heat generation abnormality,,13 50
+P1351,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1 高発熱異常,,DCDC converter 1 High heat generation abnormality,,13 51
+P1353,パワートレイン(エンジン/AT),メーカー独自,DC-DCコンバーター1 ハーネス短絡異常,,DCDC converter 1 Harness short circuit error,,13 53
+P1360,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止用バッテリーの性能,7V以下のバッテリー電圧を規定回数連続で検出。,ENG A-STOP Battery Performance,7 V or lower battery voltage is detected specified number of times consecutively.,13 60
+P1361,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールの性能,,Auxiliary Power Module Performance,,13 61
+P1370,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー「B」回路,補助電源モジュール(リチウムイオン電池)内部リレーの故障。,"Auxiliary Power Module Relay ""B"" Circuit",Auxiliary power module (lithium-ion battery) internal relay failure.,13 70
+P1371,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー「A」回路 断線,補助電源モジュール(リチウムイオン電池)内部リレーの故障。,"Auxiliary Power Module Relay ""A"" Circuit Open",Auxiliary power module (lithium-ion battery) internal relay failure.,13 71
+P1372,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー「A」回路 短絡,補助電源モジュール(リチウムイオン電池)内部リレーの故障。,"Auxiliary Power Module Relay ""A"" Circuit Shorted",Auxiliary power module (lithium-ion battery) internal relay failure.,13 72
+P1373,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー「B」回路 過電流,補助電源モジュール(リチウムイオン電池)内部リレーの故障。,"Auxiliary Power Module Relay ""B"" Circuit Over Current",Auxiliary power module (lithium-ion battery) internal relay failure.,13 73
+P1374,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー「C」回路 短絡,補助電源モジュール(リチウムイオン電池)からの各電源回路の電流値が規定値より大きい。,"Auxiliary Power Module Relay ""C"" Circuit Shorted",Current value of each power supply circuit from auxiliary power module (lithium-ion battery) is higher than specified value.,13 74
+P1375,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールの外部回路,,Auxiliary Power Module External Circuit,,13 75
+P1376,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー「B」回路 断線,補助電源モジュール(リチウムイオン電池)内部リレーの故障。,"Auxiliary Power Module Relay ""B"" Circuit Open",Auxiliary power module (lithium-ion battery) internal relay failure.,13 76
+P1377,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのリレー異常,補助電源モジュール(リチウムイオン電池)内部リレーの状態とECMの制御状態が一致しない。,Auxiliary Power Module Relay Malfunction,Inconsistency between status of auxiliary power module (lithium-ion battery) internal relay and status of ECM control.,13 77
+P137A,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュール電圧 低,補助電源モジュール(リチウムイオン電池)内のリチウムイオン電池の測定電圧が、規定時間連続して規定値より低い。,Auxiliary Power Module Voltage Low,Measured voltage of lithium-ion battery in auxiliary power module (lithium-ion battery) is lower than specified value for specified time continuously.,13 7A
+P137B,パワートレイン(エンジン/AT),メーカー独自,補助モジュール電圧 高,補助電源モジュール(リチウムイオン電池)内のリチウムイオン電池の測定電圧が、規定時間連続して規定値より高い。,Auxiliary Module Voltage High,Measured voltage of lithium-ion battery in auxiliary power module (lithium-ion battery) is higher than specified value for specified time continuously.,13 7B
+P137C,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールの温度が高すぎる,補助電源モジュール(リチウムイオン電池)内のリチウムイオン電池の測定温度が、規定時間連続して規定温度より高い。,Auxiliary Power Module Temperature Too High,Measured temperature of lithium-ion battery in auxiliary power module (lithium-ion battery) is higher than specified temperature for specified time continuously.,13 7C
+P137D,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュールのセル電圧バランス,補助電源モジュール(リチウムイオン電池)内部回路の故障。,Auxiliary Power Module Cell Voltage Balance,Auxiliary power module (lithium-ion battery) internal circuit failure.,13 7D
+P137F,パワートレイン(エンジン/AT),メーカー独自,補助電源モジュール,補助電源モジュール(リチウムイオン電池)内の浸水センサーの電極抵抗が低下(補助電源モジュール内部の故障)。,Auxiliary Power Module,Electrode resistance of submerged sensor in auxiliary power module (lithium-ion battery) is lowered (auxiliary power module (lithium-ion battery) internal failure).,13 7F
+P1382,パワートレイン(エンジン/AT),メーカー独自,スターターコントローラー系の異常,,Starter controller system error,,13 82
+P1383,パワートレイン(エンジン/AT),メーカー独自,スターターコントローラー系の異常,,Starter controller system error,,13 83
+P1385,パワートレイン(エンジン/AT),メーカー独自,スターターコントローラーが検出したクランクパルスの異常,,Starter controller detection crank pulse error,,13 85
+P1386,パワートレイン(エンジン/AT),メーカー独自,スターターリレーの異常,,Starter Relay Malfunction,,13 86
+P13A0,パワートレイン(エンジン/AT),メーカー独自,エンジン自動停止OFFスイッチ回路,エンジン自動停止OFFスイッチのON信号を規定時間より長く検出。,ENG A-STOP OFF Switch Circuit,ENG A-STOP OFF switch ON signal is detected for longer than specified time.,13 A0
+P13A1,パワートレイン(エンジン/AT),メーカー独自,車速センサー系の異常,,Vehicle speed sensor system abnormality,,13 A1
+P13A2,パワートレイン(エンジン/AT),メーカー独自,傾斜センサーの初期学習が未完了,,Slope sensor initial learning not set,,13 A2
+P13B0,パワートレイン(エンジン/AT),メーカー独自,ISGベルト,,ISG Belt,,13 B0
+P13B1,パワートレイン(エンジン/AT),メーカー独自,ISG回路,,ISG Circuit,,13 B1
+P13B2,パワートレイン(エンジン/AT),メーカー独自,ISGセンサーエラー「1」,,"ISG Sensor Error ""1""",,13 B2
+P13B3,パワートレイン(エンジン/AT),メーカー独自,ISGセンサーエラー「2」,,"ISG Sensor Error ""2""",,13 B3
+P13B4,パワートレイン(エンジン/AT),メーカー独自,ISG制御回路エラー「1」,,"ISG Control Circuit Error ""1""",,13 B4
+P13B5,パワートレイン(エンジン/AT),メーカー独自,ISG制御回路エラー「2」,,"ISG Control Circuit Error ""2""",,13 B5
+P13B6,パワートレイン(エンジン/AT),メーカー独自,ISG通信エラー,,ISG Communication Error,,13 B6
+P13D0,パワートレイン(エンジン/AT),メーカー独自,ブレーキストロークセンサーの妥当性,,Brake Stroke Sensor Plausibility,,13 D0
+P13D1,パワートレイン(エンジン/AT),メーカー独自,ブレーキストロークセンサー回路 高,,Brake Stroke Sensor Circuit High,,13 D1
+P13D2,パワートレイン(エンジン/AT),メーカー独自,ブレーキストロークセンサー回路 低,,Brake Stroke Sensor Circuit Low,,13 D2
+P13D3,パワートレイン(エンジン/AT),メーカー独自,ブレーキストロークセンサーのオフセット,,Brake Stroke Sensor Offset,,13 D3
+P13D5,パワートレイン(エンジン/AT),メーカー独自,トランスミッションレンジセンサー回路,,Transmission Range Sensor Circuit,,13 D5
+P1408,パワートレイン(エンジン/AT),メーカー独自,圧力センサー系の異常,,Pressure sensor system error,,14 08
+P1410,パワートレイン(エンジン/AT),メーカー独自,燃料タンク圧制御系の異常,,Fuel tank pressure control system error,,14 10
+P1450,パワートレイン(エンジン/AT),メーカー独自,大気圧センサー回路の異常,大気圧が規定値より低いまたは高い(またはセンサーの異常)。,Barometric pressure sensor circuit malfunction,Barometric pressure is lower or higher than specification. (or sensor malfunction),14 50
+P1451,パワートレイン(エンジン/AT),メーカー独自,大気圧センサーの性能不良,クランキング中に、吸気管圧力(MAPセンサー値)と大気圧(大気圧センサー値)の差が規定値より大きい。,Barometric pressure sensor performance problem,Difference between manifold absolute pressure (MAP sensor value) and barometric pressure (barometric pressure sensor value) is larger than specification during cranking.,14 51
+P1460,パワートレイン(エンジン/AT),メーカー独自,ラジエーターファン制御系の異常,,Radiator cooling fan control system error,,14 60
+P1500,パワートレイン(エンジン/AT),メーカー独自,スターター信号回路の異常,クランキングから始動後までスターター信号が入力されない、または常に入力されている,Starter signal circuit malfunction,Starter signal is not inputted from engine cranking till its start and after or it is always inputted,15 00
+P1501,パワートレイン(エンジン/AT),メーカー独自,電気負荷電流センサー回路 低,電気負荷電流センサー回路の電圧が規定範囲より低い。,Electric load current sensor circuit low,Electric load current sensor circuit voltage is lower than specified range.,15 01
+P1502,パワートレイン(エンジン/AT),メーカー独自,電気負荷電流センサー回路 高,電気負荷電流センサー回路の電圧が規定範囲より高い。,Electric load current sensor circuit high,Electric load current sensor circuit voltage is higher than specified range.,15 02
+P1510,パワートレイン(エンジン/AT),メーカー独自,ECMバックアップ電源の異常,エンジン始動後にバックアップ電源電圧が規定外;エンジン始動後にバックアップ電源がない,ECM backup power supply malfunction (ECM backup power source malfunction),Backup power voltage is out of specification after starting engine; No backup power after starting engine,15 10
+P1517,パワートレイン(エンジン/AT),メーカー独自,イモビライザーシステムの異常,,Immobilizer System Malfunction,,15 17
+P1530,パワートレイン(エンジン/AT),メーカー独自,点火時期調整スイッチ回路の故障,,Ignition timing adjustment switch circuit fault,,15 30
+P1570,パワートレイン(エンジン/AT),メーカー独自,ABS信号回路の異常,エンジン始動時にABS信号がON(低電圧)。,ABS signal circuit malfunction,ABS signal ON (low voltage) when engine start.,15 70
+P1571,パワートレイン(エンジン/AT),メーカー独自,ブレーキスイッチ回路,,Brake Switch Circuit,,15 71
+P1595,パワートレイン(エンジン/AT),メーカー独自,パネル仕様の不一致,,Panel specifications mismatch,,15 95
+P1600,パワートレイン(エンジン/AT),メーカー独自,ECMとTCM間のシリアル通信の異常,エンジン運転中に信号がない、またはチェックサムエラー,Serial communication problem between ECM and TCM,No signal or check sum error while engine running,16 00
+P1603,パワートレイン(エンジン/AT),メーカー独自,TCMの故障コードを検出,TCMがアイドル回転制御やエンジン出力制御などに使うセンサー回路や計算値に異常が起きたことを示す故障コードをTCMから受信したとき、ECMがこのコードを記録する。,TCM trouble code detected,"When ECM receives a trouble code from TCM, which indicates that some problem occurred in sensor circuits and its calculated values used for operations such as idle speed control, engine power control and so on by TCM, this DTC is detected by ECM.",16 03
+P1610,パワートレイン(エンジン/AT),メーカー独自,イモビライザーIDが未登録,イモビライザーIDコードが登録されていない,Immobilizer ID Unregistered,Immobilizer ID code is not registered,16 10
+P1611,パワートレイン(エンジン/AT),メーカー独自,パスワード不一致,記憶されているパスワードが正しくない,Password Mismatched,Stored password is incorrect,16 11
+P1613,パワートレイン(エンジン/AT),メーカー独自,ECMが未登録,,ECM Not Registered,,16 13
+P1614,パワートレイン(エンジン/AT),メーカー独自,トランスポンダーの応答エラー,,Transponder response error,,16 14
+P1615,パワートレイン(エンジン/AT),メーカー独自,IDコードが登録されていない(キーレススタート装着車のみ),,ID code does not registered (vehicle equipped with keyless start system only),,16 15
+P1616,パワートレイン(エンジン/AT),メーカー独自,登録IDコードが異なる(キーレススタート装着車のみ),,Different registration ID codes (vehicle equipped with keyless start system only),,16 16
+P1618,パワートレイン(エンジン/AT),メーカー独自,CAN通信エラー(キーレススタート制御モジュールの受信エラー)(キーレススタート装着車のみ),,CAN communication error (reception error for keyless start control module) (vehicle equipped with keyless start system only),,16 18
+P1620,パワートレイン(エンジン/AT),メーカー独自,ECUコードが未登録,,ECU code not registered,,16 20
+P1621,パワートレイン(エンジン/AT),メーカー独自,イモビライザー制御モジュールからECUコードが送られてこない;イモビライザー通信線の異常,,No ECU code transmitted from Immobilizer Control Module; Immobilizer communication line error,,16 21
+P1622,パワートレイン(エンジン/AT),メーカー独自,ECMの故障;EEPROMエラー,ECM内のEEPROMが破損している,Faulty in ECM; EEPROM error,EEPROM in ECM is corrupted,16 22
+P1623,パワートレイン(エンジン/AT),メーカー独自,ECUコードの不一致;未登録のトランスポンダー,,ECU code not matched; Unregistered transponder,,16 23
+P1625,パワートレイン(エンジン/AT),メーカー独自,イモビライザーアンテナの異常,,Immobilizer antenna error,,16 25
+P1636,パワートレイン(エンジン/AT),メーカー独自,イモビライザー情報の登録失敗,,Immobilizer information registration failure,,16 36
+P1638,パワートレイン(エンジン/AT),メーカー独自,イモビライザー情報の不一致,,Immobilizer information mismatched,,16 38
+P1641,パワートレイン(エンジン/AT),メーカー独自,追加ヒーターリレー回路1,追加ヒーターリレー1信号回路の断線または短絡,Additional Heater Relay Circuit 1,Additional heater relay 1 signal circuit is open or short,16 41
+P1642,パワートレイン(エンジン/AT),メーカー独自,追加ヒーターリレー回路2;イモビライザー通信線の異常,追加ヒーターリレー2・3信号回路の断線または短絡;キーレススタート制御モジュールとの通信エラー。,Additional Heater Relay Circuit 2; Immobilizer Communication Line Error,"Additional heater relay 2, 3 signal circuit is open or short; Communication error with keyless start control module.",16 42
+P1644,パワートレイン(エンジン/AT),メーカー独自,イモビライザーIDの不一致,ECMとキーレススタート制御モジュールの照合エラー。,Immobilizer ID Mismatched,Verification error between ECM and keyless start control module.,16 44
+P1645,パワートレイン(エンジン/AT),メーカー独自,IDコードの通信エラー,IDコントローラーとの通信エラー。,ID Code Communication Error,Communication error with ID controller.,16 45
+P1646,パワートレイン(エンジン/AT),メーカー独自,IDコードが不正,CAN通信エラー,ID Code Incorrectness,CAN communication error,16 46
+P1674,パワートレイン(エンジン/AT),メーカー独自,CAN通信(バスオフエラー),送信データと送信モニター(CANバスモニター)データが一致しない送信エラーを7回以上連続して検出,CAN communication (buss off error),Transmission error that is inconsistent between transmission data and transmission monitor (CAN bus monitor) data is detected more than 7 times continuously,16 74
+P1675,パワートレイン(エンジン/AT),メーカー独自,CAN通信(送信エラー),ECM向け通信データの送信エラーを規定時間以上連続して検出。,CAN communication (transmission error),Transmission error of communication data for ECM is detected more than specified time continuously.,16 75
+P1676,パワートレイン(エンジン/AT),メーカー独自,CAN通信(TCMからの受信エラー),TCMからの通信データの受信エラーを規定時間以上連続して検出。,CAN communication (reception error for TCM),Reception error of communication data for TCM is detected more than specified time continuously.,16 76
+P1678,パワートレイン(エンジン/AT),メーカー独自,CAN通信(BCMからの受信エラー),BCMからの通信データの受信エラーを規定時間より長く連続して検出。,CAN communication (reception error for BCM),Reception error of communication data for BCM is detected for longer than specified time continuously.,16 78
+P167D,パワートレイン(エンジン/AT),メーカー独自,点火制御(IC)の性能,,Ignition Control (IC) Performance,,16 7D
+P1685,パワートレイン(エンジン/AT),メーカー独自,CAN通信(ABS/ESP制御モジュールからの受信エラー),ABS制御モジュールまたはESP制御モジュールからの通信データの受信エラーを規定時間より長く連続して検出。,CAN communication (reception error for ABS / ESP control module),Reception error of communication data for ABS control module or ESP control module is detected for longer than specified time continuously.,16 85
+P1693,パワートレイン(エンジン/AT),メーカー独自,装備情報の不一致,,Equipment Information Mismatched,,16 93
+P1700,パワートレイン(エンジン/AT),メーカー独自,スロットル位置信号入力の異常,,Throttle Position Signal Input Malfunction,,17 00
+P1701,パワートレイン(エンジン/AT),メーカー独自,CAN通信の異常 - TCM,,CAN Communication Problem - TCM,,17 01
+P1702,パワートレイン(エンジン/AT),メーカー独自,制御モジュール内部メモリーのチェックサムエラー;ATコントローラー内部エラー,TCMに保存されている現在のデータの計算結果が、TCM内の照合用データと一致しない。,Internal Control Module Memory Check Some Error; AT controller internal error,Calculation of current data stored in TCM is not correct comparing with pre-stored checking data in TCM.,17 02
+P1703,パワートレイン(エンジン/AT),メーカー独自,他のECUからの不正なCANデータ,TCMがECMから、スロットル位置・水温・エンジン回転・エンジントルクの異常信号を受信した。,CAN Invalid Data from other ECU,"TCM receives malfunction signal of throttle position, engine coolant temperature, engine revolution and engine torque from ECM.",17 03
+P1704,パワートレイン(エンジン/AT),メーカー独自,制御モジュール内部のフラッシュメモリーエラー,,Internal Control Module FLASH Memory Error,,17 04
+P1705,パワートレイン(エンジン/AT),メーカー独自,水温信号回路の異常,ECMからTCMへのパルス信号で、High期間が長すぎる/Low期間が長すぎる/Low期間が短すぎる状態が規定外で続く。,Engine Coolant Temperature Signal Circuit Malfunction,Too long high signal of pulse signal from ECM to TCM continues out of specification; Too long low signal of pulse signal from ECM to TCM continues out of specification; Too short low signal of pulse signal from ECM to TCM continues out of specification.,17 05
+P1706,パワートレイン(エンジン/AT),メーカー独自,TCMからのトルク要求の通信エラー,,Torque Request Communication Error from TCM,,17 06
+P1707,パワートレイン(エンジン/AT),メーカー独自,CAN通信のエンジントルクダウン要求の受信信号エラー,,CAN communication engine torque down request reception signal error,,17 07
+P1708,パワートレイン(エンジン/AT),メーカー独自,傾斜センサーが未学習,,Slope Sensor Not Learned,,17 08
+P1709,パワートレイン(エンジン/AT),メーカー独自,水温信号入力の異常,,Engine Coolant Temperature Signal Input Malfunction,,17 09
+P1710,パワートレイン(エンジン/AT),メーカー独自,車速センサー回路のバックアップ信号の異常,,Abnormal speed sensor circuit backup signal,,17 10
+P1711,パワートレイン(エンジン/AT),メーカー独自,システム電圧 低,,System Voltage Low,,17 11
+P1712,パワートレイン(エンジン/AT),メーカー独自,CVT電源リレー制御回路,,CVT Power Relay Control Circuit,,17 12
+P1713,パワートレイン(エンジン/AT),メーカー独自,電動オイルポンプの油圧低下異常,,Electric Oil Pump Low Oil Pressure Anomaly,,17 13
+P1715,パワートレイン(エンジン/AT),メーカー独自,PNPスイッチ回路の異常;全回転センサーの範囲/性能,,PNP switch circuit error; All Speed Sensors Range/Performance,,17 15
+P1717,パワートレイン(エンジン/AT),メーカー独自,AT Dレンジ信号回路の異常,走行中に「D」レンジ(パーキング/ニュートラル位置信号)が入力されない,AT D-range signal circuit malfunction,"No ""D"" range (park / neutral position signal) is inputted while vehicle running",17 17
+P1720,パワートレイン(エンジン/AT),メーカー独自,ニュートラルソレノイド系の異常,,Neutral solenoid system error,,17 20
+P1721,パワートレイン(エンジン/AT),メーカー独自,ニュートラル制御回路1系の異常,,Neutral control circuit 1 system error,,17 21
+P1722,パワートレイン(エンジン/AT),メーカー独自,ニュートラル制御回路2系の異常,,Neutral control circuit 2 system error,,17 22
+P1723,パワートレイン(エンジン/AT),メーカー独自,レンジセレクトスイッチの異常,1回の走行サイクル中、セレクトスイッチの信号がONのまま。,Range Select Switch Malfunction,Signal of select switch is ON during 1 drive cycle.,17 23
+P1724,パワートレイン(エンジン/AT),メーカー独自,スロットル位置信号入力回路 低,ECMからTCMへのパルス信号のLow期間が短すぎる状態が規定外で続く。,Throttle Position Signal Input Circuit Low,Too short low signal of pulse signal from ECM to TCM continues to be out of specification.,17 24
+P1725,パワートレイン(エンジン/AT),メーカー独自,スロットル位置信号入力回路 高,ECMからTCMへのパルス信号のLow期間が長すぎる状態が規定外で続く。,Throttle Position Signal Input Circuit High,Too long low signal of pulse signal from ECM to TCM continues to be out of specification.,17 25
+P1730,パワートレイン(エンジン/AT),メーカー独自,エンジントルク信号回路の異常,ECMからTCMへのパルス信号のHigh期間が長すぎる/Low期間が長すぎる状態が規定外で続く。,Engine Torque Signal Circuit Malfunction,Too long high signal of pulse signal from ECM to TCM continues to be out of specification; Too long low signal of pulse signal from ECM to TCM continues to be out of specification.,17 30
+P1733,パワートレイン(エンジン/AT),メーカー独自,ニュートラル制御信号の異常,,Neutral control signal error,,17 33
+P1735,パワートレイン(エンジン/AT),メーカー独自,エアコン信号回路の異常,ECMからTCMへの水温パルス信号のLow期間が長すぎる状態が規定外で続く。,Air Conditioner Signal Circuit Malfunction,Too long low signal of engine coolant temperature pulse signal from ECM to TCM continues to be out of specification.,17 35
+P1740,パワートレイン(エンジン/AT),メーカー独自,クルーズコントロール信号の異常,,Cruise Control Signal Malfunction,,17 40
+P1755,パワートレイン(エンジン/AT),メーカー独自,エンジン回転入力系の異常,,Engine speed input system error,,17 55
+P1756,パワートレイン(エンジン/AT),メーカー独自,前輪速度信号入力系の異常,,Front wheel speed signal input system abnormal,,17 56
+P1757,パワートレイン(エンジン/AT),メーカー独自,後輪速度信号入力系の異常,,Rear wheel speed signal input system abnormal,,17 57
+P1758,パワートレイン(エンジン/AT),メーカー独自,スロットル信号入力系の異常,,Throttle signal input system error,,17 58
+P1759,パワートレイン(エンジン/AT),メーカー独自,ABS作動信号の入力エラー,,ABS operation signal input error,,17 59
+P1760,パワートレイン(エンジン/AT),メーカー独自,EMCDユニット系の断線/地絡,,EMCD unit system disconnection / ground fault,,17 60
+P1761,パワートレイン(エンジン/AT),メーカー独自,EMCDユニット系のマイナス側が電源に短絡,,EMCD unit system negative side short-to-power,,17 61
+P1762,パワートレイン(エンジン/AT),メーカー独自,EMCDユニット系のプラス側が電源に短絡,,EMCD unit system plus side short-to-power,,17 62
+P1763,パワートレイン(エンジン/AT),メーカー独自,4WD HARDスイッチ系の異常,,4WD HARD switch system error,,17 63
+P1774,パワートレイン(エンジン/AT),メーカー独自,制御モジュールの通信バスオフ,送信データと送信モニター(CANバスモニター)データが一致しない送信エラーを7回以上連続して検出。,Control Module Communication Bus Off,Transmission error that is inconsistent between transmission data and transmission monitor (CAN bus monitor) data is detected more than 7 times continuously.,17 74
+P1775,パワートレイン(エンジン/AT),メーカー独自,高速CAN通信バス(送信エラー),TCMへの送信エラーを規定時間検出。,High Speed CAN Communication Bus (Transmit Error),Transmitting error detected to TCM for specified time.,17 75
+P1777,パワートレイン(エンジン/AT),メーカー独自,TCMがECMとの通信を喪失(受信エラー),TCMがECMからの受信エラーを規定時間連続して検出。,TCM Lost Communication with ECM (Reception Error),Receiving error from ECM detected to TCM for specified time continuously.,17 77
+P1810,パワートレイン(エンジン/AT),メーカー独自,ロックチップ/セレクト制御回路,,Lock tip/Select Control Circuit,,18 10
+P1813,パワートレイン(エンジン/AT),メーカー独自,セカンダリ圧センサーの固着異常,,Secondary pressure sensor sticking abnormality,,18 13
+P1814,パワートレイン(エンジン/AT),メーカー独自,アイドルスイッチ信号入力系の異常,,Idle switch signal input system error,,18 14
+P1816,パワートレイン(エンジン/AT),メーカー独自,ステッピングモーター回路の異常,,Stepper Motor Circuit Malfunction,,18 16
+P1817,パワートレイン(エンジン/AT),メーカー独自,クリープ制御学習系の異常,,Creep control learning system abnormality,,18 17
+P1818,パワートレイン(エンジン/AT),メーカー独自,ステッピングモーターの性能,,Stepper Motor Performance,,18 18
+P1819,パワートレイン(エンジン/AT),メーカー独自,ベルト挟圧学習が未学習,,Belt pinching learning unlearned state,,18 19
+P1821,パワートレイン(エンジン/AT),メーカー独自,電磁クラッチ系の異常,,Electromagnetic clutch system error,,18 21
+P1824,パワートレイン(エンジン/AT),メーカー独自,キャリブレーションデータの読み出しエラー,,Calibration Data Reading Error,,18 24
+P1825,パワートレイン(エンジン/AT),メーカー独自,TCMとバルブボディ組立品の相関;CVT学習値設定データ情報の不一致,,TCM-Valve Body Assembly Correlation; CVT learning value setting data information mismatch,,18 25
+P1826,パワートレイン(エンジン/AT),メーカー独自,バルブボディ組立品との通信喪失;CVT学習値設定データの通信エラー,,Lost Communication With Valve Body Assembly; CVT learning value setting data communication error,,18 26
+P1827,パワートレイン(エンジン/AT),メーカー独自,傾斜センサー回路;傾斜センサー系回路の異常,,Slope Sensor Circuit; Slope sensor system circuit error,,18 27
+P1828,パワートレイン(エンジン/AT),メーカー独自,傾斜センサーの範囲/性能,,Slope Sensor Range/Performance,,18 28
+P1831,パワートレイン(エンジン/AT),メーカー独自,セカンダリプーリー回転センサー系の異常,,Secondary pulley rotation sensor system error,,18 31
+P1837,パワートレイン(エンジン/AT),メーカー独自,プライマリプーリー回転センサー系の異常,,Primary pulley rotation sensor system error,,18 37
+P1838,パワートレイン(エンジン/AT),メーカー独自,アイドリングストップ時の低電圧異常,,Low voltage abnormality at idling stop,,18 38
+P1844,パワートレイン(エンジン/AT),メーカー独自,ギア初期学習が未完了,,Gear initial learning not set,,18 44
+P184A,パワートレイン(エンジン/AT),メーカー独自,電動オイルポンプの特性異常,,Electric oil pump characteristic abnormality,,18 4A
+P184B,パワートレイン(エンジン/AT),メーカー独自,ソレノイド駆動回路Aの特性異常,,Solenoid driver circuit A Characteristic abnormality,,18 4B
+P184C,パワートレイン(エンジン/AT),メーカー独自,ソレノイド駆動回路Aの異常,,Solenoid driver circuit A error,,18 4C
+P184D,パワートレイン(エンジン/AT),メーカー独自,ソレノイド駆動回路Bの特性異常,,Solenoid driver circuit B Characteristic abnormality,,18 4D
+P184E,パワートレイン(エンジン/AT),メーカー独自,TCM(AGSコントローラー)制御電源系の異常,,TCM (AGS controller) control power system error,,18 4E
+P184F,パワートレイン(エンジン/AT),メーカー独自,TCM(AGSコントローラー)動力クラッチ系の異常,,TCM (AGS controller) power clutch system error,,18 4F
+P1850,パワートレイン(エンジン/AT),メーカー独自,シフトソレノイド1系の異常,,Shift solenoid 1 system abnormality,,18 50
+P1851,パワートレイン(エンジン/AT),メーカー独自,シフトソレノイド2系の異常,,Shift solenoid 2 system abnormality,,18 51
+P1852,パワートレイン(エンジン/AT),メーカー独自,センサー供給電源系の異常A,,Sensor supply power system error A,,18 52
+P1853,パワートレイン(エンジン/AT),メーカー独自,センサー供給電源系の異常B,,Sensor supply power system error B,,18 53
+P1854,パワートレイン(エンジン/AT),メーカー独自,TCM(AGSコントローラー)内部電源系 低異常,,TCM (AGS controller) internal power system LOW error,,18 54
+P1855,パワートレイン(エンジン/AT),メーカー独自,TCM(AGSコントローラー)内部電源系 高異常,,TCM (AGS controller) internal power system HIGH error,,18 55
+P185A,パワートレイン(エンジン/AT),メーカー独自,クラッチ開放学習が未完了,,Clutch open learning not set,,18 5A
+P185B,パワートレイン(エンジン/AT),メーカー独自,クラッチストローク学習値の異常,,Abnormal clutch stroke learning value,,18 5B
+P185C,パワートレイン(エンジン/AT),メーカー独自,電動オイルポンプリレー系の異常,,Electric oil pump relay system abnormality,,18 5C
+P185E,パワートレイン(エンジン/AT),メーカー独自,MMP(メインマイコン)の安全機能異常,,MMP (Main Microprocessor) Safety Function Abnormality,,18 5E
+P185F,パワートレイン(エンジン/AT),メーカー独自,MMP(メインマイコン)/SMP(サブマイコン)間の通信エラー,,MMP (main microprocessor) / SMP (sub-microprocessor) communication error,,18 5F
+P1861,パワートレイン(エンジン/AT),メーカー独自,プーリーモーターの異常,,Pulley motor error,,18 61
+P1862,パワートレイン(エンジン/AT),メーカー独自,プーリー位置センサー系の異常,,Pulley position sensor system error,,18 62
+P1863,パワートレイン(エンジン/AT),メーカー独自,ベルト滑り/プーリー位置センサーの異常,,Belt slip / pulley position sensor malfunction,,18 63
+P1864,パワートレイン(エンジン/AT),メーカー独自,電磁クラッチの過熱,,Electromagnetic clutch overheat,,18 64
+P1874,パワートレイン(エンジン/AT),メーカー独自,4Lスイッチ回路の異常(短絡),,4L switch circuit malfunction (Short),,18 74
+P1875,パワートレイン(エンジン/AT),メーカー独自,4Lスイッチ回路の異常(断線);スリップ制御中にジャダーが発生,,4L switch circuit malfunction (Open); Judder occurs during slip control,,18 75
+P1876,パワートレイン(エンジン/AT),メーカー独自,スリップ制御信号1系の異常,,Slip control signal 1 system error,,18 76
+P1877,パワートレイン(エンジン/AT),メーカー独自,スリップ制御信号2系の異常,,Slip control signal 2 system error,,18 77
+P1878,パワートレイン(エンジン/AT),メーカー独自,トルコンクラッチのシャダー(振動),スリップロックアップ中に、規定の振幅・周期の出力回転変動を検出。,Torque converter clutch shudder,Variation in the output revolution speed of the specified amplitude and specified cycle is detected under slip lock-up condition.,18 78
+P1884,パワートレイン(エンジン/AT),メーカー独自,バックランプリレー系の異常,,Back lamp relay system error,,18 84
+P1885,パワートレイン(エンジン/AT),メーカー独自,ドアスイッチ系の異常,,Door switch system error,,18 85
+P1886,パワートレイン(エンジン/AT),メーカー独自,CAN用RAMエラー,,CAN RAM error,,18 86
+P1887,パワートレイン(エンジン/AT),メーカー独自,トランスファー信号(車速信号回路);車速センサー系の異常,出力軸回転センサーの信号は入力されているのに、このセンサーの信号が検出されない。,Transfer Signal (VSS signal circuit); Vehicle speed sensor system error,No sensor signal is detected although output speed sensor signal is inputted.,18 87
+P1888,パワートレイン(エンジン/AT),メーカー独自,クラッチソレノイド系の異常,,Clutch solenoid system error,,18 88
+P1889,パワートレイン(エンジン/AT),メーカー独自,セレクトソレノイド系の異常,,Select solenoid system error,,18 89
+P188A,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー系の異常A,,Select lever sensor system error A,,18 8A
+P188B,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー系の異常B,,Select lever sensor system error B,,18 8B
+P188C,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー系の異常C,,Select lever sensor system error C,,18 8C
+P188D,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー系の異常D,,Select lever sensor system error D,,18 8D
+P188E,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー系の異常E,,Select lever sensor system error E,,18 8E
+P188F,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー系の異常F,,Select lever sensor system error F,,18 8F
+P1895,パワートレイン(エンジン/AT),メーカー独自,トルク制御信号の異常;TCMからECMへのトルク低減回路の故障,TCMがECMにトルク低減を要求していないのに、トルク低減信号回路の端子電圧が低い。,Torque Control Signal Malfunction; Torque reduction circuit failure from TCM to ECM,Voltage of torque reduction signal circuit terminal is low although TCM does not require ECM to reduce engine torque.,18 95
+P1902,パワートレイン(エンジン/AT),メーカー独自,セレクトレバーセンサー電源系の異常,,Select lever sensor supply power system error,,19 02
+P1903,パワートレイン(エンジン/AT),メーカー独自,クラッチ閉固着異常1,,Clutch close sticking abnormality 1,,19 03
+P1904,パワートレイン(エンジン/AT),メーカー独自,クラッチ閉固着異常2,,Clutch close sticking abnormality 2,,19 04
+P1905,パワートレイン(エンジン/AT),メーカー独自,クラッチ制御の異常,,Clutch control error,,19 05
+P1906,パワートレイン(エンジン/AT),メーカー独自,ギア固着異常,,Gear sticking abnormality,,19 06
+P1907,パワートレイン(エンジン/AT),メーカー独自,セレクトの異常,,Select error,,19 07
+P1908,パワートレイン(エンジン/AT),メーカー独自,ギアイン不良,,Gear-in failure error,,19 08
+P1909,パワートレイン(エンジン/AT),メーカー独自,ギア抜けの異常,,Abnormal gear disengagement,,19 09
+P190A,パワートレイン(エンジン/AT),メーカー独自,ギアセレクト固着異常,,Gear select sticking abnormality,,19 0A
+P190B,パワートレイン(エンジン/AT),メーカー独自,ギアイン不良の異常,,Gear-in failure Abnormal,,19 0B
+P190C,パワートレイン(エンジン/AT),メーカー独自,変速不良の異常,,Shift failure abnormality,,19 0C
+P190D,パワートレイン(エンジン/AT),メーカー独自,クラッチ過回転の異常,,Clutch over-rotation abnormality,,19 0D
+P190E,パワートレイン(エンジン/AT),メーカー独自,電動オイルポンプの高温異常,,Electric oil pump high temperature abnormality,,19 0E
+P190F,パワートレイン(エンジン/AT),メーカー独自,アキュムレーターの異常,,Accumulator abnormality,,19 0F
+P1910,パワートレイン(エンジン/AT),メーカー独自,VVTシステムの異常,,VVT system system error,,19 10
+P1915,パワートレイン(エンジン/AT),メーカー独自,OCV(オイルコントロールバルブ)系の異常,,OCV system abnormal,,19 15
+P1920,パワートレイン(エンジン/AT),メーカー独自,スロットルセンサーの特性異常,,Throttle sensor characteristic error,,19 20
+P1925,パワートレイン(エンジン/AT),メーカー独自,アクセルセンサー1系の異常,,Accelerator sensor 1 system error,,19 25
+P1926,パワートレイン(エンジン/AT),メーカー独自,アクセルセンサー2系の異常,,Accelerator sensor 2 system error,,19 26
+P1927,パワートレイン(エンジン/AT),メーカー独自,アクセルセンサーの特性異常,,Accelerator sensor characteristic abnormality,,19 27
+P1930,パワートレイン(エンジン/AT),メーカー独自,スロットルバルブ駆動系の異常,,Throttle valve drive system error,,19 30
+P1931,パワートレイン(エンジン/AT),メーカー独自,スロットルバルブスプリングの異常,,Throttle valve spring error,,19 31
+P1932,パワートレイン(エンジン/AT),メーカー独自,スロットルバルブ制御系の異常,,Throttle valve control system error,,19 32
+P1933,パワートレイン(エンジン/AT),メーカー独自,スロットルバルブ制御系の通信エラー,,Throttle valve control system communication error,,19 33
+P1935,パワートレイン(エンジン/AT),メーカー独自,O₂センサーの異常,,O₂ sensor error,,19 35
+P1937,パワートレイン(エンジン/AT),メーカー独自,A/Fセンサーの異常,,A/F sensor malfunction,,19 37
+P1938,パワートレイン(エンジン/AT),メーカー独自,A/Fセンサーヒーターの異常,,A/F sensor heater malfunction,,19 38
+P1970,パワートレイン(エンジン/AT),メーカー独自,センサーグランド回路の異常;電源系のグランド異常,,Sensor Ground Circuit Malfunction; Power system ground error,,19 70
+P1971,パワートレイン(エンジン/AT),メーカー独自,ストップランプスイッチ系の異常,,Stop lamp switch system error,,19 71
+P1980,パワートレイン(エンジン/AT),メーカー独自,変速回数制限,,Shift frequency limit,,19 80
+P1981,パワートレイン(エンジン/AT),メーカー独自,CAN通信 ECMエンジントルク信号の異常,,CAN communication ECM engine torque signal error,,19 81
+P1982,パワートレイン(エンジン/AT),メーカー独自,TCM(AGSコントローラー)内部エラー(EEPROM_2),,TCM (AGS controller) internal error (EEPROM_2),,19 82
+P1983,パワートレイン(エンジン/AT),メーカー独自,SMP(サブマイコン)出力エラー,,SMP (sub-micro sensor) output error,,19 83
+P1984,パワートレイン(エンジン/AT),メーカー独自,MMP(メインマイコン)入力処理系の異常,,MMP (main microprocessor) input processing system error,,19 84
+P1985,パワートレイン(エンジン/AT),メーカー独自,CAN通信のエンジントルクアップ要求の受信信号エラー,,CAN communication engine torque up request reception signal error,,19 85
+P1986,パワートレイン(エンジン/AT),メーカー独自,車両仕様の設定が未完了,,Vehicle specifications not completed,,19 86
+P1987,パワートレイン(エンジン/AT),メーカー独自,車両仕様の不一致,,Vehicle specifications mismatch,,19 87
+P1A3E,パワートレイン(エンジン/AT),メーカー独自,ECU内部エラー(マイコンエラー),,ECU internal error (microcomputer error),,1A 3E
+P1A48,パワートレイン(エンジン/AT),メーカー独自,パワーパックの低電圧異常,,Power pack low voltage abnormality,,1A 48
+P1A49,パワートレイン(エンジン/AT),メーカー独自,パワーパックの高電圧異常,,Power pack high voltage abnormality,,1A 49
+P1A4E,パワートレイン(エンジン/AT),メーカー独自,パワーパックの性能劣化異常,,Power pack performance deterioration abnormality,,1A 4E
+P1A4F,パワートレイン(エンジン/AT),メーカー独自,パワーパックの性能劣化異常,,Power pack performance deterioration abnormality,,1A 4F
+P1ABE,パワートレイン(エンジン/AT),メーカー独自,電動負圧ポンプの異常,,Electric negative pressure pump abnormality,,1A BE
+P1ABF,パワートレイン(エンジン/AT),メーカー独自,電動負圧ポンプの初回診断が未実施,,Electric negative pressure pump first diagnosis not carried out,,1A BF
+P1AC8,パワートレイン(エンジン/AT),メーカー独自,電動負圧ポンプリレーOFF固着異常,,Electric negative pressure pump relay OFF sticking abnormality,,1A C8
+P1AC9,パワートレイン(エンジン/AT),メーカー独自,電動負圧ポンプリレーON固着異常,,Electric negative pressure pump relay ON sticking abnormality,,1A C9
+P1AF0,パワートレイン(エンジン/AT),メーカー独自,パワーパックのセル電圧ばらつき異常,,Power pack cell voltage variation abnormality,,1A F0
+P1AF2,パワートレイン(エンジン/AT),メーカー独自,バッテリー高電圧制限の異常,,Battery high voltage limit error,,1A F2
+P1AF3,パワートレイン(エンジン/AT),メーカー独自,バッテリー低電圧制限の異常,,Battery low voltage limit error,,1A F3
+P1AFA,パワートレイン(エンジン/AT),メーカー独自,充電率低下の警告,,Charge rate drop warning,,1A FA
+P1AFD,パワートレイン(エンジン/AT),メーカー独自,パワーパック電圧監視系の異常,,Power bag voltage monitoring system error,,1A FD
+P1AFF,パワートレイン(エンジン/AT),メーカー独自,HVBMUの異常/データ異常,,HVBMU error / data error,,1A FF
+P1B29,パワートレイン(エンジン/AT),メーカー独自,IGBTの過熱異常,,IGBT heating abnormality,,1B 29
+P1B2F,パワートレイン(エンジン/AT),メーカー独自,駆動モーター過回転の異常,,Drive motor over-rotation abnormality,,1B 2F
+P1B32,パワートレイン(エンジン/AT),メーカー独自,3相電流の総和異常,,3-phase current sum abnormality,,1B 32
+P1B34,パワートレイン(エンジン/AT),メーカー独自,AD変換基準電圧の異常,,AD conversion reference voltage abnormality,,1B 34
+P1B36,パワートレイン(エンジン/AT),メーカー独自,高電圧系の過電圧,,High voltage system overvoltage,,1B 36
+P1B37,パワートレイン(エンジン/AT),メーカー独自,高電圧系の低電圧,,High voltage system Low voltage,,1B 37
+P1B3D,パワートレイン(エンジン/AT),メーカー独自,フェイルアウト信号系の異常,,Failout signal system error,,1B 3D
+P1B50,パワートレイン(エンジン/AT),メーカー独自,イモビライザーIDコードが未登録,,Immobilizer ID code unregistered,,1B 50
+P1B51,パワートレイン(エンジン/AT),メーカー独自,イモビライザーパスワードが未登録,,Immobilizer password not registered,,1B 51
+P1B58,パワートレイン(エンジン/AT),メーカー独自,アクティブ放電の失敗,,Active discharge failure,,1B 58
+P1B5A,パワートレイン(エンジン/AT),メーカー独自,衝突履歴あり,,Collision history,,1B 5A
+P1B5B,パワートレイン(エンジン/AT),メーカー独自,高電圧遮断信号を検出できない異常,,High voltage cutoff signal undetectable abnormality,,1B 5B
+P1B5C,パワートレイン(エンジン/AT),メーカー独自,高電圧遮断信号を受信,,High voltage cutoff signal reception,,1B 5C
+P1B5D,パワートレイン(エンジン/AT),メーカー独自,高電圧遮断信号 低異常,,High voltage cutoff signal LOW error,,1B 5D
+P1B5E,パワートレイン(エンジン/AT),メーカー独自,高電圧遮断信号 高異常,,High voltage cutoff signal HIGH abnormality,,1B 5E
+P1B6B,パワートレイン(エンジン/AT),メーカー独自,HCU内部エラー(ROM),,HCU internal error (ROM),,1B 6B
+P1B6C,パワートレイン(エンジン/AT),メーカー独自,HCU内部エラー(RAM),,HCU internal error (RAM),,1B 6C
+P1B6D,パワートレイン(エンジン/AT),メーカー独自,HCU内部エラー(EEPROM),,HCU internal error (EEROM),,1B 6D
+P1B91,パワートレイン(エンジン/AT),メーカー独自,電動ウォーターポンプの初回診断が未実施,,Electric water pump first diagnosis not carried out,,1B 91
+P1B92,パワートレイン(エンジン/AT),メーカー独自,電動ウォーターポンプの異常,,Electric water pump abnormality,,1B 92
+P1B94,パワートレイン(エンジン/AT),メーカー独自,電動ウォーターポンプ駆動信号 低異常,,Electric water pump drive signal LOW abnormality,,1B 94
+P1B95,パワートレイン(エンジン/AT),メーカー独自,電動ウォーターポンプ駆動信号 高異常,,Electric water pump drive signal HIGH abnormality,,1B 95
+P1B98,パワートレイン(エンジン/AT),メーカー独自,高電圧印加シーケンス0 タイムアウト,,High voltage application sequence 0 timeout,,1B 98
+P1B99,パワートレイン(エンジン/AT),メーカー独自,高電圧印加シーケンス1 タイムアウト,,High voltage application sequence 1 timeout,,1B 99
+P1B9A,パワートレイン(エンジン/AT),メーカー独自,高電圧印加シーケンス2 タイムアウト,,High voltage application sequence 2 timeout,,1B 9A
+P1B9B,パワートレイン(エンジン/AT),メーカー独自,高電圧印加シーケンス3 タイムアウト,,High voltage application sequence 3 timeout,,1B 9B
+P1B9C,パワートレイン(エンジン/AT),メーカー独自,高電圧印加シーケンス4 タイムアウト,,High voltage application sequence 4 timeout,,1B 9C
+P1BAB,パワートレイン(エンジン/AT),メーカー独自,HCUの監視エラー,,HCU monitoring error,,1B AB
+P1BCA,パワートレイン(エンジン/AT),メーカー独自,励磁の異常,,Excitation abnormality,,1B CA
+P1BCC,パワートレイン(エンジン/AT),メーカー独自,S1 天絡/地絡異常(レゾルバー),,S1 Ten fault / Ground fault abnormality,,1B CC
+P1BCD,パワートレイン(エンジン/AT),メーカー独自,S2 天絡/地絡異常(レゾルバー),,S2 heavenly fault / ground fault abnormality,,1B CD
+P1BCE,パワートレイン(エンジン/AT),メーカー独自,R1 天絡/地絡異常(レゾルバー),,R1 Tenkan / Ground fault abnormality,,1B CE
+P1BCF,パワートレイン(エンジン/AT),メーカー独自,R2 天絡/地絡異常(レゾルバー),,R2 heaven fault / ground fault abnormality,,1B CF
+P1BF6,パワートレイン(エンジン/AT),メーカー独自,ゲート駆動異常 上アーム,,Gate drive abnormality Upper arm,,1B F6
+P1BF7,パワートレイン(エンジン/AT),メーカー独自,ゲート駆動異常 下アーム,,Gate drive abnormality Lower arm,,1B F7
+P1BF8,パワートレイン(エンジン/AT),メーカー独自,内部通信エラー,,Internal communication error,,1B F8
+P1C08,パワートレイン(エンジン/AT),メーカー独自,パワーパックの高温異常,,Power pack high temperature abnormality,,1C 08
+P1C09,パワートレイン(エンジン/AT),メーカー独自,パワーパックの高温制限異常,,Power pack high temperature limit abnormality,,1C 09
+P1C0A,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー系回路の異常,,Power pack temperature sensor system circuit error,,1C 0A
+P1C0B,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー系回路の異常,,Power pack temperature sensor system circuit error,,1C 0B
+P1C10,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー1系 高異常,,Power pack temperature sensor 1 system HIGH abnormality,,1C 10
+P1C11,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー1系 低異常,,Power pack temperature sensor 1 system LOW abnormality,,1C 11
+P1C12,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー2系 高異常,,Power pack temperature sensor 2 system HIGH abnormality,,1C 12
+P1C13,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー2系 低異常,,Power pack temperature sensor 2 system LOW abnormality,,1C 13
+P1C14,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー3系 高異常,,Power pack temperature sensor 3 system HIGH abnormality,,1C 14
+P1C15,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー3系 低異常,,Power pack temperature sensor 3 system LOW abnormality,,1C 15
+P1C16,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー4系 高異常,,Power pack temperature sensor 4 system HIGH abnormality,,1C 16
+P1C17,パワートレイン(エンジン/AT),メーカー独自,パワーパック温度センサー4系 低異常,,Power pack temperature sensor 4 system LOW abnormality,,1C 17
+P1C18,パワートレイン(エンジン/AT),メーカー独自,電流センサー系回路の異常,,Current sensor system circuit error,,1C 18
+P1C19,パワートレイン(エンジン/AT),メーカー独自,電流センサー系回路の異常,,Current sensor system circuit error,,1C 19
+P1C1A,パワートレイン(エンジン/AT),メーカー独自,電流センサーの電圧異常,,Current sensor voltage error,,1C 1A
+P1C20,パワートレイン(エンジン/AT),メーカー独自,電圧監視IC系回路の異常,,Voltage monitoring IC system circuit error,,1C 20
+P1C21,パワートレイン(エンジン/AT),メーカー独自,電圧監視IC系回路の断線異常,,Voltage monitoring IC system circuit open error,,1C 21
+P1C23,パワートレイン(エンジン/AT),メーカー独自,電圧監視IC系回路のバランサー異常,,Voltage monitoring IC system circuit balancer error,,1C 23
+P1C38,パワートレイン(エンジン/AT),メーカー独自,インバーター相互監視の異常,,INV mutual monitoring abnormality,,1C 38
+P1C39,パワートレイン(エンジン/AT),メーカー独自,インバーターの異常/データ異常,,INV error / data error,,1C 39
+P1C3B,パワートレイン(エンジン/AT),メーカー独自,駆動モーター最大トルクの異常,,Drive motor maximum torque error,,1C 3B
+P1C3D,パワートレイン(エンジン/AT),メーカー独自,インバーターアーム短絡の履歴あり,,Inverter arm short circuit history,,1C 3D
+P1C40,パワートレイン(エンジン/AT),メーカー独自,ECMデータの異常,,ECM data error,,1C 40
+P1C43,パワートレイン(エンジン/AT),メーカー独自,TCMデータの異常,,TCM data error,,1C 43
+P1C44,パワートレイン(エンジン/AT),メーカー独自,ESPデータの異常,,ESP data error,,1C 44
+P1C45,パワートレイン(エンジン/AT),メーカー独自,エアバッグコントローラーデータの異常,,Airbag controller data error,,1C 45
+P1C48,パワートレイン(エンジン/AT),メーカー独自,ESPローリングカウンターの異常,,ESP rolling counter error,,1C 48
+P1C49,パワートレイン(エンジン/AT),メーカー独自,ESPチェックサムの異常,,ESP checksum error,,1C 49
+P1C4A,パワートレイン(エンジン/AT),メーカー独自,ECMローリングカウンターの異常,,ECM rolling counter error,,1C 4A
+P1C4B,パワートレイン(エンジン/AT),メーカー独自,ECMチェックサムの異常,,ECM checksum error,,1C 4B
+P1C4C,パワートレイン(エンジン/AT),メーカー独自,TCMローリングカウンターの異常,,TCM rolling counter error,,1C 4C
+P1C4D,パワートレイン(エンジン/AT),メーカー独自,TCMのチェックサム異常,,TCM checksum error,,1C 4D
+P1C4E,パワートレイン(エンジン/AT),メーカー独自,インバーターローリングカウンターの異常,,Inverter rolling counter error,,1C 4E
+P1C4F,パワートレイン(エンジン/AT),メーカー独自,インバーターチェックサムの異常,,Inverter checksum error,,1C 4F
+P1C50,パワートレイン(エンジン/AT),メーカー独自,高電圧バッテリーコントローラーのローリングカウンター異常,,High voltage battery controller rolling counter error,,1C 50
+P1C51,パワートレイン(エンジン/AT),メーカー独自,高電圧バッテリーコントローラーのチェックサム異常,,High voltage battery controller checksum error,,1C 51
+P1C60,パワートレイン(エンジン/AT),メーカー独自,U相IGBT温度センサーの異常,,U-phase IGBT temperature sensor error,,1C 60
+P1C61,パワートレイン(エンジン/AT),メーカー独自,V相IGBT温度センサーの異常,,V-phase IGBT temperature sensor error,,1C 61
+P1C62,パワートレイン(エンジン/AT),メーカー独自,W相IGBT温度センサーの異常,,W-phase IGBT temperature sensor error,,1C 62
+P1C63,パワートレイン(エンジン/AT),メーカー独自,高電圧系の固着,,High voltage system sticking,,1C 63
+P1C64,パワートレイン(エンジン/AT),メーカー独自,U相IGBT温度の固定(変化なし),,U-phase IGBT temperature fixation,,1C 64
+P1C65,パワートレイン(エンジン/AT),メーカー独自,V相IGBT温度の固定(変化なし),,V-phase IGBT temperature fixation,,1C 65
+P1C66,パワートレイン(エンジン/AT),メーカー独自,W相IGBT温度の固定(変化なし),,W-phase IGBT temperature fixation,,1C 66
+P1C68,パワートレイン(エンジン/AT),メーカー独自,ハイブリッドコントローラーのローリングカウント異常,,Hybrid controller rolling count error,,1C 68
+P1C69,パワートレイン(エンジン/AT),メーカー独自,ハイブリッドコントローラーのチェックサム異常,,Hybrid controller checksum error,,1C 69
+P1C70,パワートレイン(エンジン/AT),メーカー独自,ハイブリッドコントローラーのローリングカウント異常,,Hybrid controller rolling count error,,1C 70
+P1C71,パワートレイン(エンジン/AT),メーカー独自,ハイブリッドコントローラーのチェックサム異常,,Hybrid controller checksum error,,1C 71
+P1C72,パワートレイン(エンジン/AT),メーカー独自,インバーターのローリングカウント異常,,Inverter rolling count error,,1C 72
+P1C78,パワートレイン(エンジン/AT),メーカー独自,ハイブリッドシステム電源系の地絡,,Hybrid system power system ground fault,,1C 78
+P1C7A,パワートレイン(エンジン/AT),メーカー独自,HCU内部エラー(ウォッチドッグ),,HCU internal error (WD),,1C 7A
+P1C7B,パワートレイン(エンジン/AT),メーカー独自,HCU内部異常(割り込み),,HCU internal abnormality (interruption),,1C 7B
+P1C7D,パワートレイン(エンジン/AT),メーカー独自,HCU内部エラー(AD変換),,HCU internal error (AD conversion),,1C 7D
+P1C7E,パワートレイン(エンジン/AT),メーカー独自,HCU内部異常(自己保持電源の天絡),,HCU internal abnormality (self-holding power supply heaven,,1C 7E
+P1C7F,パワートレイン(エンジン/AT),メーカー独自,HCU内部異常(自己保持電源の地絡),,HCU internal abnormality (self-holding power supply ground fault),,1C 7F
+P2088,パワートレイン(エンジン/AT),汎用(SAE),吸気カム位置(CMP)アクチュエーターソレノイド制御回路 低電圧 バンク1,,Intake Camshaft Position (CMP) Actuator Solenoid Control Circuit Low Voltage Bank 1,,20 88
+P2089,パワートレイン(エンジン/AT),汎用(SAE),吸気カム位置(CMP)アクチュエーターソレノイド制御回路 高電圧 バンク1,,Intake Camshaft Position (CMP) Actuator Solenoid Control Circuit High Voltage Bank 1,,20 89
+P2090,パワートレイン(エンジン/AT),汎用(SAE),排気カム位置(CMP)アクチュエーターソレノイド制御回路 低電圧 バンク1,,Exhaust Camshaft Position (CMP) Actuator Solenoid Control Circuit Low Voltage Bank 1,,20 90
+P2091,パワートレイン(エンジン/AT),汎用(SAE),排気カム位置(CMP)アクチュエーターソレノイド制御回路 高電圧 バンク1,,Exhaust Camshaft Position (CMP) Actuator Solenoid Control Circuit High Voltage Bank 1,,20 91
+P2092,パワートレイン(エンジン/AT),汎用(SAE),吸気カム位置(CMP)アクチュエーターソレノイド制御回路 低電圧 バンク2,,: Intake Camshaft Position (CMP) Actuator Solenoid Control Circuit Low Voltage Bank 2,,20 92
+P2093,パワートレイン(エンジン/AT),汎用(SAE),吸気カム位置(CMP)アクチュエーターソレノイド制御回路 高電圧 バンク2,,Intake Camshaft Position (CMP) Actuator Solenoid Control Circuit High Voltage Bank 2,,20 93
+P2094,パワートレイン(エンジン/AT),汎用(SAE),排気カム位置(CMP)アクチュエーターソレノイド制御回路 低電圧 バンク2,,Exhaust Camshaft Position (CMP) Actuator Solenoid Control Circuit Low Voltage Bank 2,,20 94
+P2095,パワートレイン(エンジン/AT),汎用(SAE),排気カム位置(CMP)アクチュエーターソレノイド制御回路 高電圧 バンク2,,Exhaust Camshaft Position (CMP) Actuator Solenoid Control Circuit High Voltage Bank 2,,20 95
+P2096,パワートレイン(エンジン/AT),汎用(SAE),触媒後の燃料補正系が薄すぎる(リーン),,Post Catalyst Fuel Trim System Too Lean,,20 96
+P2097,パワートレイン(エンジン/AT),汎用(SAE),触媒後の燃料補正系が濃すぎる(リッチ),,Post Catalyst Fuel Trim System Too Rich,,20 97
+P2098,パワートレイン(エンジン/AT),汎用(SAE),触媒後の燃料補正系 下限 バンク2,,Post Catalyst Fuel Trim System Low Limit Bank 2,,20 98
+P2099,パワートレイン(エンジン/AT),汎用(SAE),触媒後の燃料補正系 上限 バンク2,,Post Catalyst Fuel Trim System High Limit Bank 2,,20 99
+P2100,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター「A」制御モーター回路/断線,,"Throttle Actuator ""A"" Control Motor Circuit / Open",,21 00
+P2101,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御モーター回路 範囲/性能,スロットルアクチュエーター出力(デューティ出力)のモニター信号が、制御指令と一致しない。,Throttle actuator control motor circuit range/performance,Monitor signal of throttle actuator output (duty output) is inconsistent with throttle actuator control command.,21 01
+P2102,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御モーター回路 低,スロットルアクチュエーター制御リレーをONにしても、制御回路の電源電圧が規定値より低い,Throttle actuator control motor circuit low,Power supply voltage of throttle actuator control circuit is lower than specification even if throttle actuator control relay turned on,21 02
+P2103,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御モーター回路 高,スロットルアクチュエーター制御リレーをOFFにしても、制御回路の電源電圧が規定値より高い。,Throttle actuator control motor circuit high,Power supply voltage of throttle actuator control circuit is higher than specification even if throttle actuator control relay turned off.,21 03
+P2105,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御(TAC)系 - エンジン強制停止,,Throttle Actuator Control (TAC) System - Forced Engine Shutdown,,21 05
+P2107,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御(TAC)モジュール内部回路,,Throttle Actuator Control (TAC) Module Internal Circuit,,21 07
+P2111,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御系 – 開き固着,イグニッションOFF時のスロットルバルブ診断で、デフォルト開度が全閉位置から7°を超えている。,Throttle actuator control system – stuck open,Throttle valve default opening is greater than 7° from complementary closed position when diagnosing throttle valve at ignition switch turned OFF.,21 11
+P2119,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御 スロットルボディ 範囲/性能,実際のスロットルバルブ開度と、ECMが計算した開度の差が規定値超,Throttle actuator control throttle body range/performance,Difference between actual throttle valve opening angle and opening angle calculated by ECM is more than specification,21 19
+P2120,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー2回路,アクセルペダル位置センサー2信号の入力が低いまたは高い,Pedal Position Sensor 2 Circuit,Accelerator pedal position sensor 2 signal is low or high input,21 20
+P2122,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー(メイン)回路 入力低,アクセルペダル位置センサー(メイン)の出力電圧が規定値より低い。,Pedal position sensor (main) circuit low input,Output voltage of pedal position sensor (main) is lower than specification.,21 22
+P2123,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー(メイン)回路 入力高,アクセルペダル位置センサー(メイン)の出力電圧が規定値より高い。,Pedal position sensor (main) circuit high input,Output voltage of pedal position sensor (main) is higher than specification.,21 23
+P2127,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー(サブ)回路 入力低,アクセルペダル位置センサー(サブ)の出力電圧が規定値より低い。,Pedal position sensor (sub) circuit low input,Output voltage of pedal position sensor (sub) is lower than specification.,21 27
+P2128,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー(サブ)回路 入力高,アクセルペダル位置センサー(サブ)の出力電圧が規定値より高い。,Pedal position sensor (sub) circuit high input,Output voltage of pedal position sensor (sub) is higher than specification.,21 28
+P2135,パワートレイン(エンジン/AT),汎用(SAE),スロットル位置センサー(メイン/サブ)の電圧相関,スロットル位置センサー(メイン)から求めた開度と(サブ)から求めた開度の差が規定値超。,Throttle position sensor (main / sub) voltage correlation,Difference between the opening angle based on throttle position sensor (main) and the opening angle based on throttle position sensor (sub) is more than specification.,21 35
+P2138,パワートレイン(エンジン/AT),汎用(SAE),アクセルペダル位置センサー(メイン/サブ)の電圧相関,アクセルペダル位置センサー(メイン)から求めた開度と(サブ)から求めた開度の差が規定値超。,Pedal position sensor (main / sub) voltage correlation,Difference between the opening angle based on accelerator pedal position sensor (main) and the opening angle based on accelerator pedal position sensor (sub) is more than specification.,21 38
+P2146,パワートレイン(エンジン/AT),汎用(SAE),インジェクターグループ「A」供給電圧回路/断線,,Fuel Injector Group “A” Supply Voltage Circuit / Open,,21 46
+P2176,パワートレイン(エンジン/AT),汎用(SAE),スロットルアクチュエーター制御系 - アイドル位置が未学習,,Throttle Actuator Control System - Idle Position Not Learned,,21 76
+P2177,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 巡航/加速時にリーン バンク1,,Fuel Trim System Lean at Cruise or Accel Bank 1,,21 77
+P2178,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 巡航/加速時にリッチ バンク1,,Fuel Trim System Rich at Cruise or Accel Bank 1,,21 78
+P2179,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 巡航/加速時にリーン バンク2,,Fuel Trim System Lean at Cruise or Accel Bank 2,,21 79
+P2180,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 巡航/加速時にリッチ バンク2,,Fuel Trim System Rich at Cruise or Accel Bank 2,,21 80
+P2187,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 アイドル時にリーン バンク1,,Fuel Trim System Lean at Idle Bank 1,,21 87
+P2188,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 アイドル時にリッチ バンク1,,Fuel Trim System Rich at Idle Bank 1,,21 88
+P2189,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 アイドル時にリーン バンク2,,Fuel Trim System Lean at Idle Bank 2,,21 89
+P2190,パワートレイン(エンジン/AT),汎用(SAE),燃料補正系 アイドル時にリッチ バンク2,,Fuel Trim System Rich at Idle Bank 2,,21 90
+P2195,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号がリーンに張り付き(センサー1),A/Fセンサーの出力が規定値より低い。,O2 sensor signal stuck lean (Sensor-1),A/F sensor output is lower than specification.,21 95
+P2196,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号がリッチに張り付き(センサー1),A/Fセンサーの出力が規定値より高い。,O2 sensor signal stuck rich (Sensor-1),A/F sensor output is higher than specification.,21 96
+P21CF,パワートレイン(エンジン/AT),汎用(SAE),インジェクターNo.1-2系の異常,,Injector NO.1-2 System abnormality,,21 CF
+P21D0,パワートレイン(エンジン/AT),汎用(SAE),インジェクターNo.2-2系の異常,,Injector NO.2-2 System abnormality,,21 D0
+P21D1,パワートレイン(エンジン/AT),汎用(SAE),インジェクターNo.3-2系の異常,,Injector NO.3-2 System abnormality,,21 D1
+P21DC,パワートレイン(エンジン/AT),汎用(SAE),インジェクターNo.1-2系 高異常,,Injector NO.1-2 system HIGH abnormality,,21 DC
+P21DF,パワートレイン(エンジン/AT),汎用(SAE),インジェクターNo.2-2系 高異常,,Injector NO.2-2 system HIGH abnormality,,21 DF
+P21E1,パワートレイン(エンジン/AT),汎用(SAE),インジェクターNo.3-2系 高異常,,Injector NO.3-2 system HIGH abnormality,,21 E1
+P2226,パワートレイン(エンジン/AT),汎用(SAE),大気圧回路,大気圧回路 大気圧信号の入力が低いまたは高い,Barometric Pressure Circuit,Barometric Pressure Circuit Barometric pressure signal is low or high input,22 26
+P2227,パワートレイン(エンジン/AT),汎用(SAE),大気圧回路 範囲/性能,エンジン始動時に、大気圧と吸気管圧力の差が規定値超。,Barometric pressure circuit range/performance,Difference of barometric pressure value and intake manifold pressure value is more than specification at engine start.,22 27
+P2228,パワートレイン(エンジン/AT),汎用(SAE),大気圧回路 低,大気圧センサーの電圧が規定値未満。,Barometric pressure circuit low,Barometric pressure sensor voltage is less than specification.,22 28
+P2229,パワートレイン(エンジン/AT),汎用(SAE),大気圧回路 高;大気圧センサー「A」回路 高,大気圧センサーの電圧が規定値超。,"Barometric pressure circuit high; Barometric Pressure Sensor ""A"" Circuit High",Barometric pressure sensor voltage is more than specification.,22 29
+P2231,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号回路がヒーター回路と短絡 バンク1 センサー1,,HO2S Signal Circuit Shorted to Heater Circuit Bank 1 Sensor 1,,22 31
+P2232,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号回路がヒーター回路と短絡 バンク1 センサー2,,HO2S Signal Circuit Shorted to Heater Circuit Bank 1 Sensor 2,,22 32
+P2234,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号回路がヒーター回路と短絡 バンク2 センサー1,,HO2S Signal Circuit Shorted to Heater Circuit Bank 2 Sensor 1,,22 34
+P2235,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号回路がヒーター回路と短絡 バンク2 センサー2,,HO2S Signal Circuit Shorted to Heater Circuit Bank 2 Sensor 2,,22 35
+P2237,パワートレイン(エンジン/AT),汎用(SAE),O2センサー正電流制御回路/断線,,O2 Sensor Positive Current Control Circuit/Open,,22 37
+P2244,パワートレイン(エンジン/AT),汎用(SAE),O2センサー基準電圧の性能,,O2 Sensor Reference Voltage Performance,,22 44
+P2263,パワートレイン(エンジン/AT),汎用(SAE),ターボ過給システムの性能,過給圧が低すぎるまたは高すぎる,Turbo Charger Boost System Performance,Boost pressure is too low or too high,22 63
+P2264,パワートレイン(エンジン/AT),汎用(SAE),燃料中の水分センサー回路,,Water in Fuel Sensor Circuit,,22 64
+P2270,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号がリーンに張り付き バンク1 センサー2,,HO2S Signal Stuck Lean Bank 1 Sensor 2,,22 70
+P2271,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号の偏り/リッチに張り付き(センサー2),,O2 Sensor Signal Biased / Stuck Rich (Sensor 2),,22 71
+P2272,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号がリーンに張り付き バンク2 センサー2,,HO2S Signal Stuck Lean Bank 2 Sensor 2,,22 72
+P2273,パワートレイン(エンジン/AT),汎用(SAE),O2センサー信号がリッチに張り付き バンク2 センサー2,,HO2S Signal Stuck Rich Bank 2 Sensor 2,,22 73
+P2297,パワートレイン(エンジン/AT),汎用(SAE),A/F(フロントO2)センサーのゲインずれ異常,,A / F (front O2) sensor gain deviation error,,22 97
+P2300,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「A」一次制御回路 低,,"Ignition Coil ""A"" Primary Control Circuit Low",,23 00
+P2301,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「A」一次制御回路 高,,"Ignition Coil ""A"" Primary Control Circuit High",,23 01
+P2303,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「B」一次制御回路 低,,"Ignition Coil ""B"" Primary Control Circuit Low",,23 03
+P2304,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「B」一次制御回路 高,,"Ignition Coil ""B"" Primary Control Circuit High",,23 04
+P2306,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「C」一次制御回路 低,,"Ignition Coil ""C"" Primary Control Circuit Low",,23 06
+P2307,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「C」一次制御回路 高,,"Ignition Coil ""C"" Primary Control Circuit High",,23 07
+P2309,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「D」一次制御回路 低,,"Ignition Coil ""D"" Primary Control Circuit Low",,23 09
+P2310,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル「D」一次制御回路 高,,"Ignition Coil ""D"" Primary Control Circuit High",,23 10
+P2312,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル5制御回路 低電圧,,Ignition Coil 5 Control Circuit Low Voltage,,23 12
+P2313,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル5制御回路 高電圧,,Ignition Coil 5 Control Circuit High Voltage,,23 13
+P2315,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル6制御回路 低電圧,,Ignition Coil 6 Control Circuit Low Voltage,,23 15
+P2316,パワートレイン(エンジン/AT),汎用(SAE),イグニッションコイル6制御回路 高電圧,,Ignition Coil 6 Control Circuit High Voltage,,23 16
+P2400,パワートレイン(エンジン/AT),汎用(SAE),エバポ系リーク検出ポンプ制御回路/断線,,Evaporative Emission System Leak Detection Pump Control Circuit/Open,,24 00
+P2404,パワートレイン(エンジン/AT),汎用(SAE),エバポ系リーク検出ポンプ検知回路 範囲/性能,,Evaporative Emission System Leak Detection Pump Sense Circuit Range/Performance,,24 04
+P2413,パワートレイン(エンジン/AT),汎用(SAE),EGRシステムの性能,,Exhaust Gas Recirculation System Performance,,24 13
+P254F,パワートレイン(エンジン/AT),汎用(SAE),ボンネットスイッチ回路,ボンネットラッチスイッチ1と2のON/OFF信号が、規定時間連続して同じ。,Engine Hood Switch Circuit,ON/OFF signals from hood latch switch 1 and hood latch switch 2 are the same for specified time continuously.,25 4F
+P2610,パワートレイン(エンジン/AT),汎用(SAE),ECM/PCM内部のエンジン停止タイマーの性能,,ECM/PCM Internal Engine Off Timer Performance,,26 10
+P268A,パワートレイン(エンジン/AT),汎用(SAE),インジェクターの補正値が未学習/未書き込み,,Fuel Injector Calibration Not Learned / Programmed,,26 8A
+P2712,パワートレイン(エンジン/AT),汎用(SAE),油圧漏れの異常,,Abnormal hydraulic leak,,27 12
+P2714,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「D」の性能不良/OFF固着;ハイクラッチ&リバースブレーキソレノイドOFF固着,,"Pressure Control Solenoid ""D"" Performance / Stuck Off; High clutch & reverse brake solenoid OFF sticking",,27 14
+P2715,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「D」ON固着;ハイクラッチ&リバースブレーキソレノイドON固着,,"Pressure Control Solenoid ""D"" Stuck On; High clutch & reverse brake solenoid ON sticking",,27 15
+P2720,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「D」制御回路 低;ハイクラッチ&リバースブレーキソレノイド系 低異常,,"Pressure Control Solenoid ""D"" Control Circuit Low; High clutch & reverse brake Solenoid system LOW abnormality",,27 20
+P2721,パワートレイン(エンジン/AT),汎用(SAE),圧力制御ソレノイド「D」制御回路 高;ハイクラッチ&リバースブレーキソレノイド系 高異常,,"Pressure Control Solenoid ""D"" Control Circuit High; High clutch & reverse brake Solenoid system HIGH abnormality",,27 21
+P2742,パワートレイン(エンジン/AT),汎用(SAE),AT油温センサー「B」回路 低,,Transmission Fluid Temperature Sensor “B” Circuit Low,,27 42
+P2743,パワートレイン(エンジン/AT),汎用(SAE),AT油温センサー「B」回路 高,,Transmission Fluid Temperature Sensor “B” Circuit High,,27 43
+P2762,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ(TCC)圧力制御ソレノイド制御回路 範囲/性能,TCCロックアップ圧力制御ソレノイドバルブ回路の実電流と、ECMが計算した電流の差が規定値超。,Torque Converter Clutch (TCC) Pressure Control Solenoid Control Circuit Range / Performance,Difference between actual current of TCC lockup pressure control solenoid valve circuit and current of TCC lock-up pressure control solenoid valve circuit calculated by ECM is more than specification.,27 62
+P2763,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ圧力制御ソレノイド制御回路 高,TCCソレノイド回路に電流が流れすぎている。,Torque converter clutch pressure control solenoid control circuit high,Too much electric flow is detected on TCC solenoid circuit.,27 63
+P2764,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ圧力制御ソレノイド制御回路 低,TCCソレノイド回路に電流が流れていない。,Torque converter clutch pressure control solenoid control circuit low,No electric flow is detected on TCC solenoid circuit.,27 64
+P2767,パワートレイン(エンジン/AT),汎用(SAE),入力軸回転センサー系の異常,,Input shaft rotation sensor system error,,27 67
+P2769,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ回路 低,TCMがTCCソレノイドをON指令しているのに、端子電圧が低い。,Torque Converter Clutch Circuit Low,Voltage of TCC solenoid terminal is low although TCM is commanding TCC solenoid to turn ON.,27 69
+P2770,パワートレイン(エンジン/AT),汎用(SAE),トルコンクラッチ回路 高,TCMがTCCソレノイドをOFF指令しているのに、端子電圧が高い。,Torque Converter Clutch Circuit High,Voltage of TCC solenoid terminal is high although TCM is commanding TCC solenoid to turn OFF.,27 70
+P2771,パワートレイン(エンジン/AT),汎用(SAE),4WD Lowスイッチ回路,,Four Wheel Drive (4WD) Low Switch Circuit,,27 71
+P2789,パワートレイン(エンジン/AT),汎用(SAE),クラッチ閉学習値の異常,,Clutch close learning value abnormality,,27 89
+P2797,パワートレイン(エンジン/AT),汎用(SAE),補助ATフルードポンプの性能,,Auxiliary Transmission Fluid Pump Performance,,27 97
+P2A01,パワートレイン(エンジン/AT),汎用(SAE),O2センサー回路 範囲/性能(センサー2),,O2 Sensor Circuit Range/Performance (Sensor 2),,2A 01
+C0750,シャシー(ABS/ESP等),汎用(SAE),左前タイヤ空気圧低下センサー,,Left Front Low Tire Pressure Sensor,,47 50
+C0755,シャシー(ABS/ESP等),汎用(SAE),右前タイヤ空気圧低下センサー,,Right Front Low Tire Pressure Sensor,,47 55
+C0760,シャシー(ABS/ESP等),汎用(SAE),左後タイヤ空気圧低下センサー,,Left Rear Low Tire Pressure Sensor,,47 60
+C0765,シャシー(ABS/ESP等),汎用(SAE),右後タイヤ空気圧低下センサー,,Right Rear Low Tire Pressure Sensor,,47 65
+C1013,シャシー(ABS/ESP等),メーカー独自,システム仕様がABS制御モジュールの仕様と異なる,,System specification different from ABS control module specifications,,50 13
+C1015,シャシー(ABS/ESP等),メーカー独自,Gセンサー回路(4WD車のみ);ヨーレート/Gセンサー組立品の前後Gセンサー故障,前後Gセンサー信号が規定範囲外(4WD車)。,G sensor circuit (for 4WD model only); Longitudinal G sensor in yaw rate / G sensor assembly failure,Longitudinal G sensor signal is out of specified range. (for 4WD vehicle),50 15
+C1016,シャシー(ABS/ESP等),メーカー独自,ストップランプスイッチ回路;ブレーキランプスイッチ回路の性能。,車両挙動とストップランプスイッチ信号が規定時間一致しない。,Stop lamp switch circuit; Brake Light Switch Circuit Performance.,Vehicle behavior and stop lamp switch signal is disagreed for specified time.,50 16
+C1017,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品の横Gセンサー故障,横Gセンサー信号が規定範囲外。,Lateral G sensor in yaw rate / G sensor assembly failure,Lateral G sensor signal is out of specified range.,50 17
+C1018,シャシー(ABS/ESP等),メーカー独自,ブレーキ液面スイッチの故障,ブレーキ液面が低すぎる。;BCMへのブレーキ液面スイッチ入力電圧が低い,Brake fluid level switch failure,Brake fluid level is too low. ; Input voltage of brake fluid level switch to BCM is low,50 18
+C101C,シャシー(ABS/ESP等),メーカー独自,車両データの不一致,,Vehicle data mismatch,,50 1C
+C1020,シャシー(ABS/ESP等),メーカー独自,マスターシリンダー圧センサーの電源故障,ESP油圧ユニット/制御モジュール内のマスターシリンダー圧センサーへの電源電圧が低すぎる。,Master cylinder pressure sensor power supply failure,Power supply voltage to master cylinder pressure sensor in ESP hydraulic unit / control module assembly is too low.,50 20
+C1021,シャシー(ABS/ESP等),メーカー独自,右前輪速センサー回路および/またはセンサーリング,車輪速センサー信号が規定範囲外。,Front Right Wheel speed sensor circuit and/or sensor ring,Wheel sensor signal is out of specified range.,50 21
+C1022,シャシー(ABS/ESP等),メーカー独自,右前輪速センサー回路および/またはセンサーリング,車輪速センサー信号の異常を検出。,Front Right Wheel speed sensor circuit and/or sensor ring,Abnormal wheel speed sensor signal is detected.,50 22
+C1023,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品のヨーレートセンサー故障;ヨーレートセンサー回路の性能,ヨーレートセンサー信号が範囲外;車両挙動とヨーレート信号が一致しない。,Yaw rate sensor in yaw rate / G sensor assembly failure; Yaw Rate Sensor Circuit Performance,Yaw rate sensor signal is out of range; Vehicle behavior and yaw rate signal is disagreed.,50 23
+C1024,シャシー(ABS/ESP等),メーカー独自,舵角センサー回路の故障,舵角センサー内部のCPUが内部不良を検出;舵角センサー信号が規定範囲外。,Steering angle sensor circuit failure,Steering angle sensor internal defect is detected by CPU in steering angle sensor.; Steering angle sensor signal is out of specified range.,50 24
+C1025,シャシー(ABS/ESP等),メーカー独自,左前輪速センサー回路および/またはセンサーリング,車輪速センサー信号が規定範囲外。,Front Left Wheel speed sensor circuit and/or sensor ring,Wheel sensor signal is out of specified range.,50 25
+C1026,シャシー(ABS/ESP等),メーカー独自,左前輪速センサー回路および/またはセンサーリング;左後輪速センサー回路の電圧,車輪速センサー信号の異常を検出。,Front Left Wheel speed sensor circuit and/or sensor ring; Left-Rear Wheel Speed Sensor Circuit Voltage,Abnormal wheel speed sensor signal is detected.,50 26
+C1027,シャシー(ABS/ESP等),メーカー独自,ESP OFFスイッチ回路の故障,スイッチの機械的故障、またはスイッチ配線の地絡。,ESP OFF switch circuit failure,"Mechanical switch failure, failure in switch wiring is shorted to ground.",50 27
+C1028,シャシー(ABS/ESP等),メーカー独自,マスターシリンダー圧センサー回路の故障,ESP制御モジュール内のマスターシリンダー圧センサーからの入力電圧が高すぎるまたは低すぎる,Master cylinder pressure sensor circuit failure,Input signal voltage from master cylinder pressure sensor in ESP control module is too high or low,50 28
+C102A,シャシー(ABS/ESP等),メーカー独自,ABS制御の連続作動異常,,ABS control continuous operation abnormality,,50 2A
+C102B,シャシー(ABS/ESP等),メーカー独自,ブレーキブースター圧センサー系の異常,,Brake Booster Pressure Sensor System Malfunction,,50 2B
+C1031,シャシー(ABS/ESP等),メーカー独自,右後輪速センサー回路および/またはセンサーリング,車輪速センサー信号が規定範囲外。,Rear Right Wheel speed sensor circuit and/or sensor ring,Wheel sensor signal is out of specified range.,50 31
+C1032,シャシー(ABS/ESP等),メーカー独自,右後輪速センサー回路および/またはセンサーリング,,Rear Right Wheel speed sensor circuit and/or sensor ring,,50 32
+C1033,シャシー(ABS/ESP等),メーカー独自,車輪速センサー,車輪速センサーのずれ,Wheel speed sensor,Wheel Speed Sensor Deviation,50 33
+C1034,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品の電源故障,イグニッションOFF時にヨーレート/Gセンサー組立品の電源電圧が高すぎる;イグニッションON時に電源電圧が低すぎる,Yaw rate / G sensor assembly power supply failure,Power supply voltage of yaw rate / G sensor assembly is too high when ignition switch OFF; Power supply voltage of yaw rate / G sensor assembly is too low when ignition switch ON,50 34
+C1035,シャシー(ABS/ESP等),メーカー独自,左後輪速センサー回路および/またはセンサーリング,車輪速センサー信号が規定範囲外。,Rear Left Wheel speed sensor circuit and/or sensor ring,Wheel sensor signal is out of specified range.,50 35
+C1036,シャシー(ABS/ESP等),メーカー独自,左後輪速センサー回路および/またはセンサーリング,車輪速センサー信号の異常を検出。,Rear Left Wheel speed sensor circuit and/or sensor ring,Abnormal wheel speed sensor signal is detected.,50 36
+C1037,シャシー(ABS/ESP等),メーカー独自,舵角センサーの電源故障,舵角センサーへの電源電圧が低すぎる。,Steering angle sensor power supply failure,Power supply voltage to steering angle sensor is too low.,50 37
+C1038,シャシー(ABS/ESP等),メーカー独自,舵角センサーがESP制御モジュールのローリングカウンター異常を検出,舵角センサーがESP制御モジュールのローリングカウンター異常を検出した。,Steering angle sensor detect rolling counter failure from ESP control module,ESP control module rolling counter failure is detected by steering angle sensor.,50 38
+C1039,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品の内部故障,ヨーレート/Gセンサー組立品の内部故障を検出。,Yaw rate / G sensor assembly internal failure,Yaw rate / G sensor assembly internal failure is detected.,50 39
+C1040,シャシー(ABS/ESP等),メーカー独自,横滑り防止機能の故障;ESPの連続作動,ヨーレートの変化がないのに、横滑り防止制御が規定時間以上作動している,Stability control system function failure; ESP Continuous Operation,Stability control is active for more than specified time without yaw rate change,50 40
+C1041,シャシー(ABS/ESP等),メーカー独自,右前 保持/インレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Front Right Hold/Inlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 41
+C1042,シャシー(ABS/ESP等),メーカー独自,右前 減圧/アウトレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Front Right Release/Outlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 42
+C1043,シャシー(ABS/ESP等),メーカー独自,マスターシリンダーカットソレノイドバルブ回路No.1の故障,ソレノイド出力とソレノイドモニターの不一致を検出。,Master cylinder cut solenoid valve circuit No.1 failure,Mismatching solenoid output and solenoid monitor is detected.,50 43
+C1044,シャシー(ABS/ESP等),メーカー独自,マスターシリンダーカットソレノイドバルブ回路No.2の故障,ソレノイド出力とソレノイドモニターの不一致を検出。,Master cylinder cut solenoid valve circuit No.2 failure,Mismatching solenoid output and solenoid monitor is detected.,50 44
+C1045,シャシー(ABS/ESP等),メーカー独自,左前 保持/インレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Front Left Hold/Inlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 45
+C1046,シャシー(ABS/ESP等),メーカー独自,左前 減圧/アウトレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Front Left Release/Outlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 46
+C1047,シャシー(ABS/ESP等),メーカー独自,前輪両側の車輪速センサーまたはエンコーダー信号の性能,,Both-Front Wheel Speed Sensor or Encoder Signal Performance,,50 47
+C1048,シャシー(ABS/ESP等),メーカー独自,後輪両側の車輪速センサーまたはエンコーダー信号の性能,,Both-Rear Wheel Speed Sensor or Encoder Signal Performance,,50 48
+C104A,シャシー(ABS/ESP等),メーカー独自,クラッチペダル位置スイッチNo.1系の異常,,Clutch Pedal Position No.1 Switch System Malfunction,,50 4A
+C104B,シャシー(ABS/ESP等),メーカー独自,バックランプスイッチ系の異常,,Back Up Light Switch System Malfunction,,50 4B
+C104D,シャシー(ABS/ESP等),メーカー独自,ヒルディセントコントロールスイッチの故障,,Hill Descent Control Switch Failure,,50 4D
+C104E,シャシー(ABS/ESP等),メーカー独自,グリップコントロールスイッチの故障,,Grip Control Switch Failure,,50 4E
+C104F,シャシー(ABS/ESP等),メーカー独自,ブレーキブースター圧スイッチの故障,,Brake Booster Pressure SW failure,,50 4F
+C1050,シャシー(ABS/ESP等),メーカー独自,バックスイッチの故障,バックランプスイッチおよび/またはスイッチ回路の故障を検出(MT車)。,Back switch failure,Back up light switch and/or switch circuit failure is detected. (for M/T model),50 50
+C1051,シャシー(ABS/ESP等),メーカー独自,右後 保持/インレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Rear Right Hold/Inlet) solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 51
+C1052,シャシー(ABS/ESP等),メーカー独自,右後 減圧/アウトレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Rear Right Release/Outlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 52
+C1053,シャシー(ABS/ESP等),メーカー独自,低圧ソレノイドバルブ回路No.1の故障,ソレノイド出力とソレノイドモニターの不一致を検出。,Low pressure solenoid valve circuit No.1 failure,Mismatching solenoid output and solenoid monitor is detected.,50 53
+C1054,シャシー(ABS/ESP等),メーカー独自,低圧ソレノイドバルブ回路No.2の故障,ソレノイド出力とソレノイドモニターの不一致を検出。,Low pressure solenoid valve circuit No.2 failure,Mismatching solenoid output and solenoid monitor is detected.,50 54
+C1055,シャシー(ABS/ESP等),メーカー独自,左後 保持/インレットソレノイドバルブ回路;後輪 保持/インレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Rear Left Hold/Inlet solenoid valve circuit; Rear Hold/Inlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 55
+C1056,シャシー(ABS/ESP等),メーカー独自,左後 減圧/アウトレットソレノイドバルブ回路;後輪 減圧/アウトレットソレノイドバルブ回路,ソレノイド出力とソレノイドモニターの不一致を検出。,Rear Left Release/Outlet solenoid valve circuit; Rear Release/Outlet solenoid valve circuit,Mismatching solenoid output and solenoid monitor is detected.,50 56
+C1057,シャシー(ABS/ESP等),メーカー独自,電源;ESP(ABS)制御モジュール電源回路の故障,ESP(ABS)制御モジュールの電源電圧が高すぎる;低すぎる,Power source; ESP (ABS) control module power supply circuit failure,ESP (ABS) control module power supply voltage is too high; ESP (ABS) control module power supply voltage is too low,50 57
+C1061,シャシー(ABS/ESP等),メーカー独自,ABSポンプモーター回路;ポンプモーター回路の性能,ポンプモーターの不良および/またはモーター電源電圧が低すぎる,ABS pump motor circuit; Pump Motor Circuit Performance,Defective pump motor and/or motor power supply voltage is too low,50 61
+C1062,シャシー(ABS/ESP等),メーカー独自,ソレノイドバルブの連続作動異常,,Solenoid valve continuous operation abnormality,,50 62
+C1063,シャシー(ABS/ESP等),メーカー独自,ABSソレノイドバルブ回路;ソレノイドバルブ電源ドライバー回路,ソレノイド出力とソレノイドモニターの不一致を検出。,ABS solenoid valve circuit; Solenoid valve power supply driver circuit,Mismatching solenoid output and solenoid monitor is detected.,50 63
+C1065,シャシー(ABS/ESP等),メーカー独自,ブレーキランプリレー回路の故障,,Brake Light Relay Circuit Failure,,50 65
+C1068,シャシー(ABS/ESP等),メーカー独自,Gセンサー回路の性能,,G Sensor Circuit Performance,,50 68
+C1069,シャシー(ABS/ESP等),メーカー独自,舵角センサーの仕様が未登録,,Steering Angle Sensor Specification Unregistered,,50 69
+C106A,シャシー(ABS/ESP等),メーカー独自,ECU電源の故障;コントローラー内部電源回路の異常,,ECU Power Supply Failure; Controller internal power circuit error,,50 6A
+C1071,シャシー(ABS/ESP等),メーカー独自,ABS制御モジュール;ESP(ABS)制御モジュールの内部不良,ESP(ABS)制御モジュールの内部不良を検出。,ABS control module; ESP (ABS) control module internal defect,ESP (ABS) control module internal defect is detected.,50 71
+C1073,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品との通信喪失,ESP制御モジュールとヨーレート/Gセンサー組立品間のCAN通信エラーを検出。,Lost communication with yaw rate / G sensor assembly,CAN line communication error in ESP control module and yaw rate / G sensor assembly is detected.,50 73
+C1074,シャシー(ABS/ESP等),メーカー独自,Gセンサーのキャリブレーション,,G Sensor Calibration,,50 74
+C1075,シャシー(ABS/ESP等),メーカー独自,舵角センサーのキャリブレーションが未完了,舵角センサーのキャリブレーション点データの欠落を検出。,Steering angle sensor calibration incomplete,Missing steering angle sensor calibration point data is detected.,50 75
+C1076,シャシー(ABS/ESP等),メーカー独自,マスターシリンダー圧センサーのキャリブレーションが未完了,マスターシリンダー圧センサーのキャリブレーションが完了していない。,Master cylinder pressure sensor calibration incomplete,Master cylinder pressure sensor calibration is incompleted.,50 76
+C1077,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品の前後Gセンサーのキャリブレーションが未完了,ヨーレート/Gセンサー組立品の前後Gセンサーのキャリブレーションが完了していない(4WD車)。,Longitudinal G sensor in yaw rate / G sensor assembly calibration incomplete,Longitudinal G sensor in yaw rate / G sensor assembly calibration is incompleted. (for 4WD vehicle),50 77
+C1078,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品の横Gセンサーのキャリブレーションが未完了,ヨーレート/Gセンサー組立品の横Gセンサーのキャリブレーションが完了していない。,Lateral G sensor in yaw rate / G sensor assembly calibration incomplete,Lateral G sensor in yaw rate / G sensor assembly calibration is incompleted.,50 78
+C107A,シャシー(ABS/ESP等),メーカー独自,ヨーレートセンサーのキャリブレーション,,Yaw Rate Sensor Calibration,,50 7A
+C1084,シャシー(ABS/ESP等),メーカー独自,ESPがEPS(電動パワステ)からのメッセージカウンター異常を検出,,ESP Detects Message Counter Failure From EPS,,50 84
+C1085,シャシー(ABS/ESP等),メーカー独自,ESPがEPSからのチェックサム異常を検出,,ESP Detects Check Sum Failure From EPS,,50 85
+C1090,シャシー(ABS/ESP等),メーカー独自,ECMがESP制御モジュールのローリングカウンター異常を検出,ECMがESP制御モジュールのローリングカウンター異常を検出した。,ECM detect rolling counter failure from ESP control module,ESP control module rolling counter failure is detected by ECM.,50 90
+C1091,シャシー(ABS/ESP等),メーカー独自,CANライン上のECMデータの異常;ECMからの不正なCANデータ,ECMがESP制御モジュールに不正な信号を送信した。,ECM data in CAN line failure; CAN Invalid Date from ECM,ECM sent invalid signal to ESP control module.,50 91
+C1092,シャシー(ABS/ESP等),メーカー独自,CANライン上のTCMデータの異常,TCMがESP制御モジュールに不正な信号を送信した(AT車)。,TCM data in CAN line failure,TCM sent invalid signal to ESP control module. (for A/T model),50 92
+C1093,シャシー(ABS/ESP等),メーカー独自,CANライン上の4WD制御モジュールデータの異常,4WD制御モジュールがESP制御モジュールに不正な信号を送信した(4WD制御モジュール装着車)。,4WD control module data in CAN line failure,4WD control module sent invalid signal to ESP control module. (if equipped 4WD control module),50 93
+C1094,シャシー(ABS/ESP等),メーカー独自,トルク要求の拒否状態,,Torque Request Reject Status,,50 94
+C1095,シャシー(ABS/ESP等),メーカー独自,CAN通信 HCU制御データの異常,,CAN communication HCU control data error,,50 95
+C1096,シャシー(ABS/ESP等),メーカー独自,ヨーレート/Gセンサー組立品のメッセージカウンター異常,,Yaw Rate/G Sensor Assembly Message Counter Error,,50 96
+C1097,シャシー(ABS/ESP等),メーカー独自,パワステ制御モジュールに関する故障コード,,DTC concerning Power Steering Control Module,,50 97
+C1099,シャシー(ABS/ESP等),メーカー独自,エンジン自動停止制御モジュールから不正なデータを受信,,Invalid Data Received from ENG A-STOP Control Module,,50 99
+C109D,シャシー(ABS/ESP等),メーカー独自,CAN通信 補助電源モジュール制御データの異常,,CAN communication auxiliary power supply module control data error,,50 9D
+C10A0,シャシー(ABS/ESP等),メーカー独自,CAN通信 RBS(回生ブレーキ)データの異常,,CAN communication RBS data error,,50 A0
+C10A1,シャシー(ABS/ESP等),メーカー独自,CAN通信 RBS(回生ブレーキ)データの異常,,CAN communication RBS data error,,50 A1
+C10A2,シャシー(ABS/ESP等),メーカー独自,RBS連続作動要求の異常,,RBS continuous operation request error,,50 A2
+C10A4,シャシー(ABS/ESP等),メーカー独自,DCBS制御モジュールからの不正なCANデータ,,CAN Invalid Data from DCBS Control Module,,50 A4
+C10A5,シャシー(ABS/ESP等),メーカー独自,DCBS制御モジュールからの不正なCANデータ,,CAN Invalid Data from DCBS Control Module,,50 A5
+C10A6,シャシー(ABS/ESP等),メーカー独自,DCBS制御要求時間の異常,,DCBS Control Request Time Failure,,50 A6
+C10A7,シャシー(ABS/ESP等),メーカー独自,DSBS制御モジュールから不正なデータを受信,,Invalid Data Received From DSBS Control Module,,50 A7
+C10A8,シャシー(ABS/ESP等),メーカー独自,DSBS制御モジュールから不正なデータを受信,,Invalid Data Received From DSBS Control Module,,50 A8
+C10A9,シャシー(ABS/ESP等),メーカー独自,DSBS制御モジュールから不正な自動ブレーキ要求を受信,,Invalid Auto Brake Request Received From DSBS Control Module,,50 A9
+C10AA,シャシー(ABS/ESP等),メーカー独自,CAN通信 ソナーコントローラーデータ異常1,,CAN communication sonar controller data error 1,,50 AA
+C10AB,シャシー(ABS/ESP等),メーカー独自,CAN通信 ソナーコントローラーデータ異常2,,CAN communication sonar controller data error 2,,50 AB
+C10AC,シャシー(ABS/ESP等),メーカー独自,ソナーコントローラーの連続要求異常,,Sonar controller continuous request error,,50 AC
+C1111,シャシー(ABS/ESP等),メーカー独自,トルクセンサー(メイン)回路の電圧異常,トルクセンサー(メイン)信号が規定値超または規定値未満,Torque sensor main circuit voltage failure,Torque sensor main signal is more than specification or less than specification,51 11
+C1113,シャシー(ABS/ESP等),メーカー独自,トルクセンサーのメインとサブの回路電圧差が大きい,トルクセンサーのメイン信号とサブ信号の電圧差が規定電圧を超えた,Torque sensor main and sub circuit voltage difference high,Voltage difference between torque sensor main signal and torque sensor sub signal exceeds specified voltage,51 13
+C1114,シャシー(ABS/ESP等),メーカー独自,トルクセンサー電源(5V)回路の異常,,Torque sensor power supply (5V) circuit malfunction,,51 14
+C1115,シャシー(ABS/ESP等),メーカー独自,トルクセンサー(サブ)回路の電圧異常,トルクセンサー(サブ)信号が規定値超または規定値未満,Torque sensor sub circuit voltage failure; Torque Sensor (Sub) Circuit Malfunction,Torque sensor sub signal is more than specification or less than specification,51 15
+C1116,シャシー(ABS/ESP等),メーカー独自,トルクセンサー電源回路の故障;トルクセンサー電源(9V)回路の異常,トルクセンサー電源電圧が規定値未満,Torque sensor power supply circuit failure; Torque Sensor Power Supply (9 V) Circuit Malfunction,Torque sensor power supply voltage is less than specification,51 16
+C1121,シャシー(ABS/ESP等),メーカー独自,車速信号が入力されない(60秒以上),次のどちらかの条件で車速信号が入力されない:1. エンジン始動から5分以内に、4000rpm超の状態が60秒を超えた 2. エンジン始動から5分経過後に、2500rpm超の状態が60秒を超えた,Vehicle speed signal not input (60 seconds or more),No vehicle speed signal is inputted in either one of the following two conditions 1. More than 60 seconds pass at more than 4000 rpm engine speed before a lapse of 5 minutes from the engine start 2. More than 60 seconds pass at more than 2500 rpm engine speed after a lapse of 5 minutes from the engine start,51 21
+C1122,シャシー(ABS/ESP等),メーカー独自,エンジン回転信号回路の故障;エンジン回転信号の異常,車速信号が50km/h以上なのに、エンジン回転信号が220rpm以下,Engine speed signal circuit failure; Engine Speed Signal Malfunction,Vehicle speed signal 50 km/h (31 mph) or more and engine speed signal 220 rpm or less,51 22
+C1123,シャシー(ABS/ESP等),メーカー独自,車速信号が入力されない(30秒以上),次のどちらかの条件で車速信号が入力されない:1. エンジン始動から5分以内に、4000rpm超の状態が30秒を超えた 2. エンジン始動から5分経過後に、2500rpm超の状態が30秒を超えた,Vehicle speed signal not input (30 seconds or more),No vehicle speed signal is inputted in either one of the following two conditions 1. More than 30 seconds pass at more than 4000 rpm engine speed before a lapse of 5 minutes from the engine start 2. More than 30 seconds pass at more than 2500 rpm engine speed after a lapse of 5 minutes from the engine start,51 23
+C1124,シャシー(ABS/ESP等),メーカー独自,車速信号回路の故障(異常な減速),減速度が規定値を超え、減速後に車速5km/h未満の状態が5秒続いた,Vehicle speed signal circuit failure (abnormal deceleration),Deceleration is more than specification and lower than 5 km/h vehicle speed continued for 5 seconds after deceleration,51 24
+C1131,シャシー(ABS/ESP等),メーカー独自,回転角センサー信号の異常,,Rotation Angle Sensor Signal Malfunction,,51 31
+C1141,シャシー(ABS/ESP等),メーカー独自,モーター回路の電圧異常;パワステモーター回路の電圧異常,モーター回路の電圧が規定値超または規定値未満,Motor circuit voltage abnormal; P/S Motor Circuit Voltage Malfunction,Motor circuit voltage is more than specification or less than specification,51 41
+C1142,シャシー(ABS/ESP等),メーカー独自,モーター回路の実電流と目標電流の差が大きい;パワステモーター回路の電流異常1,モーター回路の実電流と目標電流の差が規定電流を超えた,Motor circuit actual current and motor circuit target current difference high; P/S Motor Circuit Current Malfunction 1,Current difference between motor circuit actual current and motor circuit target current exceeds specified current,51 42
+C1143,シャシー(ABS/ESP等),メーカー独自,モーター回路の電流過大;パワステモーター回路の電流が大きすぎる,モーター回路の電流が規定値超,Motor circuit current excessive; P/S Motor Circuit Current Too Excessive,Motor circuit current is more than specification,51 43
+C1145,シャシー(ABS/ESP等),メーカー独自,パワステ制御モジュールの目標電流に対してモーター回路の電流が低い;パワステモーター回路の電流異常2,モーター回路電流の測定値が、パワステ制御モジュールの規定値より低い,Motor circuit current low command with P/S control module target current; P/S Motor Circuit Current Malfunction 2,Measured value of motor circuit current is lower than specified value of motor circuit current from P/S control module,51 45
+C1146,シャシー(ABS/ESP等),メーカー独自,パワステモーター回路の電圧異常2,,P/S Motor Circuit Voltage Malfunction 2,,51 46
+C1152,シャシー(ABS/ESP等),メーカー独自,フェイルセーフリレーの異常(溶着),,Fail-Safe Relay Malfunction (Melted stuck),,51 52
+C1153,シャシー(ABS/ESP等),メーカー独自,パワステ制御モジュール電源回路の故障;電源電圧が低すぎる;電源電圧が低すぎるまたは高すぎる,バッテリー電圧が規定値未満,P/S control module power supply circuit failure; Power Supply Voltage Too Low; Power Supply Voltage Too Low or Too High,Battery voltage is less than specification,51 53
+C1154,シャシー(ABS/ESP等),メーカー独自,フェイルセーフリレーの異常(接点),,Fail-Safe Relay Malfunction (Contact),,51 54
+C1155,シャシー(ABS/ESP等),メーカー独自,パワステ制御モジュールの故障;パワステ制御モジュール内部故障/電源電圧が高すぎる,パワステ制御モジュール内部回路またはバッテリー電圧(高電圧)の故障,P/S control module failure; P/S Control Module Internal Failure/Power Supply Voltage too High,P/S control module internal circuit or battery voltage (high voltage) failure,51 55
+C1156,シャシー(ABS/ESP等),メーカー独自,昇圧回路の異常,,Booster circuit error,,51 56
+C1157,シャシー(ABS/ESP等),メーカー独自,モーターリレーの異常,,Motor Relay Malfunction,,51 57
+C1160,シャシー(ABS/ESP等),メーカー独自,制御モジュールのプログラミングエラー,,Control Module Programming Error,,51 60
+C1161,シャシー(ABS/ESP等),メーカー独自,車速の不正なCANデータ,,CAN Invalid Data from Vehicle Speed,,51 61
+C1162,シャシー(ABS/ESP等),メーカー独自,エンジン回転の不正なCANデータ,,CAN Invalid Data from Engine Speed,,51 62
+C1163,シャシー(ABS/ESP等),メーカー独自,舵角センサーからの不正なCANデータ,,CAN Invalid Data from Steering Angle Sensor,,51 63
+C1164,シャシー(ABS/ESP等),メーカー独自,BCMからの不正なCANデータ,,CAN Invalid Data from BCM,,51 64
+C1166,シャシー(ABS/ESP等),メーカー独自,車速データの信頼性不良,,Reliability Defect Of Vehicle Speed Data,,51 66
+C1168,シャシー(ABS/ESP等),メーカー独自,補助電源モジュールの状態異常,,Auxiliary power supply module status error,,51 68
+C1169,シャシー(ABS/ESP等),メーカー独自,補助電源モジュールのリセット,,Auxiliary power supply module reset,,51 69
+C116A,シャシー(ABS/ESP等),メーカー独自,舵角センサーのキャリブレーションが未完了,,Steering Angle Sensor Calibration Incomplete,,51 6A
+C1240,シャシー(ABS/ESP等),メーカー独自,4WD制御モジュール電源回路の異常,バッテリー電圧が4WD制御モジュールの診断下限電圧より低い。,4WD control module power supply circuit malfunction,Battery voltage is lower than lower limit voltage for 4WD control module diagnosis.,52 40
+C1243,シャシー(ABS/ESP等),メーカー独自,4WD制御モジュール内部回路の異常,4WD制御モジュール内部電源の異常,Internal circuit malfunction of 4WD control module,Internal power supply malfunction of 4WD control module,52 43
+C1250,シャシー(ABS/ESP等),メーカー独自,カップリング空気温度センサーの断線,センサー出力電圧が高すぎる,Coupling air temperature sensor open,Sensor output voltage too high,52 50
+C1251,シャシー(ABS/ESP等),メーカー独自,カップリング空気温度センサーの短絡,センサー出力電圧が低すぎる,Coupling air temperature sensor short,Sensor output voltage too low,52 51
+C1252,シャシー(ABS/ESP等),メーカー独自,カップリング組立品の断線,2WD/4WDスイッチを4WDロック位置に切り替えたのに、5秒以上たっても切り替わらない。,Coupling assembly open,"2WD/4WD switch is changed of 4WD lock position, and then vehicle is not changed for more than 5 seconds.",52 52
+C1253,シャシー(ABS/ESP等),メーカー独自,カップリング組立品の短絡,2WD/4WDスイッチを4WDロック位置に切り替えたのに、5秒以上たっても切り替わらない。,Coupling assembly short,"2WD/4WD switch is changed of 4WD lock position, and then vehicle is not changed for more than 5 seconds.",52 53
+C1254,シャシー(ABS/ESP等),メーカー独自,2WD/4WDスイッチの異常,仕様と異なるスイッチの組み合わせを5秒以上検出。,2WD/4WD switch malfunction,Different switch combination from specification is detected more than 5 seconds.,52 54
+C1260,シャシー(ABS/ESP等),メーカー独自,トランスファー油温センサーの断線,,Transfer Oil Temperature Sensor Open,,52 60
+C1261,シャシー(ABS/ESP等),メーカー独自,トランスファー油温センサーの短絡,,Transfer Oil Temperature Sensor Short,,52 61
+C1270,シャシー(ABS/ESP等),メーカー独自,BCMからの不正なCANデータ,,CAN Invalid Data from BCM,,52 70
+C1281,シャシー(ABS/ESP等),メーカー独自,4WD 径の異なるタイヤを装着,,4WD Tire of Different Diameter Installed,,52 81
+C1282,シャシー(ABS/ESP等),メーカー独自,4WD 異常発熱,,4WD Abnormal Heat Generation,,52 82
+C1371,シャシー(ABS/ESP等),メーカー独自,ESPが検出:自動停止禁止状態,,ESP detection A-STOP prohibition status,,53 71
+C1372,シャシー(ABS/ESP等),メーカー独自,ESPが検出:ISのローリングカウント異常,,ESP detection IS rolling count error,,53 72
+C1373,シャシー(ABS/ESP等),メーカー独自,ESPが検出:ISのチェックサム異常,,ESP detection IS checksum error,,53 73
+C1600,シャシー(ABS/ESP等),メーカー独自,自動ブレーキコントローラー内部エラー,,Auto brake controller internal error,,56 00
+C1601,シャシー(ABS/ESP等),メーカー独自,コンビネーションメーターの照合不一致,,Combination meter collation mismatch,,56 01
+C1620,シャシー(ABS/ESP等),メーカー独自,CAN通信 ECMデータの異常,,CAN communication ECM data error,,56 20
+C1621,シャシー(ABS/ESP等),メーカー独自,CAN通信 TCMデータの異常,,CAN communication TCM data error,,56 21
+C1623,シャシー(ABS/ESP等),メーカー独自,CAN通信 ABS/ESPデータの異常,,CAN communication ABS / ESP data error,,56 23
+C1630,シャシー(ABS/ESP等),メーカー独自,CAN通信 ABS/ESP制御データの異常,,CAN communication ABS / ESP control data error,,56 30
+C1632,シャシー(ABS/ESP等),メーカー独自,誤発進抑制機能の不作動,,False start suppression dysfunction,,56 32
+C1638,シャシー(ABS/ESP等),メーカー独自,RBS OFFスイッチ系の異常,,RBS OFF SW system error,,56 38
+C1639,シャシー(ABS/ESP等),メーカー独自,CAN通信 RBS制御データの異常,,CAN communication RBS control data error,,56 39
+C1640,シャシー(ABS/ESP等),メーカー独自,RBS制御の一時停止,,RBS control pause,,56 40
+C1680,シャシー(ABS/ESP等),メーカー独自,制御モジュールの性能;デュアルセンサーブレーキコントローラー内部エラー,,Control Module Performance; Dual sensor Brake controller internal error,,56 80
+C1681,シャシー(ABS/ESP等),メーカー独自,制御モジュールの不一致,,Control Module Mismatch,,56 81
+C1685,シャシー(ABS/ESP等),メーカー独自,制御モジュール内部温度が高い;デュアルセンサーブレーキコントローラー内部温度異常(高温),,Control Module Internal Temperature High; Dual sensor Brake controller Internal temperature abnormality (high temperature),,56 85
+C1686,シャシー(ABS/ESP等),メーカー独自,自動ブレーキ信号の不一致,,Automatic Brake Signal Mismatch,,56 86
+C1687,シャシー(ABS/ESP等),メーカー独自,エンジントルク制御要求が無効,,Engine Torque Control Request Disabled,,56 87
+C1688,シャシー(ABS/ESP等),メーカー独自,自動ブレーキの作動時間,,Automatic Brake Operation Time,,56 88
+C1689,シャシー(ABS/ESP等),メーカー独自,制御モジュール内部温度が低い;デュアルセンサーブレーキコントローラー内部温度異常(低温),,Control Module Internal Temperature Low; Dual sensor Brake controller Internal temperature abnormality (low temperature),,56 89
+C1690,シャシー(ABS/ESP等),メーカー独自,センサーの軸ずれ(未調整),,Sensor Not Aligned,,56 90
+C16A0,シャシー(ABS/ESP等),メーカー独自,ECMからの不正なCANデータ,,CAN Invalid Data from ECM,,56 A0
+C16A1,シャシー(ABS/ESP等),メーカー独自,TCMからの不正なCANデータ,,CAN Invalid Data From TCM,,56 A1
+C16A2,シャシー(ABS/ESP等),メーカー独自,BCMからの不正なCANデータ,,CAN Invalid Data From BCM,,56 A2
+C16A3,シャシー(ABS/ESP等),メーカー独自,ABS/ESP制御モジュールからの不正なCANデータ,,CAN Invalid Data from ABS/ESP Control Module,,56 A3
+C16A8,シャシー(ABS/ESP等),メーカー独自,デュアルセンサーブレーキサポート制御モジュールからABS/ESP制御モジュールへの通信エラー,,Communication Error From Dual Sensor Brake Support Control Module To ABS/ESP Control Module,,56 A8
+C16A9,シャシー(ABS/ESP等),メーカー独自,パワステ制御モジュールからの不正なCANデータ;BCMからの不正なCANデータ,,CAN Invalid data from power steering control module;  CAN Invalid Data From BCM,,56 A9
+C16C0,シャシー(ABS/ESP等),メーカー独自,制御の一時禁止,,Control Temporary Inhibition,,56 C0
+C16C1,シャシー(ABS/ESP等),メーカー独自,カメラの軸ずれ,,Camera Misaligned,,56 C1
+C16C8,シャシー(ABS/ESP等),メーカー独自,デュアルセンサーブレーキサポートOFFスイッチ回路,,Dual Sensor Brake Support OFF Switch Circuit,,56 C8
+C16C9,シャシー(ABS/ESP等),メーカー独自,車線逸脱警報OFFスイッチ回路,,Lane Departure Warning OFF Switch Circuit,,56 C9
+C1700,シャシー(ABS/ESP等),メーカー独自,制御モジュールの性能,ステレオカメラの内部故障。,Control Module Performance,Stereo camera internal failure.,57 00
+C1701,シャシー(ABS/ESP等),メーカー独自,制御モジュールの不一致,照合処理中に、コンビネーションメーターとステレオカメラの情報の不一致を検出。,Control Module Mismatch,Mismatch of information between combination meter and stereo camera was detected during verification process.,57 01
+C1705,シャシー(ABS/ESP等),メーカー独自,内部温度の性能,ステレオカメラの内部温度が規定範囲外。,Internal Temperature Performance,Stereo camera internal temperature is out of specified range.,57 05
+C1706,シャシー(ABS/ESP等),メーカー独自,自動ブレーキ信号の不一致,,Automatic Brake Signal Mismatch,,57 06
+C1707,シャシー(ABS/ESP等),メーカー独自,トルク要求信号の異常,ECMがステレオカメラから不正なCANデータ(エンジントルク制御関連)を受信。,Torque Request Signal Error,ECM receives invalid CAN data from stereo camera (about engine torque control).,57 07
+C1708,シャシー(ABS/ESP等),メーカー独自,自動ブレーキ作動の異常,,Automatic Brake Operation Error,,57 08
+C1709,シャシー(ABS/ESP等),メーカー独自,舵角のオフセット,ステレオカメラ内の舵角キャリブレーション値が規定どおりでない。,Steering Angle Offset,Steering angle calibration value in stereo camera is not as specified.,57 09
+C1710,シャシー(ABS/ESP等),メーカー独自,センサーの軸ずれ(未調整),「ステレオカメラ レーダーエーミング調整」が未実施または未完了。,Sensor Not Aligned,"""Stereo Camera Radar Aiming Adjustment"" is not performed or not completed.",57 10
+C1718,シャシー(ABS/ESP等),メーカー独自,左右方向の軸ずれ,ステレオカメラの左右方向の軸ずれを検出。,Lateral Direction Misaligned,Deviation of axis from stereo camera in right and left is detected.,57 18
+C1719,シャシー(ABS/ESP等),メーカー独自,上下方向の軸ずれ,ステレオカメラの上下方向の軸ずれを検出。,Lengthwise Direction Misaligned,Deviation of axis from stereo camera in top and bottom is detected.,57 19
+C1720,シャシー(ABS/ESP等),メーカー独自,ECMからの不正なCANデータ,ECMがCAN通信で送った制御データに、ステレオカメラが異常を検出。,CAN Invalid Data From ECM,Stereo camera detected abnormal condition in control data transmitted by ECM through CAN communication.,57 20
+C1721,シャシー(ABS/ESP等),メーカー独自,TCMからの不正なCANデータ,TCMがCAN通信で送った制御データに、ステレオカメラが異常を検出。,CAN Invalid Data From TCM,Stereo camera detected abnormal condition in control data transmitted by TCM through CAN communication.,57 21
+C172E,シャシー(ABS/ESP等),メーカー独自,TCMからの不正なCANデータ,TCMがCAN通信で送った制御データに、ステレオカメラが異常を検出。,CAN Invalid Data From TCM,Stereo camera detected abnormal condition in control data transmitted by TCM through CAN communication.,57 2E
+C172F,シャシー(ABS/ESP等),メーカー独自,ECMからの不正なCANデータ,ECMがCAN通信で送った制御データに、ステレオカメラが異常を検出。,CAN Invalid Data From ECM,Stereo camera detected abnormal condition in control data transmitted by ECM through CAN communication.,57 2F
+C1730,シャシー(ABS/ESP等),メーカー独自,ABS/ESP制御モジュールからの不正なCANデータ,ESP制御モジュールがCAN通信で送った制御データに、ステレオカメラが異常を検出。,CAN Invalid Data From ABS/ESP Control Module,Stereo camera detected abnormal condition in control data transmitted by ESP® control module through CAN communication.,57 30
+C1731,シャシー(ABS/ESP等),メーカー独自,舵角センサーからの不正なCANデータ,ライティング&ターンシグナルスイッチがCAN通信で送った制御データに、ステレオカメラが異常を検出。,CAN Invalid Data From Steering Angle Sensor,Stereo camera detected abnormal condition in control data transmitted by lighting and turn signal switch through CAN communication.,57 31
+C1732,シャシー(ABS/ESP等),メーカー独自,CAN通信 HCUデータの異常,,CAN communication HCU data error,,57 32
+C1733,シャシー(ABS/ESP等),メーカー独自,CAN通信 HCUデータの一時的な異常,,CAN communication HCU data temporary error,,57 33
+C1734,シャシー(ABS/ESP等),メーカー独自,CAN通信 ECMデータの一時的な異常,,CAN communication ECM data temporary error,,57 34
+C1737,シャシー(ABS/ESP等),メーカー独自,車線逸脱警報OFFスイッチ回路,ステレオカメラが、車線逸脱警報OFFスイッチのON信号をBCMから規定時間連続して受信。,Lane Departure Warning OFF Switch Circuit,Stereo camera received ON signal of lane departure warning system OFF switch from BCM for specified time continuously.,57 37
+C1738,シャシー(ABS/ESP等),メーカー独自,デュアルカメラブレーキサポートOFFスイッチ回路,ステレオカメラが、デュアルカメラブレーキサポートOFFスイッチのON信号をBCMから規定時間連続して受信。,Dual Camera Brake Support OFF Switch Circuit,Stereo camera received ON signal of dual camera brake support OFF switch from BCM for specified time continuously.,57 38
+C1740,シャシー(ABS/ESP等),メーカー独自,制御の一時禁止,,Control Temporary Inhibition,,57 40
+C1741,シャシー(ABS/ESP等),メーカー独自,視界不良,ステレオカメラやフロントガラスの汚れ、または悪天候のため、ステレオカメラが前方の状況を正しく認識できない。,Low Visibility,"Due to dirt on stereo camera or windshield or bad weather conditions, the stereo camera is unable to recognize the situation in front of the vehicle correctly.",57 41
+C1750,シャシー(ABS/ESP等),メーカー独自,車両仕様の照合が未完了,,Vehicle specification verification not completed,,57 50
+C1751,シャシー(ABS/ESP等),メーカー独自,車両仕様の照合不一致,,Vehicle specification collation mismatch,,57 51
+B0052,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),展開(作動)指令あり,,Deployment Commanded,,80 52
+B0053,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),ループ系の故障コードがある状態で展開指令あり,,Deployment Commanded with Loop DTCs Present,,80 53
+B1011,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SDM(エアバッグ制御ユニット)の組み付け違い,,SDM Wrong Assembly,,90 11
+B1012,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SDMコネクターの接触不良(断続),,Intermittent Connection of SDM Connector,,90 12
+B1013,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SDMの故障;SDM:エアバッグシステムとSDMの仕様が異なる;SDM内部故障,,SDM fault; SDM: Specifications different between air bag system and SDM; SDM Internal Failure,,90 13
+B1014,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,「AIR BAG」警告灯回路の故障,,"""AIR BAG"" warning lamp circuit failure",,90 14
+B1015,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席エアバッグ回路:抵抗が高い;「助手席エアバッグOFF」表示灯回路,,"Passenger air bag circuit: Resistance high; ""PASS Air BAG OFF "" Indicator Light Circuit",,90 15
+B1016,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席エアバッグ回路:抵抗が低い;電源電圧が高すぎる,,Passenger air bag circuit: Resistance low; Power source voltage too high,,90 16
+B1017,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,電源電圧が低すぎる,,Power source voltage too low,,90 17
+B1018,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席エアバッグ回路:地絡;OCM(乗員検知)通信エラー,,Passenger air bag circuit: Short to ground; OCM Communication Error,,90 18
+B1019,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席エアバッグ回路:電源短絡,,Passenger air bag circuit: Short to power circuit,,90 19
+B1021,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路:抵抗が高い;フロントエアバッグモジュール作動済み,,Driver air bag  circuit: Resistance high; Front air bag module exploded,,90 21
+B1022,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路:抵抗が低い,,Driver air bag circuit: Resistance low,,90 22
+B1023,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,エアバッグ作動処理済み,,Airbag activation processed,,90 23
+B1024,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路:地絡;運転席サイドエアバッグモジュール作動済み,,Driver air bag circuit: Short to ground; Driver side-air bag module exploded,,90 24
+B1025,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路:電源短絡;助手席サイドエアバッグモジュール作動済み;左前オーディオ出力回路,,Driver air bag circuit: Short to power circuit; Passenger side-air bag module exploded; LF Audio Output Circuit,,90 25
+B1026,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,プリテンショナー作動;シートベルトプリテンショナー作動記録,,Pretensioner activated; Seat Belt Pretensioner Activation Record,,90 26
+B1027,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,再使用回数を超過,,Reusable number exceeded,,90 27
+B1028,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側カーテンエアバッグの展開記録,,Driver Side Curtain Air Bag Deployment Record,,90 28
+B1029,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側カーテンエアバッグの展開記録,,Passenger Side Curtain Air Bag Deployment Record,,90 29
+B1031,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路の抵抗が高い,,Driver air bag circuit resistance high,,90 31
+B1032,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,電源電圧:低すぎる;運転席エアバッグ回路の抵抗が低い,,Power source voltage: Too low; Driver air bag circuit resistance low,,90 32
+B1033,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路の地絡,,Driver air bag circuit short to ground,,90 33
+B1034,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ回路の電源短絡,,Driver air bag circuit short to power circuit,,90 34
+B1035,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ(2段目)回路の高抵抗;フロントセンサー回路の断線または電源短絡;右前オーディオ出力回路,,Driver Air Bag (2nd Stage) Circuit High Resistance; Forward Sensor Circuit Open or Short to Power Circuit; RF Audio Output Circuit,,90 35
+B1036,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ(2段目)回路の低抵抗;フロントセンサー回路の線間短絡または地絡,,Driver Air Bag (2nd Stage) Circuit Low Resistance; Forward Sensor Circuit Short Between Two Wires or Short to Ground,,90 36
+B1037,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ(2段目)回路の地絡,,Driver Air Bag (2nd Stage) Circuit Shorted to Ground,,90 37
+B1038,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席エアバッグ(2段目)回路の電源短絡,,Driver Air Bag (2nd Stage) Circuit Shorted to Power Supply,,90 38
+B1041,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路:抵抗が高い;助手席エアバッグ回路の抵抗が高い,,Driver pretensioner circuit: Resistance high; Passenger air bag circuit resistance high,,90 41
+B1042,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路:抵抗が低い;助手席エアバッグ回路の抵抗が低い,,Driver pretensioner circuit: Resistance low; Passenger air bag circuit resistance low,,90 42
+B1043,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路:地絡;助手席エアバッグ回路の地絡,,Driver pretensioner circuit: Short to ground; Passenger air bag circuit short to ground,,90 43
+B1044,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路:電源短絡;助手席エアバッグ回路の電源短絡,,Driver pretensioner circuit: Short to power circuit; Passenger air bag circuit short to power circuit,,90 44
+B1045,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路:抵抗が高い;左後オーディオ出力回路,,Passenger pretensioner circuit: Resistance high; LR Audio Output Circuit,,90 45
+B1046,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路:抵抗が低い,,Passenger pretensioner circuit: Resistance low,,90 46
+B1047,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路:地絡,,Passenger pretensioner circuit: Short to ground,,90 47
+B1048,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路:電源短絡,,Passenger pretensioner circuit: Short to power circuit,,90 48
+B1051,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SDM:前面衝突を検出;運転席プリテンショナー回路の抵抗が高い,,SDM: Frontal crash detected; Driver pretensioner circuit resistance high,,90 51
+B1052,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路の抵抗が低い,,Driver pretensioner circuit resistance low,,90 52
+B1053,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路の地絡,,Driver pretensioner circuit short to ground,,90 53
+B1054,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席プリテンショナー回路の電源短絡,,Driver pretensioner circuit short to power circuit,,90 54
+B1055,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路の抵抗が高い;右後オーディオ出力回路,,Passenger pretensioner circuit resistance high; RR Audio Output Circuit,,90 55
+B1056,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路の抵抗が低い,,Passenger pretensioner circuit resistance low,,90 56
+B1057,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路の地絡,,Passenger pretensioner circuit short to ground,,90 57
+B1058,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席プリテンショナー回路の電源短絡,,Passenger pretensioner circuit short to power circuit,,90 58
+B1061,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席サイドエアバッグの抵抗が高い,,Driver side-air bag resistance high,,90 61
+B1062,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席サイドエアバッグの抵抗が低い,,Driver side-air bag resistance low,,90 62
+B1063,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席サイドエアバッグの地絡,,Driver side-air bag short to ground,,90 63
+B1064,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席サイドエアバッグの電源短絡,,Driver side-air bag short to power circuit,,90 64
+B1065,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席サイドエアバッグの抵抗が高い,,Passenger side-air bag resistance high,,90 65
+B1066,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席サイドエアバッグの抵抗が低い,,Passenger side-air bag resistance low,,90 66
+B1067,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席サイドエアバッグの地絡,,Passenger side-air bag short to ground,,90 67
+B1068,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席サイドエアバッグの電源短絡,,Passenger side-air bag short to power circuit,,90 68
+B1071,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SDM:内部故障;フロントセンサー回路の性能不良,,SDM: Internal fault; Forward-sensor circuit performance problem,,90 71
+B1072,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,フロントセンサー回路の通信エラー,,Forward-sensor circuit communication error,,90 72
+B1073,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,フロントセンサー回路の地絡,,Forward-sensor circuit short to ground,,90 73
+B1074,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,フロントセンサー回路の電源短絡または断線,,Forward-sensor circuit short to power circuit or open,,90 74
+B1075,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側フロント衝撃センサーの通信データ不整合,,Passenger Forward Impact sensor Communication Data Inconsistent,,90 75
+B1076,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側フロント衝撃センサーの通信データ無効,,Passenger Forward Impact sensor Communication Data Invalid,,90 76
+B1077,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側フロント衝撃センサー回路の地絡,,Passenger Forward Impact Sensor Circuit Shorted to Ground,,90 77
+B1078,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側フロント衝撃センサー回路の断線,,Passenger Forward Impact Sensor Circuit Open,,90 78
+B1081,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側サイドセンサーの性能不良,,Driver side-sensor performance problem,,90 81
+B1082,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側サイドセンサーの通信エラー,,Driver side-sensor communication error,,90 82
+B1083,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側サイドセンサーの地絡,,Driver side-sensor short to ground,,90 83
+B1084,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側サイドセンサーの電源短絡または断線,,Driver side-sensor short to power circuit or open,,90 84
+B1085,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側サイドセンサーの組み付け違い,,Driver side-sensor wrong assembly,,90 85
+B1091,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側サイドセンサーの性能不良,,Passenger side-sensor performance problem,,90 91
+B1092,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側サイドセンサーの通信エラー,,Passenger side-sensor communication error,,90 92
+B1093,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側サイドセンサーの地絡,,Passenger side-sensor short to ground,,90 93
+B1094,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側サイドセンサーの電源短絡または断線,,Passenger side-sensor short to power circuit or open,,90 94
+B1095,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側サイドセンサーの組み付け違い,,Passenger side-sensor wrong assembly,,90 95
+B1102,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,室内アンテナ系の異常,,Vehicle interior antenna system abnormality,,91 02
+B1103,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,室内中央アンテナ回路;ラゲッジアンテナ系の異常,室内中央アンテナをONにしても作動しない。,Mid Inside Antenna Circuit; Luggage antenna system abnormality,"Mid inside antenna does not operate, even if mid inside antenna is ON.",91 03
+B1104,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ラゲッジアンテナ回路,室内後部アンテナをONにしても作動しない。,Luggage Antenna Circuit,"Rear inside antenna does not operate, even if rear inside antenna is ON.",91 04
+B1105,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側アンテナ回路,運転席側室外アンテナをONにしても作動しない。,Driver Side Antenna Circuit,"Driver side outside antenna does not operate, even if driver side outside antenna is ON.",91 05
+B1106,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側アンテナ回路,助手席側室外アンテナをONにしても作動しない。,Passenger Side Antenna Circuit,"Passenger side outside antenna does not operate, even if passenger side outside antenna is ON.",91 06
+B1107,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,後部室外アンテナ回路;バックドアアンテナ系の異常,後部室外アンテナをONにしても作動しない。,Rear Outside Antenna Circuit; Backdoor antenna system abnormality,"Rear outside antenna does not operate, even if rear outside antenna is ON.",91 07
+B1108,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,BCMの内部不良,BCMの内部故障。,BCM Internal Defect,BCM internal failure.,91 08
+B1120,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,BCMの内部不良;キーレススタート制御モジュールの内部不良,,BCM Internal Defect; Keyless Start Control Module Internal Defect,,91 20
+B1121,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,DRL(デイタイムランニングランプ)回路の異常,,DRL (Daytime Running Lamp) Circuit Malfunction,,91 21
+B1122,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バックアップ電源の異常,,Backup Power Supply Malfunction,,91 22
+B1123,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バックアップ電源の異常;DOMEヒューズ回路/断線,,Backup Power Supply Malfunction; DOME Fuse Circuit / Open,,91 23
+B1125,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,クラッチ/シフトスイッチの異常(CVT車);クラッチ/シフトスイッチの異常,,Clutch / Shift Switch Malfunction CVT model; Clutch/Shift Switch Malfunction,,91 25
+B1126,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,Pポジションスイッチの異常,走行中(10km/h以上)にPポジションスイッチのON信号を検出。,P Position Switch Malfunction,P position switch ON signal is detected while vehicle running. (10 km/h (6 mile/h) or more),91 26
+B1131,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イルミネーション制御入力回路の断線,,Illumination Control Input Circuit Open,,91 31
+B1132,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,5V系の電圧が低すぎる,端子電圧(5V)が規定時間連続して2.5V未満,5V System Voltage too low,Terminal voltage (5V) is lower than 2.5V for specified time continuously,91 32
+B1133,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧が高すぎる,,Battery voltage too high,,91 33
+B1134,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リモコンの電池残量低下,リモコンから電池切れの信号を受信。,Remote Controller Battery Low,Remote controller battery run down signal is received from remote controller.,91 34
+B1137,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ブレーキランプスイッチの異常,ブレーキランプスイッチ信号とCAN通信で送られるデータ信号が一致しない。,Brake Light Switch Malfunction,Inconsistency between brake light switch signal and the data signal transmitted via CAN communication.,91 37
+B1141,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,外気温センサー回路の断線,センサー出力電圧が高すぎる,Outside air temperature (ambient temperature) sensor circuit open,Sensor output voltage too high,91 41
+B1142,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,外気温センサー回路の地絡,センサー出力電圧が低すぎる,Outside air temperature (ambient temperature) sensor circuit short to ground,Sensor output voltage too low,91 42
+B1145,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,A/Cエバポレーター温度センサー回路 高,エバポレーター温度センサー信号回路の電圧が規定時間連続して4.85V超,A/C Evaporator Temperature Sensor Circuit High,Evaporator temperature sensor signal circuit voltage is higher than 4.85V for specified time continuously,91 45
+B1146,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,A/Cエバポレーター温度センサー回路 低,エバポレーター温度センサー信号回路の電圧が規定時間連続して0.15V未満,A/C Evaporator Temperature Sensor Circuit Low,Evaporator temperature sensor signal circuit voltage is lower than 0.15V for specified time continuously,91 46
+B1147,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,オートライトセンサー入力電源の短絡,,Auto light sensor input power short,,91 47
+B1148,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,オートライトセンサー系の異常,,Auto light sensor system error,,91 48
+B1150,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,エアバッグ通信回路の異常,エアバッグ通信回路の断線または地絡,Air bag communication circuit malfunction,Air bag communication circuit open or short to ground,91 50
+B1156,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信エラー,,CAN Communication Error,,91 56
+B1157,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,エアバッグ展開信号の入力,エアバッグ展開信号が入力された,Air bag deployment signal input,Air bag deployment signal inputted,91 57
+B1158,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,LIN通信エラー,,LIN Communication Error,,91 58
+B115B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,解除が未確認;ステアリングロックユニットのステアリング状態,,Unconfirmed unlock; Steering Lock Unit Steering Status,,91 5B
+B115C,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットのアクチュエーター電源異常;ステアリングロックユニットのアクチュエーター電源回路(ステアリングロックユニット側),,Steering lock unit actuator power supply error; Steering Lock Unit Actuator Power Supply Circuit (Steering Lock Unit),,91 5C
+B115D,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットのロック異常;ステアリングロックユニットの性能,,Steering lock unit lock error; Steering Lock Unit Performance,,91 5D
+B115E,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニット制御電源の異常(BCM側),,Steering lock unit control power supply error (BCM),,91 5E
+B115F,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットのアクチュエーター電源異常(BCM側),,Steering lock unit actuator power supply error (BCM),,91 5F
+B1160,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットの通信エラー,,Steering Lock Unit Communication Error,,91 60
+B1161,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットの情報不一致,,Steering Lock Unit Information Mismatched,,91 61
+B1162,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットの内部不良,,Steering Lock Unit Internal Defect,,91 62
+B1163,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ステアリングロックユニットが未登録,,Steering Lock Unit Unregistered,,91 63
+B1167,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イモビライザー情報の不一致,キーレススタート制御モジュールとECMの照合エラー。,Immobilizer information mismatched,Verification error between keyless start control module and ECM.,91 67
+B1168,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パスワード不一致,誤ったパスワードが入力された,Password Mismatched,Wrong password is inputted,91 68
+B1169,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,登録の失敗,ECMまたはリモコンの登録失敗,Registered Failure,Registration failure of ECM or remote controller,91 69
+B116A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ABS/ESP制御モジュールからの車速パルスの異常,ESP制御モジュールから車速信号が入力されない。,Abnormal Vehicle Speed Pulses From ABS/ESP Control Module,Vehicle speed signal is not inputted from ESP control module.,91 6A
+B1170,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,EEPROMアクセスエラー;工場登録エラー,メモリーエラー,EEPROM access error; Factory Register Error,Memory error,91 70
+B1171,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,EEPROMアクセスエラー;メモリーのチェックサムエラー,メモリーエラー,EEPROM access error; Memory Check Sum Error,Memory error,91 71
+B1172,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,EEPROMアクセスエラー;メモリー書き込みエラー,メモリーエラー,EEPROM access error; Memory Write Error,Memory error,91 72
+B1173,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,トランスポンダーが未登録,リモコン内蔵トランスポンダーのコードが登録されていない,Transponder Unregistered,Transponder code in the transponder built in remote controller is not registered,91 73
+B1175,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イモビライザー情報が未登録,キーレススタート制御モジュールにイモビライザーIDコードが登録されていない,Immobilizer Information Unregistered,Immobilizer ID code is not registered in keyless start control module,91 75
+B1176,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,仕様情報が未登録,キーレススタート制御モジュールに車両仕様が登録されていない,Specification Information Unregistered,Vehicle specification is not registered in keyless start control module,91 76
+B1180,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側ドアリクエストスイッチの異常,,Driver Side Door Request Switch Malfunction,,91 80
+B1181,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側ドアリクエストスイッチの異常,,Passenger Side Door Request Switch Malfunction,,91 81
+B1182,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バックドア/トランクリッドのリクエストスイッチの異常,,Rear End Door / Trunk Lid Request Switch Malfunction,,91 82
+B1186,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,アンテナ回路の内部不良,BCMの内部故障。,Antenna Circuit Internal Defect,BCM internal failure.,91 86
+B1188,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,トランスポンダー通信エラー;キーIDの不一致,,Transponder Communication Error; Key ID mismatch,,91 88
+B1189,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イモビライザーアンテナの通信エラー,エンジンスイッチ(イモビライザーコイルアンテナ内蔵)との通信エラー,Immobilizer Antenna Communication Error,Communication error with engine switch (built-in immobilizer coil antenna),91 89
+B118A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧低下(イモビライザーIDコード照合時),,Battery Voltage Low (Immobilizer ID Code Verification),,91 8A
+B1190,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,エンジンスイッチの異常,プッシュスイッチ1および/または2の信号電圧が、規定時間より長く規定どおりでない。,Engine Switch Malfunction,Push switch 1 signal voltage and/or push switch 2 signal voltage is not as specified for longer than specified time.,91 90
+B1191,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,アクセサリー(ACC)リレーの異常,「ACC」ヒューズ経由の入力電圧とACCリレーの制御状態の不一致が、規定時間より長く続く。,Accessory Relay Malfunction,"Inconsistency between input voltage via ""ACC"" fuse and ACC relay control condition continues for longer than specified time.",91 91
+B1192,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イグニッション1リレーの異常,「IG1 SIG」ヒューズ経由の入力電圧とIG1リレーの制御状態の不一致が、規定時間より長く続く。,Ignition 1 Relay Malfunction,"Inconsistency between input voltage via ""IG1 SIG"" fuse and IG1 relay control condition continues for longer than specified time.",91 92
+B1193,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イグニッション2リレーの異常,「WASH」ヒューズ経由の入力電圧とIG2リレーの制御状態の不一致が、規定時間より長く続く。,Ignition 2 Relay Malfunction,"Inconsistency between input voltage via ""WASH"" fuse and IG2 relay control condition continues for longer than specified time.",91 93
+B1194,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,スターターモーターリレーの異常,スターター制御リレーのモニター入力電圧とリレーON状態の不一致が規定時間より長く続く状態を3回検出。,Starting Motor Relay Malfunction,Inconsistency between starting motor control relay monitor input voltage and starting motor control relay ON condition continued for longer than specified time is detected 3 times.,91 94
+B1220,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側リアサイドエアバッグの展開記録,,Driver Rear Side Air Bag Deployment Record,,92 20
+B1221,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側リアサイドエアバッグの展開記録,,Passenger Rear Side Air Bag Deployment Record,,92 21
+B1231,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の高抵抗(運転席側),,Rear Side Air Bag Circuit High Resistance (Driver Side),,92 31
+B1232,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の低抵抗(運転席側),,Rear Side Air Bag Circuit Low Resistance (Driver Side),,92 32
+B1233,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の地絡(運転席側),,Rear Side Air Bag Circuit Shorted to Ground (Driver Side),,92 33
+B1234,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の電源短絡(運転席側),,Rear Side Air Bag Circuit Shorted to Power Supply (Driver Side),,92 34
+B1235,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の高抵抗(助手席側),,Rear Side Air Bag Circuit High Resistance (Passenger Side),,92 35
+B1236,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の低抵抗(助手席側),,Rear Side Air Bag Circuit Low Resistance (Passenger Side),,92 36
+B1237,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の地絡(助手席側),,Rear Side Air Bag Circuit Shorted to Ground (Passenger Side),,92 37
+B1238,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアサイドエアバッグ回路の電源短絡(助手席側),,Rear Side Air Bag Circuit Shorted to Power Supply (Passenger Side),,92 38
+B1302,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席エアバッグカットオフスイッチを検出,,Passenger Cut Off SW Detected,,93 02
+B1311,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCM(乗員検知モジュール)の性能,,OCM Performance,,93 11
+B1312,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMセンサーマットの故障;OCMセンサーマットの性能,,OCM Sensor Mat Fault; OCM Sensor Mat Performance,,93 12
+B1314,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMの電源電圧が範囲外,,OCM Power Supply Voltage Out of Range,,93 14
+B1315,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMの動作温度が範囲外,,OCM Operating Temperature Out of Range,,93 15
+B1316,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMの乗員判定状態エラー,,OCM Classification Status Error,,93 16
+B1317,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMの通信データ不整合,,OCM Communication DATA Inconsistent,,93 17
+B1318,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMの通信データ無効;OCMのチェックサムエラー,,OCM communication data invalid; OCM checksum error,,93 18
+B1319,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,OCMの外部故障を記録,,OCM external faults recorded,,93 19
+B1320,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イモビライザーのID(キーコード)が未登録,,ID (key code) immobilizer not registered,,93 20
+B1321,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左サイドエアバッグ点火回路の抵抗;ECUパスワードの不一致,,Left Side-Air Bag Initiator Circuit Resistance; ECU Password mismatch,,93 21
+B1325,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右サイドエアバッグ点火回路の抵抗,,Right Side-Air Bag Initiator Circuit Resistance,,93 25
+B1328,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,BCM通信エラーによりイモビライザー照合失敗,BCMとの通信エラー。,Immobilizer failed due to BCM communication error,Communication error with BCM.,93 28
+B1329,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,誤った応答によりイモビライザー照合失敗,ECMとBCMの照合エラー。,Immobilizer failed due to wrong response,Verification error between ECM and BCM.,93 29
+B132A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,IDC通信エラーによりイモビライザー照合失敗,IDコントローラーとの通信エラー。,Immobilizer failed due to IDC communication error,Communication error with ID controller.,93 2A
+B132B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,誤った応答によりイモビライザー照合失敗,ECMとIDコントローラー間のCAN通信エラーまたは照合エラー。,Immobilizer failed due to wrong response,CAN communication error or verification error between ECM and ID controller.,93 2B
+B132F,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,EEPROMの読み書きエラー,ECM内のEEPROMが破損している。,EEPROM read/write error,EEPROM in ECM is corrupted.,93 2F
+B1341,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席ラッププリテンショナー回路の高抵抗,,Driver Lap Pretensioner Circuit High Resistance,,93 41
+B1342,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席ラッププリテンショナー回路の低抵抗,,Driver Lap Pretensioner Circuit Low Resistance,,93 42
+B1343,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席ラッププリテンショナーの地絡,,Driver Lap Pretensioner Shorted to Ground,,93 43
+B1344,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席ラッププリテンショナー回路の電源短絡,,Driver Lap Pretensioner Circuit Shorted to Power Supply,,93 44
+B1345,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席ラッププリテンショナー回路の高抵抗,,Passenger Lap Pretensioner Circuit High Resistance,,93 45
+B1346,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席ラッププリテンショナー回路の低抵抗,,Passenger Lap Pretensioner Circuit Low Resistance,,93 46
+B1347,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席ラッププリテンショナーの地絡,,Passenger Lap Pretensioner Shorted to Ground,,93 47
+B1348,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席ラッププリテンショナー回路の電源短絡,,Passenger Lap Pretensioner Circuit Shorted to Power Supply,,93 48
+B1361,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側カーテンエアバッグ回路の抵抗が高い,,Driver side curtain-air bag circuit resistance high,,93 61
+B1362,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側カーテンエアバッグ回路の抵抗が低い,,Driver side curtain-air bag circuit resistance low,,93 62
+B1363,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側カーテンエアバッグ回路の地絡,,Driver side curtain-air bag circuit short to ground,,93 63
+B1364,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席側カーテンエアバッグ回路の電源短絡,,Driver side curtain-air bag circuit short to power circuit,,93 64
+B1365,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側カーテンエアバッグ回路の抵抗が高い,,Passenger side curtain-air bag circuit resistance high,,93 65
+B1366,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側カーテンエアバッグ回路の抵抗が低い,,Passenger side curtain-air bag circuit resistance low,,93 66
+B1367,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側カーテンエアバッグ回路の地絡,,Passenger side curtain-air bag circuit short to ground,,93 67
+B1368,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側カーテンエアバッグ回路の電源短絡,,Passenger side curtain-air bag circuit short to power circuit,,93 68
+B1382,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席シートベルトバックルセンサー回路の断線,,Driver Seat Belt Buckle Sensor Circuit Open,,93 82
+B1383,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席シートベルトバックルセンサー回路の地絡,,Driver Seat Belt Buckle Sensor Circuit Shorted to Ground,,93 83
+B1385,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席シートベルトバックルセンサー回路の断線,,Driver Seat Belt Buckle Sensor Circuit Open,,93 85
+B1386,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席シートベルトバックルセンサー回路の地絡,,Passenger Seat Belt Buckle Sensor Circuit Shorted to Ground,,93 86
+B1390,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサーの応答なし(運転席側),,Side Rear Impact Sensor No Response (Driver Side),,93 90
+B1391,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサーの通信データ無効(運転席側),,Side Rear Impact Sensor Communication Data Invalid (Driver Side),,93 91
+B1392,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサー回路の地絡(運転席側),,Side Rear Impact Sensor Circuit Shorted to Ground (Driver Side),,93 92
+B1393,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサー回路の断線(運転席側),,Side Rear Impact Sensor Circuit Open (Driver Side),,93 93
+B1394,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサーの通信データ不整合(運転席側),,Side Rear Impact Sensor Communication Data Inconsistent (Driver Side),,93 94
+B1395,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサーの応答なし(助手席側),,Side Rear Impact Sensor No Response (Passenger Side),,93 95
+B1396,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサーの通信データ無効(助手席側),,Side Rear Impact Sensor Communication Data Invalid (Passenger Side),,93 96
+B1397,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサー回路の地絡(助手席側),,Side Rear Impact Sensor Circuit. Shorted to Ground (Passenger Side),,93 97
+B1398,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサー回路の断線(助手席側),,Side Rear Impact Sensor Circuit Open (Passenger Side),,93 98
+B1399,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,側面後部衝撃センサーの通信データ不整合(助手席側),,Side Rear Impact Sensor Communication Data Inconsistent (Passenger Side),,93 99
+B1411,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧低下(空気圧センサーNo.1),,Low Tire Pressure (Tire Pressure Sensor No.1),,94 11
+B1412,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧低下(空気圧センサーNo.2),,Low Tire Pressure (Tire Pressure Sensor No.2),,94 12
+B1413,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧低下(空気圧センサーNo.3),,Low Tire Pressure (Tire Pressure Sensor No.3),,94 13
+B1414,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧低下(空気圧センサーNo.4),,Low Tire Pressure (Tire Pressure Sensor No.4),,94 14
+B1421,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.1からのデータなし,,No Data From Tire Pressure Sensor No.1,,94 21
+B1422,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.2からのデータなし,,No Data From Tire Pressure Sensor No.2,,94 22
+B1423,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.3からのデータなし,,No Data From Tire Pressure Sensor No.3,,94 23
+B1424,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.4からのデータなし,,No Data From Tire Pressure Sensor No.4,,94 24
+B1431,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.1からの圧力信号が無効,,Invalid Pressure Signal From Tire Pressure Sensor No.1,,94 31
+B1432,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.2からの圧力信号が無効,,Invalid Pressure Signal From Tire Pressure Sensor No.2,,94 32
+B1433,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.3からの圧力信号が無効,,Invalid Pressure Signal From Tire Pressure Sensor No.3,,94 33
+B1434,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気圧センサーNo.4からの圧力信号が無効,,Invalid Pressure Signal From Tire Pressure Sensor No.4,,94 34
+B1441,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,状態が無効(空気圧センサーNo.1),,Invalid Status (Tire Pressure Sensor No.1),,94 41
+B1442,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,状態が無効(空気圧センサーNo.2),,Invalid Status (Tire Pressure Sensor No.2),,94 42
+B1443,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,状態が無効(空気圧センサーNo.3),,Invalid Status (Tire Pressure Sensor No.3),,94 43
+B1444,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,状態が無効(空気圧センサーNo.4),,Invalid Status (Tire Pressure Sensor No.4),,94 44
+B1451,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,IDコードが未登録,,No Registration of ID Code,,94 51
+B1461,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車速信号の入力なし,,No Input Vehicle Speed Signal,,94 61
+B1501,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,外気温センサー回路の異常,,Outside Air Temperature Sensor Circuit Malfunction,,95 01
+B1502,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,内気温センサー回路の異常,内気温センサーの信号電圧が規定値より高い;規定値より低い,Inside Air Temperature Sensor Circuit Malfunction,Signal voltage of inside air temperature sensor is higher than specification.; Signal voltage of inside air temperature sensor is lower than specification.,95 02
+B1503,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,エバポレーター温度センサー回路の異常,エバポレーター温度センサーの信号電圧が規定値より高い;規定値より低い,Evaporator Temperature Sensor Circuit Malfunction,Signal voltage of evaporator temperature sensor is higher than specification.; Signal voltage of evaporator temperature sensor is lower than specification.,95 03
+B1504,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,日射センサー回路の異常,日射センサーの信号電圧が規定値より低い;規定値より高い,Sun load Sensor Circuit Malfunction,Signal voltage of sun load sensor is lower than specification.; Signal voltage of sun load sensor is higher than specification.,95 04
+B1505,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側日射センサーおよび/またはその回路の異常,,Passenger Side Sunload Sensor and/or Its Circuit Malfunction,,95 05
+B1508,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,内気温センサー回路 高,,Inside Air Temperature Sensor Circuit High,,95 08
+B1509,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,内気温センサー回路 低,,Inside Air Temperature Sensor Circuit Low,,95 09
+B150A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,日射センサー 高,,Sun load sensor high,,95 0A
+B150B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,日射センサー 低,,Sun load sensor low,,95 0B
+B150C,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,温度調整アクチュエーター位置センサー回路 高,,Temperature Control Actuator Position Sensor Circuit High,,95 0C
+B150D,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,温度調整アクチュエーター位置センサー回路 低,,Temperature Control Actuator Position Sensor Circuit Low,,95 0D
+B1510,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,水温(ECT)センサーおよびその回路の異常,,Engine Coolant Temperature (ECT) Sensor and Its Circuit Malfunction,,95 10
+B1511,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,温度調整アクチュエーター(位置センサー)および/またはその回路の異常,温度調整アクチュエーター内蔵の位置センサーの信号電圧が規定値より高い;規定値より低い,Temperature Control Actuator (Position Sensor) and/or Its Circuit Malfunction,Signal voltage of position sensor included in temperature control actuator is higher than specification.; Signal voltage of position sensor included in temperature control actuator is lower than specification.,95 11
+B1512,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,吹出口切替アクチュエーター(位置センサー)および/またはその回路の異常,吹出口切替アクチュエーター内蔵の位置センサーの信号電圧が規定値より高い;規定値より低い,Air Flow Control Actuator (Position Sensor) and/or Its Circuit Malfunction,Signal voltage of position sensor included in airflow control actuator is higher than specification.; Signal voltage of position sensor included in airflow control actuator is lower than specification.,95 12
+B1513,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,温度調整アクチュエーターおよび/またはその回路の異常,温度調整アクチュエーターの実際の位置と目標位置にずれがある。,Temperature Control Actuator and/or Its Circuit Malfunction,Difference between actual temperature control actuator position and target temperature control actuator position.,95 13
+B1514,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,吹出口切替アクチュエーターおよび/またはその回路の異常,吹出口切替アクチュエーターの実際の位置と目標位置にずれがある。,Air Flow Control Actuator and/or Its Circuit Malfunction,Difference between actual air flow control actuator position and target air flow control actuator position.,95 14
+B1515,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側温度調整アクチュエーター(位置センサー)および/またはその回路の異常,,Passenger Side Temperature Control Actuator (Position Sensor) and/or Its Circuit Malfunction,,95 15
+B1517,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席側温度調整アクチュエーター(モーター)および/またはその回路の異常,,Passenger Side Temperature Control Actuator (Motor) and/or Its Circuit Malfunction,,95 17
+B1519,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,吹出口切替アクチュエーター位置センサー回路 高,,Air Flow Control Actuator Position Sensor Circuit High,,95 19
+B151A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,吹出口切替アクチュエーター位置センサー回路 低,,Air Flow Control Actuator Position Sensor Circuit Low,,95 1A
+B151B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,内外気切替アクチュエーター位置センサー回路 高,,Air Intake Control Actuator Position Sensor Circuit High,,95 1B
+B151C,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,内外気切替アクチュエーター位置センサー回路 低,,Air Intake Control Actuator Position Sensor Circuit Low,,95 1C
+B151D,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,空気清浄システムの異常,,Air purifier system abnormality,,95 1D
+B1520,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,温度設定スイッチの異常,HVAC制御モジュールの温度設定スイッチの信号電圧が規定値より高い;規定値より低い,Temperature Selector Malfunction,Signal voltage of temperature selector in HVAC control module is higher than specification.; Signal voltage of temperature selector in HVAC control module is lower than specification.,95 20
+B1521,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ブロワー風量切替スイッチの異常,HVAC制御モジュールのブロワー風量切替スイッチの信号電圧が規定値より高い;規定値より低い,Blower Speed Selector Malfunction,Signal voltage of blower speed selector in HVAC control module is higher than specification.; Signal voltage of blower speed selector in HVAC control module is lower than specification.,95 21
+B1522,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,吹出口切替スイッチの異常,HVAC制御モジュールの吹出口切替スイッチの信号電圧が規定値より高い;規定値より低い,Air Flow Selector Malfunction,Signal voltage of airflow selector in HVAC control module is higher than specification.; Signal voltage of airflow selector in HVAC control module is lower than specification.,95 22
+B1530,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,H/L:内外気切替アクチュエーター(位置センサー)および/またはその回路の異常,,H/L: Air Intake Control Actuator (Position Senser) and/or Its Circuit Malfunction,,95 30
+B1531,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,内外気切替アクチュエーターおよび/またはその回路の異常,,Air Intake Control Actuator and/or Its Circuit Malfunction,,95 31
+B1536,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,PTCヒーターリレーNo.1系の異常,,PTC heater relay NO.1 system abnormality,,95 36
+B1537,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,PTCヒーターリレーNo.2系の異常,,PTC heater relay NO.2 system abnormality,,95 37
+B1540,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パネルのバックアップ電源回路の異常,,Panel Back-Up Power Supply Circuit Malfunction,,95 40
+B1541,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バックアップ電源回路の異常,HVAC制御モジュールのバックアップ電源電圧が規定値より高いまたは低い。,Back-up Power Supply Circuit Malfunction,Back-up power supply voltage of HVAC control module is higher than or lower than specification.,95 41
+B1544,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,HVAC制御モジュールとオートエアコンパネル間のデータが不正,,Invalid Data between HVAC Control Module and Auto A/C Panel,,95 44
+B1545,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,オートエアコンパネル→オートエアコンコントローラーの通信受信データ異常,,Auto air conditioner panel → Auto air conditioner controller communication reception data error,,95 45
+B1546,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,A/C冷媒圧の異常,外気温センサーの信号電圧は規定値超なのに、A/C冷媒圧が規定値未満。,A/C Refrigerant Pressure Malfunction,"Signal voltage of outside air temperature sensor is more than specified value. However, A/C refrigerant pressure is less than specified value.",95 46
+B1549,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,BCMからオートエアコンパネルへのLIN不正データ,,LIN Invalid Data from BCM to Auto A/C Panel,,95 49
+B1550,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,HVAC制御モジュールとオートエアコンパネル間の通信喪失,,Lost Communication between HVAC Control Module and Auto A/C Panel,,95 50
+B1551,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,シリアル通信回路の異常,シリアル通信回路の電圧が規定値より高い;規定値より低い,Serial Communication Circuit Malfunction,Circuit voltage of serial communication circuit is higher than specification.; Circuit voltage of serial communication circuit is lower than specification.,95 51
+B1552,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,HVAC制御モジュールのチェックサムエラー,HVAC制御モジュールがBCMから規定外のデータを8回以上受信。,HVAC Control Module Check Sum Error,HVAC control module received unspecified data from BCM more than 8 times.,95 52
+B1553,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信回路の異常,HVAC制御モジュールがECMから受信エラーを示す信号を受信。,CAN Communication Circuit Malfunction,HVAC control module received signal indicating reception error from ECM.,95 53
+B1556,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,クランク角(CKP)センサーおよび/またはその回路の異常,,Crankshaft Position (CKP) Sensor and/or Its Circuit Malfunction,,95 56
+B1557,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車速(VSS)信号の異常,HVAC制御モジュールがBCMから不正な車速信号データを受信。,VSS Signal Failure,HVAC control module receives invalid data of VSS signal from BCM.,95 57
+B1561,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,水温信号の異常;水温センサーおよび/またはその回路の異常,HVAC制御モジュールがBCMから不正な車速信号データを受信。,ECT signal Failure; Engine Coolant Temperature Sensor and/or Its Circuit Malfunction,HVAC control module receives invalid data of VSS signal from BCM.,95 61
+B1562,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,外気温センサー信号の異常,HVAC制御モジュールがBCMから不正な外気温センサー信号データを受信。,Outside Temperature Sensor Signal Failure,HVAC control module receives invalid data of outside air temperature sensor signal from BCM.,95 62
+B1563,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,A/C冷媒圧センサー信号の異常,HVAC制御モジュールがBCMから不正なA/C冷媒圧センサー信号データを受信。,A/C Refrigerant Pressure Sensor Signal Failure,HVAC control module receives invalid data of A/C refrigerant pressure sensor signal from BCM.,95 63
+B1570,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,エンジン種別信号の異常,HVAC制御モジュールがBCMから不正なエンジン種別信号データを受信。,Engine Type Signal Failure,HVAC control module receives invalid data of engine type signal from BCM.,95 70
+B1571,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,コンビネーションメーター仕様信号の異常,HVAC制御モジュールがBCMから不正なコンビネーションメーター仕様信号データを受信。,Combination Meter Spec Signal Failure,HVAC control module receives invalid data of combination meter spec signal from BCM.,95 71
+B1580,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,EEPROMエラー,,EEPROM Error,,95 80
+B1581,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パネルのEEPROMエラー,,Panel EEPROM Error,,95 81
+B1650,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワーウィンドウ マスタースイッチの異常(運転席),,Power window master switch malfunction (Driver Window),,96 50
+B1651,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワーウィンドウ 助手席スイッチの異常,,Power window passenger switch malfunction,,96 51
+B1655,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワーウィンドウ マスタースイッチの異常(助手席),,Power window master switch malfunction (Passenger window),,96 55
+B1661,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワーウィンドウ 運転席モーターの異常,,Power window driver motor malfunction,,96 61
+B1662,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワーウィンドウ 助手席モーターの異常,,Power window passenger side motor malfunction,,96 62
+B1665,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,運転席パワーウィンドウが未初期化,,Driver power Window is not initialized,,96 65
+B1666,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,助手席パワーウィンドウが未初期化,,Passenger power window is not initialized,,96 66
+B1670,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,レイン/ライトセンサーの異常,BCMがレイン/ライトセンサー関連の異常を検出。,Rain/Light Sensor Malfunction,BCM detected malfunction related to rain/light sensor.,96 70
+B1671,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左パワースライドドア系の異常,,Left power slide door system abnormality,,96 71
+B1672,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右パワースライドドア系の異常,,Right power slide door system abnormality,,96 72
+B1680,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ECMからの不正なCANデータ,ECMがCAN通信で送った制御データに、BCMが異常を検出,CAN Invalid Data from ECM,BCM detected abnormality in control data transmitted by ECM through CAN communication,96 80
+B1681,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,TCMからの不正なCANデータ,TCMがCAN通信で送った制御データに、BCMが異常を検出,CAN Invalid Data from TCM,BCM detected abnormality in control data transmitted by TCM through CAN communication,96 81
+B1682,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,4WD制御モジュールからの不正なCANデータ,4WD制御モジュールがCAN通信で送った制御データに、BCMが異常を検出,CAN Invalid Data from 4WD Control Module,BCM detected abnormality in control data transmitted by 4WD control module through CAN communication,96 82
+B1683,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ヨーレート情報の不一致,BCMが計算した目標ヨーレートと、ESP制御モジュールからCANで送られた実ヨーレートの差が、規定時間連続して規定値より大きい,Yaw Rate Information Mismatched,Difference between target yaw rate calculated by BCM and actual yaw rate transmitted from ESP control module via CAN communication is continuously higher than specified value for specified time,96 83
+B1684,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワステ制御モジュールからの不正なCANデータ,パワステ制御モジュールがCAN通信で送った制御データに、BCMが異常を検出。,CAN Invalid Data from P/S Control Module,BCM detected abnormality in control data transmitted by P/S control module through CAN communication.,96 84
+B1685,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ESP制御モジュールからの不正なCANデータ,ESP制御モジュールからのESP作動信号が規定時間以上続く;ESP制御モジュールがCAN通信で送った制御データに、BCMが異常を検出。,CAN Invalid Data from ESP Control Module,ESP active signal from ESP control module continues for more than specified time; BCM detected abnormality in control data transmitted by ESP control module through CAN communication.,96 85
+B1686,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,前後Gセンサーからの不正なCANデータ,ESP制御モジュールがCAN通信で送った前後Gデータに、BCMが異常を検出。,CAN Invalid Data from Longitudinal G Sensor,BCM detected abnormality in longitudinal G data transmitted by ESP control module through CAN communication.,96 86
+B1687,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,横Gセンサーからの不正なCANデータ,ESP制御モジュールがCAN通信で送った横Gデータに、BCMが異常を検出。,CAN Invalid Data from Lateral Sensor,BCM detected abnormality in lateral G data transmitted by ESP control module through CAN communication.,96 87
+B1688,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ヨーレートセンサーからの不正なCANデータ,ESP制御モジュールがCAN通信で送ったヨーレートデータに、BCMが異常を検出。,CAN Invalid Data from Yaw Rate Sensor,BCM detected abnormality in yaw rate data transmitted by ESP control module through CAN communication.,96 88
+B1689,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車輪速センサーからの不正なCANデータ,ESP制御モジュールがCAN通信で送った車輪速データに、BCMが異常を検出。,CAN Invalid Data from Wheel Speed Sensor,BCM detected abnormality in wheel speed data transmitted by ESP control module through CAN communication.,96 89
+B1690,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,舵角センサーの異常,舵角センサーの異常を検出;舵角センサーのキャリブレーション未完了を検出。,Steering Angle Sensor Malfunction,Steering angle sensor malfunction is detected; Incomplete calibration of steering angle sensor is detected.,96 90
+B1691,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,舵角センサーからの不正なCANデータ,BCMが舵角センサーから異常なCAN通信データを受信。,CAN Invalid Data from Steering Angle Sensor,BCM received abnormal CAN communication data from steering angle sensor.,96 91
+B1692,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,舵角センサーからの不正なCANデータ,BCMが舵角センサーから異常なCAN通信データを受信。,CAN Invalid Data from Steering Angle Sensor,BCM received abnormal CAN communication data from steering angle sensor.,96 92
+B1693,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワステ制御モジュールからの不正なCANデータ,BCMがパワステ制御モジュールから異常なCAN通信データを受信。,CAN Invalid Data from P/S Control Module,BCM received abnormal CAN communication data from P/S control module.,96 93
+B1694,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パワステ制御モジュールからの不正なCANデータ,BCMがパワステ制御モジュールから異常なCAN通信データを受信。,CAN Invalid Data from P/S Control Module,BCM received abnormal CAN communication data from P/S control module.,96 94
+B1695,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ESP制御モジュールからの不正なCANデータ,BCMがESP制御モジュールから異常なCAN通信データを受信。,CAN Invalid Data from ESP Control Module,BCM received abnormal CAN communication data from ESP control module.,96 95
+B1696,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ESP制御モジュールからの不正なCANデータ,BCMがESP制御モジュールから異常なCAN通信データを受信。,CAN Invalid Data from ESP Control Module,BCM received abnormal CAN communication data from ESP control module.,96 96
+B1802,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,電源電圧が低すぎる,,Power supply voltage too low,,98 02
+B1803,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SET/CRUISE表示灯回路の異常,,SET/CRUISE indicator circuit malfunction,,98 03
+B1810,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,燃料レベルセンサー回路/断線,,Fuel level sensor circuit/open,,98 10
+B1811,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,燃料計回路の短絡,,Fuel level gauge circuit short circuit,,98 11
+B1820,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,制御モジュール内部のEEPROMエラー;コンビネーションメーター内部の異常。,,Internal control module EEPROM Error; Combination meter internal abnormality.,,98 20
+B1840,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車速データが不正,,Vehicle Speed Invalid Data,,98 40
+B1841,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,外気温データが不正,,Outside Air Temperature Invalid Data,,98 41
+B1842,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,燃料消費量データが不正,,Fuel Consumption Invalid Data,,98 42
+B1850,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,コンビネーションメーターとの通信喪失(コンビネーションメーター),,Lost Communication with Combination Meter (Combination Meter),,98 50
+B1852,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアパーキングセンサーの通信バスエラー,,Rear parking sensor communication bus error,,98 52
+B1855,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パーキングセンサーとの通信喪失,,Lost Communication with Parking Sensor,,98 55
+B1863,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右前パーキングセンサー,,Front-Right Parking Sensor,,98 63
+B1864,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左後パーキングセンサー,,Rear-Left Parking Sensor,,98 64
+B1865,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,後部中央左パーキングセンサー,,Rear-Center—Left Parking Sensor,,98 65
+B1866,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,後部中央右パーキングセンサー,,Rear—Center-Right Parking Sensor,,98 66
+B1867,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右後パーキングセンサー,,Rear-Right Parking Sensor,,98 67
+B1901,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,制御モジュール内部メモリーのチェックサムエラー,BCMの内部故障(チェックサムエラー)。,Internal Control Module Memory Check Sum Error,BCM internal failure. (check sum error),99 01
+B1902,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,制御モジュールのプログラミングエラー,BCMの内部故障(プログラミングエラー)。,Control Module Programming Error,BCM internal failure. (programming error),99 02
+B1950,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,制御モジュールのプログラミングエラー;オートレベリングコントローラー内部エラー,,Control Module Programming Error; Auto-leveling controller internal error,,99 50
+B1951,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,イグニッション電源電圧データの異常,,Ignition Power Supply Voltage Data Malfunction,,99 51
+B1952,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ウォッシャーモーター供給電圧回路,,Windshield Washer Motor Supply Voltage Circuit,,99 52
+B1956,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアハイトセンサーの異常,,Rear Height Sensor Error,,99 56
+B1957,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右ヘッドライト制御回路/断線,,Right Side Headlight Control Circuit / Open,,99 57
+B1958,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左ヘッドライト制御回路/断線,,Left Side Headlight Control Circuit / Open,,99 58
+B1967,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ハイトセンサーの初期設定が未実施,,Lack of Height Sensor Initial Setting,,99 67
+B1970,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車輪速センサーおよび/またはその回路の異常,,Wheel Speed Sensor and/or Its Circuit Malfunction,,99 70
+B1A00,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧 低,,Battery Voltage Low,,9A 00
+B1A01,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧 高,,Battery Voltage High,,9A 01
+B1A02,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,受信機回路の応答なし,,Receiver Circuit No Response,,9A 02
+B1A03,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,制御モジュール内部のEEPROMエラー,,Internal Control Module EEPROM Error,,9A 03
+B1A10,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧センサーの位置が検出されない,,Tire Pressure Sensor Location Not Detected,,9A 10
+B1A11,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧センサーIDコードの自動学習が未完了,,Auto Tire Pressure Sensor ID Code Learning Not Complete,,9A 11
+B1A20,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右前タイヤ空気圧センサーのデータエラー,,Right Front Tire Pressure Sensor Data Error,,9A 20
+B1A21,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左前タイヤ空気圧センサーのデータエラー,,Left Front Tire Pressure Sensor Data Error,,9A 21
+B1A22,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右後タイヤ空気圧センサーのデータエラー,,Right Rear Tire Pressure Sensor Data Error,,9A 22
+B1A23,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左後タイヤ空気圧センサーのデータエラー,,Left Rear Tire Pressure Sensor Data Error,,9A 23
+B1A24,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右前タイヤ空気圧センサーの電池電圧低下,,Right Front Tire Pressure Sensor Battery Voltage Low,,9A 24
+B1A25,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左前タイヤ空気圧センサーの電池電圧低下,,Left Front Tire Pressure Sensor Battery Voltage Low,,9A 25
+B1A26,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右後タイヤ空気圧センサーの電池電圧低下,,Right Rear Tire Pressure Sensor Battery Voltage Low,,9A 26
+B1A27,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左後タイヤ空気圧センサーの電池電圧低下,,Left Rear Tire Pressure Sensor Battery Voltage Low,,9A 27
+B1A28,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右前タイヤ空気圧センサーの温度が高すぎる,,Right Front Tire Pressure Sensor Temperature Too High,,9A 28
+B1A29,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左前タイヤ空気圧センサーの温度が高すぎる,,Left Front Tire Pressure Sensor Temperature Too High,,9A 29
+B1A2A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右後タイヤ空気圧センサーの温度が高すぎる,,Right Rear Tire Pressure Sensor Temperature Too High,,9A 2A
+B1A2B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左後タイヤ空気圧センサーの温度が高すぎる,,Left Rear Tire Pressure Sensor Temperature Too High,,9A 2B
+B1A2C,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右前タイヤ空気圧センサーからデータを受信しない,,No Data Received From Right Front Tire Pressure Sensor,,9A 2C
+B1A2D,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左前タイヤ空気圧センサーからデータを受信しない,,No Data Received From Left Front Tire Pressure Sensor,,9A 2D
+B1A2E,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右後タイヤ空気圧センサーからデータを受信しない,,No Data Received From Right Rear Tire Pressure Sensor,,9A 2E
+B1A2F,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左後タイヤ空気圧センサーからデータを受信しない,,No Data Received From Left Rear Tire Pressure Sensor,,9A 2F
+B1A30,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右前タイヤ空気圧の低下,,Right front tire pressure low,,9A 30
+B1A31,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左前タイヤ空気圧の低下,,Left front tire pressure low,,9A 31
+B1A32,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右後タイヤ空気圧の低下,,Right rear tire pressure low,,9A 32
+B1A33,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左後タイヤ空気圧の低下,,Left rear tire pressure low,,9A 33
+B1A40,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,タイヤ空気圧センサーが未学習/未書き込み,,Tire Pressure Sensor Not Learned/Programmed,,9A 40
+B1A41,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車両バリエーションデータが未書き込み,,Vehicle Variant Data Not Programmed,,9A 41
+B1A42,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車両バリエーションデータの不一致,,Vehicle Variant Data Mismatched,,9A 42
+B1A48,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車速データが誤り,,Vehicle Speed Wrong Data,,9A 48
+B1A49,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,車輪速センサーのデータが誤り,,Wheel Speed Sensor Wrong Data,,9A 49
+B1A80,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ライティング&ターンシグナルスイッチの性能,,Lighting and Turn Signal Switch Performance,,9A 80
+B1A81,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧が低すぎる,,Battery Voltage Too Low,,9A 81
+B1A82,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧が高すぎる,,Battery Voltage Too High,,9A 82
+B1AA0,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ライトスイッチ回路,,Lighting Switch Circuit,,9A A0
+B1AA1,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアフォグランプスイッチ ON固着,,Rear Fog Light Switch Stuck On,,9A A1
+B1AA2,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,パッシングスイッチ ON固着,,Passing Switch Stuck On,,9A A2
+B1AA3,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ターンシグナルスイッチ回路,,Turn Signal Switch Circuit,,9A A3
+B1AA4,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ディマー/パッシングスイッチ回路,,Dimmer/Passing Switch Circuit,,9A A4
+B1AB0,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,メーター(IPC)制御モジュールからの不正なCANデータ,,Can Invalid Data from Instrument Panel Cluster (IPC) Control Module,,9A B0
+B1AB1,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,ABS/ESP制御モジュールからの不正なCANデータ,,CAN Invalid Data from ABS/ESP Control Module,,9A B1
+B1B00,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,制御モジュールの性能,,Control Module Performance,,9B 00
+B1B01,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,EDR(イベントデータレコーダー)メモリーエラー,,EDR memory Error,,9B 01
+B1B02,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バッテリー電圧,,Battery Voltage,,9B 02
+B1B0A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,バックアップバッテリー電圧,,Backup Battery Voltage,,9B 0A
+B1B10,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,モデム回路,,Modem Circuit,,9B 10
+B1B12,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,モデムのネットワーク,,Modem Network,,9B 12
+B1B13,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,モデムの温度,,Modem Temperature,,9B 13
+B1B14,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,モデムのネットワーク未接続,,Modem Network Unconnected,,9B 14
+B1B21,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,GNSS(衛星測位)の動作,,Global Navigation Satellite System Operability,,9B 21
+B1B22,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,GNSS(衛星測位)信号を受信できない,,Global Navigation Satellite System Signal Not Received,,9B 22
+B1B2A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SIMカード,,Subscriber Identity Module Card,,9B 2A
+B1B30,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SOSスイッチ,,SOS Switch,,9B 30
+B1B31,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,マイク回路,,Microphone Circuit,,9B 31
+B1B32,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,スピーカー回路,,Speaker Circuit,,9B 32
+B1B33,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,LED回路,,LEDs Circuit,,9B 33
+B1B40,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,VINを受信していない,,VIN Not Received,,9B 40
+B1B41,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,VINの初期値を受信,,Initial VIN Value Received,,9B 41
+B1B42,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,VINが適合しない,,VIN Incompatible,,9B 42
+B1B46,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,輸送モードが選択されている,,Transport Mode Selected,,9B 46
+B1B4A,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,SDM信号,,SDM Signal,,9B 4A
+B1B4B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,乗員保護(拘束装置)制御モジュールからの不正なCANデータ,,CAN Invalid Data from Restraints Control Module,,9B 4B
+B1D00,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,コントローラー内部エラー,,Controller internal error,,9D 00
+B1D01,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,フロントカメラ信号の異常,,Front camera signal error,,9D 01
+B1D02,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,リアカメラ信号の異常,,Rear camera signal abnormality,,9D 02
+B1D03,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,左サイドカメラ信号の異常,,Left side camera signal error,,9D 03
+B1D04,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,右サイドカメラ信号の異常,,Right side camera signal error,,9D 04
+B1D06,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,カメラ電源系の異常,,Camera power system error,,9D 06
+B1D07,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,コントローラー電源の異常,,Controller power supply error,,9D 07
+B1D08,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,キャリブレーション未実施,,Not calibrated,,9D 08
+B1D09,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,舵角センサーのキャリブレーションが未完了,,Steering angle sensor calibration not completed,,9D 09
+B1D0B,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,コントローラー仕様の不一致,,Controller specification mismatch,,9D 0B
+B1D0F,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信 舵角センサーデータ,,CAN communication steering angle sensor data,,9D 0F
+B1D10,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信 ECMデータの異常,,CAN communication ECM data error,,9D 10
+B1D11,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信 TCMデータの異常,,CAN communication TCM data error,,9D 11
+B1D14,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信 ソナーコントローラーデータの異常,,CAN communication sonar controller data error,,9D 14
+B1D15,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信 ABS/ESPデータの異常,,CAN communication ABS / ESP data error,,9D 15
+B1D16,ボディ(エアバッグ/BCM/エアコン等),メーカー独自,CAN通信 ソナーコントローラーデータの一時的な異常,,CAN communication sonar controller data temporary error,,9D 16
+B3125,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),左前/運転席ドアのみ解錠回路,,Left Front/Driver Door Only Unlock Circuit,,B1 25
+B3130,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),全ドア解錠回路,,All Door Unlock Circuit,,B1 30
+B3135,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),全ドア施錠回路,,All Door Lock Circuit,,B1 35
+B3140,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),運転席解錠スイッチ回路,,Driver Unlock Switch Circuit,,B1 40
+B3145,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),助手席解錠スイッチ回路,,Passenger Unlock Switch Circuit,,B1 45
+B3150,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),運転席施錠スイッチ回路,,Driver Lock Switch Circuit,,B1 50
+B3155,ボディ(エアバッグ/BCM/エアコン等),汎用(SAE),右前施錠スイッチ回路,,Right Front Lock Switch Circuit,,B1 55
+U0073,通信(ネットワーク),汎用(SAE),制御モジュールの通信バスオフ,制御モジュールの送受信エラーが規定時間連続;送信データと送信モニター(CANバスモニター)データが一致しない送信エラーを30回以上連続して検出。,Control module communication bus off,Transmitting and receiving error of CM for specified time continuously.; Transmission error that is inconsistent between transmission data and transmission monitor (CAN bus monitor) data is detected more than 30 times continuously.,C0 73
+U0074,通信(ネットワーク),汎用(SAE),CAN通信バスオフエラー(HEV),,CAN communication bus off error (HEV),,C0 74
+U0075,通信(ネットワーク),汎用(SAE),制御モジュール通信バス「C」オフ,,"Control Module Communication Bus ""C"" Off",,C0 75
+U0100,通信(ネットワーク),汎用(SAE),ECM/PCMとの通信喪失,ECMからの受信エラーが規定時間連続,Lost communication with ECM/PCM,Receiving error of CM from ECM for specified time continuously,C1 00
+U0101,通信(ネットワーク),汎用(SAE),TCMとの通信喪失,BCMがTCMからの受信エラーを規定時間連続して検出,Lost communication with TCM,Receiving error of BCM from TCM for specified time continuously,C1 01
+U0114,通信(ネットワーク),汎用(SAE),4WD制御モジュールとの通信喪失,,Lost communication with 4WD control module,,C1 14
+U0121,通信(ネットワーク),汎用(SAE),ABS/ESP制御モジュールとの通信喪失,4WD制御モジュールがABS/ESP制御モジュールからの受信エラーを規定時間連続して検出,Lost communication with ABS / ESP control module,Receiving error of 4WD control module from ABS / ESP control module for specified time continuously,C1 21
+U0126,通信(ネットワーク),汎用(SAE),舵角センサーモジュール(SAS)との通信喪失,4WD制御モジュールが舵角センサーからの受信エラーを規定時間連続して検出;CAN通信に舵角センサーのメッセージデータがない。,Lost communication with steering angle sensor module (SAS),Receiving error of 4WD control module from steering angle sensor for specified time continuously; Steering angle sensor message data is missing from CAN communication.,C1 26
+U0131,通信(ネットワーク),汎用(SAE),パワステ制御モジュール(PS)との通信喪失,パワステ制御モジュールからのCANデータの受信エラーが規定時間連続。,Lost Communication with Power Steering Control Module (PS),Receiving error of the data from P/S control module via CAN for specified time continuously.,C1 31
+U0134,通信(ネットワーク),汎用(SAE),パワステ制御モジュールとの通信喪失,パワステ制御モジュールからのCANデータの受信エラーが規定時間連続。,Lost Communication with Power Steering Control Module,Receiving error of the data from P/S control module via CAN for specified time continuously.,C1 34
+U0140,通信(ネットワーク),汎用(SAE),ボディ制御モジュール(BCM)との通信喪失,BCMからの通信データの受信エラーを規定時間より長く連続して検出。,Lost Communication With Body Control Module (BCM),Reception error of communication data for BCM is detected for longer than specified time continuously.,C1 40
+U0141,通信(ネットワーク),汎用(SAE),ボディ制御モジュール「キーレススタート」との通信喪失,キーレススタート制御モジュールからのCANデータの受信エラーが規定時間連続。,"Lost. Communication with Body Control Module ""keyless start""",Receiving error of the data from keyless start control module via CAN for specified time continuously.,C1 41
+U0144,通信(ネットワーク),汎用(SAE),キーレススタート制御モジュールとの通信喪失,BCMがキーレススタート制御モジュールからの受信エラーを規定時間連続して検出,Lost Communication With Keyless Start Control Module,Receiving error of BCM from keyless start control module for specified time continuously,C1 44
+U0151,通信(ネットワーク),汎用(SAE),乗員保護(SRS)制御モジュールとの通信喪失,BCMが既定値で制御している。,Lost Communication with Restraints Control Module (SRS),BCM controls with default value.,C1 51
+U0155,通信(ネットワーク),汎用(SAE),メーター(IPC)制御モジュールとの通信喪失,コンビネーションメーターからの受信エラーが規定時間連続,Lost communication with instrument panel cluster (IPC) control module,Receiving error of CM from combination meter for specified time continuously,C1 55
+U0164,通信(ネットワーク),汎用(SAE),HVAC制御モジュールとの通信喪失,BCMが既定値で制御している。,Lost Communication with HVAC Control Module,BCM controls with default value.,C1 64
+U0199,通信(ネットワーク),汎用(SAE),CAN通信の受信エラー(左パワースライドドア),,CAN communication reception error (left power slide door),,C1 99
+U0200,通信(ネットワーク),汎用(SAE),CAN通信の受信エラー(右パワースライドドア),,CAN communication reception error (right power slide door),,C2 00
+U0231,通信(ネットワーク),汎用(SAE),レインセンサーモジュールとの通信喪失,BCMが既定値で制御している。,Lost Communication with Rain Sensing Module,BCM controls with default value.,C2 31
+U0293,通信(ネットワーク),汎用(SAE),CAN通信の受信エラー(HCU),,CAN communication reception error (HCU),,C2 93
+U1073,通信(ネットワーク),メーカー独自,制御モジュールの通信バスオフ,送信データと送信モニター(CANバスモニター)データが一致しない送信エラーを7回以上連続して検出,Control module communication bus off,Transmission error that is inconsistent between transmission data and transmission monitor (CAN bus monitor) data is detected more than 7 times continuously,D0 73
+U1082,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(エンジン自動停止),,CAN communication reception error (ENG A-STOP),,D0 82
+U108A,通信(ネットワーク),メーカー独自,RBS制御モジュールとの通信喪失,,Lost communication with RBS Control module,,D0 8A
+U108B,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(ライティング&ターンシグナルスイッチ),,CAN communication reception error (lighting & turn signal switch),,D0 8B
+U108C,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(ISG),,CAN communication reception error (ISG),,D0 8C
+U108D,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(インバーター),,CAN communication reception error (inverter),,D0 8D
+U108E,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(補助電源モジュール),,CAN communication reception error (auxiliary power supply module),,D0 8E
+U108F,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(DCBS),,CAN communication reception error (DCBS),,D0 8F
+U1092,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(バッテリーモジュール),,CAN communication reception error (battery module),,D0 92
+U1093,通信(ネットワーク),メーカー独自,DSBS制御モジュールとの通信喪失,,Lost Communication With DSBS Control Module,,D0 93
+U1094,通信(ネットワーク),メーカー独自,CAN通信の受信エラー(ソナーコントローラー),,CAN communication reception error (sonar controller),,D0 94
+U1100,通信(ネットワーク),メーカー独自,ECMとの通信喪失(受信エラー),CAN通信にECMのメッセージデータがない。,Lost communication with ECM (reception error),ECM message data is missing from CAN communication.,D1 00
+U1101,通信(ネットワーク),メーカー独自,TCMとの通信喪失(受信エラー),CAN通信にTCMのメッセージデータがない(AT車)。,Lost communication with TCM (reception error),TCM message data is missing from CAN communication. (for A/T model),D1 01
+U1139,通信(ネットワーク),メーカー独自,4WD制御モジュールとの通信喪失(受信エラー),CAN通信に4WD制御モジュールのメッセージデータがない(4WD制御モジュール装着車)。,Lost communication with 4WD control module (reception error),4WD control module message data is missing from CAN communication. (if equipped 4WD control module),D1 39
+U1140,通信(ネットワーク),メーカー独自,BCMとの通信喪失(受信エラー),CAN通信にBCMのメッセージデータがない。,Lost communication with BCM (reception error),BCM message data is missing from CAN communication.,D1 40
+U1144,通信(ネットワーク),メーカー独自,キーレススタート制御モジュールとの通信喪失,BCMがキーレススタート制御モジュールからの受信エラーを規定時間連続して検出,Lost communication with keyless start control module,Receiving error of BCM from keyless start control module for specified time continuously,D1 44
+U2001,通信(ネットワーク),メーカー独自,発電機とのLIN通信喪失,,LIN Lost Communication With Generator,,E0 01
+U2005,通信(ネットワーク),メーカー独自,オートエアコンパネルとのLIN通信喪失,,LIN Lost Communication With Auto A/C Panel,,E0 05
+U2021,通信(ネットワーク),メーカー独自,ECMから発電機へのLIN不正データ,,LIN Invalid Data from ECM to Generator,,E0 21
+U2022,通信(ネットワーク),メーカー独自,BMUが検出:LIN通信エラー,,BMU detection LIN communication error,,E0 22
+U2300,通信(ネットワーク),メーカー独自,ECU内部エラー(プログラム未書き込み),,ECU internal error (program not written),,E3 00

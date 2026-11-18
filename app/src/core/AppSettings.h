@@ -49,6 +49,9 @@ class AppSettings : public QObject {
     /** スマートフォン通知を画面上部のポップアップにも表示するか */
     Q_PROPERTY(bool phoneNoticePopupEnabled READ phoneNoticePopupEnabled WRITE setPhoneNoticePopupEnabled
                    NOTIFY phoneNoticePopupEnabledChanged)
+    /** メーターの針のなめらか表示を、メーターごとの設定に関係なくまとめて上書きする: 0 = 上書きしない(既定)/ 1 = すべてオン / 2 = すべてオフ */
+    Q_PROPERTY(int gaugeSmoothingOverride READ gaugeSmoothingOverride WRITE setGaugeSmoothingOverride
+                   NOTIFY gaugeSmoothingOverrideChanged)
 
 public:
     /**
@@ -66,6 +69,8 @@ public:
     int powerMode() const { return powerMode_; }
     QString powerModeStatus() const { return powerModeStatus_; }
     bool phoneNoticePopupEnabled() const { return phoneNoticePopupEnabled_; }
+    int gaugeSmoothingOverride() const { return gaugeSmoothingOverride_; }
+    void setGaugeSmoothingOverride(int mode);
     /** @brief そのフォントを別スレッドで読み込み中か(起動画面の「フォント」の段階の表示に使う)。 */
     bool isFontLoading(const QString &family) const { return loadingFamilies_.contains(family); }
 
@@ -98,6 +103,7 @@ signals:
     void numberItalicChanged();
     void powerModeChanged();
     void phoneNoticePopupEnabledChanged();
+    void gaugeSmoothingOverrideChanged();
     /** 別スレッドでのフォントの読み込みが終わった(files: 読んだファイル数、ms: かかった時間) */
     void fontLoadFinished(const QString &family, int files, qint64 ms);
 
@@ -143,6 +149,7 @@ private:
     int powerMode_ = 0;
     QString powerModeStatus_;
     bool phoneNoticePopupEnabled_ = false;
+    int gaugeSmoothingOverride_ = 0;
     QString originalPowerProfile_;
     /// まだ登録していない同梱フォントのファイル(ファミリ名 → ファイル)
     QHash<QString, QStringList> pendingFontFiles_;

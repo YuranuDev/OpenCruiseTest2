@@ -54,7 +54,7 @@ Rectangle {
         SettingsCategory { group: "sound";   icon: "volume_up";     title: "音量・出力先";   description: "マスター音量・各音量・出力先";           page: SettingsPageAudio {} },
         SettingsCategory { group: "sound";   icon: "music_note";    title: "効果音";         description: "操作音・起動音・警告音・注意音";         page: SettingsPageSounds {} },
         SettingsCategory { group: "sound";   icon: "mic";           title: "マイク";         description: "Android Auto の音声入力";                page: SettingsPageMicrophone {} },
-        SettingsCategory { group: "vehicle"; icon: "speed";         title: "車両データ";     description: "CAN のデータ源・ダミーデータ";           page: SettingsPageVehicle {} },
+        SettingsCategory { group: "vehicle"; icon: "speed";         title: "車両データ";     description: "データ元(ノード)・同じ項目の選び方・ダミー"; page: SettingsPageVehicle {} },
         SettingsCategory { group: "vehicle"; icon: "warning";       title: "警告・注意";     description: "条件を決めて音・通知で知らせる";         page: SettingsPageAlerts {} },
         SettingsCategory { group: "vehicle"; icon: "videocam";      title: "バックカメラ";   description: "自動の切り替え・カメラ・映し方";         page: SettingsPageCamera {} },
         SettingsCategory { group: "phone";   icon: "android";       title: "Android Auto";   description: "接続状態・ダミーデータ・映像・映像の配置";             page: SettingsPageAndroidAuto {} },

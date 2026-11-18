@@ -13,6 +13,7 @@ Item {
     // Android Auto の映像が出ている(=AA 画面へ戻れる)か
     property bool aaAvailable: false
     signal openSettings()
+    signal openVehicle()
     signal openAndroidAuto()
 
     // 画面サイズに合わせた拡大率。1280x720 を基準に、800x480 でも収まるようにする
@@ -108,16 +109,16 @@ Item {
             onClicked: root.showMock("オーディオ操作")
         }
         LauncherTile {
-            x: 3 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
+            x: 4 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
             // ウィジェットの編集モードに入る・出る(編集中は上に編集用のバー。追加もそこから)
             icon: "dashboard_customize"; title: root.editing ? "編集を終了" : "編集"
             selected: root.editing
             onClicked: root.setEditing(!root.editing)
         }
         LauncherTile {
-            x: 4 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
-            icon: "directions_car"; title: "車両連携"
-            onClicked: root.showMock("車両連携")
+            x: 3 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit
+            icon: "directions_car"; title: "車両"
+            onClicked: { root.setEditing(false); root.openVehicle() }
         }
         LauncherTile {
             x: 5 * (bar.cellW + root.gap); width: bar.cellW; height: bar.height; unit: root.unit

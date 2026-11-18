@@ -77,6 +77,7 @@
 #include "system/SystemStats.h"
 #include "system/ShutdownManager.h"
 #include "vehicle/VehicleDataManager.h"
+#include "vehicle/EcuData.h"
 #include "core/Log.h"
 #include "notification/NotificationManager.h"
 #include "androidauto/PhoneStatus.h"
@@ -316,6 +317,7 @@ static int runApplication(int argc, char *argv[]) {
     opencruise::DisplaySettings displaySettings; // 表示する画面・回転・描画の設定(設定「表示」)
     opencruise::DrmDisplay drmDisplay;           // eglfs での操作する画面と外部モニターへのミラー(設定「表示 > 外部モニター」)
     opencruise::VehicleDataManager can;
+    opencruise::EcuData ecu(&can);   // エンジン ECU(K-Line)の診断データ。今はダミー(can のダミーの車の動きから作る)
     opencruise::SystemStats systemStats; // CPU / GPU / メモリの使用状況(設定「システム」とフルスクリーンのメニュー)
     opencruise::NotificationManager notifications;
     opencruise::PhoneStatus phoneStatus;   // スマホのバッテリー・電波・通知(ウィジェット「スマホ状態」「スマホ通知」が読む)
@@ -454,6 +456,7 @@ static int runApplication(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("displaySettings"), &displaySettings);
     engine.rootContext()->setContextProperty(QStringLiteral("drmDisplay"), &drmDisplay);
     engine.rootContext()->setContextProperty(QStringLiteral("can"), &can);
+    engine.rootContext()->setContextProperty(QStringLiteral("ecu"), &ecu);
     engine.rootContext()->setContextProperty(QStringLiteral("systemStats"), &systemStats);
     engine.rootContext()->setContextProperty(QStringLiteral("notifications"), &notifications);
     engine.rootContext()->setContextProperty(QStringLiteral("phoneStatus"), &phoneStatus);

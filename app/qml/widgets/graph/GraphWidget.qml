@@ -14,7 +14,9 @@ WidgetBase {
     // ---------------------------------------------------------------- 計測値と単位
     readonly property string metric: WidgetRegistry.gaugeSpecs[config.metric] ? config.metric : "boost"
     // データ源があるか(無いときは「データなし」。履歴は Main.qml が捨てるので、線は描かれない)
-    readonly property bool hasData: can.dataAvailable
+    // ECU の計測値は、その項目の値が来ているか(このECUで出ない項目(FF)は「データなし」)
+    readonly property bool hasData: gauge && gauge.ecu ? (ecu.revision, ecu.has(gauge.ecu)) : VehicleSignals.has(metric)
+    readonly property bool mockData: gauge && gauge.ecu ? ecu.linkState === "mock" : VehicleSignals.isMock(metric)
     readonly property var gauge: WidgetRegistry.gaugeSpecs[metric]
     readonly property var unitDef: {
         const list = gauge.units
@@ -143,6 +145,7 @@ WidgetBase {
                 text: root.titleText(root.gauge.title)
             }
             Rectangle {   // データの状態の表示(ダミーデータ中は「モック」、データ源が無いときは「データなし」)
+                visible: !root.hasData || root.mockData
                 anchors.verticalCenter: parent.verticalCenter
                 width: mockText.implicitWidth + 12
                 height: mockText.implicitHeight + 4

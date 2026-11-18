@@ -332,20 +332,18 @@ ApplicationWindow {
         Binding { target: systemSound; property: "alertActive"; value: WarningAlarm.soundingCount > 0 }
 
         // グラフ用に、車両データ(メーターと同じ計測値。基本単位)を一定間隔で履歴へ入れる
+        // (車両信号は VehicleSignals でまとめた値。ECU と両方にある項目は、設定の選び方で選んだ方。
+        //  エンジン ECU だけの計測値も、来ている項目だけ一緒に入れる。ecu.numericValues())
         Timer {
             interval: VehicleHistory.sampleMs
-            running: can.dataAvailable   // データ源が無い間は記録しない
+            running: VehicleSignals.anyAvailable   // データ源が無い間は記録しない
             repeat: true
-            onTriggered: VehicleHistory.push({
-                boost: can.boostBar, rpm: can.rpm, speed: can.speedKmh, coolant: can.coolantTempC,
-                fuel: can.fuelPercent, oilTemp: can.oilTempC, oilPressure: can.oilPressureBar, voltage: can.batteryVolts,
-                throttle: can.throttlePercent, brake: can.brakePercent
-            })
+            onTriggered: VehicleHistory.push(Object.assign(ecu.numericValues(), VehicleSignals.values()))
         }
 
         Connections {
             target: can
-            function onDataAvailableChanged() { if (!can.dataAvailable) VehicleHistory.clear() }
+            function onDataAvailableChanged() { if (!can.dataAvailable && !ecu.available) VehicleHistory.clear() }
         }
 
         // 画面上部のポップアップ通知（映像表示中も最前面）
@@ -769,6 +767,7 @@ ApplicationWindow {
             immersive: window.immersive
             showAa: window.showAa
             onOpenSettings: stack.push(settingsComponent)
+            onOpenVehicle: stack.push(vehicleComponent)
             onGoHome: window.showAa = false
             onOpenAndroidAuto: window.showAa = true
         }
@@ -777,6 +776,14 @@ ApplicationWindow {
     Component {
         id: settingsComponent
         SettingsScreen {
+            onBack: stack.pop()
+        }
+    }
+
+    // 車両画面(メニューの「車両」。ECU の診断・故障コード・車両信号)
+    Component {
+        id: vehicleComponent
+        VehicleScreen {
             onBack: stack.pop()
         }
     }

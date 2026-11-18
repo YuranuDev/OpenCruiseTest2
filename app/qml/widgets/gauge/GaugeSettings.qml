@@ -125,6 +125,18 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
+            label: "針のなめらか表示"
+            description: (typeof appSettings !== "undefined" && appSettings && appSettings.gaugeSmoothingOverride !== 0
+                          ? "今は 設定 > 車両 > 車両データ の「まとめて上書き」で、すべて" + (appSettings.gaugeSmoothingOverride === 1 ? "オン" : "オフ") + "になっています。"
+                          : "")
+                         + "針と数値を、届いた値へ滑らかに動かします(更新の遅いデータは、値の間隔に合わせて動かします)。"
+                         + "オフにすると、届いた値をそのまま出します(遅れは無くなりますが、針は値が来るたびに飛びます)"
+            SettingsSwitch {
+                checked: root.config.smoothing !== false
+                onToggled: (v) => root.edit("smoothing", v)
+            }
+        }
+        SettingsRow {
             label: "オープニング表示"
             description: "針を最小値から最大値まで振ってから、今の値へ戻します。起動画面が消えたとき(データが来ていれば)と、データが無かったところへデータが来たときに行います"
             SettingsSwitch {

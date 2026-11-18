@@ -59,6 +59,7 @@ qt_add_executable(opencruise
     src/notification/NotificationHistoryModel.cpp
     src/audio/SystemSound.cpp
     src/vehicle/VehicleDataManager.cpp
+    src/vehicle/EcuData.cpp
     src/system/SystemStats.cpp
     src/system/ShutdownManager.cpp
     src/androidauto/PhoneStatus.cpp
@@ -71,7 +72,7 @@ qt_add_executable(opencruise
     src/androidauto/TestVideoFeeder.cpp)
 
 set_source_files_properties(qml/theme/Theme.qml qml/widgets/framework/WidgetRegistry.qml qml/services/WarningAlarm.qml
-    qml/services/AlertRules.qml qml/services/VehicleHistory.qml qml/widgets/decoration/DecorationEffects.qml
+    qml/services/AlertRules.qml qml/services/VehicleHistory.qml qml/services/VehicleSignals.qml qml/widgets/decoration/DecorationEffects.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(opencruise
@@ -85,6 +86,7 @@ qt_add_qml_module(opencruise
         qml/theme/Theme.qml
         qml/screens/HomeScreen.qml
         qml/screens/SettingsScreen.qml
+        qml/screens/VehicleScreen.qml
         qml/settings/SettingsCategory.qml
         qml/settings/SettingsCategoryButton.qml
         qml/settings/SettingsPage.qml
@@ -138,6 +140,7 @@ qt_add_qml_module(opencruise
         qml/widgets/framework/WidgetRegistry.qml
         qml/services/WarningAlarm.qml
         qml/services/AlertRules.qml
+        qml/services/VehicleSignals.qml
         qml/services/VehicleHistory.qml
         qml/widgets/framework/WidgetPages.qml
         qml/widgets/framework/PageBar.qml
@@ -184,6 +187,12 @@ qt_add_qml_module(opencruise
         resources/images/YuranuDev_Brush_Script_Logo.png
         resources/fonts/MaterialIcons-Regular.ttf
         resources/fonts/materialdesignicons-webfont.ttf)
+
+# エンジン ECU(K-Line)の故障コードの一覧(スズキ。EcuData が読む。:/ecu/suzuki_dtc_list.csv)
+qt_add_resources(opencruise "ecu_data"
+    PREFIX "/ecu"
+    BASE resources/data
+    FILES resources/data/suzuki_dtc_list.csv)
 
 target_include_directories(opencruise PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
