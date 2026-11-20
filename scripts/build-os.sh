@@ -2,7 +2,7 @@
 # OpenCruise 専用 OS(Yocto)のビルドウィザード。Yocto を知らなくても、質問に答えるだけで OS イメージまで作れる。
 #
 #   scripts/build-os.sh                ウィザード: 質問に答える → レイヤーを取得 → 設定を作る → ビルド → (USB メモリへ書き込み)
-#   scripts/build-os.sh --check        ビルドできる PC かを確かめるだけ(何も変えない)
+#   scripts/build-os.sh --check        ビルドできる PC かを確かめるだけ(何も変えない。ログも作らない)
 #   scripts/build-os.sh --build        前に答えた内容のまま、ビルドだけやり直す(途中から再開もこれ)
 #   scripts/build-os.sh --flash        できあがったイメージを USB メモリ / SSD へ書き込む(sudo を使う)
 #   scripts/build-os.sh --shell        Yocto(bitbake)を自分で触るためのシェルを開く
@@ -19,6 +19,8 @@
 #   <作業フォルダ>/sources/   Yocto 本体(OpenEmbedded-Core / BitBake)・meta-openembedded・meta-qt6・機種のレイヤー
 #   <作業フォルダ>/build/     ビルドの設定(conf/local.conf, conf/bblayers.conf)と成果物(tmp/deploy/images/<機種>/)
 #   <作業フォルダ>/opencruise-os.conf   ウィザードの答え(次回の既定になる)
+#   <作業フォルダ>/logs/      実行ログ。session-*.log = このスクリプトの記録(apt・git の出力も入る)
+#                             build-*.log = bitbake の出力 / parse.log / layers.log
 # このリポジトリの yocto/meta-opencruise が、OS の中身(イメージ・アプリのレシピ・自動起動など)。詳しくは yocto/README.md。
 #
 # 注意: 初回のビルドは数時間かかる(Qt6 と FFmpeg を自分でビルドするため)。2 回目からは sstate-cache が効いて速い。
@@ -29,6 +31,7 @@ REPO="$(cd "$HERE/.." && pwd)"
 LAYER="$REPO/yocto/meta-opencruise"
 TITLE="OpenCruise OS ビルドウィザード"
 
+ARGS="$*"
 WORKDIR="${OPENCRUISE_OS_WORKDIR:-$HOME/opencruise-yocto}"
 MODE=wizard
 ASSUME_YES=0
@@ -36,6 +39,8 @@ ACCEPT_LICENSES=0
 USE_TUI=1
 CONFIG_ONLY=0
 UPDATE=0
+SESSION_LOG=""      # このスクリプトの実行ログ(init_log で決まる。空ならログを書かない)
+ENV_CHANGED=0       # パッケージやロケールを入れたら 1(もう一度確かめ直すため)
 
 # 取得元(環境変数で差し替えられる。社内ミラーや試験用)
 URL_POKY="${OC_URL_POKY:-https://git.yoctoproject.org/poky}"
@@ -57,12 +62,19 @@ while [ $# -gt 0 ]; do
         --yes|-y) ASSUME_YES=1; shift ;;
         --accept-licenses) ACCEPT_LICENSES=1; shift ;;
         --no-tui) USE_TUI=0; shift ;;
-        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+        -h|--help) awk 'NR>1 && /^#/{sub(/^# ?/,""); print; next} NR>1{exit}' "$0"; exit 0 ;;
         *) echo "不明なオプション: $1(--help で使い方)" >&2; exit 2 ;;
     esac
 done
 
-die() { echo "エラー: $*" >&2; exit 1; }
+# ログ(SESSION_LOG が空のあいだは何もしない)
+log() { [ -n "$SESSION_LOG" ] && printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$SESSION_LOG"; return 0; }
+# コマンドを実行して、出力を画面とログの両方へ出す。戻り値はコマンドのもの
+run_logged() {
+    "$@" 2>&1 | tee -a "${SESSION_LOG:-/dev/null}"
+    return "${PIPESTATUS[0]}"
+}
+die() { echo "エラー: $*" >&2; log "ERROR $*"; exit 1; }
 [ "$(id -u)" -ne 0 ] || die "root では実行できません(BitBake は root を拒否します)。普通のユーザーで実行してください。必要なところだけ sudo を使います。"
 [ -n "$WORKDIR" ] || die "--workdir に作業フォルダを指定してください"
 case "$WORKDIR" in /*) ;; *) WORKDIR="$PWD/$WORKDIR" ;; esac
@@ -71,6 +83,20 @@ SOURCES="$WORKDIR/sources"
 BUILD="$WORKDIR/build"
 CONF="$WORKDIR/opencruise-os.conf"
 LOGS="$WORKDIR/logs"
+
+init_log() {
+    case "$MODE" in check|shell) return 0 ;; esac   # --check は何も変えない約束 / --shell は bitbake に渡すだけ
+    mkdir -p "$LOGS" 2>/dev/null || return 0
+    SESSION_LOG="$LOGS/session-$(date +%Y%m%d-%H%M%S).log"
+    {
+        echo "# build-os.sh の実行ログ"
+        echo "# 実行: $0 $ARGS"
+        echo "# 日時: $(date '+%F %T %z')  ユーザー: $(id -un)  ホスト: $(hostname 2>/dev/null)"
+        echo "# OS: $( [ -r /etc/os-release ] && . /etc/os-release && echo "${PRETTY_NAME:-?}" )"
+        echo "# モード: $MODE  作業フォルダ: $WORKDIR"
+    } > "$SESSION_LOG" 2>/dev/null || SESSION_LOG=""
+}
+init_log
 
 command -v whiptail >/dev/null 2>&1 || USE_TUI=0
 [ -t 0 ] && [ -t 1 ] || USE_TUI=0
@@ -138,10 +164,10 @@ ui_input() {   # ui_input 見出し 本文 既定値 → 入力された文字
 
 RESULTS="$(mktemp)"
 trap 'rm -f "$RESULTS"' EXIT
-ok()   { echo "  ✔ $*"; echo "OK|$*" >> "$RESULTS"; }
-ng()   { echo "  ✖ $*"; echo "NG|$*" >> "$RESULTS"; }
-info() { echo "  ・$*"; }
-step() { echo; echo "■ $*"; }
+ok()   { echo "  ✔ $*"; echo "OK|$*" >> "$RESULTS"; log "OK   $*"; }
+ng()   { echo "  ✖ $*"; echo "NG|$*" >> "$RESULTS"; log "NG   $*"; }
+info() { echo "  ・$*"; log "INFO $*"; }
+step() { echo; echo "■ $*"; log ""; log "=== $* ==="; }
 
 # ============================================================================ 答えの保存
 SAVED_KEYS="RELEASE MACHINE EXTRA_MACHINE_LAYER_URL TARGET STORAGE DEV_MODE AASDK SRC_MODE TIMEZONE RM_WORK FFMPEG_OK QT_BRANCH BITBAKE_BRANCH CORE_KIND"
@@ -155,9 +181,12 @@ save_conf() {
     { echo "# scripts/build-os.sh の答え(次回の既定。消してもよい)"
       local k; for k in $SAVED_KEYS; do printf '%s=%q\n' "$k" "${!k}"; done; } > "$CONF"
 }
+log_answers() { local k; for k in $SAVED_KEYS; do log "ANSWER $k=${!k}"; done; }
 
 # ============================================================================ 調べる
-HOST_PKGS="build-essential chrpath cpio debianutils diffstat file gawk gcc git iputils-ping libacl1 liblz4-tool locales python3 python3-git python3-jinja2 python3-pexpect python3-pip python3-subunit socat texinfo unzip wget xz-utils zstd"
+# ビルドに要るパッケージ(Yocto 公式の Ubuntu / Debian 用リスト)。
+# 「a|b」は、どちらかが入っていれば良いという意味(ディストリによって名前が違うもの。例: lz4 は新しい版では liblz4-tool の代わり)
+HOST_PKGS="build-essential chrpath cpio debianutils diffstat file gawk gcc git iputils-ping libacl1 lz4|liblz4-tool locales python3 python3-git python3-jinja2 python3-pexpect python3-pip python3-subunit socat texinfo unzip wget xz-utils zstd"
 is_debian() { [ -r /etc/os-release ] && grep -qiE '^ID(_LIKE)?=.*(debian|ubuntu)' /etc/os-release; }
 free_gb() { local d="$1"; while [ ! -d "$d" ]; do d="$(dirname "$d")"; done; df -Pk "$d" | awk 'NR==2{printf "%d", $4/1024/1024}'; }
 mem_gb() { awk '/MemTotal/{printf "%d", $2/1024/1024}' /proc/meminfo; }
@@ -165,17 +194,42 @@ has_branch() { git ls-remote --exit-code --heads "$1" "$2" >/dev/null 2>&1; }
 list_branches() { git ls-remote --heads "$1" 2>/dev/null | sed 's#.*refs/heads/##'; }
 series_bitbake() { case "$1" in scarthgap) echo 2.8 ;; styhead) echo 2.10 ;; walnascar) echo 2.12 ;; whinlatter) echo 2.14 ;; wrynose) echo 2.16 ;; *) echo "" ;; esac; }
 
+# --- パッケージの調べ方(dpkg / apt)
+pkg_installed() {   # pkg_installed "a|b" → どれかが入っていれば 0(「削除済み・設定だけ残り」は入っていない扱い)
+    local alt
+    for alt in ${1//|/ }; do
+        [ "$(dpkg-query -W -f='${db:Status-Status}' "$alt" 2>/dev/null)" = installed ] && return 0
+    done
+    return 1
+}
+pkg_has_candidate() {   # このディストリのリポジトリに、入れられる版があるか
+    local c; c="$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/{print $2; exit}')"
+    [ -n "$c" ] && [ "$c" != "(none)" ]
+}
+pkg_pick() {   # pkg_pick "a|b" → 入れられる最初の名前
+    local alt
+    for alt in ${1//|/ }; do pkg_has_candidate "$alt" && { echo "$alt"; return 0; }; done
+    return 1
+}
+MISSING_PKGS=()
+find_missing_packages() {
+    MISSING_PKGS=()
+    command -v dpkg-query >/dev/null 2>&1 || return 0
+    local p
+    for p in $HOST_PKGS; do pkg_installed "$p" || MISSING_PKGS+=("$p"); done
+}
+has_locale() { locale -a 2>/dev/null | grep -qiE '^en_US\.utf-?8$'; }
+
 do_check() {
     step "この PC がビルドできるか"
     local fails=0
     if is_debian; then ok "OS: $(. /etc/os-release; echo "$PRETTY_NAME")"; else ng "Debian / Ubuntu 以外です。Yocto の公式の手順で必要なパッケージを入れてください(ここでは自動で入れません)"; fi
-    local missing=() p
-    if is_debian && command -v dpkg >/dev/null 2>&1; then
-        for p in $HOST_PKGS; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
-        if [ "${#missing[@]}" -gt 0 ]; then ng "足りないパッケージ: ${missing[*]}"; fails=$((fails + 1)); else ok "ビルドに要るパッケージ(${HOST_PKGS%% *} ほか)はそろっています"; fi
+    if is_debian && command -v dpkg-query >/dev/null 2>&1; then
+        find_missing_packages
+        if [ "${#MISSING_PKGS[@]}" -gt 0 ]; then ng "足りないパッケージ: ${MISSING_PKGS[*]//|/ または }"; fails=$((fails + 1)); else ok "ビルドに要るパッケージ(${HOST_PKGS%% *} ほか)はそろっています"; fi
     fi
-    if locale -a 2>/dev/null | grep -qiE '^en_US\.utf-?8$'; then ok "ロケール en_US.UTF-8 があります"
-    else ng "ロケール en_US.UTF-8 がありません(BitBake が要求します): sudo locale-gen en_US.UTF-8 && sudo update-locale"; fails=$((fails + 1)); fi
+    if has_locale; then ok "ロケール en_US.UTF-8 があります"
+    else ng "ロケール en_US.UTF-8 がありません(BitBake が要求します)"; fails=$((fails + 1)); fi
     local fg; fg="$(free_gb "$WORKDIR")"
     if [ "$fg" -ge 100 ]; then ok "空き容量: ${fg}GB($WORKDIR)"
     elif [ "$fg" -ge 60 ]; then ok "空き容量: ${fg}GB(足りますが少なめです。rm_work(作業ファイルの自動削除)を使うと収まります)"
@@ -188,15 +242,85 @@ do_check() {
     return "$fails"
 }
 
+# 足りないパッケージを apt で入れる。
+#  ・apt-get update が一部失敗しても(壊れた外部リポジトリなど)、そのまま入れに進む
+#  ・この OS に無い名前は外して残りを入れる(1 つの名前違いで全部が失敗するのを防ぐ)
+#  ・まとめて失敗したら 1 つずつ入れ直し、本当に入らないものだけ報告する
 install_host_packages() {
     is_debian || return 0
-    local missing=() p
-    for p in $HOST_PKGS; do dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p"); done
-    [ "${#missing[@]}" -eq 0 ] && return 0
-    if ui_yesno "パッケージ" "ビルドに要るパッケージが足りません:\n\n${missing[*]}\n\nsudo apt で入れますか?" yes; then
-        sudo apt-get update -q && sudo apt-get install -y "${missing[@]}" && ok "パッケージを入れました" || { ng "パッケージを入れられませんでした"; return 1; }
-    else
+    command -v dpkg-query >/dev/null 2>&1 || return 0
+    find_missing_packages
+    [ "${#MISSING_PKGS[@]}" -eq 0 ] && return 0
+    local list="${MISSING_PKGS[*]}"
+    if ! ui_yesno "パッケージ" "ビルドに要るパッケージが足りません:\n\n${list//|/ または }\n\nsudo apt で入れますか?" yes; then
         ng "必要なパッケージが足りないまま進みます(ビルドで止まる場合があります)"
+        return 1
+    fi
+    if ! command -v sudo >/dev/null 2>&1; then
+        ng "sudo がありません。root で次を実行してください: apt-get install -y ${list//|/ }"
+        return 1
+    fi
+    # パスワードの入力は、ログに混ざらないうちに済ませる(認証できないとここで止める)
+    sudo -v || { ng "sudo の認証ができませんでした(パスワード・権限を確認)"; return 1; }
+    ENV_CHANGED=1
+
+    local apt_opts=(-o DPkg::Lock::Timeout=120)   # 自動更新が apt を使っていても最大 2 分待つ
+    info "パッケージの一覧を更新します(apt-get update)"
+    run_logged sudo apt-get update "${apt_opts[@]}" \
+        || info "apt-get update が失敗しました(一部のリポジトリに届かないだけなら、そのまま進みます)"
+
+    local spec pkg to_install=() no_candidate=()
+    for spec in "${MISSING_PKGS[@]}"; do
+        if pkg="$(pkg_pick "$spec")"; then to_install+=("$pkg"); else no_candidate+=("$spec"); fi
+    done
+    local rc=0
+    if [ "${#no_candidate[@]}" -gt 0 ]; then
+        ng "この OS のリポジトリに見つからないパッケージ: ${no_candidate[*]//|/ または }(別の方法で入れてください。ログ: ${SESSION_LOG:-なし})"
+        rc=1
+    fi
+    if [ "${#to_install[@]}" -gt 0 ]; then
+        info "入れます: ${to_install[*]}"
+        if run_logged sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${apt_opts[@]}" "${to_install[@]}"; then
+            ok "パッケージを入れました: ${to_install[*]}"
+        else
+            info "まとめては入れられませんでした。1 つずつ試します"
+            local p failed=()
+            for p in "${to_install[@]}"; do
+                run_logged sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${apt_opts[@]}" "$p" || failed+=("$p")
+            done
+            if [ "${#failed[@]}" -gt 0 ]; then
+                ng "入れられなかったパッケージ: ${failed[*]}(ログ: ${SESSION_LOG:-なし})"
+                rc=1
+            else
+                ok "パッケージを入れました: ${to_install[*]}"
+            fi
+        fi
+    fi
+    return "$rc"
+}
+
+# ロケール en_US.UTF-8 が無ければ作る(BitBake が要求する)
+fix_locale() {
+    has_locale && return 0
+    is_debian || return 0
+    if ! ui_yesno "ロケール" "ロケール en_US.UTF-8 がありません(BitBake が要求します)。\nsudo で作りますか?" yes; then
+        ng "ロケール en_US.UTF-8 が無いまま進みます(ビルドが止まります)"
+        return 1
+    fi
+    if ! command -v sudo >/dev/null 2>&1; then
+        ng "sudo がありません。root で locale-gen en_US.UTF-8 を実行してください"
+        return 1
+    fi
+    sudo -v || { ng "sudo の認証ができませんでした(パスワード・権限を確認)"; return 1; }
+    ENV_CHANGED=1
+    info "ロケール en_US.UTF-8 を作ります"
+    run_logged sudo sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+    grep -q '^en_US\.UTF-8 UTF-8' /etc/locale.gen 2>/dev/null || echo 'en_US.UTF-8 UTF-8' | sudo tee -a /etc/locale.gen >/dev/null
+    if run_logged sudo locale-gen && has_locale; then
+        ok "ロケール en_US.UTF-8 を作りました"
+    else
+        ng "ロケールを作れませんでした(locales パッケージが入っているか確認。ログ: ${SESSION_LOG:-なし})"
+        return 1
     fi
 }
 
@@ -247,6 +371,7 @@ ask_all() {
 
     ask_licenses
     save_conf
+    log_answers
 }
 
 ask_licenses() {
@@ -279,7 +404,7 @@ fetch_layer() {   # fetch_layer 名前 URL ブランチ フォルダ [full]
     info "$name を取得します(ブランチ $br)"
     local args=(--quiet --branch "$br")
     [ -z "$full" ] && args+=(--single-branch --depth 1)
-    if git clone "${args[@]}" "$url" "$dir"; then ok "$name を取得しました"; else ng "$name を取得できませんでした: $url"; return 1; fi
+    if run_logged git clone "${args[@]}" "$url" "$dir"; then ok "$name を取得しました"; else ng "$name を取得できませんでした: $url"; return 1; fi
 }
 
 # 取得先のブランチを確かめる。無ければ一覧から選んでもらう
@@ -479,7 +604,8 @@ do_build() {
     mkdir -p "$LOGS"
     local log; log="$LOGS/build-$(date +%Y%m%d-%H%M%S).log"
     info "レシピの確認(bitbake -p)。ここで落ちるときは、レシピ・レイヤーの設定の問題です"
-    if ! in_env bitbake -p 2>&1 | tee "$LOGS/parse.log" | tail -n 5; [ "${PIPESTATUS[0]}" -eq 0 ]; then
+    in_env bitbake -p 2>&1 | tee "$LOGS/parse.log" | tail -n 5
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
         ng "レシピの確認に失敗しました。ログ: $LOGS/parse.log(エラー行を調べてください)"; return 1
     fi
     ok "レシピの確認ができました"
@@ -522,6 +648,7 @@ do_flash() {
     if [ "$ASSUME_YES" -eq 1 ]; then die "書き込みは --yes では行いません(消してよいか、手で確認が要ります)"; fi
     read -r -p "$dev の中身は全部消えます。続けるなら、そのデバイス名($dev)をもう一度入力: " typed </dev/tty
     [ "$typed" = "$dev" ] || { info "入力が違うのでやめました"; return 1; }
+    log "FLASH 書き込み先: $dev  イメージ: $img"
     sudo umount "$dev"* 2>/dev/null || true
     local bmap="${img%.wic}.wic.bmap"
     [ -f "$bmap" ] || bmap="$(readlink -f "$img").bmap"
@@ -552,9 +679,14 @@ print_summary() {
     n_ok="$(grep -c '^OK|' "$RESULTS" || true)"; n_ng="$(grep -c '^NG|' "$RESULTS" || true)"
     grep '^NG|' "$RESULTS" | sed 's/^NG|/  ✖ /'
     echo "  成功 $n_ok / 失敗 $n_ng"
+    if [ -n "$SESSION_LOG" ]; then
+        log "終了: 成功 $n_ok / 失敗 $n_ng"
+        echo "  ログ: $SESSION_LOG"
+    fi
 }
 
 # ============================================================================ 本体
+log "開始: モード=$MODE"
 case "$MODE" in
     check)
         do_check; rc=$?; print_summary; exit "$rc" ;;
@@ -565,12 +697,22 @@ case "$MODE" in
         do_flash; rc=$?; print_summary; exit "$rc" ;;
     build)
         [ -f "$CONF" ] || die "まだ設定がありません。先にウィザードを実行してください"
+        log_answers
+        install_host_packages; fix_locale   # 足りなければ入れる(そろっていれば何もしない)
         do_fetch && do_config && do_build; rc=$?; print_summary; exit "$rc" ;;
     wizard)
         do_check; pre=$?
         if [ "$pre" -gt 0 ]; then
-            install_host_packages
-            if ! ui_yesno "確認" "上に ✖ が出ています。このまま続けますか?(足りないものがあると途中で止まります)" no; then exit 1; fi
+            install_host_packages; fix_locale
+            if [ "$ENV_CHANGED" -eq 1 ]; then
+                # 入れたあとの状態で確かめ直す(前の ✖ を引きずらない)
+                info "パッケージ・ロケールを入れたので、もう一度確かめます"
+                : > "$RESULTS"
+                do_check; pre=$?
+            fi
+            if [ "$pre" -gt 0 ] && ! ui_yesno "確認" "上に ✖ が出ています。このまま続けますか?(足りないものがあると途中で止まります)" no; then
+                print_summary; exit 1
+            fi
         fi
         ask_all
         ui_msg "確認" "この内容で進めます。\n\n・Yocto: $RELEASE\n・機械: $MACHINE${EXTRA_MACHINE_LAYER_URL:+ ($EXTRA_MACHINE_LAYER_URL)}\n・イメージ: $TARGET\n・ディスク: $STORAGE\n・開発用機能: $DEV_MODE\n・Android Auto: $AASDK\n・アプリのソース: $SRC_MODE\n・作業フォルダ: $WORKDIR"
