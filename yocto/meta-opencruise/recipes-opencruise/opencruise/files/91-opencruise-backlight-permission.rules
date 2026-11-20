@@ -1,0 +1,2 @@
+# OpenCruise: バックライトの明るさを video グループから書けるようにする(設定 > 表示 の明るさ・Ctrl+Shift+K / L)
+SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/chgrp video /sys%p/brightness", RUN+="/bin/chmod g+w /sys%p/brightness"

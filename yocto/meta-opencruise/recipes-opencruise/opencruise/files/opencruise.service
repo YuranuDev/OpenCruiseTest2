@@ -1,0 +1,40 @@
+# OpenCruise を tty1 で自動起動する(scripts/bootsplash/opencruise.service.in の Yocto 版)。
+# Plymouth(起動画面)の引き継ぎはまだ入れていない。Type=notify は、アプリが最初の 1 枚を描いたあとに READY=1 を送る。
+# アプリが落ち続けて止まったとき・正常に終了したときは、tty1 にログイン画面を出す(コンソールに戻れるように)。
+[Unit]
+Description=OpenCruise
+After=systemd-user-sessions.service sound.target getty@tty1.service
+Conflicts=getty@tty1.service
+OnFailure=getty@tty1.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=60
+User=opencruise
+Group=opencruise
+SupplementaryGroups=video audio input render plugdev dialout
+TTYPath=/dev/tty1
+TTYReset=no
+TTYVHangup=yes
+TTYVTDisallocate=no
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+RuntimeDirectory=opencruise
+RuntimeDirectoryMode=0700
+WorkingDirectory=/home/opencruise
+Environment="XDG_RUNTIME_DIR=/run/opencruise" "QT_QPA_PLATFORM=eglfs"
+EnvironmentFile=-/etc/opencruise/opencruise.env
+# アプリが起動して保存済みの明るさを書き込むまでは最大の明るさにする("$$" は systemd での "$")
+ExecStartPre=-+/bin/sh -c 'for d in /sys/class/backlight/*; do [ -r "$$d/max_brightness" ] && read m < "$$d/max_brightness" && echo "$$m" > "$$d/brightness"; done'
+ExecStart=/usr/bin/opencruise
+ExecStopPost=-+/bin/sh -c 'systemctl is-system-running 2>/dev/null | grep -qx stopping && exit 0; [ "$SERVICE_RESULT" = success ] && systemctl --no-block start getty@tty1.service || true'
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

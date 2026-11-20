@@ -1,0 +1,3 @@
+# OpenCruise: Android Auto のスマホを、アプリ(aasdk)が USB で開けるようにする。
+# 権限が無いと aasdk はエラーを出さずに無視するので「待機中」のまま進まない。専用機なので、メーカーを問わず plugdev に許可する。
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", MODE="0664", GROUP="plugdev"

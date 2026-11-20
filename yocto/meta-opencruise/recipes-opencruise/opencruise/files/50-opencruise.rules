@@ -1,0 +1,15 @@
+// OpenCruise: アプリのユーザーに、パスワードなしで電源を切る・再起動(ACC OFF の終了処理)を許可する
+polkit.addRule(function (action, subject) {
+    if (subject.user !== "opencruise") return polkit.Result.NOT_HANDLED;
+    var allowed = [
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.power-off-multiple-sessions",
+        "org.freedesktop.login1.power-off-ignore-inhibit",
+        "org.freedesktop.login1.reboot",
+        "org.freedesktop.login1.reboot-multiple-sessions",
+        "org.freedesktop.login1.reboot-ignore-inhibit",
+        "org.freedesktop.login1.halt",
+        "org.freedesktop.login1.halt-multiple-sessions"
+    ];
+    return allowed.indexOf(action.id) >= 0 ? polkit.Result.YES : polkit.Result.NOT_HANDLED;
+});
