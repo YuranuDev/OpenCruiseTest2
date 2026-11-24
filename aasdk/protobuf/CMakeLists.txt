@@ -65,6 +65,18 @@ else()
     if(NOT Protobuf_FOUND)
         find_package(Protobuf MODULE)
     endif()
+    # OpenCruise fix (cross builds such as Yocto): the target protobuf package is built without protoc, so its CMake package
+    # has no protobuf::protoc target. When the build passes the host protoc in Protobuf_PROTOC_EXECUTABLE, use that one
+    # (and prefer it over a protoc from the package, which would be a binary for the target and could not run on the host).
+    if(Protobuf_FOUND AND Protobuf_PROTOC_EXECUTABLE AND EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
+        if(NOT TARGET protobuf::protoc)
+            add_executable(protobuf::protoc IMPORTED)
+        endif()
+        set_target_properties(protobuf::protoc PROPERTIES
+            IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}"
+            IMPORTED_LOCATION_RELEASE "${Protobuf_PROTOC_EXECUTABLE}"
+            IMPORTED_LOCATION_NOCONFIG "${Protobuf_PROTOC_EXECUTABLE}")
+    endif()
     if(NOT Protobuf_FOUND OR NOT TARGET protobuf::protoc)
         message(FATAL_ERROR "Protobuf not found. Please install libprotobuf-dev and protobuf-compiler")
     endif()

@@ -21,18 +21,23 @@ PV = "0.1.0+git"
 OC_UNPACK = "${@d.getVar('UNPACKDIR') or d.getVar('WORKDIR')}"
 S = "${OC_UNPACK}/opencruise-src"
 
-# もし「cmake_qt6 が見つからない」と言われたら qt6-cmake に変える(meta-qt6 のバージョンで名前が違う場合)
-inherit cmake_qt6 pkgconfig systemd useradd
+# meta-qt6 6.11 / 6.12(wrynose 対応の版)には cmake_qt6 は無く、アプリも qt6-cmake を使う
+inherit qt6-cmake pkgconfig systemd useradd
 
-DEPENDS = "qtbase qtdeclarative qtmultimedia qtshadertools ffmpeg alsa-lib libdrm"
+DEPENDS = "qtbase qtdeclarative qtdeclarative-native qtmultimedia qtshadertools ffmpeg alsa-lib libdrm"
 
 # Android Auto(aasdk)。外すと UI だけのビルドになり、接続は「利用不可」と出る。
 # aasdk の protobuf 生成には、ホスト側の protoc(protobuf-native)が要る。Yocto の protobuf は新しく Abseil が要る。
+# ターゲット用の protobuf は protoc を作らない(CMake の設定に protobuf::protoc が無い)ので、Protobuf_PROTOC_EXECUTABLE で
+# ホスト側の protoc を渡す(aasdk/protobuf/CMakeLists.txt がそれで protobuf::protoc を作る)。
 PACKAGECONFIG ??= "aasdk"
 PACKAGECONFIG[aasdk] = "-DOPENCRUISE_ENABLE_AASDK=ON,-DOPENCRUISE_ENABLE_AASDK=OFF,boost libusb1 openssl protobuf protobuf-native abseil-cpp"
 
+# CMAKE_POLICY_VERSION_MINIMUM: wrynose の CMake は 4.x で、aasdk の cmake_modules/gitversion.cmake(cmake_minimum_required 3.0)を
+# そのままでは受け付けないため
 EXTRA_OECMAKE += " \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DOPENCRUISE_ENABLE_ALSA=ON \
     -DProtobuf_PROTOC_EXECUTABLE=${STAGING_BINDIR_NATIVE}/protoc \
 "
@@ -71,6 +76,7 @@ do_install() {
     # 車載 PC なので、蓋を閉じても・放っておいてもスリープしない
     install -d ${D}${sysconfdir}/systemd/logind.conf.d
     install -m 0644 ${OC_UNPACK}/opencruise-logind.conf ${D}${sysconfdir}/systemd/logind.conf.d/opencruise.conf
+    install -d ${D}${sysconfdir}/systemd/system
     for t in sleep suspend hibernate hybrid-sleep suspend-then-hibernate; do
         ln -sf /dev/null ${D}${sysconfdir}/systemd/system/$t.target
     done

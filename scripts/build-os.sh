@@ -1,55 +1,52 @@
-#!/bin/bash
-# OpenCruise 専用 OS(Yocto)のビルドウィザード。Yocto を知らなくても、質問に答えるだけで OS イメージまで作れる。
+#!/usr/bin/env bash
+# OpenCruise 専用 OS(Yocto)のビルドウィザード。質問に答えるだけで、PC の準備 → レイヤーの取得 → 設定 → ビルド →
+# USB メモリへの書き込みまで行う。Yocto を知らなくても使える。
 #
-#   scripts/build-os.sh                ウィザード: 質問に答える → レイヤーを取得 → 設定を作る → ビルド → (USB メモリへ書き込み)
-#   scripts/build-os.sh --check        ビルドできる PC かを確かめるだけ(何も変えない。ログも作らない)
-#   scripts/build-os.sh --build        前に答えた内容のまま、ビルドだけやり直す(途中から再開もこれ)
-#   scripts/build-os.sh --flash        できあがったイメージを USB メモリ / SSD へ書き込む(sudo を使う)
-#   scripts/build-os.sh --shell        Yocto(bitbake)を自分で触るためのシェルを開く
+#   scripts/build-os.sh              ウィザード(PC の確認 → 質問 → 取得 → 設定 → ビルド → 書き込み)
+#   scripts/build-os.sh --check      ビルドできる PC かを確かめるだけ(何も変えない)
+#   scripts/build-os.sh --build      前の答えのまま、取得・設定・ビルドをやり直す(途中からの再開もこれ)
+#   scripts/build-os.sh --flash      できたイメージを USB メモリ / SSD へ書き込む(sudo を使う)
+#   scripts/build-os.sh --shell      BitBake を自分で触るシェルを開く
+#   scripts/build-os.sh --status     今の答え・レイヤーの版・前回のビルドの結果を見る
 #
 # オプション:
-#   --workdir <フォルダ>   作業フォルダ(既定: ~/opencruise-yocto。100GB 以上の空きが要る。リポジトリの外に作る)
-#   --config-only          設定を作るところまでで止める(ビルドしない)
-#   --update               取得済みのレイヤーも最新にする
-#   --yes                  質問せず、前の答え(無ければおすすめ)で進む
-#   --accept-licenses      --yes のとき、FFmpeg のライセンス区分(commercial)を受け入れたことにする
-#   --no-tui               whiptail(画面のダイアログ)を使わず、文字の質問だけで進める
+#   --workdir <フォルダ>  作業フォルダ(既定: ~/opencruise-yocto。150GB 前後の空きが要る。リポジトリの外に作る)
+#   --config-only         設定を作るところまでで止める(ビルドしない)
+#   --update              レイヤーを各ブランチの最新にする(既定は layers.lock に記録した版に固定)
+#   --yes                 質問せず、前の答え(無ければおすすめ)で進む
+#   --accept-licenses     --yes のとき、FFmpeg のライセンス区分(commercial)を受け入れたことにする
+#   --no-tui              whiptail(画面のダイアログ)を使わず、文字の質問だけで進める
 #
-# 作るもの:
-#   <作業フォルダ>/sources/   Yocto 本体(OpenEmbedded-Core / BitBake)・meta-openembedded・meta-qt6・機種のレイヤー
-#   <作業フォルダ>/build/     ビルドの設定(conf/local.conf, conf/bblayers.conf)と成果物(tmp/deploy/images/<機種>/)
-#   <作業フォルダ>/opencruise-os.conf   ウィザードの答え(次回の既定になる)
-#   <作業フォルダ>/logs/      実行ログ。session-*.log = このスクリプトの記録(apt・git の出力も入る)
-#                             build-*.log = bitbake の出力 / parse.log / layers.log
-# このリポジトリの yocto/meta-opencruise が、OS の中身(イメージ・アプリのレシピ・自動起動など)。詳しくは yocto/README.md。
+# 作業フォルダの中身:
+#   sources/            openembedded-core・bitbake・meta-openembedded・meta-qt6・meta-intel
+#   build/conf/         bblayers.conf(このスクリプトが作る)/ auto.conf(答えから作る。毎回作り直す)/
+#                       local.conf(Yocto のひな形のまま。自分で足したい設定はここへ。auto.conf より後に読まれて優先される)
+#   build/tmp/deploy/images/<機種>/   できあがったイメージ
+#   downloads/ sstate-cache/          取得したソースとビルド済みの部品(消さなければ 2 回目から速い)
+#   opencruise-os.conf  答え(次回の既定)   layers.lock  使ったレイヤーの版(同じ版で作り直せる)
+#   logs/               session-*.log(このスクリプト)・build-*.log(bitbake)・failed-*.log(失敗した作業のログの写し)
 #
-# 注意: 初回のビルドは数時間かかる(Qt6 と FFmpeg を自分でビルドするため)。2 回目からは sstate-cache が効いて速い。
+# このリポジトリの yocto/meta-opencruise が OS の中身(イメージ・アプリのレシピ・自動起動)。詳しくは yocto/README.md。
+# Yocto は 6.0 "wrynose"(LTS)だけを対象にする(poky は wrynose から無くなったので、openembedded-core と bitbake を別に取る)。
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 LAYER="$REPO/yocto/meta-opencruise"
-TITLE="OpenCruise OS ビルドウィザード"
-
+TITLE="OpenCruise OS ビルド"
 ARGS="$*"
-WORKDIR="${OPENCRUISE_OS_WORKDIR:-$HOME/opencruise-yocto}"
-MODE=wizard
-ASSUME_YES=0
-ACCEPT_LICENSES=0
-USE_TUI=1
-CONFIG_ONLY=0
-UPDATE=0
-SESSION_LOG=""      # このスクリプトの実行ログ(init_log で決まる。空ならログを書かない)
-ENV_CHANGED=0       # パッケージやロケールを入れたら 1(もう一度確かめ直すため)
 
-# 取得元(環境変数で差し替えられる。社内ミラーや試験用)
-URL_POKY="${OC_URL_POKY:-https://git.yoctoproject.org/poky}"
+# ============================================================================ 固定の構成(確かめた組み合わせ)
+RELEASE="${OC_RELEASE:-wrynose}"
 URL_OECORE="${OC_URL_OECORE:-https://git.openembedded.org/openembedded-core}"
 URL_BITBAKE="${OC_URL_BITBAKE:-https://git.openembedded.org/bitbake}"
 URL_METAOE="${OC_URL_METAOE:-https://git.openembedded.org/meta-openembedded}"
 URL_QT6="${OC_URL_QT6:-https://code.qt.io/yocto/meta-qt6.git}"
 URL_INTEL="${OC_URL_INTEL:-https://git.yoctoproject.org/meta-intel}"
 
+# ============================================================================ 引数
+WORKDIR="${OPENCRUISE_OS_WORKDIR:-$HOME/opencruise-yocto}"
+MODE=wizard; ASSUME_YES=0; ACCEPT_LICENSES=0; USE_TUI=1; CONFIG_ONLY=0; UPDATE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --workdir) WORKDIR="${2:-}"; shift 2 ;;
@@ -57,6 +54,7 @@ while [ $# -gt 0 ]; do
         --build) MODE=build; shift ;;
         --flash) MODE=flash; shift ;;
         --shell) MODE=shell; shift ;;
+        --status) MODE=status; shift ;;
         --config-only) CONFIG_ONLY=1; shift ;;
         --update) UPDATE=1; shift ;;
         --yes|-y) ASSUME_YES=1; shift ;;
@@ -66,665 +64,537 @@ while [ $# -gt 0 ]; do
         *) echo "不明なオプション: $1(--help で使い方)" >&2; exit 2 ;;
     esac
 done
-
-# ログ(SESSION_LOG が空のあいだは何もしない)
-log() { [ -n "$SESSION_LOG" ] && printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$SESSION_LOG"; return 0; }
-# コマンドを実行して、出力を画面とログの両方へ出す。戻り値はコマンドのもの
-run_logged() {
-    "$@" 2>&1 | tee -a "${SESSION_LOG:-/dev/null}"
-    return "${PIPESTATUS[0]}"
-}
-die() { echo "エラー: $*" >&2; log "ERROR $*"; exit 1; }
-[ "$(id -u)" -ne 0 ] || die "root では実行できません(BitBake は root を拒否します)。普通のユーザーで実行してください。必要なところだけ sudo を使います。"
-[ -n "$WORKDIR" ] || die "--workdir に作業フォルダを指定してください"
+[ -n "$WORKDIR" ] || { echo "エラー: --workdir に作業フォルダを指定してください" >&2; exit 2; }
 case "$WORKDIR" in /*) ;; *) WORKDIR="$PWD/$WORKDIR" ;; esac
+WORKDIR="${WORKDIR%/}"
+SOURCES="$WORKDIR/sources"; BUILD="$WORKDIR/build"; LOGS="$WORKDIR/logs"
+CONF="$WORKDIR/opencruise-os.conf"; LOCK="$WORKDIR/layers.lock"
+CORE="$SOURCES/openembedded-core"
 
-SOURCES="$WORKDIR/sources"
-BUILD="$WORKDIR/build"
-CONF="$WORKDIR/opencruise-os.conf"
-LOGS="$WORKDIR/logs"
+# ============================================================================ 表示・ログ
+SESSION_LOG=""
+log() { [ -n "$SESSION_LOG" ] && printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$SESSION_LOG"; return 0; }
+NG_LIST=()
+ok()   { echo "  ✔ $*"; log "OK   $*"; }
+ng()   { echo "  ✖ $*"; log "NG   $*"; NG_LIST+=("$*"); }
+info() { echo "  ・$*"; log "INFO $*"; }
+step() { echo; echo "■ $*"; log "=== $* ==="; }
+die()  { echo "エラー: $*" >&2; log "ERROR $*"; exit 1; }
+run_logged() { "$@" 2>&1 | tee -a "${SESSION_LOG:-/dev/null}"; return "${PIPESTATUS[0]}"; }
 
 init_log() {
-    case "$MODE" in check|shell) return 0 ;; esac   # --check は何も変えない約束 / --shell は bitbake に渡すだけ
+    case "$MODE" in check|shell|status) return 0 ;; esac   # 何も変えないモードではログも作らない
     mkdir -p "$LOGS" 2>/dev/null || return 0
     SESSION_LOG="$LOGS/session-$(date +%Y%m%d-%H%M%S).log"
-    {
-        echo "# build-os.sh の実行ログ"
-        echo "# 実行: $0 $ARGS"
-        echo "# 日時: $(date '+%F %T %z')  ユーザー: $(id -un)  ホスト: $(hostname 2>/dev/null)"
-        echo "# OS: $( [ -r /etc/os-release ] && . /etc/os-release && echo "${PRETTY_NAME:-?}" )"
-        echo "# モード: $MODE  作業フォルダ: $WORKDIR"
-    } > "$SESSION_LOG" 2>/dev/null || SESSION_LOG=""
+    { echo "# build-os.sh: $0 $ARGS"
+      echo "# $(date '+%F %T %z')  $(id -un)@$(hostname 2>/dev/null)  $( [ -r /etc/os-release ] && . /etc/os-release && echo "${PRETTY_NAME:-?}" )"
+      echo "# モード: $MODE  作業フォルダ: $WORKDIR  リポジトリ: $REPO"; } > "$SESSION_LOG" 2>/dev/null || SESSION_LOG=""
 }
-init_log
 
 command -v whiptail >/dev/null 2>&1 || USE_TUI=0
-[ -t 0 ] && [ -t 1 ] || USE_TUI=0
-if [ "${TERM:-}" = linux ]; then
-    echo "注意: Linux のコンソール(tty)では日本語が表示されません。SSH かデスクトップの端末から実行してください。" >&2
-fi
-
-# ============================================================================ 画面(whiptail / 文字だけ。scripts/install.sh と同じ作り)
+{ [ -t 0 ] && [ -t 1 ]; } || USE_TUI=0
 TW=78; TH=22
 if command -v tput >/dev/null 2>&1; then
     c=$(tput cols 2>/dev/null || echo 80); l=$(tput lines 2>/dev/null || echo 24)
     [ "$c" -lt 80 ] && TW=$((c - 2)); [ "$l" -lt 24 ] && TH=$((l - 2))
 fi
-LH=$((TH - 9))
 
 ui_msg() {   # ui_msg 見出し 本文
     if [ "$ASSUME_YES" -eq 1 ]; then printf '\n== %s ==\n%b\n' "$1" "$2"; return; fi
     if [ "$USE_TUI" -eq 1 ]; then whiptail --title "$TITLE: $1" --msgbox "$2" "$TH" "$TW"; return; fi
-    printf '\n== %s ==\n%b\n' "$1" "$2"
-    read -r -p "Enter で次へ " _ </dev/tty
+    printf '\n== %s ==\n%b\n' "$1" "$2"; read -r -p "Enter で次へ " _ </dev/tty
 }
-ui_yesno() {   # ui_yesno 見出し 本文 [既定 yes|no] → 0 = はい
-    local def="${3:-yes}"
+ui_yesno() {   # ui_yesno 見出し 本文 [yes|no(既定)] → 0 = はい
+    local def="${3:-yes}" a
     if [ "$ASSUME_YES" -eq 1 ]; then [ "$def" = yes ]; return; fi
     if [ "$USE_TUI" -eq 1 ]; then
-        if [ "$def" = no ]; then whiptail --title "$TITLE: $1" --defaultno --yes-button "はい" --no-button "いいえ" --yesno "$2" "$TH" "$TW"
-        else whiptail --title "$TITLE: $1" --yes-button "はい" --no-button "いいえ" --yesno "$2" "$TH" "$TW"; fi
-        return
+        local extra=(); [ "$def" = no ] && extra=(--defaultno)
+        whiptail --title "$TITLE: $1" "${extra[@]}" --yes-button "はい" --no-button "いいえ" --yesno "$2" "$TH" "$TW"; return
     fi
-    local hint="[Y/n]"; [ "$def" = no ] && hint="[y/N]"
     printf '\n== %s ==\n%b\n' "$1" "$2"
-    local a; read -r -p "$hint " a </dev/tty
+    read -r -p "$([ "$def" = yes ] && echo '[Y/n]' || echo '[y/N]') " a </dev/tty
     case "${a:-}" in [Yy]*) return 0 ;; [Nn]*) return 1 ;; *) [ "$def" = yes ] ;; esac
 }
-# ui_menu 見出し 本文 既定のタグ タグ 説明 ... → 選んだタグ(やめたときは何も出さず 1 を返す)
-ui_menu() {
-    local title="$1" text="$2" def="$3"; shift 3
+ui_menu() {   # ui_menu 見出し 本文 既定のタグ タグ 説明 ... → 選んだタグ(やめたら 1)
+    local title="$1" text="$2" def="$3" a i=0; shift 3
     if [ "$ASSUME_YES" -eq 1 ]; then echo "$def"; return 0; fi
     if [ "$USE_TUI" -eq 1 ]; then
         whiptail --title "$TITLE: $title" --ok-button "決定" --cancel-button "やめる" --default-item "$def" \
-            --menu "$text" "$TH" "$TW" "$LH" "$@" 3>&1 1>&2 2>&3
-        return
+            --menu "$text" "$TH" "$TW" $((TH - 9)) "$@" 3>&1 1>&2 2>&3; return
     fi
     printf '\n== %s ==\n%b\n' "$title" "$text" >&2
-    local tags=() i=0 a
+    local tags=()
     while [ $# -ge 2 ]; do
         i=$((i + 1)); tags+=("$1")
-        printf '  %2d) %s%s\n' "$i" "$2" "$([ "$1" = "$def" ] && echo '  ← おすすめ')" >&2
-        shift 2
+        printf '  %d) %s%s\n' "$i" "$2" "$([ "$1" = "$def" ] && echo '  ← 今の選択')" >&2; shift 2
     done
-    read -r -p "番号(Enter でおすすめ): " a </dev/tty
+    read -r -p "番号(Enter で今の選択): " a </dev/tty
     if [[ "${a:-}" =~ ^[0-9]+$ ]] && [ "$a" -ge 1 ] && [ "$a" -le "${#tags[@]}" ]; then echo "${tags[$((a - 1))]}"; else echo "$def"; fi
 }
-ui_input() {   # ui_input 見出し 本文 既定値 → 入力された文字
-    local def="$3"
-    if [ "$ASSUME_YES" -eq 1 ]; then echo "$def"; return 0; fi
+ui_input() {   # ui_input 見出し 本文 既定値
+    local a
+    if [ "$ASSUME_YES" -eq 1 ]; then echo "$3"; return 0; fi
     if [ "$USE_TUI" -eq 1 ]; then
-        whiptail --title "$TITLE: $1" --ok-button "決定" --cancel-button "やめる" --inputbox "$2" "$TH" "$TW" "$def" 3>&1 1>&2 2>&3
-        return
+        whiptail --title "$TITLE: $1" --ok-button "決定" --cancel-button "やめる" --inputbox "$2" "$TH" "$TW" "$3" 3>&1 1>&2 2>&3; return
     fi
-    printf '\n== %s ==\n%b\n' "$1" "$2" >&2
-    local a; read -r -p "[$def] " a </dev/tty
-    echo "${a:-$def}"
+    printf '\n== %s ==\n%b\n' "$1" "$2" >&2; read -r -p "[$3] " a </dev/tty; echo "${a:-$3}"
 }
 
-RESULTS="$(mktemp)"
-trap 'rm -f "$RESULTS"' EXIT
-ok()   { echo "  ✔ $*"; echo "OK|$*" >> "$RESULTS"; log "OK   $*"; }
-ng()   { echo "  ✖ $*"; echo "NG|$*" >> "$RESULTS"; log "NG   $*"; }
-info() { echo "  ・$*"; log "INFO $*"; }
-step() { echo; echo "■ $*"; log ""; log "=== $* ==="; }
-
-# ============================================================================ 答えの保存
-SAVED_KEYS="RELEASE MACHINE EXTRA_MACHINE_LAYER_URL TARGET STORAGE DEV_MODE AASDK SRC_MODE TIMEZONE RM_WORK FFMPEG_OK QT_BRANCH BITBAKE_BRANCH CORE_KIND"
-# shellcheck disable=SC1090
-[ -f "$CONF" ] && . "$CONF"
-: "${RELEASE:=wrynose}" "${MACHINE:=intel-corei7-64}" "${EXTRA_MACHINE_LAYER_URL:=}" "${TARGET:=opencruise-image}"
-: "${STORAGE:=ro-home}" "${DEV_MODE:=yes}" "${AASDK:=yes}" "${SRC_MODE:=local}" "${TIMEZONE:=Asia/Tokyo}"
-: "${RM_WORK:=yes}" "${FFMPEG_OK:=no}" "${QT_BRANCH:=}" "${BITBAKE_BRANCH:=}" "${CORE_KIND:=}"
+# ============================================================================ 答え(次回の既定)
+KEYS="MACHINE TARGET ROOTFS DEV_MODE AASDK SRC_MODE TIMEZONE RM_WORK FFMPEG_OK"
+MACHINE=intel-corei7-64; TARGET=opencruise-image; ROOTFS=rw; DEV_MODE=yes; AASDK=yes
+SRC_MODE=local; TIMEZONE=Asia/Tokyo; RM_WORK=yes; FFMPEG_OK=no
+load_conf() {   # 知っているキーだけを読む(古い版の答えに入っていた RELEASE・STORAGE なども安全に無視する)
+    [ -f "$CONF" ] || return 0
+    local k v
+    while IFS='=' read -r k v; do
+        case " $KEYS STORAGE " in *" $k "*) ;; *) continue ;; esac
+        v="${v#\'}"; v="${v%\'}"
+        [ "$k" = STORAGE ] && { [ "$v" = ro-home ] && ROOTFS=ro || ROOTFS=rw; continue; }   # 以前の名前
+        printf -v "$k" '%s' "$v"
+    done < <(grep -E '^[A-Z_]+=' "$CONF")
+}
 save_conf() {
     mkdir -p "$WORKDIR"
     { echo "# scripts/build-os.sh の答え(次回の既定。消してもよい)"
-      local k; for k in $SAVED_KEYS; do printf '%s=%q\n' "$k" "${!k}"; done; } > "$CONF"
+      local k; for k in $KEYS; do printf '%s=%s\n' "$k" "${!k}"; done; } > "$CONF"
 }
-log_answers() { local k; for k in $SAVED_KEYS; do log "ANSWER $k=${!k}"; done; }
+show_answers() {
+    printf '・機種: %s\n・イメージ: %s\n・ルート: %s\n・開発用の機能: %s\n・Android Auto: %s\n・アプリのソース: %s\n・タイムゾーン: %s\n・作業ファイルの自動削除: %s\n' \
+        "$MACHINE" "$TARGET" "$([ "$ROOTFS" = ro ] && echo '読み取り専用 + /home' || echo '読み書きできる')" \
+        "$DEV_MODE" "$AASDK" "$([ "$SRC_MODE" = local ] && echo "このフォルダ($REPO)" || echo 'GitHub の main')" "$TIMEZONE" "$RM_WORK"
+}
 
-# ============================================================================ 調べる
-# ビルドに要るパッケージ(Yocto 公式の Ubuntu / Debian 用リスト)。
-# 「a|b」は、どちらかが入っていれば良いという意味(ディストリによって名前が違うもの。例: lz4 は新しい版では liblz4-tool の代わり)
+# ============================================================================ PC の確認と準備
+# Yocto 公式の Ubuntu / Debian 用の一覧。「a|b」はどちらかがあればよい(版によって名前が違う)
 HOST_PKGS="build-essential chrpath cpio debianutils diffstat file gawk gcc git iputils-ping libacl1 lz4|liblz4-tool locales python3 python3-git python3-jinja2 python3-pexpect python3-pip python3-subunit socat texinfo unzip wget xz-utils zstd"
 is_debian() { [ -r /etc/os-release ] && grep -qiE '^ID(_LIKE)?=.*(debian|ubuntu)' /etc/os-release; }
-free_gb() { local d="$1"; while [ ! -d "$d" ]; do d="$(dirname "$d")"; done; df -Pk "$d" | awk 'NR==2{printf "%d", $4/1024/1024}'; }
-mem_gb() { awk '/MemTotal/{printf "%d", $2/1024/1024}' /proc/meminfo; }
-has_branch() { git ls-remote --exit-code --heads "$1" "$2" >/dev/null 2>&1; }
-list_branches() { git ls-remote --heads "$1" 2>/dev/null | sed 's#.*refs/heads/##'; }
-series_bitbake() { case "$1" in scarthgap) echo 2.8 ;; styhead) echo 2.10 ;; walnascar) echo 2.12 ;; whinlatter) echo 2.14 ;; wrynose) echo 2.16 ;; *) echo "" ;; esac; }
-
-# --- パッケージの調べ方(dpkg / apt)
-pkg_installed() {   # pkg_installed "a|b" → どれかが入っていれば 0(「削除済み・設定だけ残り」は入っていない扱い)
-    local alt
-    for alt in ${1//|/ }; do
-        [ "$(dpkg-query -W -f='${db:Status-Status}' "$alt" 2>/dev/null)" = installed ] && return 0
-    done
-    return 1
+free_gb() { local d="$1"; while [ ! -d "$d" ]; do d="$(dirname "$d")"; done; df -Pk "$d" | awk 'NR==2{printf "%d", $4/1048576}'; }
+mem_gb() { awk '/MemTotal/{printf "%d", $2/1048576 + 0.5}' /proc/meminfo; }
+ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n 1)" = "$2" ]; }   # ver_ge 実際 最低 → 0 = 足りる
+pkg_installed() { local a; for a in ${1//|/ }; do [ "$(dpkg-query -W -f='${db:Status-Status}' "$a" 2>/dev/null)" = installed ] && return 0; done; return 1; }
+pkg_pick() {   # 入れられる最初の名前
+    local a c; for a in ${1//|/ }; do
+        c="$(apt-cache policy "$a" 2>/dev/null | awk '/Candidate:/{print $2; exit}')"
+        [ -n "$c" ] && [ "$c" != "(none)" ] && { echo "$a"; return 0; }
+    done; return 1
 }
-pkg_has_candidate() {   # このディストリのリポジトリに、入れられる版があるか
-    local c; c="$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/{print $2; exit}')"
-    [ -n "$c" ] && [ "$c" != "(none)" ]
-}
-pkg_pick() {   # pkg_pick "a|b" → 入れられる最初の名前
-    local alt
-    for alt in ${1//|/ }; do pkg_has_candidate "$alt" && { echo "$alt"; return 0; }; done
-    return 1
-}
-MISSING_PKGS=()
-find_missing_packages() {
-    MISSING_PKGS=()
-    command -v dpkg-query >/dev/null 2>&1 || return 0
-    local p
-    for p in $HOST_PKGS; do pkg_installed "$p" || MISSING_PKGS+=("$p"); done
-}
+missing_pkgs() { local p; for p in $HOST_PKGS; do pkg_installed "$p" || echo "$p"; done; }
 has_locale() { locale -a 2>/dev/null | grep -qiE '^en_US\.utf-?8$'; }
+# BitBake は作業ごとにネットワークを切るため、ユーザー名前空間を使う。Ubuntu 23.10 以降は AppArmor が普通のプログラムに
+# これを禁止していて、許可しないと「User namespaces are not usable by BitBake」で止まる
+userns_ok() { command -v unshare >/dev/null 2>&1 && unshare --user --map-root-user --net true 2>/dev/null; }
+APPARMOR_PROFILE=/etc/apparmor.d/opencruise-bitbake
 
 do_check() {
-    step "この PC がビルドできるか"
-    local fails=0
-    if is_debian; then ok "OS: $(. /etc/os-release; echo "$PRETTY_NAME")"; else ng "Debian / Ubuntu 以外です。Yocto の公式の手順で必要なパッケージを入れてください(ここでは自動で入れません)"; fi
+    step "この PC でビルドできるか"
+    local bad=0 v
+    if [ "$(id -u)" -eq 0 ]; then ng "root で実行しています(BitBake は root を拒否します。普通のユーザーで実行してください)"; bad=1; fi
+    if is_debian; then ok "OS: $(. /etc/os-release; echo "$PRETTY_NAME")"
+    else info "Debian / Ubuntu 以外です。必要なパッケージは Yocto の公式の手順で入れてください(自動では入れません)"; fi
+    v="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 0)"
+    if ver_ge "$v" 3.9; then ok "Python $v"; else ng "Python 3.9 以上が要ります(今: $v)"; bad=1; fi
+    v="$(gcc -dumpfullversion 2>/dev/null || gcc -dumpversion 2>/dev/null || echo 0)"
+    if ver_ge "$v" 10.1; then ok "gcc $v"; else ng "gcc 10.1 以上が要ります(今: $v)"; bad=1; fi
     if is_debian && command -v dpkg-query >/dev/null 2>&1; then
-        find_missing_packages
-        if [ "${#MISSING_PKGS[@]}" -gt 0 ]; then ng "足りないパッケージ: ${MISSING_PKGS[*]//|/ または }"; fails=$((fails + 1)); else ok "ビルドに要るパッケージ(${HOST_PKGS%% *} ほか)はそろっています"; fi
+        local miss; miss="$(missing_pkgs | tr '\n' ' ')"
+        if [ -z "$miss" ]; then ok "ビルドに要るパッケージはそろっています"; else ng "足りないパッケージ: ${miss//|/ または }"; bad=1; fi
     fi
-    if has_locale; then ok "ロケール en_US.UTF-8 があります"
-    else ng "ロケール en_US.UTF-8 がありません(BitBake が要求します)"; fails=$((fails + 1)); fi
-    local fg; fg="$(free_gb "$WORKDIR")"
-    if [ "$fg" -ge 100 ]; then ok "空き容量: ${fg}GB($WORKDIR)"
-    elif [ "$fg" -ge 60 ]; then ok "空き容量: ${fg}GB(足りますが少なめです。rm_work(作業ファイルの自動削除)を使うと収まります)"
-    else ng "空き容量が ${fg}GB しかありません(100GB 以上を推奨。作業フォルダは --workdir で別のディスクにできます)"; fails=$((fails + 1)); fi
-    local mg; mg="$(mem_gb)"
-    if [ "$mg" -ge 8 ]; then ok "メモリ: ${mg}GB / CPU: $(nproc) コア"; else ng "メモリが ${mg}GB です(8GB 以上を推奨。足りないとビルドが途中で落ちます。スワップを足してください)"; fi
-    if timeout 20 git ls-remote --heads "$URL_OECORE" >/dev/null 2>&1; then ok "ネットワーク: $URL_OECORE に届きます"
-    else ng "ネットワーク: $URL_OECORE に届きません(インターネット・プロキシを確認)"; fails=$((fails + 1)); fi
-    if [ -d "$LAYER" ]; then ok "OpenCruise のレイヤー: $LAYER"; else ng "レイヤーがありません: $LAYER"; fails=$((fails + 1)); fi
-    return "$fails"
+    if has_locale; then ok "ロケール en_US.UTF-8"; else ng "ロケール en_US.UTF-8 がありません(BitBake が要求します)"; bad=1; fi
+    if userns_ok; then ok "ユーザー名前空間が使えます(BitBake の作業のネットワーク分離)"
+    elif [ -f "$APPARMOR_PROFILE" ]; then ok "ユーザー名前空間: AppArmor に BitBake 用の許可があります($APPARMOR_PROFILE)"
+    else ng "ユーザー名前空間が使えません(Ubuntu 23.10 以降の AppArmor の制限。BitBake が止まります)"; bad=1; fi
+    v="$(free_gb "$WORKDIR")"
+    if [ "$v" -ge 150 ]; then ok "空き容量: ${v}GB($WORKDIR)"
+    elif [ "$v" -ge "${OC_MIN_FREE_GB:-90}" ]; then ok "空き容量: ${v}GB(少なめ。作業ファイルの自動削除を「はい」にすると足ります)"
+    else ng "空き容量が ${v}GB です(150GB 前後を推奨。--workdir で別のディスクにできます)"; bad=1; fi
+    v="$(mem_gb)"
+    if [ "$v" -ge 16 ]; then ok "メモリ ${v}GB / CPU $(nproc) コア"
+    elif [ "$v" -ge 8 ]; then ok "メモリ ${v}GB / CPU $(nproc) コア(少なめ。並列数を減らして進めます)"
+    else ng "メモリが ${v}GB です(8GB 以上が要ります。足りないと Qt のビルドで落ちます。スワップを足してください)"; fi
+    if timeout 30 git ls-remote --heads "$URL_OECORE" "$RELEASE" 2>/dev/null | grep -q .; then ok "ネットワーク: $URL_OECORE の $RELEASE に届きます"
+    else ng "ネットワーク: $URL_OECORE の $RELEASE に届きません(インターネット・プロキシを確認)"; bad=1; fi
+    if [ -f "$LAYER/conf/layer.conf" ]; then ok "OpenCruise のレイヤー: $LAYER"; else ng "レイヤーがありません: $LAYER"; bad=1; fi
+    case "$REPO$WORKDIR" in *" "*) ng "リポジトリか作業フォルダのパスに空白があります(BitBake が扱えません)"; bad=1 ;; esac
+    return "$bad"
 }
 
-# 足りないパッケージを apt で入れる。
-#  ・apt-get update が一部失敗しても(壊れた外部リポジトリなど)、そのまま入れに進む
-#  ・この OS に無い名前は外して残りを入れる(1 つの名前違いで全部が失敗するのを防ぐ)
-#  ・まとめて失敗したら 1 つずつ入れ直し、本当に入らないものだけ報告する
-install_host_packages() {
-    is_debian || return 0
-    command -v dpkg-query >/dev/null 2>&1 || return 0
-    find_missing_packages
-    [ "${#MISSING_PKGS[@]}" -eq 0 ] && return 0
-    local list="${MISSING_PKGS[*]}"
-    if ! ui_yesno "パッケージ" "ビルドに要るパッケージが足りません:\n\n${list//|/ または }\n\nsudo apt で入れますか?" yes; then
-        ng "必要なパッケージが足りないまま進みます(ビルドで止まる場合があります)"
-        return 1
-    fi
-    if ! command -v sudo >/dev/null 2>&1; then
-        ng "sudo がありません。root で次を実行してください: apt-get install -y ${list//|/ }"
-        return 1
-    fi
-    # パスワードの入力は、ログに混ざらないうちに済ませる(認証できないとここで止める)
-    sudo -v || { ng "sudo の認証ができませんでした(パスワード・権限を確認)"; return 1; }
-    ENV_CHANGED=1
+need_sudo() { command -v sudo >/dev/null 2>&1 || { ng "sudo がありません。root で: $1"; return 1; }; sudo -v || { ng "sudo の認証ができませんでした"; return 1; }; }
 
-    local apt_opts=(-o DPkg::Lock::Timeout=120)   # 自動更新が apt を使っていても最大 2 分待つ
-    info "パッケージの一覧を更新します(apt-get update)"
-    run_logged sudo apt-get update "${apt_opts[@]}" \
-        || info "apt-get update が失敗しました(一部のリポジトリに届かないだけなら、そのまま進みます)"
-
-    local spec pkg to_install=() no_candidate=()
-    for spec in "${MISSING_PKGS[@]}"; do
-        if pkg="$(pkg_pick "$spec")"; then to_install+=("$pkg"); else no_candidate+=("$spec"); fi
-    done
+fix_host() {   # 足りないものを入れる(そろっていれば何もしない)。直したら 0、直せないものがあれば 1
     local rc=0
-    if [ "${#no_candidate[@]}" -gt 0 ]; then
-        ng "この OS のリポジトリに見つからないパッケージ: ${no_candidate[*]//|/ または }(別の方法で入れてください。ログ: ${SESSION_LOG:-なし})"
-        rc=1
-    fi
-    if [ "${#to_install[@]}" -gt 0 ]; then
-        info "入れます: ${to_install[*]}"
-        if run_logged sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${apt_opts[@]}" "${to_install[@]}"; then
-            ok "パッケージを入れました: ${to_install[*]}"
-        else
-            info "まとめては入れられませんでした。1 つずつ試します"
-            local p failed=()
-            for p in "${to_install[@]}"; do
-                run_logged sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${apt_opts[@]}" "$p" || failed+=("$p")
-            done
-            if [ "${#failed[@]}" -gt 0 ]; then
-                ng "入れられなかったパッケージ: ${failed[*]}(ログ: ${SESSION_LOG:-なし})"
-                rc=1
-            else
-                ok "パッケージを入れました: ${to_install[*]}"
-            fi
+    if is_debian && command -v dpkg-query >/dev/null 2>&1; then
+        local miss=() p pick=() none=()
+        while read -r p; do [ -n "$p" ] && miss+=("$p"); done < <(missing_pkgs)
+        if [ "${#miss[@]}" -gt 0 ] && ui_yesno "パッケージ" "ビルドに要るパッケージが足りません:\n\n${miss[*]//|/ または }\n\nsudo apt で入れますか?" yes; then
+            if need_sudo "apt-get install ${miss[*]//|/ }"; then
+                run_logged sudo apt-get update -o DPkg::Lock::Timeout=120 || info "apt-get update が一部失敗しました(続けます)"
+                for p in "${miss[@]}"; do if q="$(pkg_pick "$p")"; then pick+=("$q"); else none+=("$p"); fi; done
+                [ "${#none[@]}" -eq 0 ] || { ng "この OS に無いパッケージ: ${none[*]//|/ または }"; rc=1; }
+                if [ "${#pick[@]}" -gt 0 ]; then
+                    run_logged sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -o DPkg::Lock::Timeout=120 "${pick[@]}" \
+                        && ok "入れました: ${pick[*]}" || { ng "パッケージを入れられませんでした(ログ: $SESSION_LOG)"; rc=1; }
+                fi
+            else rc=1; fi
         fi
+    fi
+    if ! has_locale && is_debian && ui_yesno "ロケール" "ロケール en_US.UTF-8 を作りますか?(sudo を使います)" yes; then
+        if need_sudo "locale-gen en_US.UTF-8"; then
+            sudo sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+            grep -q '^en_US\.UTF-8 UTF-8' /etc/locale.gen 2>/dev/null || echo 'en_US.UTF-8 UTF-8' | sudo tee -a /etc/locale.gen >/dev/null
+            run_logged sudo locale-gen && has_locale && ok "ロケール en_US.UTF-8 を作りました" || { ng "ロケールを作れませんでした"; rc=1; }
+        else rc=1; fi
+    fi
+    if ! userns_ok && [ -d /etc/apparmor.d ] && ui_yesno "AppArmor" "BitBake がユーザー名前空間を使えるよう、AppArmor に BitBake 用の許可を足しますか?\n($APPARMOR_PROFILE を作ります。sudo を使います。ほかのプログラムには影響しません)" yes; then
+        if need_sudo "AppArmor のプロファイルを作る"; then
+            # Yocto のドキュメントにある方法: bitbake の実行ファイルにだけ userns を許可する
+            printf '%s\n' 'abi <abi/4.0>,' 'include <tunables/global>' \
+                "profile opencruise-bitbake $SOURCES/bitbake/bin/bitbake flags=(unconfined) {" '  userns,' \
+                '  include if exists <local/opencruise-bitbake>' '}' | sudo tee "$APPARMOR_PROFILE" >/dev/null
+            if run_logged sudo apparmor_parser -r "$APPARMOR_PROFILE"; then ok "AppArmor に BitBake 用の許可を足しました($APPARMOR_PROFILE)"
+            else ng "AppArmor のプロファイルを読み込めませんでした"; rc=1; fi
+        else rc=1; fi
     fi
     return "$rc"
 }
-
-# ロケール en_US.UTF-8 が無ければ作る(BitBake が要求する)
-fix_locale() {
-    has_locale && return 0
-    is_debian || return 0
-    if ! ui_yesno "ロケール" "ロケール en_US.UTF-8 がありません(BitBake が要求します)。\nsudo で作りますか?" yes; then
-        ng "ロケール en_US.UTF-8 が無いまま進みます(ビルドが止まります)"
-        return 1
-    fi
-    if ! command -v sudo >/dev/null 2>&1; then
-        ng "sudo がありません。root で locale-gen en_US.UTF-8 を実行してください"
-        return 1
-    fi
-    sudo -v || { ng "sudo の認証ができませんでした(パスワード・権限を確認)"; return 1; }
-    ENV_CHANGED=1
-    info "ロケール en_US.UTF-8 を作ります"
-    run_logged sudo sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
-    grep -q '^en_US\.UTF-8 UTF-8' /etc/locale.gen 2>/dev/null || echo 'en_US.UTF-8 UTF-8' | sudo tee -a /etc/locale.gen >/dev/null
-    if run_logged sudo locale-gen && has_locale; then
-        ok "ロケール en_US.UTF-8 を作りました"
-    else
-        ng "ロケールを作れませんでした(locales パッケージが入っているか確認。ログ: ${SESSION_LOG:-なし})"
-        return 1
-    fi
-}
+# AppArmor の許可は bitbake の実行ファイルにだけ効くので、PC 全体の確認(unshare)では見えない。プロファイルの有無で見る
+apparmor_ready() { userns_ok || [ -f "$APPARMOR_PROFILE" ]; }
 
 # ============================================================================ 質問
 ask_all() {
-    ui_msg "はじめに" "OpenCruise 専用の OS(Yocto)を作ります。\n\n・作業フォルダ: $WORKDIR\n・初回のビルドは数時間かかります(Qt6 や FFmpeg を自分でビルドするため)\n・必要な空き容量は 100GB 前後です\n\nわからない質問は Enter(おすすめ)で進めて大丈夫です。"
-
-    RELEASE="$(ui_menu "Yocto のバージョン" "Yocto のどの版で作りますか?(LTS = 長く保守される版)" "$RELEASE" \
-        wrynose "wrynose (6.0 LTS) 新しい。おすすめ" \
-        scarthgap "scarthgap (5.0 LTS) 実績がある。このレイヤーでは未検証")" || die "やめました"
-
-    MACHINE="$(ui_menu "動かす機械" "この OS を動かす機械は?" "$( [ "$MACHINE" = qemux86-64 ] && echo qemux86-64 || { [ "$MACHINE" = intel-corei7-64 ] && echo intel-corei7-64 || echo custom; } )" \
-        intel-corei7-64 "Intel の x86_64 PC の実機(CF-MX5 など)。おすすめ" \
-        qemux86-64 "PC なしで試す(QEMU の仮想マシン)" \
-        custom "そのほか(機種の名前と、必要ならそのレイヤーを自分で指定)")" || die "やめました"
-    if [ "$MACHINE" = custom ]; then
-        MACHINE="$(ui_input "機種の名前" "Yocto の MACHINE 名を入力してください(例: raspberrypi4-64)。" "raspberrypi4-64")" || die "やめました"
-        EXTRA_MACHINE_LAYER_URL="$(ui_input "機種のレイヤー" "その機種の BSP レイヤーの git の URL を入力してください(例: https://git.yoctoproject.org/meta-raspberrypi)。\n要らないときは空のままにします。" "$EXTRA_MACHINE_LAYER_URL")" || die "やめました"
-    else
-        EXTRA_MACHINE_LAYER_URL=""
-    fi
-
+    ui_msg "はじめに" "OpenCruise 専用の OS(Yocto $RELEASE)を作ります。\n\n・作業フォルダ: $WORKDIR\n・初回のビルドは数時間かかります(Qt6 と FFmpeg を自分でビルドするため)\n・空き容量は 150GB 前後が要ります\n\nわからない質問は Enter(今の選択)で進めて大丈夫です。"
+    MACHINE="$(ui_menu "動かす機械" "この OS を動かす機械は?" "$MACHINE" \
+        intel-corei7-64 "Intel の x86_64 PC の実機(CF-MX5 など)" \
+        qemux86-64 "PC なしで試す(QEMU の仮想マシン)")" || die "やめました"
     TARGET="$(ui_menu "作るもの" "どのイメージを作りますか?" "$TARGET" \
-        opencruise-image "OpenCruise 専用(Qt のベース + OpenCruise アプリ + 自動起動)。おすすめ" \
-        qt-appliance-image "Qt6 のベースだけ(ほかの Qt アプリを載せる土台)")" || die "やめました"
-
+        opencruise-image "OpenCruise 専用(Qt のベース + アプリ + 自動起動)" \
+        qt-appliance-image "Qt6 のベースだけ(アプリなし。土台の確認用)")" || die "やめました"
     if [ "$MACHINE" = intel-corei7-64 ]; then
-        STORAGE="$(ui_menu "ディスクの使い方" "車載は電源が急に切れるので、ルートを読み取り専用にして、書き込みを /home だけにすると壊れにくくなります。" "$STORAGE" \
-            ro-home "ルートは読み取り専用 + /home は書き込み用(設定・ログ・背景画像)。おすすめ" \
-            rw "普通の読み書きできるルート(試すとき・うまく動かないとき)")" || die "やめました"
-    else
-        STORAGE=rw
-    fi
-
-    DEV_MODE="$(ui_menu "開発用の機能" "SSH とパスワードなしの root ログインを入れますか?(実機で動かしながら直すときに便利。安全のため、完成品では外します)" "$DEV_MODE" \
-        yes "入れる(開発用。おすすめ)" \
-        no "入れない(完成品)")" || die "やめました"
-
-    if ui_yesno "Android Auto" "Android Auto の接続(aasdk)を OS に含めますか?\n\n「いいえ」だと UI だけのビルドで、接続は「利用不可」と表示されます(protobuf まわりでビルドが止まるときの逃げ道にもなります)。" "$([ "$AASDK" = yes ] && echo yes || echo no)"; then AASDK=yes; else AASDK=no; fi
-
+        ROOTFS="$(ui_menu "ルートの書き込み" "車載は電源が急に切れるので、ルートを読み取り専用にして書き込みを /home だけにすると壊れにくくなります。\nまずは「読み書きできる」で動くことを確かめてから切り替えるのがおすすめです。" "$ROOTFS" \
+            rw "読み書きできる(まずはこちら)" \
+            ro "読み取り専用 + /home は書き込み用(設定・ログ・背景画像)")" || die "やめました"
+    else ROOTFS=rw; fi
+    DEV_MODE="$(ui_menu "開発用の機能" "SSH とパスワードなしの root ログインを入れますか?(実機で直しながら動かすときに便利。完成品では外します)" "$DEV_MODE" \
+        yes "入れる(開発用)" no "入れない(完成品)")" || die "やめました"
+    if ui_yesno "Android Auto" "Android Auto の接続(aasdk)を含めますか?\n\n「いいえ」だと UI だけのビルドになり、接続は「利用不可」と出ます(protobuf まわりで止まるときの逃げ道)。" "$AASDK"; then AASDK=yes; else AASDK=no; fi
     SRC_MODE="$(ui_menu "アプリのソース" "OpenCruise アプリのソースはどこから取りますか?" "$SRC_MODE" \
-        local "このフォルダ($REPO)の中身。手元の修正がそのまま入る。おすすめ" \
+        local "このフォルダ($REPO)。手元の修正がそのまま入る" \
         git "GitHub の main の最新(手元の修正は入らない)")" || die "やめました"
-
-    TIMEZONE="$(ui_input "タイムゾーン" "OS のタイムゾーンを入力してください。" "$TIMEZONE")" || die "やめました"
-
-    if ui_yesno "ディスクの節約" "ビルドが終わった部品の作業ファイルを自動で消しますか?(rm_work。空き容量が 1/3 ほどで済みます。ビルドが失敗したときの調査はしにくくなります)" "$([ "$RM_WORK" = yes ] && echo yes || echo no)"; then RM_WORK=yes; else RM_WORK=no; fi
-
+    TIMEZONE="$(ui_input "タイムゾーン" "OS のタイムゾーン" "$TIMEZONE")" || die "やめました"
+    if ui_yesno "ディスクの節約" "ビルドが終わった部品の作業ファイルを自動で消しますか?(rm_work。容量が 1/3 ほどで済みます。失敗の調査はしにくくなります)" "$RM_WORK"; then RM_WORK=yes; else RM_WORK=no; fi
     ask_licenses
     save_conf
-    log_answers
 }
-
 ask_licenses() {
-    if [ "$FFMPEG_OK" = yes ]; then return 0; fi
+    [ "$FFMPEG_OK" = yes ] && return 0
     if [ "$ASSUME_YES" -eq 1 ]; then
-        if [ "$ACCEPT_LICENSES" -eq 1 ]; then FFMPEG_OK=yes; return 0; fi
+        [ "$ACCEPT_LICENSES" -eq 1 ] && { FFMPEG_OK=yes; return 0; }
         die "FFmpeg のライセンス区分(commercial)の受け入れが要ります。--accept-licenses を付けるか、ウィザードで答えてください。"
     fi
-    if ui_yesno "ライセンス" "OpenCruise は H.264 の映像のデコードに FFmpeg を使います。\nYocto では FFmpeg は「commercial」(特許などの配慮が要る)に分類されていて、受け入れないとビルドできません。\n\nこのイメージを配布・販売する場合は、H.264 などの特許の扱いを自分で確認してください。\n\nlocal.conf に LICENSE_FLAGS_ACCEPTED = \"commercial commercial_ffmpeg\" を書いてよいですか?" no; then
-        FFMPEG_OK=yes
-    else
-        die "FFmpeg を受け入れないと、アプリがビルドできません(映像のデコードに必要です)。やめました。"
+    ui_yesno "ライセンス" "OpenCruise は H.264 の映像のデコードに FFmpeg を使います。Yocto では FFmpeg は「commercial」(特許などの配慮が要る)に分類され、受け入れないとビルドできません。\n\nイメージを配布・販売する場合は、H.264 などの特許の扱いを自分で確認してください。\n\n受け入れますか?" no \
+        && FFMPEG_OK=yes || die "FFmpeg を受け入れないとアプリをビルドできません。やめました。"
+}
+
+# ============================================================================ レイヤーの取得
+lock_get() { [ -f "$LOCK" ] && awk -v n="$1" -v f="$2" '$1==n{print (f==1?$2:$3)}' "$LOCK"; }   # lock_get 名前 1=ブランチ/2=版
+LOCK_NEW=""
+lock_put() { LOCK_NEW+="$1 $2 $(git -C "$3" rev-parse HEAD)"$'\n'; }
+
+# get_layer 名前 URL ブランチ フォルダ: 取得して、ロックの版(--update なら最新)にそろえる
+get_layer() {
+    local name="$1" url="$2" br="$3" dir="$4" want
+    if [ ! -d "$dir/.git" ]; then
+        info "$name を取得します($br)"
+        run_logged git clone --branch "$br" --single-branch "$url" "$dir" || { ng "$name を取得できませんでした: $url"; return 1; }
     fi
-}
-
-# ============================================================================ 取得
-CORE_DIR=""; CORE_LAYER=""; INIT=""
-
-fetch_layer() {   # fetch_layer 名前 URL ブランチ フォルダ [full]
-    local name="$1" url="$2" br="$3" dir="$4" full="${5:-}"
-    if [ -d "$dir/.git" ]; then
-        if [ "$UPDATE" -eq 1 ]; then
-            info "$name を更新します"
-            git -C "$dir" fetch --quiet origin "$br" && git -C "$dir" checkout --quiet "$br" 2>/dev/null; git -C "$dir" merge --quiet --ff-only "origin/$br" 2>/dev/null || ng "$name を更新できませんでした(手元に変更があるかもしれません)"
-        else
-            info "$name は取得済みです($(git -C "$dir" rev-parse --abbrev-ref HEAD) $(git -C "$dir" rev-parse --short HEAD))"
-        fi
-        return 0
+    # 書き換えたファイルがあれば止める(meta-qt6 はブランチを選ぶために --no-checkout で取るので、「無い」ファイルは数えない)
+    if [ -n "$(git -C "$dir" diff --name-only --diff-filter=MT HEAD 2>/dev/null)" ]; then
+        ng "$name($dir)に手で変更があります。消してよければ git -C $dir checkout . で戻してからやり直してください"; return 1
     fi
-    info "$name を取得します(ブランチ $br)"
-    local args=(--quiet --branch "$br")
-    [ -z "$full" ] && args+=(--single-branch --depth 1)
-    if run_logged git clone "${args[@]}" "$url" "$dir"; then ok "$name を取得しました"; else ng "$name を取得できませんでした: $url"; return 1; fi
+    want="$(lock_get "$name" 2)"
+    if [ "$UPDATE" -eq 1 ] || [ -z "$want" ] || [ "$(lock_get "$name" 1)" != "$br" ]; then
+        run_logged git -C "$dir" fetch --quiet origin "+refs/heads/$br:refs/remotes/origin/$br" || { ng "$name を更新できませんでした"; return 1; }
+        want="origin/$br"
+    elif ! git -C "$dir" cat-file -e "$want^{commit}" 2>/dev/null; then
+        run_logged git -C "$dir" fetch --quiet origin "+refs/heads/$br:refs/remotes/origin/$br"
+    fi
+    git -C "$dir" checkout --quiet -B "$br" "$want" 2>/dev/null || { ng "$name を $want にできませんでした"; return 1; }
+    ok "$name: $br $(git -C "$dir" log -1 --format='%h(%cs)')"
+    lock_put "$name" "$br" "$dir"
 }
 
-# 取得先のブランチを確かめる。無ければ一覧から選んでもらう
-resolve_branch() {   # resolve_branch 名前 URL 既定ブランチ → 使うブランチ(標準出力)
-    local name="$1" url="$2" want="$3" br
-    if has_branch "$url" "$want"; then echo "$want"; return 0; fi
-    info "$name に '$want' というブランチがありません。一覧から選びます" >&2
-    local items=() b
-    while read -r b; do [ -n "$b" ] && items+=("$b" "$b"); done < <(list_branches "$url" | sort -Vr | head -n 15)
-    [ "${#items[@]}" -gt 0 ] || { echo "エラー: $url のブランチ一覧を取れませんでした" >&2; return 1; }
-    ui_menu "$name のブランチ" "'$want' が無いので、使うブランチを選んでください。" "${items[0]}" "${items[@]}"
+# bitbake のブランチは、openembedded-core が要求する版(meta/conf/sanity.conf の BB_MIN_VERSION)から決める
+bitbake_branch() {
+    local min mm b
+    min="$(sed -n 's/^BB_MIN_VERSION *= *"\([0-9.]*\)".*/\1/p' "$CORE/meta/conf/sanity.conf")"
+    [ -n "$min" ] || return 1
+    mm="${min%.*}"
+    if git ls-remote --exit-code --heads "$URL_BITBAKE" "$mm" >/dev/null 2>&1; then echo "$mm"; return 0; fi
+    # 無ければ、要求以上でいちばん古いブランチ
+    b="$(git ls-remote --heads "$URL_BITBAKE" | sed 's#.*refs/heads/##' | grep -E '^[0-9]+\.[0-9]+$' | sort -V \
+         | while read -r x; do ver_ge "$x" "$mm" && { echo "$x"; break; }; done)"
+    [ -n "$b" ] && echo "$b"
 }
 
-pick_qt_branch() {   # pick_qt_branch フォルダ シリーズ名 → 使う meta-qt6 のブランチ
-    local dir="$1" series="$2" b
-    local all=() match=() other=()
-    while read -r b; do all+=("$b"); done < <({ git -C "$dir" for-each-ref --format='%(refname:strip=3)' refs/remotes/origin | grep -E '^6\.[0-9]+$' | sort -Vr
-                                                   git -C "$dir" for-each-ref --format='%(refname:strip=3)' refs/remotes/origin | grep -x 'dev'; })
-    for b in "${all[@]}"; do
-        if git -C "$dir" show "origin/$b:conf/layer.conf" 2>/dev/null | grep 'LAYERSERIES_COMPAT' | grep -qw "$series"; then match+=("$b"); else other+=("$b"); fi
+# meta-qt6 のブランチは、$RELEASE に対応と書かれている 6.x のうちいちばん新しいもの
+qt_branch() {
+    local dir="$SOURCES/meta-qt6" b
+    [ -d "$dir/.git" ] || { info "meta-qt6 を取得します(全ブランチ)"; run_logged git clone --no-checkout "$URL_QT6" "$dir" || return 1; }
+    [ "$UPDATE" -eq 1 ] && run_logged git -C "$dir" fetch --quiet origin
+    for b in $(git -C "$dir" for-each-ref --format='%(refname:strip=3)' refs/remotes/origin | grep -E '^6\.[0-9]+$' | sort -Vr); do
+        git -C "$dir" show "origin/$b:conf/layer.conf" 2>/dev/null | grep 'LAYERSERIES_COMPAT' | grep -qw "$RELEASE" && { echo "$b"; return 0; }
     done
-    [ "${#all[@]}" -gt 0 ] || { echo "エラー: meta-qt6 のブランチが見つかりません" >&2; return 1; }
-    local items=() def=""
-    for b in "${match[@]}"; do items+=("$b" "$b($series に対応)"); done
-    for b in "${other[@]}"; do items+=("$b" "$b(対応の記載なし)"); done
-    if [ "${#match[@]}" -gt 0 ]; then def="${match[0]}"; else def="${all[0]}"; echo "  ・注意: meta-qt6 に $series 対応と書かれたブランチが見つかりません。$def で試します" >&2; fi
-    if [ -n "$QT_BRANCH" ] && printf '%s\n' "${all[@]}" | grep -qx "$QT_BRANCH"; then def="$QT_BRANCH"; fi
-    ui_menu "Qt のバージョン" "meta-qt6 のブランチ(= Qt のバージョン)を選んでください。$series に対応と書かれているものがおすすめです。" "$def" "${items[@]}"
+    return 1
 }
 
 do_fetch() {
-    step "レイヤーの取得"
-    mkdir -p "$SOURCES" "$LOGS"
-    # 1) Yocto 本体。poky に release のブランチがあれば poky、無ければ openembedded-core + bitbake(wrynose 以降はこちら)
-    if [ -z "$CORE_KIND" ] || [ ! -d "$SOURCES/$([ "$CORE_KIND" = poky ] && echo poky || echo openembedded-core)/.git" ]; then
-        if has_branch "$URL_POKY" "$RELEASE"; then CORE_KIND="poky"; else CORE_KIND="split"; fi
+    step "レイヤーの取得(Yocto $RELEASE)"
+    mkdir -p "$SOURCES"
+    LOCK_NEW=""
+    get_layer openembedded-core "$URL_OECORE" "$RELEASE" "$CORE" || return 1
+    local bb; bb="$(lock_get bitbake 1)"
+    { [ "$UPDATE" -eq 1 ] || [ -z "$bb" ]; } && bb="$(bitbake_branch)"
+    [ -n "$bb" ] || { ng "openembedded-core に合う bitbake のブランチが分かりません"; return 1; }
+    get_layer bitbake "$URL_BITBAKE" "$bb" "$SOURCES/bitbake" || return 1
+    get_layer meta-openembedded "$URL_METAOE" "$RELEASE" "$SOURCES/meta-openembedded" || return 1
+    local qb; qb="$(lock_get meta-qt6 1)"
+    { [ "$UPDATE" -eq 1 ] || [ -z "$qb" ]; } && qb="$(qt_branch)"
+    [ -n "$qb" ] || { ng "meta-qt6 に $RELEASE 対応のブランチが見つかりません"; return 1; }
+    get_layer meta-qt6 "$URL_QT6" "$qb" "$SOURCES/meta-qt6" || return 1
+    if [ "$MACHINE" = intel-corei7-64 ]; then
+        get_layer meta-intel "$URL_INTEL" "$RELEASE" "$SOURCES/meta-intel" || return 1
     fi
-    if [ "$CORE_KIND" = poky ]; then
-        fetch_layer poky "$URL_POKY" "$RELEASE" "$SOURCES/poky" || return 1
-        CORE_DIR="$SOURCES/poky"; CORE_LAYER="$CORE_DIR/meta"
-    else
-        local oecb; oecb="$(resolve_branch openembedded-core "$URL_OECORE" "$RELEASE")" || return 1
-        fetch_layer openembedded-core "$URL_OECORE" "$oecb" "$SOURCES/openembedded-core" || return 1
-        [ -n "$BITBAKE_BRANCH" ] || BITBAKE_BRANCH="$(series_bitbake "$RELEASE")"
-        BITBAKE_BRANCH="$(resolve_branch bitbake "$URL_BITBAKE" "${BITBAKE_BRANCH:-master}")" || return 1
-        fetch_layer bitbake "$URL_BITBAKE" "$BITBAKE_BRANCH" "$SOURCES/bitbake" || return 1
-        CORE_DIR="$SOURCES/openembedded-core"; CORE_LAYER="$CORE_DIR/meta"
-    fi
-    INIT="$CORE_DIR/oe-init-build-env"
-    [ -f "$INIT" ] || { ng "oe-init-build-env が見つかりません: $INIT"; return 1; }
-
-    # 2) meta-openembedded(リリース名のブランチ)
-    local moeb; moeb="$(resolve_branch meta-openembedded "$URL_METAOE" "$RELEASE")" || return 1
-    fetch_layer meta-openembedded "$URL_METAOE" "$moeb" "$SOURCES/meta-openembedded" || return 1
-
-    # 3) meta-qt6(Qt のバージョンのブランチ。全ブランチを取って、$RELEASE 対応のものを探す)
-    fetch_layer meta-qt6 "$URL_QT6" dev "$SOURCES/meta-qt6" full || fetch_layer meta-qt6 "$URL_QT6" "$(list_branches "$URL_QT6" | head -n 1)" "$SOURCES/meta-qt6" full || return 1
-    [ "$UPDATE" -eq 1 ] && git -C "$SOURCES/meta-qt6" fetch --quiet origin
-    QT_BRANCH="$(pick_qt_branch "$SOURCES/meta-qt6" "$RELEASE")" || return 1
-    git -C "$SOURCES/meta-qt6" checkout --quiet "$QT_BRANCH" 2>/dev/null || git -C "$SOURCES/meta-qt6" checkout --quiet -B "$QT_BRANCH" "origin/$QT_BRANCH" || { ng "meta-qt6 を $QT_BRANCH にできませんでした"; return 1; }
-    [ "$UPDATE" -eq 1 ] && git -C "$SOURCES/meta-qt6" merge --quiet --ff-only "origin/$QT_BRANCH" 2>/dev/null
-    ok "meta-qt6: $QT_BRANCH"
-
-    # 4) 機種のレイヤー
-    EXTRA_LAYER_DIRS=()
-    case "$MACHINE" in
-        intel-corei7-64)
-            local intb; intb="$(resolve_branch meta-intel "$URL_INTEL" "$RELEASE")" || return 1
-            fetch_layer meta-intel "$URL_INTEL" "$intb" "$SOURCES/meta-intel" || return 1
-            EXTRA_LAYER_DIRS+=("$SOURCES/meta-intel") ;;
-        qemux86-64) ;;
-        *)
-            if [ -n "$EXTRA_MACHINE_LAYER_URL" ]; then
-                local nm; nm="$(basename "$EXTRA_MACHINE_LAYER_URL" .git)"
-                local exb; exb="$(resolve_branch "$nm" "$EXTRA_MACHINE_LAYER_URL" "$RELEASE")" || return 1
-                fetch_layer "$nm" "$EXTRA_MACHINE_LAYER_URL" "$exb" "$SOURCES/$nm" || return 1
-                EXTRA_LAYER_DIRS+=("$SOURCES/$nm")
-            fi ;;
-    esac
-    save_conf
+    { echo "# scripts/build-os.sh が使ったレイヤーの版(名前 ブランチ コミット)。--update で最新にすると書き換わる"
+      printf '%s' "$LOCK_NEW"; } > "$LOCK"
+    ok "レイヤーの版を記録しました: $LOCK"
 }
 
-# ============================================================================ 設定(bblayers.conf / local.conf)
-gen_bblayers() {
+# ============================================================================ 設定
+# oe-init-build-env を読み込んだ状態でコマンドを実行する(初回は Yocto のひな形から build/conf を作る)
+in_env() {
+    bash -c 'set +u; cd "$1" || exit 1; TEMPLATECONF="$2/meta/conf/templates/default" . "$2/oe-init-build-env" "$3" >/dev/null || exit 1; shift 3; exec "$@"' \
+        _ "$WORKDIR" "$CORE" "$BUILD" "$@"
+}
+
+write_bblayers() {
+    local lconf d
+    lconf="$(sed -n 's/^LCONF_VERSION *= *"\([0-9]*\)".*/\1/p' "$CORE/meta/conf/templates/default/bblayers.conf.sample")"
     {
-        echo "# scripts/build-os.sh が作った(作り直すと上書きされる。手で変えたいときは local.conf の末尾に足す)"
-        echo 'POKY_BBLAYERS_CONF_VERSION = "2"'
+        echo "# scripts/build-os.sh が作った(作り直すと上書きされる)"
+        echo "LCONF_VERSION = \"${lconf:-7}\""
         echo 'BBPATH = "${TOPDIR}"'
         echo 'BBFILES ?= ""'
         echo 'BBLAYERS ?= " \'
-        echo "  $CORE_LAYER \\"
-        echo "  $SOURCES/meta-openembedded/meta-oe \\"
-        echo "  $SOURCES/meta-qt6 \\"
-        local d; for d in "${EXTRA_LAYER_DIRS[@]}"; do echo "  $d \\"; done
-        echo "  $LAYER \\"
-        echo '"'
+        for d in "$CORE/meta" "$SOURCES/meta-openembedded/meta-oe" "$SOURCES/meta-openembedded/meta-python" \
+                 "$SOURCES/meta-qt6" $([ "$MACHINE" = intel-corei7-64 ] && echo "$SOURCES/meta-intel") "$LAYER"; do
+            echo "  $d \\"
+        done
+        echo '  "'
     } > "$BUILD/conf/bblayers.conf"
 }
 
-gen_local() {
-    local cpus mg jobs
+write_auto() {
+    local cpus mg bbt pm
     cpus="$(nproc)"; mg="$(mem_gb)"
-    jobs=$((mg / 2)); [ "$jobs" -lt 1 ] && jobs=1; [ "$jobs" -gt "$cpus" ] && jobs="$cpus"
+    # Qt のコンパイルはメモリを食うので、並列数はメモリから決める(同時に走る作業数 × make の並列数)
+    bbt=$((mg / 4)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
+    pm=$((mg / 2));  [ "$pm" -lt 2 ] && pm=2;   [ "$pm" -gt "$cpus" ] && pm="$cpus"
     {
-        echo "# scripts/build-os.sh が作った(作り直すと上書きされる。手で変えたいときはこのファイルの末尾に足す)"
-        echo "# 用語: MACHINE = 動かす機械 / DISTRO = OS の方針 / sstate-cache = ビルド済み部品の保管庫(2 回目から速くなる)"
+        echo "# scripts/build-os.sh がウィザードの答えから作った(実行のたびに作り直される)。"
+        echo "# 自分で変えたい設定は local.conf の末尾に書く(local.conf はこのファイルより後に読まれて優先される)。"
         echo "MACHINE = \"$MACHINE\""
-        echo 'DISTRO = "opencruise"'
-        echo 'CONF_VERSION = "2"'
-        echo
-        echo "# ダウンロードとビルド済み部品は、ビルドをやり直しても残るよう作業フォルダの直下に置く"
+        echo 'DISTRO = "opencruise-os"'
         echo "DL_DIR = \"$WORKDIR/downloads\""
         echo "SSTATE_DIR = \"$WORKDIR/sstate-cache\""
-        echo
-        echo "# 並列数(メモリ 2GB につき 1 つ。Qt のビルドはメモリを食うので、落ちるときはここを減らす)"
-        echo "BB_NUMBER_THREADS = \"$jobs\""
-        echo "PARALLEL_MAKE = \"-j $jobs\""
-        echo
-        echo "# FFmpeg(H.264 のデコード)は commercial 区分。ウィザードで受け入れた"
+        echo 'BB_HASHSERVE_DB_DIR = "${SSTATE_DIR}"'
+        echo "BB_NUMBER_THREADS = \"$bbt\""
+        echo "PARALLEL_MAKE = \"-j $pm\""
+        echo 'PACKAGE_CLASSES = "package_ipk"'
+        echo "DEFAULT_TIMEZONE = \"$TIMEZONE\""
         echo 'LICENSE_FLAGS_ACCEPTED:append = " commercial commercial_ffmpeg"'
         echo
-        echo "# イメージ・タイムゾーン"
-        echo "DEFAULT_TIMEZONE = \"$TIMEZONE\""
-        echo 'PACKAGE_CLASSES = "package_ipk"'
-        echo
-        echo "# Qt の画面は eglfs(DRM/KMS 直描画)。Qt Multimedia は FFmpeg を使う"
+        echo '# Qt の画面は eglfs(DRM/KMS 直描画)。Qt Multimedia は FFmpeg を使う'
         echo 'PACKAGECONFIG:append:pn-qtbase = " eglfs kms gbm libinput fontconfig"'
         echo 'PACKAGECONFIG:append:pn-qtmultimedia = " ffmpeg"'
-        echo
         if [ "$DEV_MODE" = yes ]; then
-            echo "# 開発用: SSH・パスワードなし root ログイン・ログ(完成品では外す)"
+            echo '# 開発用: SSH・パスワードなしの root ログイン(完成品では外す)'
             echo 'EXTRA_IMAGE_FEATURES:append = " ssh-server-openssh allow-root-login allow-empty-password empty-root-password post-install-logging"'
-        else
-            echo "# 完成品: SSH も root ログインも入れない"
         fi
-        echo
-        if [ "$AASDK" = no ]; then
-            echo "# Android Auto(aasdk)を含めない"
-            echo 'PACKAGECONFIG:remove:pn-opencruise = "aasdk"'
-            echo
-        fi
-        if [ "$STORAGE" = ro-home ]; then
-            echo "# ルートは読み取り専用、書き込みは /home だけ(wic/opencruise-x86.wks.in)"
+        [ "$AASDK" = no ] && echo 'PACKAGECONFIG:remove:pn-opencruise = "aasdk"'
+        if [ "$ROOTFS" = ro ]; then
             echo 'OPENCRUISE_READONLY_ROOTFS = "1"'
             echo 'OPENCRUISE_CMDLINE:append = " ro"'
         fi
         if [ "$MACHINE" = intel-corei7-64 ]; then
-            echo "# x86 実機: UEFI(systemd-boot)のディスクイメージを作る。GPU(i915)のファームウェアも入れる"
+            echo '# x86 実機: UEFI(systemd-boot)のディスクイメージ(meta-opencruise/files/wic/opencruise-x86.wks.in)。GPU のファームウェアも入れる'
             echo 'EFI_PROVIDER = "systemd-boot"'
             echo 'WKS_FILE = "opencruise-x86.wks.in"'
             echo 'IMAGE_FSTYPES = "wic wic.bmap"'
             echo 'IMAGE_INSTALL:append = " linux-firmware-i915"'
         fi
-        echo
         if [ "$SRC_MODE" = local ]; then
-            echo "# アプリのソースは、このリポジトリの手元のフォルダをそのまま使う(修正がすぐ反映される)"
+            echo '# アプリのソースは、このリポジトリのフォルダをそのまま使う(手元の修正がすぐ入る)'
             echo 'INHERIT += "externalsrc"'
             echo "EXTERNALSRC:pn-opencruise = \"$REPO\""
             echo 'EXTERNALSRC_BUILD:pn-opencruise = "${WORKDIR}/build"'
-            echo
         fi
         if [ "$RM_WORK" = yes ]; then
-            echo "# ビルドが終わった部品の作業ファイルを消して、ディスクを節約する"
             echo 'INHERIT += "rm_work"'
             echo 'RM_WORK_EXCLUDE += "opencruise"'
         fi
-    } > "$BUILD/conf/local.conf"
-}
-
-in_env() {   # in_env コマンド... : oe-init-build-env を読み込んだ状態でコマンドを実行する
-    bash -c 'cd "$1" || exit 1; set +u; . "$2" "$3" >/dev/null || exit 1; shift 3; exec "$@"' _ "$WORKDIR" "$INIT" "$BUILD" "$@"
+    } > "$BUILD/conf/auto.conf"
 }
 
 do_config() {
     step "設定の作成"
     mkdir -p "$BUILD/conf"
-    gen_bblayers; gen_local
-    ok "設定を書きました: $BUILD/conf/{bblayers,local}.conf"
-    if in_env bitbake-layers show-layers > "$LOGS/layers.log" 2>&1; then
-        ok "レイヤーの構成を確認しました(bitbake-layers show-layers)"
-    else
-        ng "レイヤーの構成でエラーです。内容: $LOGS/layers.log"
-        sed -n '1,15p' "$LOGS/layers.log" | sed 's/^/      /'
-        return 1
+    # 以前の版のこのスクリプトが作った local.conf は、答えを auto.conf より強く上書きしてしまうので、ひな形に戻す
+    if [ -f "$BUILD/conf/local.conf" ] && grep -q 'scripts/build-os.sh が作った' "$BUILD/conf/local.conf"; then
+        mv "$BUILD/conf/local.conf" "$BUILD/conf/local.conf.old-$(date +%Y%m%d%H%M%S)"
+        info "以前の版が作った local.conf を退避しました(ひな形から作り直します)"
     fi
+    # 以前の版のレイヤーにあった wic/ は、wrynose では files/wic/ でないとエラーになる(中身は files/wic/ に移してある)
+    if [ -d "$LAYER/wic" ] && [ -f "$LAYER/files/wic/opencruise-x86.wks.in" ]; then
+        if [ "$(ls -A "$LAYER/wic")" = "opencruise-x86.wks.in" ]; then
+            rm -f "$LAYER/wic/opencruise-x86.wks.in" && rmdir "$LAYER/wic" && info "古い $LAYER/wic/ を消しました(files/wic/ に移してあります)"
+        else
+            ng "$LAYER/wic/ に知らないファイルがあります。files/wic/ へ移してください(wrynose は wic/ を読みません)"; return 1
+        fi
+    fi
+    in_env true || { ng "build フォルダを作れませんでした(oe-init-build-env)"; return 1; }
+    write_bblayers; write_auto
+    ok "設定を書きました: $BUILD/conf/(bblayers.conf・auto.conf。local.conf はひな形のまま)"
+    if in_env bitbake-layers show-layers > "$LOGS/layers.log" 2>&1; then ok "レイヤーの構成を確認しました"
+    else ng "レイヤーの構成でエラーです: $LOGS/layers.log"; grep -E 'ERROR|error' "$LOGS/layers.log" | head -n 8 | sed 's/^/      /'; return 1; fi
 }
 
 # ============================================================================ ビルド
-image_file() {
-    local dir="$BUILD/tmp/deploy/images/$MACHINE"
-    ls -t "$dir/$TARGET"-*.wic "$dir"/*.wic 2>/dev/null | head -n 1
+image_file() { ls -t "$BUILD/tmp/deploy/images/$MACHINE/$TARGET-$MACHINE"*.wic 2>/dev/null | head -n 1; }
+
+# 失敗したときに、エラーの行と、失敗した作業のログ(写し)を出す
+report_failure() {
+    local log="$1" f n=0
+    echo; echo "  ---- エラー(bitbake の出力から)"
+    grep -E '^ERROR:' "$log" | grep -v 'Logfile of failure' | head -n 12 | sed 's/^/  /'
+    while read -r f; do
+        [ -f "$f" ] || continue
+        n=$((n + 1)); cp "$f" "$LOGS/failed-$(date +%H%M%S)-$n-$(basename "$(dirname "$(dirname "$f")")")-$(basename "$f").log" 2>/dev/null
+        echo "  ---- 失敗した作業のログの終わり: $f"
+        tail -n 25 "$f" | sed 's/^/  | /'
+    done < <(sed -n 's/.*Logfile of failure stored in: \([^ ]*\).*/\1/p' "$log" | sort -u | head -n 3)
+    [ "$n" -gt 0 ] && echo "  失敗した作業のログの写しを $LOGS/failed-*.log に置きました"
 }
 
 do_build() {
     step "ビルド"
-    [ -f "$BUILD/conf/local.conf" ] || { ng "設定がありません。先にウィザードを実行してください"; return 1; }
-    mkdir -p "$LOGS"
-    local log; log="$LOGS/build-$(date +%Y%m%d-%H%M%S).log"
-    info "レシピの確認(bitbake -p)。ここで落ちるときは、レシピ・レイヤーの設定の問題です"
-    in_env bitbake -p 2>&1 | tee "$LOGS/parse.log" | tail -n 5
-    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-        ng "レシピの確認に失敗しました。ログ: $LOGS/parse.log(エラー行を調べてください)"; return 1
-    fi
+    [ -f "$BUILD/conf/auto.conf" ] || { ng "設定がありません。先にウィザードを実行してください"; return 1; }
+    if ! apparmor_ready; then ng "ユーザー名前空間が使えないままです(AppArmor)。--build の前にウィザードで許可を足してください"; return 1; fi
+    local stamp log rc; stamp="$(date +%Y%m%d-%H%M%S)"; log="$LOGS/build-$stamp.log"
+    info "レシピを読み込んで確かめます(bitbake -p)"
+    in_env bitbake -p > "$LOGS/parse.log" 2>&1; rc=$?
+    if [ "$rc" -ne 0 ]; then ng "レシピの確認に失敗しました: $LOGS/parse.log"; report_failure "$LOGS/parse.log"; return 1; fi
     ok "レシピの確認ができました"
-    info "bitbake $TARGET を始めます。数時間かかります(止めても --build で続きから再開できます)。ログ: $log"
-    in_env bitbake "$TARGET" 2>&1 | tee "$log"
-    local rc="${PIPESTATUS[0]}"
-    if [ "$rc" -ne 0 ]; then
-        ng "ビルドに失敗しました(終了コード $rc)。ログ: $log"
-        echo "      失敗した部品は上の ERROR: 行に出ています。直したあと --build で続きから再開できます。" >&2
-        return 1
-    fi
+    info "bitbake $TARGET を始めます。初回は数時間かかります(止めても --build で続きから再開できます)。ログ: $log"
+    in_env bitbake "$TARGET" 2>&1 | tee "$log"; rc="${PIPESTATUS[0]}"
+    if [ "$rc" -ne 0 ]; then ng "ビルドに失敗しました(終了コード $rc)。ログ: $log"; report_failure "$log"; return 1; fi
     ok "ビルドしました: $TARGET"
     local img; img="$(image_file)"
     if [ -n "$img" ]; then ok "ディスクイメージ: $img"
-    elif [ "$MACHINE" = qemux86-64 ]; then
-        info "試すとき(QEMU): $0 --shell を開いて  runqemu qemux86-64 $TARGET slirp  を実行"
-    else info "成果物のフォルダ: $BUILD/tmp/deploy/images/$MACHINE/"; fi
+    elif [ "$MACHINE" = qemux86-64 ]; then info "QEMU で試す: $0 --shell を開いて  runqemu qemux86-64 $TARGET slirp nographic"
+    else info "成果物: $BUILD/tmp/deploy/images/$MACHINE/"; fi
 }
 
 # ============================================================================ 書き込み
 do_flash() {
     step "USB メモリ / SSD へ書き込み"
+    [ "$ASSUME_YES" -eq 0 ] || die "書き込みは --yes では行いません(消してよいかを手で確かめる必要があります)"
     local img; img="$(image_file)"
-    [ -n "$img" ] && [ -f "$img" ] || { ng "書き込むイメージ(.wic)がありません。先にビルドしてください(--build)"; return 1; }
-    info "イメージ: $img($(du -h "$(readlink -f "$img")" | cut -f1))"
-    command -v lsblk >/dev/null 2>&1 || { ng "lsblk がありません"; return 1; }
-    local rootdisk; rootdisk="$(lsblk -no PKNAME "$(findmnt -no SOURCE / 2>/dev/null)" 2>/dev/null | head -n 1)"
-    local items=() NAME SIZE TRAN RM MODEL line
+    [ -n "$img" ] || { ng "書き込むイメージ(.wic)がありません。先にビルドしてください(--build)"; return 1; }
+    img="$(readlink -f "$img")"
+    info "イメージ: $img($(du -h "$img" | cut -f1))"
+    local root items=() NAME SIZE TRAN RM MODEL line
+    root="$(lsblk -no PKNAME "$(findmnt -no SOURCE / 2>/dev/null)" 2>/dev/null | head -n 1)"
     while read -r line; do
-        eval "$line"
-        [ -n "${NAME:-}" ] || continue
-        [ "$(basename "$NAME")" = "$rootdisk" ] && continue
-        [ "${TRAN:-}" = usb ] || [ "${RM:-0}" = 1 ] || continue
-        items+=("$NAME" "$((SIZE / 1000 / 1000 / 1000))GB ${MODEL:-?} (${TRAN:-?})")
+        NAME=""; SIZE=0; TRAN=""; RM=0; MODEL=""; eval "$line"
+        [ -n "$NAME" ] && [ "$(basename "$NAME")" != "$root" ] || continue
+        { [ "$TRAN" = usb ] || [ "$RM" = 1 ]; } || continue
+        items+=("$NAME" "$((SIZE / 1000000000))GB ${MODEL:-?} (${TRAN:-?})")
     done < <(lsblk -dnpb -P -o NAME,SIZE,TRAN,RM,MODEL 2>/dev/null)
-    [ "${#items[@]}" -gt 0 ] || { ng "書き込める USB メモリが見つかりません(いまの OS が入っているディスクは出しません)。差し込んでからやり直してください"; return 1; }
-    local dev; dev="$(ui_menu "書き込み先" "書き込み先を選んでください。\n【警告】選んだディスクの中身は全部消えます。" "${items[0]}" "${items[@]}")" || { info "やめました"; return 1; }
+    [ "${#items[@]}" -gt 0 ] || { ng "書き込める USB メモリ / 外付けディスクが見つかりません(いまの OS のディスクは出しません)"; return 1; }
+    local dev typed; dev="$(ui_menu "書き込み先" "書き込み先を選んでください。\n【警告】選んだディスクの中身はすべて消えます。" "${items[0]}" "${items[@]}")" || return 1
     [ -b "$dev" ] || { ng "選んだ機器がありません: $dev"; return 1; }
-    local typed
-    if [ "$ASSUME_YES" -eq 1 ]; then die "書き込みは --yes では行いません(消してよいか、手で確認が要ります)"; fi
-    read -r -p "$dev の中身は全部消えます。続けるなら、そのデバイス名($dev)をもう一度入力: " typed </dev/tty
+    read -r -p "$dev の中身はすべて消えます。続けるなら、もう一度 $dev と入力: " typed </dev/tty
     [ "$typed" = "$dev" ] || { info "入力が違うのでやめました"; return 1; }
-    log "FLASH 書き込み先: $dev  イメージ: $img"
-    sudo umount "$dev"* 2>/dev/null || true
-    local bmap="${img%.wic}.wic.bmap"
-    [ -f "$bmap" ] || bmap="$(readlink -f "$img").bmap"
+    log "FLASH $img -> $dev"
+    need_sudo "書き込み" || return 1
+    local p; for p in $(lsblk -lnpo NAME "$dev" | tail -n +2) "$dev"; do sudo umount "$p" 2>/dev/null; done
+    local bmap="${img}.bmap"; [ -f "$bmap" ] || bmap="${img%.wic}.wic.bmap"
     if command -v bmaptool >/dev/null 2>&1 && [ -f "$bmap" ]; then
-        sudo bmaptool copy --bmap "$bmap" "$img" "$dev" || { ng "書き込みに失敗しました"; return 1; }
+        run_logged sudo bmaptool copy --bmap "$bmap" "$img" "$dev" || { ng "書き込みに失敗しました"; return 1; }
     else
-        sudo dd if="$img" of="$dev" bs=4M conv=fsync status=progress || { ng "書き込みに失敗しました"; return 1; }
+        run_logged sudo dd if="$img" of="$dev" bs=4M conv=fsync status=progress || { ng "書き込みに失敗しました"; return 1; }
     fi
     sync
-    ok "書き込みました: $dev(外して、対象の PC につないで起動してください。UEFI の起動順で USB を選ぶ)"
+    ok "書き込みました: $dev(外して対象の PC につなぎ、UEFI の起動メニューで USB を選んで起動)"
 }
 
-# ============================================================================ シェル
+# ============================================================================ シェル・状態
 do_shell() {
-    [ -f "$CONF" ] || die "まだ設定がありません。先にウィザードを実行してください"
-    [ "$CORE_KIND" = poky ] && CORE_DIR="$SOURCES/poky" || CORE_DIR="$SOURCES/openembedded-core"
-    INIT="$CORE_DIR/oe-init-build-env"
-    [ -f "$INIT" ] || die "oe-init-build-env が見つかりません: $INIT"
+    [ -f "$CORE/oe-init-build-env" ] || die "まだレイヤーがありません。先にウィザードを実行してください"
     echo "BitBake のシェルを開きます。例:  bitbake $TARGET  /  bitbake -c cleansstate opencruise  /  bitbake-layers show-layers"
     echo "出るときは exit。"
-    exec bash --rcfile <(echo "[ -f ~/.bashrc ] && . ~/.bashrc; cd '$WORKDIR'; . '$INIT' '$BUILD' >/dev/null") -i
+    exec bash --rcfile <(printf '[ -f ~/.bashrc ] && . ~/.bashrc\ncd %q && TEMPLATECONF=%q . %q %q >/dev/null\n' \
+        "$WORKDIR" "$CORE/meta/conf/templates/default" "$CORE/oe-init-build-env" "$BUILD") -i
+}
+do_status() {
+    echo "■ 答え($CONF)"; show_answers | sed 's/^/  /'
+    echo "■ レイヤー($LOCK)"; [ -f "$LOCK" ] && grep -v '^#' "$LOCK" | sed 's/^/  /' || echo "  (まだ取得していません)"
+    local last; last="$(ls -t "$LOGS"/build-*.log 2>/dev/null | head -n 1)"
+    echo "■ 前回のビルド"
+    if [ -n "$last" ]; then echo "  $last"; tail -n 3 "$last" | sed 's/^/  | /'; else echo "  (まだビルドしていません)"; fi
+    local img; img="$(image_file)"; [ -n "$img" ] && echo "■ イメージ: $img"
+    return 0
 }
 
-# ============================================================================ まとめ
 print_summary() {
     echo; echo "■ 結果"
-    local n_ok n_ng
-    n_ok="$(grep -c '^OK|' "$RESULTS" || true)"; n_ng="$(grep -c '^NG|' "$RESULTS" || true)"
-    grep '^NG|' "$RESULTS" | sed 's/^NG|/  ✖ /'
-    echo "  成功 $n_ok / 失敗 $n_ng"
-    if [ -n "$SESSION_LOG" ]; then
-        log "終了: 成功 $n_ok / 失敗 $n_ng"
-        echo "  ログ: $SESSION_LOG"
-    fi
+    if [ "${#NG_LIST[@]}" -eq 0 ]; then echo "  問題はありませんでした"
+    else printf '  ✖ %s\n' "${NG_LIST[@]}"; fi
+    [ -n "$SESSION_LOG" ] && echo "  ログ: $SESSION_LOG"
+    return 0
 }
 
 # ============================================================================ 本体
-log "開始: モード=$MODE"
+load_conf
+init_log
+[ -t 1 ] && [ "${TERM:-}" = linux ] && echo "注意: Linux のコンソール(tty)では日本語が表示されません。SSH かデスクトップの端末から実行してください。" >&2
+[ "$(id -u)" -ne 0 ] || [ "$MODE" = check ] || die "root では実行できません(BitBake は root を拒否します)。普通のユーザーで実行してください。必要なところだけ sudo を使います。"
+
 case "$MODE" in
-    check)
-        do_check; rc=$?; print_summary; exit "$rc" ;;
-    shell)
-        do_shell ;;
-    flash)
-        [ -f "$CONF" ] || die "まだ設定がありません。先にウィザードを実行してください"
-        do_flash; rc=$?; print_summary; exit "$rc" ;;
+    check)  do_check; rc=$?; print_summary; exit "$rc" ;;
+    status) do_status ;;
+    shell)  do_shell ;;
+    flash)  do_flash; rc=$?; print_summary; exit "$rc" ;;
     build)
-        [ -f "$CONF" ] || die "まだ設定がありません。先にウィザードを実行してください"
-        log_answers
-        install_host_packages; fix_locale   # 足りなければ入れる(そろっていれば何もしない)
+        [ -f "$CONF" ] || die "まだ答えがありません。先にウィザード(オプションなし)を実行してください"
+        [ "$FFMPEG_OK" = yes ] || ask_licenses
         do_fetch && do_config && do_build; rc=$?; print_summary; exit "$rc" ;;
     wizard)
-        do_check; pre=$?
-        if [ "$pre" -gt 0 ]; then
-            install_host_packages; fix_locale
-            if [ "$ENV_CHANGED" -eq 1 ]; then
-                # 入れたあとの状態で確かめ直す(前の ✖ を引きずらない)
-                info "パッケージ・ロケールを入れたので、もう一度確かめます"
-                : > "$RESULTS"
-                do_check; pre=$?
+        if ! do_check; then
+            fix_host
+            NG_LIST=(); info "もう一度確かめます"
+            if ! do_check; then
+                ui_yesno "確認" "上に ✖ が残っています。このまま続けますか?(足りないものがあると途中で止まります)" no || { print_summary; exit 1; }
             fi
-            if [ "$pre" -gt 0 ] && ! ui_yesno "確認" "上に ✖ が出ています。このまま続けますか?(足りないものがあると途中で止まります)" no; then
-                print_summary; exit 1
-            fi
+            NG_LIST=()
         fi
         ask_all
-        ui_msg "確認" "この内容で進めます。\n\n・Yocto: $RELEASE\n・機械: $MACHINE${EXTRA_MACHINE_LAYER_URL:+ ($EXTRA_MACHINE_LAYER_URL)}\n・イメージ: $TARGET\n・ディスク: $STORAGE\n・開発用機能: $DEV_MODE\n・Android Auto: $AASDK\n・アプリのソース: $SRC_MODE\n・作業フォルダ: $WORKDIR"
+        ui_msg "確認" "この内容で進めます。\n\n$(show_answers)\n・Yocto: $RELEASE\n・作業フォルダ: $WORKDIR"
         do_fetch && do_config || { print_summary; exit 1; }
-        if [ "$CONFIG_ONLY" -eq 1 ]; then
-            echo; echo "設定までで止めました。ビルドは: $0 --build"; print_summary; exit 0
-        fi
-        if ui_yesno "ビルド" "ビルドを始めますか?(数時間かかります。途中で止めても --build で続きから再開できます)" yes; then
+        if [ "$CONFIG_ONLY" -eq 1 ]; then echo; echo "設定までで止めました。ビルドは: $0 --build"; print_summary; exit 0; fi
+        if ui_yesno "ビルド" "ビルドを始めますか?(初回は数時間。途中で止めても --build で続きから再開できます)" yes; then
             do_build || { print_summary; exit 1; }
-            if [ "$MACHINE" != qemux86-64 ] && [ -n "$(image_file)" ] && [ "$ASSUME_YES" -eq 0 ]; then
-                ui_yesno "書き込み" "できあがったイメージを、いま USB メモリ / SSD へ書き込みますか?" no && do_flash
-            fi
+            if [ -n "$(image_file)" ] && [ "$ASSUME_YES" -eq 0 ] && ui_yesno "書き込み" "できたイメージを USB メモリ / SSD へ書き込みますか?" no; then do_flash; fi
         else
             echo; echo "ビルドは後から: $0 --build"
         fi
