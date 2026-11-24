@@ -366,6 +366,16 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
    要求から `system` を外した（ヘッダーは Boost 本体に含まれ、リンクするものは無い）。アプリ側（`app/CMakeLists.txt`）も
    `Boost::system` をやめて `Boost::headers` にした。古い Boost（1.69 以降）でもそのまま通る
    （`patches/aasdk-boost-system.patch`。aasdk を更新する場合は再適用が必要）。
+9. **`USBHub` がすべての USB 機器を開いて AOAP の問い合わせをしていた（修正済み）**
+   ホットプラグの検出(作り直すたびに既存の機器も列挙する)で、ハブ・カメラ・Bluetooth なども `libusb_open` していた。
+   使用中・省電力中の機器(バックカメラなど)では、この open がカーネルの中で数秒〜戻らないことがあり、
+   io スレッドと libusb のイベントスレッドが止まって、アプリの終了で「`io=pending / USB=pending`」と切り離していた
+   (スマートフォンをつないでいなくても、10 秒ごとの検出の作り直しで起きる)。
+   ディスクリプタだけで「スマートフォンかもしれない機器」を判定し(`USBHub::mayBeAndroidDevice`。ハブ・音声・HID・カメラ・
+   Bluetooth・USB メモリなどは開かない)、それ以外は開かないようにした
+   （`patches/aasdk-usb-device-filter.patch`。aasdk を更新する場合は再適用が必要）。
+   あわせて接続層(`AasdkBackend`)は、待機中の停止では切断の手順を待たずに短い上限で終え、切り離したスレッドが
+   あとからアプリを呼ばないようにした。切り離したときは、どの USB の処理で止まっていたかをログに出す。
 
 ## 実機検証の際の見どころ（リスク）
 

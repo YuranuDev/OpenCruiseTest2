@@ -78,6 +78,55 @@ namespace aasdk {
       return 0;
     }
 
+    bool USBHub::mayBeAndroidDevice(libusb_device *device) {
+      libusb_device_descriptor deviceDescriptor;
+      if (libusb_get_device_descriptor(device, &deviceDescriptor) != LIBUSB_SUCCESS) {
+        return true;   // 分からなければ、これまでどおり試す
+      }
+      if (deviceDescriptor.bDeviceClass == LIBUSB_CLASS_HUB) {
+        return false;
+      }
+      libusb_config_descriptor *config = nullptr;
+      if (libusb_get_active_config_descriptor(device, &config) != LIBUSB_SUCCESS || config == nullptr) {
+        config = nullptr;
+        if (libusb_get_config_descriptor(device, 0, &config) != LIBUSB_SUCCESS || config == nullptr) {
+          return true;
+        }
+      }
+      bool anyInterface = false;
+      bool candidate = false;
+      for (uint8_t i = 0; i < config->bNumInterfaces; ++i) {
+        const libusb_interface &intf = config->interface[i];
+        if (intf.num_altsetting < 1) {
+          continue;
+        }
+        const libusb_interface_descriptor &alt = intf.altsetting[0];
+        anyInterface = true;
+        switch (alt.bInterfaceClass) {
+        case LIBUSB_CLASS_AUDIO:                // 音声
+        case LIBUSB_CLASS_HID:                  // キーボード・マウス・タッチパネル
+        case LIBUSB_CLASS_PRINTER:
+        case LIBUSB_CLASS_MASS_STORAGE:         // USB メモリ(アップデートのファイル)
+        case LIBUSB_CLASS_HUB:
+        case LIBUSB_CLASS_SMART_CARD:
+        case LIBUSB_CLASS_VIDEO:                // カメラ(バックカメラ)
+        case LIBUSB_CLASS_PERSONAL_HEALTHCARE:
+          break;
+        case LIBUSB_CLASS_WIRELESS:
+          // Bluetooth(サブクラス 1・プロトコル 1)は対象外。RNDIS(USB テザリング)などはスマートフォンかもしれない
+          if (!(alt.bInterfaceSubClass == 0x01 && alt.bInterfaceProtocol == 0x01)) {
+            candidate = true;
+          }
+          break;
+        default:                                // ベンダー固有(ADB)・MTP/PTP・CDC・その他
+          candidate = true;
+          break;
+        }
+      }
+      libusb_free_config_descriptor(config);
+      return !anyInterface || candidate;
+    }
+
     bool USBHub::isAOAPDevice(const libusb_device_descriptor &deviceDescriptor) const {
       return deviceDescriptor.idVendor == cGoogleVendorId &&
              (deviceDescriptor.idProduct == cAOAPId || deviceDescriptor.idProduct == cAOAPWithAdbId);
@@ -90,6 +139,10 @@ namespace aasdk {
 
       libusb_device_descriptor deviceDescriptor;
       if (usbWrapper_.getDeviceDescriptor(device, deviceDescriptor) != 0) {
+        return;
+      }
+      // OpenCruise: スマートフォンではない機器(ハブ・カメラ・Bluetooth など)は開かない(mayBeAndroidDevice)
+      if (!this->isAOAPDevice(deviceDescriptor) && !mayBeAndroidDevice(device)) {
         return;
       }
 

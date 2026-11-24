@@ -37,6 +37,12 @@ namespace aasdk {
 
       void cancel() override;
 
+      /// OpenCruise: スマートフォン(Android)かもしれない機器か。開かずに(ディスクリプタだけで)判断する。
+      /// ハブ・カメラ・Bluetooth・HID・音声・USB メモリなど、Android Auto に使えない機器は false。
+      /// これらを開いて AOAP の問い合わせを送ると、使用中・省電力中の機器では libusb_open がカーネルの中で
+      /// 長く(数秒〜戻らない)止まり、io スレッドと libusb のイベントスレッドが止まって、アプリの終了で切り離されていた
+      static bool mayBeAndroidDevice(libusb_device *device);
+
     private:
       typedef std::list<IAccessoryModeQueryChain::Pointer> QueryChainQueue;
       using std::enable_shared_from_this<USBHub>::shared_from_this;
