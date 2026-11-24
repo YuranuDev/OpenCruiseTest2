@@ -416,13 +416,17 @@ write_bblayers() {
 }
 
 write_auto() {
-    local cpus mg bbt pm
+    local cpus mg bbt pm heavy p
     cpus="$(nproc)"; mg="$(mem_gb)"
-    # make の並列数は CPU の数いっぱい。同時に走る作業の数は、重いコンパイル(Qt など)が重なってもメモリが足りるよう
-    # 「メモリ 2GB に 1 つ」までにする(多くの作業は configure やパッケージ作りで軽いので、これでも CPU はほぼ埋まる)。
+    # 並列数はメモリで決める。以前は make の並列数を CPU の数いっぱいにしていたため、llvm-native と qtbase-native の
+    # コンパイルが重なったときに llvm-tblgen などが 1 つ 1〜3GB 使い、メモリが尽きて Killed(終了コード 137)になった。
+    #   同時に走る作業の数   : メモリ 4GB に 1 つ
+    #   1 つの作業の make 並列: メモリ 2GB に 1 つ(CPU の数まで)
+    #   特に重いレシピ(LLVM・Qt): メモリ 4GB に 1 つ(重いもの同士が重なっても足りるように)
     # 変えたいときは local.conf に BB_NUMBER_THREADS / PARALLEL_MAKE を書く(auto.conf より優先される)
-    bbt=$((mg / 2)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
-    pm="$cpus"
+    bbt=$((mg / 4)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
+    pm=$((mg / 2)); [ "$pm" -lt 2 ] && pm=2; [ "$pm" -gt "$cpus" ] && pm="$cpus"
+    heavy=$((mg / 4)); [ "$heavy" -lt 2 ] && heavy=2; [ "$heavy" -gt "$pm" ] && heavy="$pm"
     {
         echo "# scripts/build-os.sh がウィザードの答えから作った(実行のたびに作り直される)。"
         echo "# 自分で変えたい設定は local.conf の末尾に書く(local.conf はこのファイルより後に読まれて優先される)。"
@@ -433,6 +437,10 @@ write_auto() {
         echo 'BB_HASHSERVE_DB_DIR = "${SSTATE_DIR}"'
         echo "BB_NUMBER_THREADS = \"$bbt\""
         echo "PARALLEL_MAKE = \"-j $pm\""
+        echo "# メモリを特に多く使うレシピ(LLVM の llvm-tblgen・Qt の C++)は並列数をさらに抑える"
+        for p in llvm llvm-native qtbase qtbase-native qtdeclarative qtdeclarative-native; do
+            echo "PARALLEL_MAKE:pn-$p = \"-j $heavy\""
+        done
         echo 'PACKAGE_CLASSES = "package_ipk"'
         echo "DEFAULT_TIMEZONE = \"$TIMEZONE\""
         echo 'LICENSE_FLAGS_ACCEPTED:append = " commercial commercial_ffmpeg"'
@@ -507,6 +515,14 @@ report_failure() {
         tail -n 25 "$f" | sed 's/^/  | /'
     done < <(sed -n 's/.*Logfile of failure stored in: \([^ ]*\).*/\1/p' "$log" | sort -u | head -n 3)
     [ "$n" -gt 0 ] && echo "  失敗した作業のログの写しを $LOGS/failed-*.log に置きました"
+    # 終了コード 137 / Killed は、ほぼメモリ不足でカーネルにプロセスを止められたもの
+    if grep -qE 'exit code 137|FAILED: \[code=137\]|^\| Killed$' "$log"; then
+        echo "  ---- メモリ不足でコンパイラが止められたようです(終了コード 137 / Killed)"
+        echo "  対処: $BUILD/conf/local.conf の末尾に並列数を小さく書いて、--build で再開してください。例:"
+        echo "    BB_NUMBER_THREADS = \"2\""
+        echo "    PARALLEL_MAKE = \"-j 4\""
+        echo "  またはスワップを増やしてください(今のメモリ: $(mem_gb)GB)"
+    fi
 }
 
 do_build() {
