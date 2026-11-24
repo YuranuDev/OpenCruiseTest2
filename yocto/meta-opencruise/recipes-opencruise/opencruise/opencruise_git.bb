@@ -59,6 +59,16 @@ do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${B}/app/opencruise ${D}${bindir}/opencruise
 
+    # 同梱の aasdk は Linux では共有ライブラリ(libaasdk.so.* / libaap_protobuf.so.*)になり、アプリはそれを実行時に読む。
+    # install(TARGETS) は aasdk 側も EXCLUDE_FROM_ALL で使えないので、版付きの実体と soname のリンクだけを手で入れる
+    # (開発用の libaasdk.so は入れない)。aasdk を使わない構成(PACKAGECONFIG から aasdk を外す)ではファイルが無いので飛ばす。
+    if ${@bb.utils.contains('PACKAGECONFIG', 'aasdk', 'true', 'false', d)}; then
+        install -d ${D}${libdir}
+        for f in ${B}/aasdk/lib/libaasdk.so.* ${B}/aasdk/lib/libaap_protobuf.so.*; do
+            cp -P "$f" ${D}${libdir}/
+        done
+    fi
+
     install -d ${D}${datadir}/opencruise/fonts
     for d in NotoSansJP LINESeedJP IBMPlexSansJP; do
         cp -r ${S}/app/resources/fonts/$d ${D}${datadir}/opencruise/fonts/
@@ -105,10 +115,13 @@ do_install() {
     install -m 0644 ${OC_UNPACK}/80-opencruise-usb.rules ${D}${sysconfdir}/udev/rules.d/80-opencruise-usb.rules
 }
 
+# opencruise-usb-mount@.service は udev(80-opencruise-usb.rules)から USB メモリごとに起動するテンプレートなので、
+# SYSTEMD_SERVICE には入れない(有効化しない)。systemd.bbclass は SYSTEMD_SERVICE のユニットしか自動で入れないので、ここで入れる
 FILES:${PN} += " \
     ${datadir}/opencruise \
     ${sysconfdir}/opencruise \
     ${nonarch_libdir}/tmpfiles.d \
+    ${systemd_system_unitdir}/opencruise-usb-mount@.service \
 "
 CONFFILES:${PN} += "${sysconfdir}/opencruise/opencruise.env"
 
