@@ -360,6 +360,12 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
    ビルドが失敗していた（make: `target pattern contains no '%'`）。`find_package(Protobuf)` に置き換え、
    リンクは `protobuf::libprotobuf` ターゲットにした。古いビルドディレクトリの空のキャッシュも消して立て直す
    （`patches/aasdk-protobuf-cmake.patch`。aasdk を更新する場合は再適用が必要）。
+8. **`aasdk/CMakeLists.txt` が Boost の `system` を要求していた（修正済み）**
+   Boost.System は 1.69 からヘッダーだけになり、1.89 で中身の無いライブラリと `boost_system` の CMake 設定が削除された。
+   そのため Boost 1.89 以降（Yocto wrynose は 1.90）では `find_package(Boost COMPONENTS system ...)` が構成の段階で失敗する。
+   要求から `system` を外した（ヘッダーは Boost 本体に含まれ、リンクするものは無い）。アプリ側（`app/CMakeLists.txt`）も
+   `Boost::system` をやめて `Boost::headers` にした。古い Boost（1.69 以降）でもそのまま通る
+   （`patches/aasdk-boost-system.patch`。aasdk を更新する場合は再適用が必要）。
 
 ## 実機検証の際の見どころ（リスク）
 

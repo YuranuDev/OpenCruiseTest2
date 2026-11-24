@@ -248,7 +248,10 @@ else()
     message(STATUS "Skipping Abseil requirement - using system protobuf")
 endif()
 
-find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
+# OpenCruise fix: Boost.System has been header-only since 1.69 and its stub library (with the boost_system CMake
+# package) was removed in Boost 1.89, so requesting the "system" component fails with Boost >= 1.89
+# (Yocto wrynose ships 1.90). The headers come with Boost itself; nothing needs to be linked for it.
+find_package(Boost REQUIRED COMPONENTS log_setup log OPTIONAL_COMPONENTS unit_test_framework)
 
 # Capture Boost version for packaging
 if(Boost_VERSION)

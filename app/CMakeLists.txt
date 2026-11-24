@@ -13,7 +13,9 @@ target_include_directories(opencruise_aa PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(opencruise_aa PUBLIC Threads::Threads)
 
 if(OPENCRUISE_ENABLE_AASDK)
-    find_package(Boost REQUIRED COMPONENTS system)
+    # Boost.System は 1.69 からヘッダーだけで、1.89 でライブラリ(と boost_system の CMake 設定)が無くなった。
+    # COMPONENTS system を求めると Boost 1.89 以降(Yocto wrynose は 1.90)で構成に失敗するので、ヘッダーだけを使う
+    find_package(Boost REQUIRED)
     pkg_check_modules(LIBUSB REQUIRED IMPORTED_TARGET libusb-1.0)
 
     target_sources(opencruise_aa PRIVATE
@@ -32,7 +34,7 @@ if(OPENCRUISE_ENABLE_AASDK)
         ${PROJECT_BINARY_DIR}/aasdk/include)
     # aasdk 側が -DBOOST_ALL_DYN_LINK を付けてビルドしているので揃える (Boost.Log の ABI 整合のため)
     target_compile_definitions(opencruise_aa PRIVATE BOOST_ALL_DYN_LINK)
-    target_link_libraries(opencruise_aa PRIVATE aasdk Boost::system PkgConfig::LIBUSB)
+    target_link_libraries(opencruise_aa PRIVATE aasdk Boost::headers PkgConfig::LIBUSB)
 else()
     target_sources(opencruise_aa PRIVATE src/aabackend/AasdkBackendStub.cpp)
 endif()
