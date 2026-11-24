@@ -418,9 +418,11 @@ write_bblayers() {
 write_auto() {
     local cpus mg bbt pm
     cpus="$(nproc)"; mg="$(mem_gb)"
-    # Qt のコンパイルはメモリを食うので、並列数はメモリから決める(同時に走る作業数 × make の並列数)
-    bbt=$((mg / 4)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
-    pm=$((mg / 2));  [ "$pm" -lt 2 ] && pm=2;   [ "$pm" -gt "$cpus" ] && pm="$cpus"
+    # make の並列数は CPU の数いっぱい。同時に走る作業の数は、重いコンパイル(Qt など)が重なってもメモリが足りるよう
+    # 「メモリ 2GB に 1 つ」までにする(多くの作業は configure やパッケージ作りで軽いので、これでも CPU はほぼ埋まる)。
+    # 変えたいときは local.conf に BB_NUMBER_THREADS / PARALLEL_MAKE を書く(auto.conf より優先される)
+    bbt=$((mg / 2)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
+    pm="$cpus"
     {
         echo "# scripts/build-os.sh がウィザードの答えから作った(実行のたびに作り直される)。"
         echo "# 自分で変えたい設定は local.conf の末尾に書く(local.conf はこのファイルより後に読まれて優先される)。"
