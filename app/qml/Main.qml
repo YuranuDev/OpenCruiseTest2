@@ -619,6 +619,16 @@ ApplicationWindow {
             visible: opacity > 0
         }
 
+        // 画面キーボード(文字の入力欄にフォーカスが入ると下から出る。Wi-Fi のパスワードなど)。音量・明るさの表示よりは奥
+        OnScreenKeyboard {
+            z: 1050
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: rotor.leftSpace
+            anchors.rightMargin: rotor.rightSpace
+            target: window.activeFocusItem
+        }
+
         // 音量・明るさの操作表示(幕より手前に置き、明るさを下げても読めるようにする)
         // 音量・明るさの表示は、どちらも画面の下の中央に小さく出す(同じ幅・同じ位置。片方を出すともう片方は閉じる)
         VolumeOsd {

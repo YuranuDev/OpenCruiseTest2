@@ -1,9 +1,10 @@
-# OpenCruise の x86 UEFI ディスク: EFI(systemd-boot) + ルート + /home(アプリの設定・ログ・背景画像などの書き込み領域)
+# OpenCruise の x86 UEFI ディスク: EFI(GRUB) + ルート + /home(アプリの設定・ログ・背景画像・アプリの更新などの書き込み領域)
+# 起動は GRUB(待ち時間 0 でメニューは出さない)。次の段階で OS の A/B 更新(RAUC)を入れるときに、GRUB の切り替えを使う。
 # 車載は電源が急に切れるので、ルートを読み取り専用にして、書き込みを /home だけに絞れるようにしている。
 # wrynose からキックスタートファイルは レイヤーの files/wic/ に置く(以前の wic/ は探されない)。
 # ${OPENCRUISE_CMDLINE} は conf/distro/opencruise.conf と conf/auto.conf で決める(読み取り専用のときは "ro" が付く)。
-part /boot --source bootimg-efi --sourceparams="loader=systemd-boot" --ondisk sda --label boot --active --align 1024 --use-uuid
+part /boot --source bootimg-efi --sourceparams="loader=grub-efi" --ondisk sda --label boot --active --align 1024 --use-uuid
 part / --source rootfs --ondisk sda --fstype=ext4 --label root --align 1024 --use-uuid
-part /home --ondisk sda --fstype=ext4 --label data --size 1024 --align 1024 --use-uuid
+part /home --ondisk sda --fstype=ext4 --label data --size 2048 --align 1024 --use-uuid
 
 bootloader --ptable gpt --timeout=0 --append="rootwait ${OPENCRUISE_CMDLINE}"

@@ -1,0 +1,34 @@
+#!/bin/sh
+# OpenCruise の起動(opencruise.service の ExecStart)。どの版のアプリを起動するかを決める。
+#   /home/opencruise/app/current  更新で入れた版(versions/<ビルド番号> へのリンク)。無ければ OS に入っている /usr/bin/opencruise
+#   /home/opencruise/app/good     起動できた(アプリが 30 秒動いた)版。アプリ(UpdateManager)が書く
+#   /home/opencruise/app/tries    good になっていない版を起動した回数
+# good になっていない版を 3 回起動しても good にならなければ(起動できない・すぐ落ちる)、前の good の版
+# (無ければ OS の版)へ戻し、その版を bad に書く。アプリはそれを見て「前の版に戻しました」と出す。
+# exec で起動するので、systemd から見たプロセスはアプリそのもの(Type=notify がそのまま使える)。
+APP=/home/opencruise/app
+BUILTIN=/usr/bin/opencruise
+
+cur=$(readlink "$APP/current" 2>/dev/null)
+if [ -n "$cur" ] && [ -x "$APP/$cur/usr/bin/opencruise" ]; then
+    good=$(cat "$APP/good" 2>/dev/null)
+    if [ "$cur" != "$good" ]; then
+        n=$(cat "$APP/tries" 2>/dev/null)
+        n=$(( ${n:-0} + 1 ))
+        if [ "$n" -gt 3 ]; then
+            echo "opencruise-launch: $cur failed to start 3 times, rolling back to ${good:-builtin}" >&2
+            echo "$cur" > "$APP/bad"
+            rm -f "$APP/tries"
+            if [ -n "$good" ] && [ -x "$APP/$good/usr/bin/opencruise" ]; then
+                ln -sfn "$good" "$APP/current"
+                exec "$APP/$good/usr/bin/opencruise" "$@"
+            fi
+            rm -f "$APP/current"
+            exec "$BUILTIN" "$@"
+        fi
+        echo "$n" > "$APP/tries"
+    fi
+    echo "opencruise-launch: starting $cur" >&2
+    exec "$APP/$cur/usr/bin/opencruise" "$@"
+fi
+exec "$BUILTIN" "$@"

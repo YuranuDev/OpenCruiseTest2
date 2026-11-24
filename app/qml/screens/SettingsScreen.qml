@@ -59,6 +59,8 @@ Rectangle {
         SettingsCategory { group: "vehicle"; icon: "videocam";      title: "バックカメラ";   description: "自動の切り替え・カメラ・映し方";         page: SettingsPageCamera {} },
         SettingsCategory { group: "phone";   icon: "android";       title: "Android Auto";   description: "接続状態・ダミーデータ・映像・映像の配置";             page: SettingsPageAndroidAuto {} },
         SettingsCategory { group: "phone";   icon: "notifications"; title: "スマホ通知";     description: "通知のポップアップ";                     page: SettingsPageNotifications {} },
+        SettingsCategory { group: "system";  icon: "system_update"; title: "アップデート";   description: "USB メモリ・ネットからアプリを更新・前の版に戻す"; page: SettingsPageUpdate {} },
+        SettingsCategory { group: "system";  icon: "wifi";          title: "ネットワーク";   description: "Wi-Fi の接続";                           page: SettingsPageNetwork {} },
         SettingsCategory { group: "system";  icon: "power_settings_new"; title: "電源";      description: "電源モード・ACC OFF での終了";           page: SettingsPagePower {} },
         SettingsCategory { group: "system";  icon: "memory";        title: "描画";           description: "描画方式・垂直同期・フレームレート";     page: SettingsPageRendering {} },
         SettingsCategory { group: "system";  icon: "monitor_heart"; title: "システムの状態"; description: "CPU・GPU・メモリ";                       page: SettingsPageSystem {} },

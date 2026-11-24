@@ -1,0 +1,11 @@
+# USB メモリを読み取り専用でつなぐ(80-opencruise-usb.rules が挿したときに起動し、抜くと止まる)
+[Unit]
+Description=Mount USB storage %I read-only for OpenCruise updates
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/opencruise-usb-mount add %I
+ExecStop=/usr/libexec/opencruise-usb-mount remove %I

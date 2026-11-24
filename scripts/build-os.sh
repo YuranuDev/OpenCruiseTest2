@@ -8,6 +8,8 @@
 #   scripts/build-os.sh --flash      できたイメージを USB メモリ / SSD へ書き込む(sudo を使う)
 #   scripts/build-os.sh --shell      BitBake を自分で触るシェルを開く
 #   scripts/build-os.sh --status     今の答え・レイヤーの版・前回のビルドの結果を見る
+#   scripts/build-os.sh --app-update アプリだけをビルドして、更新ファイル(<作業フォルダ>/updates/opencruise-app-<番号>.ocapp)を作る。
+#                                    車へは USB メモリにコピーするか、scripts/update-server.sh で配る(設定 > システム > アップデート)
 #
 # オプション:
 #   --workdir <フォルダ>  作業フォルダ(既定: ~/opencruise-yocto。150GB 前後の空きが要る。リポジトリの外に作る)
@@ -55,6 +57,7 @@ while [ $# -gt 0 ]; do
         --flash) MODE=flash; shift ;;
         --shell) MODE=shell; shift ;;
         --status) MODE=status; shift ;;
+        --app-update) MODE=appupdate; shift ;;
         --config-only) CONFIG_ONLY=1; shift ;;
         --update) UPDATE=1; shift ;;
         --yes|-y) ASSUME_YES=1; shift ;;
@@ -408,6 +411,7 @@ write_bblayers() {
         echo 'BBFILES ?= ""'
         echo 'BBLAYERS ?= " \'
         for d in "$CORE/meta" "$SOURCES/meta-openembedded/meta-oe" "$SOURCES/meta-openembedded/meta-python" \
+                 "$SOURCES/meta-openembedded/meta-networking" \
                  "$SOURCES/meta-qt6" $([ "$MACHINE" = intel-corei7-64 ] && echo "$SOURCES/meta-intel") "$LAYER"; do
             echo "  $d \\"
         done
@@ -458,11 +462,11 @@ write_auto() {
             echo 'OPENCRUISE_CMDLINE:append = " ro"'
         fi
         if [ "$MACHINE" = intel-corei7-64 ]; then
-            echo '# x86 実機: UEFI(systemd-boot)のディスクイメージ(meta-opencruise/files/wic/opencruise-x86.wks.in)。GPU のファームウェアも入れる'
-            echo 'EFI_PROVIDER = "systemd-boot"'
+            echo '# x86 実機: UEFI(GRUB)のディスクイメージ(meta-opencruise/files/wic/opencruise-x86.wks.in)。GPU と Intel の Wi-Fi のファームウェアも入れる'
+            echo 'EFI_PROVIDER = "grub-efi"'
             echo 'WKS_FILE = "opencruise-x86.wks.in"'
             echo 'IMAGE_FSTYPES = "wic wic.bmap"'
-            echo 'IMAGE_INSTALL:append = " linux-firmware-i915"'
+            echo 'IMAGE_INSTALL:append = " linux-firmware-i915 linux-firmware-iwlwifi-7265d linux-firmware-iwlwifi-8000c linux-firmware-iwlwifi-8265"'
         fi
         if [ "$SRC_MODE" = local ]; then
             echo '# アプリのソースは、このリポジトリのフォルダをそのまま使う(手元の修正がすぐ入る)'
@@ -578,6 +582,24 @@ do_flash() {
     ok "書き込みました: $dev(外して対象の PC につなぎ、UEFI の起動メニューで USB を選んで起動)"
 }
 
+# ============================================================================ アプリの更新ファイル
+# bitbake opencruise でアプリだけをビルドし、インストール先(image。rm_work の対象外)から更新ファイルを作る(scripts/make-app-update.sh)
+do_app_update() {
+    step "アプリの更新ファイル"
+    [ -f "$BUILD/conf/auto.conf" ] || { ng "設定がありません。先にウィザードを実行してください"; return 1; }
+    apparmor_ready || { ng "ユーザー名前空間が使えないままです(AppArmor)"; return 1; }
+    local log rc img
+    log="$LOGS/app-update-$(date +%Y%m%d-%H%M%S).log"
+    info "bitbake opencruise(アプリだけ)。ログ: $log"
+    in_env bitbake opencruise 2>&1 | tee "$log"; rc="${PIPESTATUS[0]}"
+    [ "$rc" -eq 0 ] || { ng "アプリのビルドに失敗しました"; report_failure "$log"; return 1; }
+    img="$(in_env bitbake-getvar -r opencruise --value -q D 2>/dev/null | tail -n 1)"
+    [ -x "$img/usr/bin/opencruise" ] || { ng "ビルドしたアプリが見つかりません($img)"; return 1; }
+    mkdir -p "$WORKDIR/updates"
+    bash "$HERE/make-app-update.sh" "$img" "$WORKDIR/updates" || { ng "更新ファイルを作れませんでした"; return 1; }
+    ok "更新ファイル: $WORKDIR/updates/(USB メモリの直下か opencruise-update/ にコピー、または scripts/update-server.sh $WORKDIR/updates)"
+}
+
 # ============================================================================ シェル・状態
 do_shell() {
     [ -f "$CORE/oe-init-build-env" ] || die "まだレイヤーがありません。先にウィザードを実行してください"
@@ -613,6 +635,7 @@ init_log
 case "$MODE" in
     check)  do_check; rc=$?; print_summary; exit "$rc" ;;
     status) do_status ;;
+    appupdate) do_app_update; rc=$?; print_summary; exit "$rc" ;;
     shell)  do_shell ;;
     flash)  do_flash; rc=$?; print_summary; exit "$rc" ;;
     build)

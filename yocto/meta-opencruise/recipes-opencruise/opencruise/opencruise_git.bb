@@ -13,6 +13,10 @@ SRC_URI = " \
     file://50-opencruise.rules \
     file://51-opencruise-android.rules \
     file://91-opencruise-backlight-permission.rules \
+    file://opencruise-launch \
+    file://opencruise-usb-mount \
+    file://opencruise-usb-mount@.service \
+    file://80-opencruise-usb.rules \
 "
 SRCREV = "${AUTOREV}"
 PV = "0.1.0+git"
@@ -42,10 +46,11 @@ EXTRA_OECMAKE += " \
     -DProtobuf_PROTOC_EXECUTABLE=${STAGING_BINDIR_NATIVE}/protoc \
 "
 
-# 実行時に要るもの(QML のモジュールと、権限・電源操作)
+# 実行時に要るもの(QML のモジュールと、権限・電源操作。アプリの更新の展開に tar・gzip、Wi-Fi の設定に nmcli)
 RDEPENDS:${PN} += " \
     qtdeclarative-qmlplugins qtmultimedia-qmlplugins qt5compat-qmlplugins \
     alsa-lib ffmpeg polkit \
+    tar gzip networkmanager-nmcli \
 "
 
 do_install() {
@@ -87,6 +92,17 @@ do_install() {
     install -d ${D}${sysconfdir}/udev/rules.d
     install -m 0644 ${OC_UNPACK}/51-opencruise-android.rules ${D}${sysconfdir}/udev/rules.d/51-opencruise-android.rules
     install -m 0644 ${OC_UNPACK}/91-opencruise-backlight-permission.rules ${D}${sysconfdir}/udev/rules.d/91-opencruise-backlight-permission.rules
+
+    # アプリの更新: 起動する版を選ぶ起動スクリプト(opencruise.service の ExecStart)と、ビルド番号
+    # (更新ファイルと比べて新しいかを決める。scripts/make-app-update.sh も同じファイルを読む)
+    install -m 0755 ${OC_UNPACK}/opencruise-launch ${D}${bindir}/opencruise-launch
+    date -u +%Y%m%d%H%M%S > ${D}${datadir}/opencruise/build-id
+
+    # USB メモリを挿したら読み取り専用でつなぐ(更新ファイルを USB から入れる)
+    install -d ${D}${libexecdir}
+    install -m 0755 ${OC_UNPACK}/opencruise-usb-mount ${D}${libexecdir}/opencruise-usb-mount
+    install -m 0644 ${OC_UNPACK}/opencruise-usb-mount@.service ${D}${systemd_system_unitdir}/opencruise-usb-mount@.service
+    install -m 0644 ${OC_UNPACK}/80-opencruise-usb.rules ${D}${sysconfdir}/udev/rules.d/80-opencruise-usb.rules
 }
 
 FILES:${PN} += " \

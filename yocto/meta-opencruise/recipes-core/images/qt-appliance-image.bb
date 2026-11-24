@@ -26,4 +26,11 @@ QT_APPLIANCE_BASE = " \
     tzdata \
 "
 
-IMAGE_INSTALL += "${QT_APPLIANCE_QT} ${QT_APPLIANCE_BASE}"
+# ネットワーク: NetworkManager(Wi-Fi・有線 LAN・USB テザリング。アプリの Wi-Fi 設定は nmcli を使う)。
+# avahi + nss-mdns: 「opencruise-dev.local」のような名前で開発 PC を探す(ネット経由のアプリ更新)
+QT_APPLIANCE_NET = " \
+    networkmanager networkmanager-nmcli networkmanager-wifi wpa-supplicant \
+    avahi-daemon avahi-libnss-mdns \
+"
+
+IMAGE_INSTALL += "${QT_APPLIANCE_QT} ${QT_APPLIANCE_BASE} ${QT_APPLIANCE_NET}"

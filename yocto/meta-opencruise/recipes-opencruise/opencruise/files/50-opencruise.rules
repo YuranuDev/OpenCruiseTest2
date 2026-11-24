@@ -13,3 +13,9 @@ polkit.addRule(function (action, subject) {
     ];
     return allowed.indexOf(action.id) >= 0 ? polkit.Result.YES : polkit.Result.NOT_HANDLED;
 });
+
+// OpenCruise: アプリのユーザーに、Wi-Fi の接続・切断・オンオフ(NetworkManager。設定 > ネットワーク)を許可する
+polkit.addRule(function (action, subject) {
+    if (subject.user !== "opencruise") return polkit.Result.NOT_HANDLED;
+    return action.id.indexOf("org.freedesktop.NetworkManager.") === 0 ? polkit.Result.YES : polkit.Result.NOT_HANDLED;
+});

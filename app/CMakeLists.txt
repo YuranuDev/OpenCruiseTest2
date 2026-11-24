@@ -1,4 +1,4 @@
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Multimedia)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Multimedia Network)
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavutil libswscale)
@@ -62,6 +62,8 @@ qt_add_executable(opencruise
     src/vehicle/EcuData.cpp
     src/system/SystemStats.cpp
     src/system/ShutdownManager.cpp
+    src/system/UpdateManager.cpp
+    src/system/WifiManager.cpp
     src/androidauto/PhoneStatus.cpp
     src/ui/AlbumArtProvider.cpp
     src/ui/WidgetStore.cpp
@@ -117,6 +119,9 @@ qt_add_qml_module(opencruise
         qml/screens/ShutdownScreen.qml
         qml/screens/ReverseCameraVideo.qml
         qml/settings/pages/SettingsPageSystem.qml
+        qml/settings/pages/SettingsPageUpdate.qml
+        qml/settings/pages/SettingsPageNetwork.qml
+        qml/components/OnScreenKeyboard.qml
         qml/settings/pages/SettingsPageAbout.qml
         qml/components/StatCard.qml
         qml/components/SystemStatsStrip.qml
@@ -209,7 +214,7 @@ target_include_directories(opencruise PRIVATE
     # VideoSurfaceItem.h のあるフォルダも含める(自前のコードは src/ からの相対パスで #include する)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/androidauto)
 target_link_libraries(opencruise PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network
     opencruise_aa
     PkgConfig::FFMPEG)
 if(OPENCRUISE_ENABLE_AASDK)

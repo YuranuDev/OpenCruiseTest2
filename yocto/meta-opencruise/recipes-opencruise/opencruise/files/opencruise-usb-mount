@@ -1,0 +1,42 @@
+#!/bin/sh
+# USB メモリを読み取り専用でつなぐ / 外す(opencruise-usb-mount@<デバイス名>.service から呼ばれる。root で動く)。
+#   opencruise-usb-mount add sdb1     → /run/opencruise-usb/sdb1 に読み取り専用でマウント
+#   opencruise-usb-mount remove sdb1  → 外す
+# アプリ(設定 > システム > アップデート)は /run/opencruise-usb/*/ の直下と opencruise-update/ にある .ocapp を探す。
+# OS 自体が入っている USB メモリ / SSD(ルートと同じディスク)はつながない。
+set -u
+act="$1"; dev="$2"
+dir="/run/opencruise-usb/$dev"
+
+# あるブロックデバイスが乗っているディスクの名前(パーティションなら親)
+disk_of() {
+    if [ -f "/sys/class/block/$1/partition" ]; then basename "$(readlink -f "/sys/class/block/$1/..")"; else echo "$1"; fi
+}
+
+case "$act" in
+add)
+    # ルート(/)のデバイス番号(mountinfo の 3 列目)からディスクを求め、同じディスクならつながない
+    rootmm=$(awk '$5 == "/" { print $3; exit }' /proc/self/mountinfo)
+    rootname=$(basename "$(readlink -f "/sys/dev/block/$rootmm" 2>/dev/null)" 2>/dev/null)
+    if [ -n "$rootname" ] && [ "$(disk_of "$rootname")" = "$(disk_of "$dev")" ]; then
+        echo "opencruise-usb-mount: $dev is on the system disk, skipped"
+        exit 0
+    fi
+    mkdir -p "$dir"
+    # FAT / exFAT / NTFS は持ち主が無いので、アプリのユーザー(1000)が読めるようにする。ext4 などはそのまま読み取り専用
+    if mount -o ro,nosuid,nodev,noexec,uid=1000,gid=1000 "/dev/$dev" "$dir" 2>/dev/null \
+       || mount -o ro,nosuid,nodev,noexec "/dev/$dev" "$dir"; then
+        echo "opencruise-usb-mount: mounted /dev/$dev on $dir (read-only)"
+    else
+        echo "opencruise-usb-mount: failed to mount /dev/$dev" >&2
+        rmdir "$dir" 2>/dev/null
+        exit 1
+    fi
+    ;;
+remove)
+    umount -l "$dir" 2>/dev/null
+    rmdir "$dir" 2>/dev/null
+    echo "opencruise-usb-mount: removed $dir"
+    ;;
+esac
+exit 0

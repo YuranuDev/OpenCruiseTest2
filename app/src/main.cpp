@@ -76,6 +76,8 @@
 #include "ui/ClockModel.h"
 #include "system/SystemStats.h"
 #include "system/ShutdownManager.h"
+#include "system/UpdateManager.h"
+#include "system/WifiManager.h"
 #include "vehicle/VehicleDataManager.h"
 #include "vehicle/EcuData.h"
 #include "core/Log.h"
@@ -421,6 +423,9 @@ static int runApplication(int argc, char *argv[]) {
     // 終了処理を足すときは addTask を足す(済んだら done を呼ぶ。上限の時間を過ぎたら、待たずに次へ進む)。
     // 名前は「〇〇の××」の形にする(終了の画面の下に「〇〇の××中…」と出す)
     opencruise::ShutdownManager shutdownManager;
+    // アプリの更新(USB メモリ・ネット)と Wi-Fi(設定 > システム > アップデート / ネットワーク)。QML より長生きさせるため engine より先に作る
+    opencruise::UpdateManager updater;
+    opencruise::WifiManager wifi;
     shutdownManager.addTask(QStringLiteral("save-settings"), QStringLiteral("設定の保存"),
                             [](const opencruise::ShutdownManager::Done &done) {
                                 QSettings store(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"),
@@ -451,6 +456,8 @@ static int runApplication(int argc, char *argv[]) {
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("shutdownManager"), &shutdownManager);
+    engine.rootContext()->setContextProperty(QStringLiteral("updater"), &updater);
+    engine.rootContext()->setContextProperty(QStringLiteral("wifi"), &wifi);
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("appInfo"), &appInfo);
     engine.rootContext()->setContextProperty(QStringLiteral("displaySettings"), &displaySettings);
