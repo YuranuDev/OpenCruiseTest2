@@ -45,7 +45,7 @@ public:
     /**
      * @brief センサーチャネルを生成する(受信ループはまだ開始しない)。
      */
-    AasdkSensorHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkSensorHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                        aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks);
 
     /**
@@ -86,7 +86,7 @@ private:
      */
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::sensorsource::SensorSourceService> channel_;
     Callbacks callbacks_;
     bool nightMode_ = false;    ///< 現在の昼夜モード(strand 上でのみ触る)

@@ -26,7 +26,7 @@
 
 namespace aasdk::channel::vendorextension {
 
-  VendorExtensionService::VendorExtensionService(boost::asio::io_service::strand &strand,
+  VendorExtensionService::VendorExtensionService(boost::asio::io_context::strand &strand,
                                                  messenger::IMessenger::Pointer messenger)
       : Channel(strand, std::move(messenger), messenger::ChannelId::VENDOR_EXTENSION) {
 

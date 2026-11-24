@@ -25,7 +25,7 @@ namespace {
 constexpr std::size_t kMaxPendingSends = 50;
 } // namespace
 
-AasdkMicrophoneHandler::AasdkMicrophoneHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkMicrophoneHandler::AasdkMicrophoneHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                                aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks)
     : strand_(std::move(strand)),
       channel_(std::make_shared<aasdk::channel::mediasource::audio::MicrophoneAudioChannel>(*strand_,

@@ -48,7 +48,7 @@ public:
     /**
      * @brief 入力チャネルを生成する(受信ループはまだ開始しない)。
      */
-    AasdkInputHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkInputHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                       aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
                       StreamSettings settings = {});
 
@@ -88,7 +88,7 @@ private:
      */
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::inputsource::InputSourceService> channel_;
     Callbacks callbacks_;
     StreamSettings settings_;       ///< タッチ領域の大きさ(=映像解像度)の元

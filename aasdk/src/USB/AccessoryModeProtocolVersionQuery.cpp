@@ -24,7 +24,7 @@
 namespace aasdk {
   namespace usb {
 
-    AccessoryModeProtocolVersionQuery::AccessoryModeProtocolVersionQuery(boost::asio::io_service &ioService,
+    AccessoryModeProtocolVersionQuery::AccessoryModeProtocolVersionQuery(boost::asio::io_context &ioService,
                                                                          IUSBWrapper &usbWrapper,
                                                                          IUSBEndpoint::Pointer usbEndpoint)
         : AccessoryModeQuery(ioService, std::move(usbEndpoint)) {
@@ -34,7 +34,7 @@ namespace aasdk {
     }
 
     void AccessoryModeProtocolVersionQuery::start(Promise::Pointer promise) {
-      strand_.dispatch([this, self = this->shared_from_this(), promise = std::move(promise)]() mutable {
+      boost::asio::dispatch(strand_, [this, self = this->shared_from_this(), promise = std::move(promise)]() mutable {
         if (promise_ != nullptr) {
           promise->reject(error::Error(error::ErrorCode::OPERATION_IN_PROGRESS));
         } else {

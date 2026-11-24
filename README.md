@@ -366,6 +366,14 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
    要求から `system` を外した（ヘッダーは Boost 本体に含まれ、リンクするものは無い）。アプリ側（`app/CMakeLists.txt`）も
    `Boost::system` をやめて `Boost::headers` にした。古い Boost（1.69 以降）でもそのまま通る
    （`patches/aasdk-boost-system.patch`。aasdk を更新する場合は再適用が必要）。
+9. **Boost 1.87 で削除された Asio の古い API を使っていた（修正済み）**
+   aasdk は `boost::asio::io_service`・`strand.dispatch()` / `strand.post()`・`strand.get_io_service()` を使っていた。
+   Boost 1.87 でこれらが削除され（`io_service` の別名、`io_context` / `io_context::strand` の `post`・`dispatch` メンバーなど）、
+   Yocto wrynose（Boost 1.90）ではコンパイルできなかった。`io_context`・`boost::asio::dispatch(strand, …)` /
+   `boost::asio::post(…)`・`strand.context()` に置き換えた（どれも Boost 1.66 からある書き方で、古い Boost でもそのまま通る）。
+   アプリの接続層（`app/src/aabackend`）も同じ置き換えに加え、`strand->wrap()` を `boost::asio::bind_executor()`、
+   タイマーの `expires_from_now()` を `expires_after()` にした。aasdk の単体テスト（`*.ut.cpp`。ビルドしていない）は手を入れていない
+   （`patches/aasdk-boost-asio-1.87.patch`。aasdk を更新する場合は再適用が必要）。
 9. **`USBHub` がすべての USB 機器を開いて AOAP の問い合わせをしていた（修正済み）**
    ホットプラグの検出(作り直すたびに既存の機器も列挙する)で、ハブ・カメラ・Bluetooth なども `libusb_open` していた。
    使用中・省電力中の機器(バックカメラなど)では、この open がカーネルの中で数秒〜戻らないことがあり、

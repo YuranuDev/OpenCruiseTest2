@@ -50,7 +50,7 @@ public:
     /// 音声チャネルの種類(OpenAuto の ServiceFactory と同じ 3 種)
     enum class Kind { System, Media, Guidance };
 
-    AasdkSystemAudioHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkSystemAudioHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                             aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
                             Kind kind = Kind::System);
 
@@ -90,7 +90,7 @@ private:
      */
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::mediasink::audio::AudioMediaSinkService> channel_;
     Kind kind_;
     Callbacks callbacks_;

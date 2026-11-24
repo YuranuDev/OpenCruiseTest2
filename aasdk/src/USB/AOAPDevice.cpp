@@ -24,7 +24,7 @@
 namespace aasdk {
   namespace usb {
 
-    AOAPDevice::AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
+    AOAPDevice::AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_context &ioService, DeviceHandle handle,
                            const libusb_interface_descriptor *interfaceDescriptor)
         : usbWrapper_(usbWrapper), handle_(std::move(handle)), interfaceNumber_(interfaceDescriptor->bInterfaceNumber) {
       if ((interfaceDescriptor->endpoint[0].bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
@@ -55,7 +55,7 @@ namespace aasdk {
     }
 
     IAOAPDevice::Pointer
-    AOAPDevice::create(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle) {
+    AOAPDevice::create(IUSBWrapper &usbWrapper, boost::asio::io_context &ioService, DeviceHandle handle) {
       auto configDescriptorHandle = AOAPDevice::getConfigDescriptor(usbWrapper, handle);
       auto interface = AOAPDevice::getInterface(configDescriptorHandle);
       auto interfaceDescriptor = AOAPDevice::getInterfaceDescriptor(interface);

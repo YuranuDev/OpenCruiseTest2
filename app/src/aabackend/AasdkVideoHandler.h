@@ -55,7 +55,7 @@ public:
      * @param messenger セッションの Messenger
      * @param callbacks 通知先
      */
-    AasdkVideoHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkVideoHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                       aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
                       StreamSettings settings = {});
 
@@ -105,7 +105,7 @@ private:
      */
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     StreamSettings settings_;
     std::shared_ptr<aasdk::channel::mediasink::video::channel::VideoChannel> channel_;
     Callbacks callbacks_;

@@ -75,12 +75,12 @@ class AasdkSession : public aasdk::channel::control::IControlServiceChannelEvent
 public:
     /**
      * @brief セッションを組み立てる（まだ通信は始めない）。
-     * @param ioService aasdk 共通の io_service
+     * @param ioService aasdk 共通の io_context
      * @param aoapDevice AOAP 確立済みの USB デバイス
      * @param callbacks 通知先
      * @throws aasdk::error::Error / std::exception 下位オブジェクトの生成に失敗した場合
      */
-    AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
+    AasdkSession(boost::asio::io_context &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
                  SessionCallbacks callbacks, StreamSettings settings = {});
 
     /**
@@ -169,7 +169,7 @@ private:
             std::chrono::steady_clock::now() - startedAt_).count());
     }
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_; ///< 全チャネル共通。ハンドラ側と共有所有
+    std::shared_ptr<boost::asio::io_context::strand> strand_; ///< 全チャネル共通。ハンドラ側と共有所有
     aasdk::transport::ITransport::Pointer transport_;
     aasdk::messenger::ICryptor::Pointer cryptor_;
     aasdk::messenger::IMessenger::Pointer messenger_;

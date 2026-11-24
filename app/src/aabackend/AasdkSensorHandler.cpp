@@ -35,7 +35,7 @@ namespace proto = aap_protobuf;
 /**
  * @brief センサーチャネルを生成する。
  */
-AasdkSensorHandler::AasdkSensorHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkSensorHandler::AasdkSensorHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                        aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks)
     : strand_(std::move(strand)),
       channel_(std::make_shared<aasdk::channel::sensorsource::SensorSourceService>(*strand_,
@@ -93,7 +93,7 @@ void AasdkSensorHandler::onChannelOpenRequest(
  */
 void AasdkSensorHandler::setNightMode(bool night) {
     auto self = shared_from_this();
-    strand_->dispatch([self, night]() {
+    boost::asio::dispatch(*strand_, [self, night]() {
         if (self->nightMode_ == night) {
             return;
         }
@@ -116,7 +116,7 @@ void AasdkSensorHandler::setNightMode(bool night) {
  */
 void AasdkSensorHandler::sendVehicleData(const VehicleSnapshot &snapshot) {
     auto self = shared_from_this();
-    strand_->dispatch([self, snapshot]() {
+    boost::asio::dispatch(*strand_, [self, snapshot]() {
         namespace sm = proto::service::sensorsource::message;
         const auto started = [&self](int type) { return self->started_.count(type) > 0; };
 

@@ -25,7 +25,7 @@
 
 namespace aasdk::channel::mediasource {
 
-  MediaSourceService::MediaSourceService(boost::asio::io_service::strand &strand,
+  MediaSourceService::MediaSourceService(boost::asio::io_context::strand &strand,
                                          messenger::IMessenger::Pointer messenger,
                                          messenger::ChannelId channelId)
       : Channel(strand, std::move(messenger), channelId) {

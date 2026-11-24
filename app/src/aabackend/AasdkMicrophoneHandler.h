@@ -33,7 +33,7 @@ public:
         std::function<void(bool)> onMicrophoneRequest;         ///< スマートフォンがマイクを開いた(true)/閉じた(false)
     };
 
-    AasdkMicrophoneHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkMicrophoneHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                            aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks);
 
     void start();
@@ -61,7 +61,7 @@ private:
     aasdk::channel::SendPromise::Pointer makeSendPromise(const char *what);
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::mediasource::audio::MicrophoneAudioChannel> channel_;
     Callbacks callbacks_;
     bool open_ = false;            ///< スマートフォンからオープン要求を受けている間 true(strand 上でのみ触る)

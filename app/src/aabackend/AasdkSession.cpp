@@ -98,9 +98,9 @@ std::string describeAasdkError(const aasdk::error::Error &error) {
 /**
  * @brief USB 転送〜Messenger〜制御チャネルを組み立てる。
  */
-AasdkSession::AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
+AasdkSession::AasdkSession(boost::asio::io_context &ioService, aasdk::usb::IAOAPDevice::Pointer aoapDevice,
                            SessionCallbacks callbacks, StreamSettings settings)
-    : strand_(std::make_shared<boost::asio::io_service::strand>(ioService)),
+    : strand_(std::make_shared<boost::asio::io_context::strand>(ioService)),
       callbacks_(std::move(callbacks)),
       settings_(settings.sanitized()) {
     transport_ = std::make_shared<aasdk::transport::USBTransport>(ioService, std::move(aoapDevice));
@@ -128,7 +128,7 @@ AasdkSession::AasdkSession(boost::asio::io_service &ioService, aasdk::usb::IAOAP
  */
 void AasdkSession::start() {
     auto self = shared_from_this();
-    strand_->dispatch([self]() {
+    boost::asio::dispatch(*strand_, [self]() {
         self->log("USB/AOAP session started");
         try {
             self->cryptor_->init();
@@ -293,8 +293,8 @@ void AasdkSession::start() {
         // スマートフォンが前回の接続状態のまま無応答だと、受信待ちで永久に止まる。上限時間で打ち切る
         self->lastRx_ = std::chrono::steady_clock::now();
         self->handshakeTimer_ = std::make_shared<boost::asio::steady_timer>(self->strand_->context());
-        self->handshakeTimer_->expires_from_now(std::chrono::seconds(15));
-        self->handshakeTimer_->async_wait(self->strand_->wrap([self](const boost::system::error_code &ec) {
+        self->handshakeTimer_->expires_after(std::chrono::seconds(15));
+        self->handshakeTimer_->async_wait(boost::asio::bind_executor(*self->strand_, [self](const boost::system::error_code &ec) {
             if (!ec && !self->discoveryDone_) {
                 self->doTerminate("Connection setup timed out (the phone is not responding)");
             }
@@ -307,7 +307,7 @@ void AasdkSession::start() {
  */
 void AasdkSession::setNightMode(bool night) {
     auto self = shared_from_this();
-    strand_->dispatch([self, night]() {
+    boost::asio::dispatch(*strand_, [self, night]() {
         self->nightMode_ = night;
         if (self->sensorHandler_) {
             self->sensorHandler_->setNightMode(night);
@@ -320,7 +320,7 @@ void AasdkSession::setNightMode(bool night) {
  */
 void AasdkSession::sendVehicleData(const VehicleSnapshot &snapshot) {
     auto self = shared_from_this();
-    strand_->dispatch([self, snapshot]() {
+    boost::asio::dispatch(*strand_, [self, snapshot]() {
         if (!self->finished_ && self->sensorHandler_) {
             self->sensorHandler_->sendVehicleData(snapshot);
         }
@@ -329,15 +329,15 @@ void AasdkSession::sendVehicleData(const VehicleSnapshot &snapshot) {
 
 void AasdkSession::stop() {
     auto self = shared_from_this();
-    strand_->dispatch([self]() {
+    boost::asio::dispatch(*strand_, [self]() {
         if (self->finished_ || self->stopRequested_) {
             return;
         }
         self->stopRequested_ = true;
         // 正規の切断手順: ByeByeRequest を送り、応答(onByeByeResponse)で終了する。応答が無くても上限で終了する
         self->shutdownTimer_ = std::make_shared<boost::asio::steady_timer>(self->strand_->context());
-        self->shutdownTimer_->expires_from_now(std::chrono::milliseconds(1000));
-        self->shutdownTimer_->async_wait(self->strand_->wrap([self](const boost::system::error_code &ec) {
+        self->shutdownTimer_->expires_after(std::chrono::milliseconds(1000));
+        self->shutdownTimer_->async_wait(boost::asio::bind_executor(*self->strand_, [self](const boost::system::error_code &ec) {
             if (!ec) {
                 self->doTerminate("Stop requested by the app (timed out waiting for the disconnect response)");
             }
@@ -357,7 +357,7 @@ void AasdkSession::stop() {
  * @brief タッチ入力を strand 上で入力ハンドラへ渡す。終了済みなら捨てる。
  */
 void AasdkSession::sendTouch(const TouchEvent &event) {
-    strand_->dispatch([self = shared_from_this(), event]() {
+    boost::asio::dispatch(*strand_, [self = shared_from_this(), event]() {
         if (self->finished_ || !self->inputHandler_) {
             return;
         }
@@ -369,7 +369,7 @@ void AasdkSession::sendTouch(const TouchEvent &event) {
  * @brief 録音データを strand 上でマイクハンドラへ渡す。終了済みなら捨てる。
  */
 void AasdkSession::sendMicrophoneData(std::vector<std::uint8_t> data) {
-    strand_->dispatch([self = shared_from_this(), data = std::move(data)]() {
+    boost::asio::dispatch(*strand_, [self = shared_from_this(), data = std::move(data)]() {
         if (self->finished_ || !self->microphoneHandler_) {
             return;
         }
@@ -598,8 +598,8 @@ void AasdkSession::schedulePing() {
     if (!pingTimer_) {
         pingTimer_ = std::make_shared<boost::asio::steady_timer>(strand_->context());
     }
-    pingTimer_->expires_from_now(std::chrono::milliseconds(1000));
-    pingTimer_->async_wait(strand_->wrap([self = shared_from_this()](const boost::system::error_code &ec) {
+    pingTimer_->expires_after(std::chrono::milliseconds(1000));
+    pingTimer_->async_wait(boost::asio::bind_executor(*strand_, [self = shared_from_this()](const boost::system::error_code &ec) {
         if (ec || self->finished_) {
             return;
         }
@@ -647,7 +647,7 @@ aasdk::channel::SendPromise::Pointer AasdkSession::makeSendPromise(const char *w
  * @brief strand 上で doTerminate を実行する（どのスレッドから呼んでもよい）。
  */
 void AasdkSession::terminate(const std::string &reason) {
-    strand_->dispatch([self = shared_from_this(), reason]() { self->doTerminate(reason); });
+    boost::asio::dispatch(*strand_, [self = shared_from_this(), reason]() { self->doTerminate(reason); });
 }
 
 /**

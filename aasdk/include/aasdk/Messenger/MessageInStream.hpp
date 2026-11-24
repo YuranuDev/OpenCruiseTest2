@@ -32,7 +32,7 @@ namespace aasdk {
     class MessageInStream
         : public IMessageInStream, public std::enable_shared_from_this<MessageInStream>, boost::noncopyable {
     public:
-      MessageInStream(boost::asio::io_service &ioService, transport::ITransport::Pointer transport,
+      MessageInStream(boost::asio::io_context &ioService, transport::ITransport::Pointer transport,
                       ICryptor::Pointer cryptor);
 
       void startReceive(ReceivePromise::Pointer promise) override;
@@ -46,7 +46,7 @@ namespace aasdk {
 
       void receiveFramePayloadHandler(const common::DataConstBuffer &buffer);
 
-      boost::asio::io_service::strand strand_;
+      boost::asio::io_context::strand strand_;
       transport::ITransport::Pointer transport_;
       ICryptor::Pointer cryptor_;
 

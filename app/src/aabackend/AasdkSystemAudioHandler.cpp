@@ -34,7 +34,7 @@ AudioParams paramsFor(AasdkSystemAudioHandler::Kind kind) {
 }
 
 std::shared_ptr<aasdk::channel::mediasink::audio::AudioMediaSinkService>
-makeChannel(AasdkSystemAudioHandler::Kind kind, boost::asio::io_service::strand &strand,
+makeChannel(AasdkSystemAudioHandler::Kind kind, boost::asio::io_context::strand &strand,
             aasdk::messenger::IMessenger::Pointer messenger) {
     using namespace aasdk::channel::mediasink::audio::channel;
     switch (kind) {
@@ -52,7 +52,7 @@ makeChannel(AasdkSystemAudioHandler::Kind kind, boost::asio::io_service::strand 
 /**
  * @brief 音声チャネルを生成する。
  */
-AasdkSystemAudioHandler::AasdkSystemAudioHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkSystemAudioHandler::AasdkSystemAudioHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                                  aasdk::messenger::IMessenger::Pointer messenger,
                                                  Callbacks callbacks, Kind kind)
     : strand_(std::move(strand)), channel_(makeChannel(kind, *strand_, std::move(messenger))),

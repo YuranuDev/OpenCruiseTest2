@@ -25,7 +25,7 @@ namespace aasdk::channel::mediasink::audio::channel {
 
   class TelephonyAudioChannel : public AudioMediaSinkService {
   public:
-    TelephonyAudioChannel(boost::asio::io_service::strand &strand, messenger::IMessenger::Pointer messenger);
+    TelephonyAudioChannel(boost::asio::io_context::strand &strand, messenger::IMessenger::Pointer messenger);
   };
 }
 

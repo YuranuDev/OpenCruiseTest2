@@ -23,7 +23,7 @@
 
 namespace aasdk::channel::bluetooth {
 
-  BluetoothService::BluetoothService(boost::asio::io_service::strand &strand,
+  BluetoothService::BluetoothService(boost::asio::io_context::strand &strand,
                                      messenger::IMessenger::Pointer messenger)
       : Channel(strand, std::move(messenger), messenger::ChannelId::BLUETOOTH) {
 

@@ -28,7 +28,7 @@
 
 namespace aasdk::channel::mediabrowser {
 
-  MediaBrowserService::MediaBrowserService(boost::asio::io_service::strand &strand,
+  MediaBrowserService::MediaBrowserService(boost::asio::io_context::strand &strand,
                                            messenger::IMessenger::Pointer messenger)
       : Channel(strand, std::move(messenger), messenger::ChannelId::MEDIA_BROWSER) {
 

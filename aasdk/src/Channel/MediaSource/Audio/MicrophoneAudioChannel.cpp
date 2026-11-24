@@ -19,7 +19,7 @@
 
 namespace aasdk::channel::mediasource::audio {
 
-  MicrophoneAudioChannel::MicrophoneAudioChannel(boost::asio::io_service::strand &strand,
+  MicrophoneAudioChannel::MicrophoneAudioChannel(boost::asio::io_context::strand &strand,
                                                  messenger::IMessenger::Pointer messenger)
       : MediaSourceService(strand, std::move(messenger), messenger::ChannelId::MEDIA_SOURCE_MICROPHONE) {
 

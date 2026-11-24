@@ -26,7 +26,7 @@ namespace aasdk::channel::mediasink::audio {
   class AudioMediaSinkService
       : public IAudioMediaSinkService, public Channel, public std::enable_shared_from_this<AudioMediaSinkService> {
   public:
-    AudioMediaSinkService(boost::asio::io_service::strand &strand, messenger::IMessenger::Pointer messenger,
+    AudioMediaSinkService(boost::asio::io_context::strand &strand, messenger::IMessenger::Pointer messenger,
                           messenger::ChannelId channelId);
 
     // Senders and Receivers

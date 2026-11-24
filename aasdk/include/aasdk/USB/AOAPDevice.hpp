@@ -29,7 +29,7 @@ namespace aasdk {
 
     class AOAPDevice : public IAOAPDevice, boost::noncopyable {
     public:
-      AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
+      AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_context &ioService, DeviceHandle handle,
                  const libusb_interface_descriptor *interfaceDescriptor);
 
       ~AOAPDevice() override;
@@ -39,7 +39,7 @@ namespace aasdk {
       IUSBEndpoint &getOutEndpoint() override;
 
       static IAOAPDevice::Pointer
-      create(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle);
+      create(IUSBWrapper &usbWrapper, boost::asio::io_context &ioService, DeviceHandle handle);
 
     private:
       static ConfigDescriptorHandle getConfigDescriptor(IUSBWrapper &usbWrapper, DeviceHandle handle);

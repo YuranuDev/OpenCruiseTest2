@@ -105,7 +105,7 @@ void fillStepDetail(const proto::service::navigationstatus::message::NavigationS
 }
 
 /// 送信完了を待つ Promise。失敗してもセッションは終了せず、ログに残すだけにする
-aasdk::channel::SendPromise::Pointer makeLoggingPromise(boost::asio::io_service::strand &strand,
+aasdk::channel::SendPromise::Pointer makeLoggingPromise(boost::asio::io_context::strand &strand,
                                                         const PhoneInfoCallbacks &callbacks, const char *tag,
                                                         const char *what) {
     auto promise = aasdk::channel::SendPromise::defer(strand);
@@ -125,7 +125,7 @@ aasdk::channel::SendPromise::Pointer makeLoggingPromise(boost::asio::io_service:
 // PhoneStatus
 // ===========================================================================
 
-AasdkPhoneStatusHandler::AasdkPhoneStatusHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkPhoneStatusHandler::AasdkPhoneStatusHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                                  aasdk::messenger::IMessenger::Pointer messenger,
                                                  PhoneInfoCallbacks callbacks)
     : strand_(std::move(strand)),
@@ -186,7 +186,7 @@ void AasdkPhoneStatusHandler::log(const std::string &message) const {
 // GenericNotification
 // ===========================================================================
 
-AasdkNotificationHandler::AasdkNotificationHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkNotificationHandler::AasdkNotificationHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                                    aasdk::messenger::IMessenger::Pointer messenger,
                                                    PhoneInfoCallbacks callbacks)
     : strand_(std::move(strand)),
@@ -248,7 +248,7 @@ void AasdkNotificationHandler::log(const std::string &message) const {
 // MediaPlaybackStatus
 // ===========================================================================
 
-AasdkPlaybackHandler::AasdkPlaybackHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkPlaybackHandler::AasdkPlaybackHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                            aasdk::messenger::IMessenger::Pointer messenger,
                                            PhoneInfoCallbacks callbacks)
     : strand_(std::move(strand)),
@@ -316,7 +316,7 @@ void AasdkPlaybackHandler::log(const std::string &message) const {
 // NavigationStatus
 // ===========================================================================
 
-AasdkNavigationHandler::AasdkNavigationHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkNavigationHandler::AasdkNavigationHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                                aasdk::messenger::IMessenger::Pointer messenger,
                                                PhoneInfoCallbacks callbacks)
     : strand_(std::move(strand)),

@@ -29,7 +29,7 @@ namespace proto = aap_protobuf;
 /**
  * @brief 入力チャネルを生成する。
  */
-AasdkInputHandler::AasdkInputHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkInputHandler::AasdkInputHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                      aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
                                      StreamSettings settings)
     : strand_(std::move(strand)),

@@ -5,7 +5,7 @@
  * 構成:
  *  - libusb_context と、そのイベントループ専用スレッド（USBWrapper::handleEvents はタイムアウト無しで
  *    ブロックし停止できないため、libusb のイベント処理は自前のループで回す）
- *  - boost::asio::io_service と ioスレッド群（aasdk の Promise/Messenger が使う）
+ *  - boost::asio::io_context と ioスレッド群（aasdk の Promise/Messenger が使う）
  *  - USBHub: ホットプラグ検出 → AOAP 切替 → AOAP 済み DeviceHandle の取得
  *  - AasdkSession: 接続ごとに生成する使い捨てセッション
  *
@@ -128,7 +128,7 @@ struct AasdkBackend::Impl {
         queryFactory_ = std::make_unique<aasdk::usb::AccessoryModeQueryFactory>(*usbWrapper_, ioService_);
         chainFactory_ =
             std::make_unique<aasdk::usb::AccessoryModeQueryChainFactory>(*usbWrapper_, ioService_, *queryFactory_);
-        strand_ = std::make_unique<boost::asio::io_service::strand>(ioService_);
+        strand_ = std::make_unique<boost::asio::io_context::strand>(ioService_);
         retryTimer_ = std::make_unique<boost::asio::steady_timer>(ioService_);
         rescanTimer_ = std::make_unique<boost::asio::steady_timer>(ioService_);
         workGuard_ = std::make_unique<WorkGuard>(boost::asio::make_work_guard(ioService_));
@@ -149,7 +149,7 @@ struct AasdkBackend::Impl {
             });
         }
 
-        strand_->post([this]() { beginWaiting(); });
+        boost::asio::post(*strand_, [this]() { beginWaiting(); });
         return true;
     }
 
@@ -174,7 +174,7 @@ struct AasdkBackend::Impl {
             notifySessionGone();
         }
 
-        strand_->post([this]() {
+        boost::asio::post(*strand_, [this]() {
             retryTimer_->cancel();
             rescanTimer_->cancel();
             if (hub_) {
@@ -266,7 +266,7 @@ struct AasdkBackend::Impl {
         if (!running_ || stopping_) {
             return;
         }
-        strand_->post([this, event]() {
+        boost::asio::post(*strand_, [this, event]() {
             if (session_) {
                 session_->sendTouch(event);
             }
@@ -281,7 +281,7 @@ struct AasdkBackend::Impl {
             return;
         }
         std::vector<std::uint8_t> copy(data, data + size);
-        strand_->post([this, copy = std::move(copy)]() mutable {
+        boost::asio::post(*strand_, [this, copy = std::move(copy)]() mutable {
             if (session_) {
                 session_->sendMicrophoneData(std::move(copy));
             }
@@ -359,7 +359,7 @@ struct AasdkBackend::Impl {
             if (ec) {
                 return;
             }
-            strand_->post([this]() {
+            boost::asio::post(*strand_, [this]() {
                 if (stopping_ || session_ || !hub_) {
                     return;
                 }
@@ -413,7 +413,7 @@ struct AasdkBackend::Impl {
             sessionCallbacks.onNavigation = callbacks.onNavigation;
             sessionCallbacks.onLog = callbacks.onLog;
             sessionCallbacks.onFinished = [this](const std::string &reason) {
-                strand_->post([this, reason]() { onSessionFinished(reason); });
+                boost::asio::post(*strand_, [this, reason]() { onSessionFinished(reason); });
             };
 
             session_ = std::make_shared<AasdkSession>(ioService_, std::move(aoapDevice), std::move(sessionCallbacks), settings);
@@ -490,7 +490,7 @@ struct AasdkBackend::Impl {
         retryTimer_->expires_after(std::chrono::milliseconds(config::kRetryDelayMs));
         retryTimer_->async_wait([this](const boost::system::error_code &ec) {
             if (!ec) {
-                strand_->post([this]() { beginWaiting(); });
+                boost::asio::post(*strand_, [this]() { beginWaiting(); });
             }
         });
     }
@@ -520,7 +520,7 @@ struct AasdkBackend::Impl {
     }
 
     /**
-     * @brief io_service を回すスレッド本体。ハンドラからの例外でスレッドが落ちないよう再開する。
+     * @brief io_context を回すスレッド本体。ハンドラからの例外でスレッドが落ちないよう再開する。
      */
     void runIo() {
         while (true) {
@@ -591,7 +591,7 @@ struct AasdkBackend::Impl {
     void setNightMode(bool night) {
         nightMode_ = night;
         if (strand_) {
-            strand_->post([this, night]() {
+            boost::asio::post(*strand_, [this, night]() {
                 if (session_) {
                     session_->setNightMode(night);
                 }
@@ -602,7 +602,7 @@ struct AasdkBackend::Impl {
     /// 車両の状態を、接続中のセッションへ渡す(未接続なら捨てる)
     void sendVehicleData(const VehicleSnapshot &snapshot) {
         if (strand_) {
-            strand_->post([this, snapshot]() {
+            boost::asio::post(*strand_, [this, snapshot]() {
                 if (session_) {
                     session_->sendVehicleData(snapshot);
                 }
@@ -617,9 +617,9 @@ struct AasdkBackend::Impl {
     std::unique_ptr<aasdk::usb::AccessoryModeQueryFactory> queryFactory_;
     std::unique_ptr<aasdk::usb::AccessoryModeQueryChainFactory> chainFactory_;
 
-    boost::asio::io_service ioService_;
+    boost::asio::io_context ioService_;
     std::unique_ptr<WorkGuard> workGuard_;
-    std::unique_ptr<boost::asio::io_service::strand> strand_;
+    std::unique_ptr<boost::asio::io_context::strand> strand_;
     std::unique_ptr<boost::asio::steady_timer> retryTimer_;
     std::unique_ptr<boost::asio::steady_timer> rescanTimer_;
     aasdk::usb::DeviceHandle currentHandle_; ///< 接続中の USB デバイス（切断後のリセット用。strand_ 上でのみ触る）

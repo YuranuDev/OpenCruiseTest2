@@ -24,7 +24,7 @@
 
 namespace aasdk::channel::wifiprojection {
 
-  WifiProjectionService::WifiProjectionService(boost::asio::io_service::strand &strand,
+  WifiProjectionService::WifiProjectionService(boost::asio::io_context::strand &strand,
                                                messenger::IMessenger::Pointer messenger)
       : Channel(strand, std::move(messenger), messenger::ChannelId::WIFI_PROJECTION) {
 

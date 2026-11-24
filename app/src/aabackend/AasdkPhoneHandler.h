@@ -58,7 +58,7 @@ struct PhoneInfoCallbacks {
 class AasdkPhoneStatusHandler : public aasdk::channel::phonestatus::IPhoneStatusServiceEventHandler,
                                 public std::enable_shared_from_this<AasdkPhoneStatusHandler> {
 public:
-    AasdkPhoneStatusHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkPhoneStatusHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                             aasdk::messenger::IMessenger::Pointer messenger, PhoneInfoCallbacks callbacks);
 
     /** @brief 受信ループを開始する。 */
@@ -74,7 +74,7 @@ private:
     aasdk::channel::SendPromise::Pointer makeSendPromise(const char *what);
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::phonestatus::PhoneStatusService> channel_;
     PhoneInfoCallbacks callbacks_;
 };
@@ -88,7 +88,7 @@ private:
 class AasdkNotificationHandler : public aasdk::channel::genericnotification::IGenericNotificationServiceEventHandler,
                                  public std::enable_shared_from_this<AasdkNotificationHandler> {
 public:
-    AasdkNotificationHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkNotificationHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                              aasdk::messenger::IMessenger::Pointer messenger, PhoneInfoCallbacks callbacks);
 
     void start();
@@ -103,7 +103,7 @@ private:
     aasdk::channel::SendPromise::Pointer makeSendPromise(const char *what);
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::genericnotification::GenericNotificationService> channel_;
     PhoneInfoCallbacks callbacks_;
 };
@@ -114,7 +114,7 @@ private:
 class AasdkPlaybackHandler : public aasdk::channel::mediaplaybackstatus::IMediaPlaybackStatusServiceEventHandler,
                              public std::enable_shared_from_this<AasdkPlaybackHandler> {
 public:
-    AasdkPlaybackHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkPlaybackHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                          aasdk::messenger::IMessenger::Pointer messenger, PhoneInfoCallbacks callbacks);
 
     void start();
@@ -129,7 +129,7 @@ private:
     aasdk::channel::SendPromise::Pointer makeSendPromise(const char *what);
     void log(const std::string &message) const;
 
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::mediaplaybackstatus::MediaPlaybackStatusService> channel_;
     PhoneInfoCallbacks callbacks_;
 };
@@ -138,7 +138,7 @@ private:
 class AasdkNavigationHandler : public aasdk::channel::navigationstatus::INavigationStatusServiceEventHandler,
                               public std::enable_shared_from_this<AasdkNavigationHandler> {
 public:
-    AasdkNavigationHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+    AasdkNavigationHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                            aasdk::messenger::IMessenger::Pointer messenger, PhoneInfoCallbacks callbacks);
     void start();
     void fillFeatures(aap_protobuf::service::control::message::ServiceDiscoveryResponse &response);
@@ -152,7 +152,7 @@ public:
 private:
     void publish();
     void log(const std::string &message) const;
-    std::shared_ptr<boost::asio::io_service::strand> strand_;
+    std::shared_ptr<boost::asio::io_context::strand> strand_;
     std::shared_ptr<aasdk::channel::navigationstatus::NavigationStatusService> channel_;
     PhoneInfoCallbacks callbacks_;
     NavigationInfo info_;

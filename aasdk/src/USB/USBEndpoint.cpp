@@ -24,7 +24,7 @@
 namespace aasdk {
   namespace usb {
 
-    USBEndpoint::USBEndpoint(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
+    USBEndpoint::USBEndpoint(IUSBWrapper &usbWrapper, boost::asio::io_context &ioService, DeviceHandle handle,
                              uint8_t endpointAddress)
         : usbWrapper_(usbWrapper), strand_(ioService), handle_(std::move(handle)), endpointAddress_(endpointAddress) {
     }
@@ -80,7 +80,7 @@ namespace aasdk {
     }
 
     void USBEndpoint::transfer(libusb_transfer *transfer, Promise::Pointer promise) {
-      strand_.dispatch([this, self = this->shared_from_this(), transfer, promise = std::move(promise)]() mutable {
+      boost::asio::dispatch(strand_, [this, self = this->shared_from_this(), transfer, promise = std::move(promise)]() mutable {
         auto submitResult = usbWrapper_.submitTransfer(transfer);
 
         if (submitResult == libusb_error::LIBUSB_SUCCESS) {
@@ -103,7 +103,7 @@ namespace aasdk {
     }
 
     void USBEndpoint::cancelTransfers() {
-      strand_.dispatch([this, self = this->shared_from_this()]() mutable {
+      boost::asio::dispatch(strand_, [this, self = this->shared_from_this()]() mutable {
         for (const auto &transfer: transfers_) {
           usbWrapper_.cancelTransfer(transfer.first);
         }
@@ -118,7 +118,7 @@ namespace aasdk {
       AASDK_LOG_USB(debug, "transferHandler()");
       auto self = reinterpret_cast<USBEndpoint *>(transfer->user_data)->shared_from_this();
 
-      self->strand_.dispatch([self, transfer]() mutable {
+      boost::asio::dispatch(self->strand_, [self, transfer]() mutable {
         if (self->transfers_.count(transfer) == 0) {
           AASDK_LOG_USB(debug, "No more transfers.");
           return;

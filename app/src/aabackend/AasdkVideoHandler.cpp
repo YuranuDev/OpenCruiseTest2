@@ -34,7 +34,7 @@ namespace proto = aap_protobuf;
 /**
  * @brief 映像チャネルを生成する（受信ループはまだ開始しない）。
  */
-AasdkVideoHandler::AasdkVideoHandler(std::shared_ptr<boost::asio::io_service::strand> strand,
+AasdkVideoHandler::AasdkVideoHandler(std::shared_ptr<boost::asio::io_context::strand> strand,
                                      aasdk::messenger::IMessenger::Pointer messenger, Callbacks callbacks,
                                      StreamSettings settings)
     : strand_(std::move(strand)),

@@ -29,7 +29,7 @@
  */
 namespace aasdk::channel::mediasink::audio {
 
-  AudioMediaSinkService::AudioMediaSinkService(boost::asio::io_service::strand &strand,
+  AudioMediaSinkService::AudioMediaSinkService(boost::asio::io_context::strand &strand,
                                                messenger::IMessenger::Pointer messenger,
                                                messenger::ChannelId channelId)
       : Channel(strand, std::move(messenger), channelId) {

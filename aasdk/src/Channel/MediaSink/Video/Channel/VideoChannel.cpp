@@ -19,7 +19,7 @@
 
 namespace aasdk::channel::mediasink::video::channel {
 
-  VideoChannel::VideoChannel(boost::asio::io_service::strand &strand,
+  VideoChannel::VideoChannel(boost::asio::io_context::strand &strand,
                              messenger::IMessenger::Pointer messenger)
       : VideoMediaSinkService(strand, std::move(messenger), messenger::ChannelId::MEDIA_SINK_VIDEO) {
 

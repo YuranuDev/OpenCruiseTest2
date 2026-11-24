@@ -28,7 +28,7 @@
 
 namespace aasdk::channel::phonestatus {
 
-  PhoneStatusService::PhoneStatusService(boost::asio::io_service::strand &strand,
+  PhoneStatusService::PhoneStatusService(boost::asio::io_context::strand &strand,
                                          messenger::IMessenger::Pointer messenger)
       : Channel(strand, std::move(messenger), messenger::ChannelId::PHONE_STATUS) {
 
