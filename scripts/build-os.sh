@@ -424,12 +424,12 @@ write_auto() {
     cpus="$(nproc)"; mg="$(mem_gb)"
     # 並列数はメモリで決める。以前は make の並列数を CPU の数いっぱいにしていたため、llvm-native と qtbase-native の
     # コンパイルが重なったときに llvm-tblgen などが 1 つ 1〜3GB 使い、メモリが尽きて Killed(終了コード 137)になった。
-    #   同時に走る作業の数   : メモリ 4GB に 1 つ
-    #   1 つの作業の make 並列: メモリ 2GB に 1 つ(CPU の数まで)
-    #   特に重いレシピ(LLVM・Qt): メモリ 4GB に 1 つ(重いもの同士が重なっても足りるように)
+    #   同時に走る作業の数   : メモリ 3GB に 1 つ(多くの作業は configure やパッケージ作りで軽い)
+    #   1 つの作業の make 並列: メモリ 1.5GB に 1 つ(CPU の数まで)
+    #   特に重いレシピ(LLVM・Qt): メモリ 4GB に 1 つ(重いもの同士が重なっても足りるように。ここは緩めない)
     # 変えたいときは local.conf に BB_NUMBER_THREADS / PARALLEL_MAKE を書く(auto.conf より優先される)
-    bbt=$((mg / 4)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
-    pm=$((mg / 2)); [ "$pm" -lt 2 ] && pm=2; [ "$pm" -gt "$cpus" ] && pm="$cpus"
+    bbt=$((mg / 3)); [ "$bbt" -lt 2 ] && bbt=2; [ "$bbt" -gt "$cpus" ] && bbt="$cpus"
+    pm=$((mg * 2 / 3)); [ "$pm" -lt 2 ] && pm=2; [ "$pm" -gt "$cpus" ] && pm="$cpus"
     heavy=$((mg / 4)); [ "$heavy" -lt 2 ] && heavy=2; [ "$heavy" -gt "$pm" ] && heavy="$pm"
     {
         echo "# scripts/build-os.sh がウィザードの答えから作った(実行のたびに作り直される)。"
