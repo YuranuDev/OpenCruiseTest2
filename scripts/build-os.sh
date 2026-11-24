@@ -204,6 +204,8 @@ do_check() {
     if userns_ok; then ok "ユーザー名前空間が使えます(BitBake の作業のネットワーク分離)"
     elif [ -f "$APPARMOR_PROFILE" ]; then ok "ユーザー名前空間: AppArmor に BitBake 用の許可があります($APPARMOR_PROFILE)"
     else ng "ユーザー名前空間が使えません(Ubuntu 23.10 以降の AppArmor の制限。BitBake が止まります)"; bad=1; fi
+    if fs_ok "$WORKDIR"; then ok "作業フォルダのファイルシステム: ${FS_TYPE}(Linux の権限・大文字小文字・リンクが使える)"
+    else ng "作業フォルダ $WORKDIR のファイルシステム(${FS_TYPE})は Yocto で使えません(${FS_WHY})。ext4 / xfs / btrfs のフォルダを --workdir で指定してください(共有フォルダ・NTFS・exFAT・FAT は不可)"; bad=1; fi
     v="$(free_gb "$WORKDIR")"
     if [ "$v" -ge 150 ]; then ok "空き容量: ${v}GB($WORKDIR)"
     elif [ "$v" -ge "${OC_MIN_FREE_GB:-90}" ]; then ok "空き容量: ${v}GB(少なめ。作業ファイルの自動削除を「はい」にすると足ります)"
@@ -217,6 +219,24 @@ do_check() {
     if [ -f "$LAYER/conf/layer.conf" ]; then ok "OpenCruise のレイヤー: $LAYER"; else ng "レイヤーがありません: $LAYER"; bad=1; fi
     case "$REPO$WORKDIR" in *" "*) ng "リポジトリか作業フォルダのパスに空白があります(BitBake が扱えません)"; bad=1 ;; esac
     return "$bad"
+}
+
+# 作業フォルダが Yocto に使えるか(VirtualBox / WSL の共有フォルダ・NTFS・exFAT・FAT・ネットワークドライブは、
+# chmod・大文字小文字の区別・シンボリックリンク・ハードリンクのどれかが使えず、git の取得やビルドで止まる)。実際に試して確かめる
+FS_TYPE="?"; FS_WHY=""
+fs_ok() {
+    local d="$1" t r=0
+    while [ ! -d "$d" ]; do d="$(dirname "$d")"; done
+    FS_TYPE="$(stat -f -c %T "$d" 2>/dev/null || echo '?')"
+    case "$FS_TYPE" in vfat|msdos|exfat|ntfs|fuseblk|vboxsf|v9fs|9p|cifs|smb2|smb|nfs|drvfs|prl_fs|vmhgfs|fuse*) FS_WHY="共有・Windows 向けの形式"; return 1 ;; esac
+    [ -w "$d" ] || { FS_WHY="書き込めない"; return 1; }
+    t="$(mktemp -d "$d/.oc-fscheck.XXXXXX" 2>/dev/null)" || { FS_WHY="書き込めない"; return 1; }
+    : > "$t/a"
+    chmod 0750 "$t/a" 2>/dev/null && [ "$(stat -c %a "$t/a")" = 750 ] || { FS_WHY="chmod が効かない"; r=1; }
+    [ "$r" -eq 0 ] && { : > "$t/A"; [ -e "$t/a" ] && [ "$(ls "$t" | wc -l)" -eq 2 ] || { FS_WHY="大文字と小文字を区別しない"; r=1; }; }
+    [ "$r" -eq 0 ] && { ln -s a "$t/s" 2>/dev/null && ln "$t/a" "$t/h" 2>/dev/null || { FS_WHY="リンクが作れない"; r=1; }; }
+    rm -rf "$t"
+    return "$r"
 }
 
 need_sudo() { command -v sudo >/dev/null 2>&1 || { ng "sudo がありません。root で: $1"; return 1; }; sudo -v || { ng "sudo の認証ができませんでした"; return 1; }; }
@@ -339,8 +359,9 @@ bitbake_branch() {
 # meta-qt6 のブランチは、$RELEASE に対応と書かれている 6.x のうちいちばん新しいもの
 qt_branch() {
     local dir="$SOURCES/meta-qt6" b
-    [ -d "$dir/.git" ] || { info "meta-qt6 を取得します(全ブランチ)"; run_logged git clone --no-checkout "$URL_QT6" "$dir" || return 1; }
-    [ "$UPDATE" -eq 1 ] && run_logged git -C "$dir" fetch --quiet origin
+    # この関数の標準出力はブランチ名だけにする(呼び出し側が $(...) で受け取るので、進行状況は標準エラーへ)
+    [ -d "$dir/.git" ] || { info "meta-qt6 を取得します(全ブランチ)" >&2; run_logged git clone --no-checkout "$URL_QT6" "$dir" >&2 || return 1; }
+    [ "$UPDATE" -eq 1 ] && run_logged git -C "$dir" fetch --quiet origin >&2
     for b in $(git -C "$dir" for-each-ref --format='%(refname:strip=3)' refs/remotes/origin | grep -E '^6\.[0-9]+$' | sort -Vr); do
         git -C "$dir" show "origin/$b:conf/layer.conf" 2>/dev/null | grep 'LAYERSERIES_COMPAT' | grep -qw "$RELEASE" && { echo "$b"; return 0; }
     done
@@ -350,16 +371,17 @@ qt_branch() {
 do_fetch() {
     step "レイヤーの取得(Yocto $RELEASE)"
     mkdir -p "$SOURCES"
+    fs_ok "$WORKDIR" || { ng "作業フォルダ $WORKDIR のファイルシステム(${FS_TYPE})は Yocto で使えません(${FS_WHY})。ext4 などのフォルダを --workdir で指定してください"; return 1; }
     LOCK_NEW=""
     get_layer openembedded-core "$URL_OECORE" "$RELEASE" "$CORE" || return 1
     local bb; bb="$(lock_get bitbake 1)"
     { [ "$UPDATE" -eq 1 ] || [ -z "$bb" ]; } && bb="$(bitbake_branch)"
-    [ -n "$bb" ] || { ng "openembedded-core に合う bitbake のブランチが分かりません"; return 1; }
+    [[ "$bb" =~ ^[0-9]+\.[0-9]+$ ]] || { ng "openembedded-core に合う bitbake のブランチが分かりません"; return 1; }
     get_layer bitbake "$URL_BITBAKE" "$bb" "$SOURCES/bitbake" || return 1
     get_layer meta-openembedded "$URL_METAOE" "$RELEASE" "$SOURCES/meta-openembedded" || return 1
     local qb; qb="$(lock_get meta-qt6 1)"
     { [ "$UPDATE" -eq 1 ] || [ -z "$qb" ]; } && qb="$(qt_branch)"
-    [ -n "$qb" ] || { ng "meta-qt6 に $RELEASE 対応のブランチが見つかりません"; return 1; }
+    [[ "$qb" =~ ^6\.[0-9]+$ ]] || { ng "meta-qt6 に $RELEASE 対応のブランチが見つかりません"; return 1; }
     get_layer meta-qt6 "$URL_QT6" "$qb" "$SOURCES/meta-qt6" || return 1
     if [ "$MACHINE" = intel-corei7-64 ]; then
         get_layer meta-intel "$URL_INTEL" "$RELEASE" "$SOURCES/meta-intel" || return 1
