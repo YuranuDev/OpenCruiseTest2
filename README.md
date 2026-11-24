@@ -85,7 +85,7 @@ sudo apt install build-essential cmake ninja-build pkg-config \
   qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates \
   qml6-module-qtqml qml6-module-qtqml-workerscript \
   qt6-multimedia-dev qml6-module-qtmultimedia \
-  libavcodec-dev libavutil-dev libswscale-dev \
+  libopenh264-dev \
   libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev \
   libasound2-dev
 # 日本語表示用フォント（例）
@@ -329,7 +329,7 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
 | USB ホットプラグ検出・AOAP 切替 (`USBHub`) | libusb の初期化と **イベントループ専用スレッド**、io スレッド、待機⇄接続のループ |
 | USB 転送・フレーム化・SSL 暗号化 (`USBTransport`/`Messenger`/`Cryptor`) | セッションの組み立てと終了処理 |
 | チャネルの送受信と protobuf デコード（制御/映像） | **各メッセージへの応答ロジック**（ハンドシェイク手順、サービス探索応答の内容、Open/Setup/Start 応答、ACK、フォーカス応答、Ping） |
-| 映像データの受信（H.264 の生バイト列まで） | **H.264 デコード**（FFmpeg）と画面表示 |
+| 映像データの受信（H.264 の生バイト列まで） | **H.264 デコード**（OpenH264）と画面表示 |
 
 同梱の `aasdk/tools/simple` は AOAP ハンドシェイクのスタブで、Messenger/映像は含まない。完全なセッションの手順は
 ヘッダ・実装・`.proto` から読み取った（根拠は各 `.cpp` 冒頭のコメントに記載）。

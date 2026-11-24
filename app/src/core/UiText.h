@@ -74,9 +74,8 @@ inline const std::vector<std::pair<QString, QString>> &table() {
             {QStringLiteral("Video channel send failed "), QStringLiteral("映像チャネル送信失敗")},
             // ---- 映像デコーダ・テスト映像 ----
             {QStringLiteral("Video decoder: "), QStringLiteral("映像デコーダ: ")},
-            {QStringLiteral("FFmpeg has no H.264 decoder"), QStringLiteral("FFmpeg に H.264 デコーダがありません")},
-            {QStringLiteral("FFmpeg memory allocation failed"), QStringLiteral("FFmpeg のメモリ確保に失敗しました")},
-            {QStringLiteral("Could not open the H.264 decoder"), QStringLiteral("H.264 デコーダを開けませんでした")},
+            {QStringLiteral("OpenH264 could not create a decoder"), QStringLiteral("OpenH264 のデコーダを作れませんでした")},
+            {QStringLiteral("OpenH264 decoder initialization failed"), QStringLiteral("OpenH264 のデコーダの初期化に失敗しました")},
             {QStringLiteral("Cannot open the test video: "), QStringLiteral("テスト映像を開けません: ")},
             {QStringLiteral("No AUD found. Use an H.264 file encoded by x264 with aud=1"),
              QStringLiteral("AUD が見つかりません。x264 の aud=1 付きで作成した H.264 を指定してください")},

@@ -16,6 +16,21 @@ QT_APPLIANCE_QT = " \
     qt5compat qt5compat-qmlplugins \
 "
 
+# Qt Multimedia のバックエンドは GStreamer(ALSA だけの構成では FFmpeg バックエンドが使えない: Qt 6.12 は Linux で PulseAudio / PipeWire が必須)。
+# バックカメラ(UVC。QCamera)は v4l2src と、MJPEG 用の jpeg デコーダ、色変換・拡縮が実行時に要る。
+# MP3 の効果音・起動音(AlsaSoundEffect が QAudioDecoder で読む。Qt 6.12 の中身は playbin3 → appsink)には、
+# MPEG 音声の切り出し(audioparsers の mpegaudioparse)・デコーダ(mpg123)・ID3 タグの読み飛ばし(id3demux)が要る。
+# 同梱の resources/sounds/start/Bell*.mp3 はどれも ID3 タグ付きで、id3demux が無いと「プラグインが無い」で読めない。
+QT_APPLIANCE_GST = " \
+    gstreamer1.0 \
+    gstreamer1.0-plugins-base gstreamer1.0-plugins-base-playback gstreamer1.0-plugins-base-typefindfunctions \
+    gstreamer1.0-plugins-base-videoconvertscale gstreamer1.0-plugins-base-videorate \
+    gstreamer1.0-plugins-base-audioconvert gstreamer1.0-plugins-base-audioresample gstreamer1.0-plugins-base-alsa \
+    gstreamer1.0-plugins-base-app \
+    gstreamer1.0-plugins-good-video4linux2 gstreamer1.0-plugins-good-jpeg \
+    gstreamer1.0-plugins-good-audioparsers gstreamer1.0-plugins-good-mpg123 gstreamer1.0-plugins-good-id3demux \
+"
+
 # 音は ALSA 直(アプリが機器を占有して中で混ぜる)・USB・カメラ(UVC)・タッチ入力
 QT_APPLIANCE_BASE = " \
     mesa libdrm libinput \
@@ -33,4 +48,4 @@ QT_APPLIANCE_NET = " \
     avahi-daemon avahi-libnss-mdns \
 "
 
-IMAGE_INSTALL += "${QT_APPLIANCE_QT} ${QT_APPLIANCE_BASE} ${QT_APPLIANCE_NET}"
+IMAGE_INSTALL += "${QT_APPLIANCE_QT} ${QT_APPLIANCE_GST} ${QT_APPLIANCE_BASE} ${QT_APPLIANCE_NET}"

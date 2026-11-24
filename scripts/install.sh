@@ -197,7 +197,7 @@ qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-qpa-plugins
 qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window
 qml6-module-qtquick-templates qml6-module-qtqml qml6-module-qtqml-workerscript qml6-module-qtmultimedia
 qml6-module-qtquick-effects qml6-module-qt5compat-graphicaleffects qml6-module-qtquick-shapes
-libavcodec-dev libavutil-dev libswscale-dev libdrm-dev libasound2-dev
+libopenh264-dev libdrm-dev libasound2-dev
 libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev"
 PKGS_RUN="fonts-noto-cjk alsa-utils v4l-utils pciutils power-profiles-daemon libinput-tools
 polkitd pkexec udev whiptail"

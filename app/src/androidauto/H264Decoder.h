@@ -1,6 +1,6 @@
 /**
  * @file H264Decoder.h
- * @brief FFmpeg(libavcodec) による H.264 デコーダ。
+ * @brief OpenH264(libopenh264) による H.264 デコーダ。
  *
  * aasdk は H.264 のデコードを提供しない。Android Auto から受け取る映像データ
  * (Annex-B 形式の 1 アクセスユニット) を QImage に変換するために必要。
@@ -11,14 +11,12 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
+#include <vector>
 
 #include <QImage>
 #include <QString>
 
-struct AVCodecContext;
-struct AVFrame;
-struct AVPacket;
-struct SwsContext;
+class ISVCDecoder; // OpenH264(wels/codec_api.h)。ヘッダを公開しないため前方宣言だけにする
 
 namespace opencruise {
 
@@ -39,7 +37,7 @@ public:
      */
     explicit H264Decoder(FrameCallback callback);
 
-    /** @brief FFmpeg のリソースを解放する。 */
+    /** @brief OpenH264 のデコーダを解放する。 */
     ~H264Decoder();
 
     H264Decoder(const H264Decoder &) = delete;
@@ -71,10 +69,8 @@ private:
 
     mutable std::mutex mutex_;
     FrameCallback callback_;
-    AVCodecContext *context_ = nullptr;
-    AVFrame *frame_ = nullptr;
-    AVPacket *packet_ = nullptr;
-    SwsContext *scaler_ = nullptr;
+    ISVCDecoder *decoder_ = nullptr;
+    std::vector<std::uint8_t> input_; // OpenH264 に渡す入力(末尾に余白を付けて渡す)
     QString error_;
 };
 

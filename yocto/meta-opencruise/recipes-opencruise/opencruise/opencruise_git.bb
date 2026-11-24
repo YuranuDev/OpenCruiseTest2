@@ -28,7 +28,7 @@ S = "${OC_UNPACK}/opencruise-src"
 # meta-qt6 6.11 / 6.12(wrynose 対応の版)には cmake_qt6 は無く、アプリも qt6-cmake を使う
 inherit qt6-cmake pkgconfig systemd useradd
 
-DEPENDS = "qtbase qtdeclarative qtdeclarative-native qtmultimedia qtshadertools ffmpeg alsa-lib libdrm"
+DEPENDS = "qtbase qtdeclarative qtdeclarative-native qtmultimedia qtshadertools openh264 alsa-lib libdrm"
 
 # Android Auto(aasdk)。外すと UI だけのビルドになり、接続は「利用不可」と出る。
 # aasdk の protobuf 生成には、ホスト側の protoc(protobuf-native)が要る。Yocto の protobuf は新しく Abseil が要る。
@@ -49,7 +49,7 @@ EXTRA_OECMAKE += " \
 # 実行時に要るもの(QML のモジュールと、権限・電源操作。アプリの更新の展開に tar・gzip、Wi-Fi の設定に nmcli)
 RDEPENDS:${PN} += " \
     qtdeclarative-qmlplugins qtmultimedia-qmlplugins qt5compat-qmlplugins \
-    alsa-lib ffmpeg polkit \
+    alsa-lib openh264 polkit \
     tar gzip networkmanager-nmcli \
 "
 

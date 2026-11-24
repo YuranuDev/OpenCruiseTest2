@@ -1,7 +1,7 @@
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Multimedia Network)
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
-pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavutil libswscale)
+pkg_check_modules(OPENH264 REQUIRED IMPORTED_TARGET openh264)   # H.264 デコード(src/androidauto/H264Decoder)
 
 qt_standard_project_setup()
 
@@ -216,7 +216,7 @@ target_include_directories(opencruise PRIVATE
 target_link_libraries(opencruise PRIVATE
     Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network
     opencruise_aa
-    PkgConfig::FFMPEG)
+    PkgConfig::OPENH264)
 if(OPENCRUISE_ENABLE_AASDK)
     target_compile_definitions(opencruise PRIVATE OPENCRUISE_WITH_AASDK)
 endif()

@@ -16,7 +16,7 @@
 #   --config-only         設定を作るところまでで止める(ビルドしない)
 #   --update              レイヤーを各ブランチの最新にする(既定は layers.lock に記録した版に固定)
 #   --yes                 質問せず、前の答え(無ければおすすめ)で進む
-#   --accept-licenses     --yes のとき、FFmpeg のライセンス区分(commercial)を受け入れたことにする
+#   --accept-licenses     --yes のとき、OpenH264(H.264)のライセンス区分(commercial)を受け入れたことにする
 #   --no-tui              whiptail(画面のダイアログ)を使わず、文字の質問だけで進める
 #
 # 作業フォルダの中身:
@@ -144,6 +144,7 @@ ui_input() {   # ui_input 見出し 本文 既定値
 }
 
 # ============================================================================ 答え(次回の既定)
+# (FFMPEG_OK は古い版からの名前。今は OpenH264 のライセンス区分(commercial)を受け入れたかの答えで、保存済みの答えをそのまま使えるように名前は変えない)
 KEYS="MACHINE TARGET ROOTFS DEV_MODE AASDK SRC_MODE TIMEZONE RM_WORK FFMPEG_OK"
 MACHINE=intel-corei7-64; TARGET=opencruise-image; ROOTFS=rw; DEV_MODE=yes; AASDK=yes
 SRC_MODE=local; TIMEZONE=Asia/Tokyo; RM_WORK=yes; FFMPEG_OK=no
@@ -285,7 +286,7 @@ apparmor_ready() { userns_ok || [ -f "$APPARMOR_PROFILE" ]; }
 
 # ============================================================================ 質問
 ask_all() {
-    ui_msg "はじめに" "OpenCruise 専用の OS(Yocto $RELEASE)を作ります。\n\n・作業フォルダ: $WORKDIR\n・初回のビルドは数時間かかります(Qt6 と FFmpeg を自分でビルドするため)\n・空き容量は 150GB 前後が要ります\n\nわからない質問は Enter(今の選択)で進めて大丈夫です。"
+    ui_msg "はじめに" "OpenCruise 専用の OS(Yocto $RELEASE)を作ります。\n\n・作業フォルダ: $WORKDIR\n・初回のビルドは数時間かかります(Qt6 と OpenH264 を自分でビルドするため)\n・空き容量は 150GB 前後が要ります\n\nわからない質問は Enter(今の選択)で進めて大丈夫です。"
     MACHINE="$(ui_menu "動かす機械" "この OS を動かす機械は?" "$MACHINE" \
         intel-corei7-64 "Intel の x86_64 PC の実機(CF-MX5 など)" \
         qemux86-64 "PC なしで試す(QEMU の仮想マシン)")" || die "やめました"
@@ -312,10 +313,10 @@ ask_licenses() {
     [ "$FFMPEG_OK" = yes ] && return 0
     if [ "$ASSUME_YES" -eq 1 ]; then
         [ "$ACCEPT_LICENSES" -eq 1 ] && { FFMPEG_OK=yes; return 0; }
-        die "FFmpeg のライセンス区分(commercial)の受け入れが要ります。--accept-licenses を付けるか、ウィザードで答えてください。"
+        die "OpenH264(H.264)のライセンス区分(commercial)の受け入れが要ります。--accept-licenses を付けるか、ウィザードで答えてください。"
     fi
-    ui_yesno "ライセンス" "OpenCruise は H.264 の映像のデコードに FFmpeg を使います。Yocto では FFmpeg は「commercial」(特許などの配慮が要る)に分類され、受け入れないとビルドできません。\n\nイメージを配布・販売する場合は、H.264 などの特許の扱いを自分で確認してください。\n\n受け入れますか?" no \
-        && FFMPEG_OK=yes || die "FFmpeg を受け入れないとアプリをビルドできません。やめました。"
+    ui_yesno "ライセンス" "OpenCruise は H.264 の映像のデコードに OpenH264 を使います。Yocto では OpenH264 は「commercial」(特許などの配慮が要る)に分類され、受け入れないとビルドできません。\n\nイメージを配布・販売する場合は、H.264 などの特許の扱いを自分で確認してください。\n\n受け入れますか?" no \
+        && FFMPEG_OK=yes || die "OpenH264 を受け入れないとアプリをビルドできません。やめました。"
 }
 
 # ============================================================================ レイヤーの取得
@@ -411,7 +412,7 @@ write_bblayers() {
         echo 'BBFILES ?= ""'
         echo 'BBLAYERS ?= " \'
         for d in "$CORE/meta" "$SOURCES/meta-openembedded/meta-oe" "$SOURCES/meta-openembedded/meta-python" \
-                 "$SOURCES/meta-openembedded/meta-networking" \
+                 "$SOURCES/meta-openembedded/meta-networking" "$SOURCES/meta-openembedded/meta-multimedia" \
                  "$SOURCES/meta-qt6" $([ "$MACHINE" = intel-corei7-64 ] && echo "$SOURCES/meta-intel") "$LAYER"; do
             echo "  $d \\"
         done
@@ -447,11 +448,15 @@ write_auto() {
         done
         echo 'PACKAGE_CLASSES = "package_ipk"'
         echo "DEFAULT_TIMEZONE = \"$TIMEZONE\""
-        echo 'LICENSE_FLAGS_ACCEPTED:append = " commercial commercial_ffmpeg"'
+        echo 'LICENSE_FLAGS_ACCEPTED:append = " commercial"'
         echo
-        echo '# Qt の画面は eglfs(DRM/KMS 直描画)。Qt Multimedia は FFmpeg を使う'
+        echo '# Qt の画面は eglfs(DRM/KMS 直描画)。Qt Multimedia は GStreamer を使う(音は ALSA のみで PulseAudio / PipeWire が無いため)'
+        echo '# Qt 6.12 の Qt Multimedia の FFmpeg バックエンドは Linux では PulseAudio か PipeWire が必須で、ALSA だけだと do_configure が失敗する。'
+        echo '# meta-qt6 の qtmultimedia は LICENSE_FLAGS_ACCEPTED に commercial があると ffmpeg を自動で足すので、ここで外す。'
+        echo '# (アプリの H.264 デコードは FFmpeg を使わず、opencruise レシピが openh264 を直接使う。FFmpeg はイメージに入れない)'
         echo 'PACKAGECONFIG:append:pn-qtbase = " eglfs kms gbm libinput fontconfig"'
-        echo 'PACKAGECONFIG:append:pn-qtmultimedia = " ffmpeg"'
+        echo 'PACKAGECONFIG:remove:pn-qtmultimedia = "ffmpeg pulseaudio pipewire"'
+        echo 'PACKAGECONFIG:append:pn-qtmultimedia = " gstreamer alsa"'
         if [ "$DEV_MODE" = yes ]; then
             echo '# 開発用: SSH・パスワードなしの root ログイン(完成品では外す)'
             echo 'EXTRA_IMAGE_FEATURES:append = " ssh-server-openssh allow-root-login allow-empty-password empty-root-password post-install-logging"'

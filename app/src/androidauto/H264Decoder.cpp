@@ -1,18 +1,86 @@
 /**
  * @file H264Decoder.cpp
- * @brief H264Decoder の実装。
+ * @brief H264Decoder の実装(OpenH264 によるソフトウェアデコード)。
  */
 #include "H264Decoder.h"
 
+#include <algorithm>
+#include <array>
 #include <cstring>
 
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
-}
+#include <wels/codec_api.h>
 
 namespace opencruise {
+
+namespace {
+
+/** OpenH264 が入力の末尾を少し先読みしても安全なように付ける余白(バイト)。 */
+constexpr std::size_t kInputPadding = 16;
+
+/**
+ * @brief YUV(BT.601・リミテッドレンジ)から RGB への変換表。
+ *
+ * 以前使っていた libswscale の既定(BT.601・リミテッドレンジ)と同じ係数にしてある。
+ * 固定小数点(<<8)で、画素ごとの掛け算を表引きにして、1080p でも負荷を抑える。
+ */
+struct YuvTables {
+    std::array<int, 256> y{};   // 298 * (Y - 16)
+    std::array<int, 256> vr{};  // 409 * (V - 128)
+    std::array<int, 256> ug{};  // -100 * (U - 128)
+    std::array<int, 256> vg{};  // -208 * (V - 128)
+    std::array<int, 256> ub{};  // 516 * (U - 128)
+    YuvTables() {
+        for (int i = 0; i < 256; ++i) {
+            y[i] = 298 * (i - 16) + 128; // 丸め用の 128 を含める
+            vr[i] = 409 * (i - 128);
+            ug[i] = -100 * (i - 128);
+            vg[i] = -208 * (i - 128);
+            ub[i] = 516 * (i - 128);
+        }
+    }
+};
+
+const YuvTables &tables() {
+    static const YuvTables t;
+    return t;
+}
+
+inline std::uint8_t clamp8(int v) {
+    return static_cast<std::uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+}
+
+/**
+ * @brief I420(Y・U・V の 3 面)を QImage(Format_RGB32)へ変換する。
+ *
+ * Format_RGB32 はリトルエンディアンで B,G,R,A の並び。U・V は縦横とも半分の大きさ。
+ */
+QImage i420ToImage(const std::uint8_t *planeY, const std::uint8_t *planeU, const std::uint8_t *planeV, int width,
+                   int height, int strideY, int strideUV) {
+    QImage image(width, height, QImage::Format_RGB32);
+    if (image.isNull()) {
+        return image;
+    }
+    const YuvTables &t = tables();
+    for (int row = 0; row < height; ++row) {
+        const std::uint8_t *y = planeY + static_cast<std::ptrdiff_t>(row) * strideY;
+        const std::uint8_t *u = planeU + static_cast<std::ptrdiff_t>(row / 2) * strideUV;
+        const std::uint8_t *v = planeV + static_cast<std::ptrdiff_t>(row / 2) * strideUV;
+        std::uint8_t *dst = image.scanLine(row);
+        for (int col = 0; col < width; ++col) {
+            const int uu = u[col >> 1];
+            const int vv = v[col >> 1];
+            const int luma = t.y[y[col]];
+            dst[0] = clamp8((luma + t.ub[uu]) >> 8);                  // B
+            dst[1] = clamp8((luma + t.ug[uu] + t.vg[vv]) >> 8);       // G
+            dst[2] = clamp8((luma + t.vr[vv]) >> 8);                  // R
+            dst[3] = 0xFF;                                            // A
+            dst += 4;
+        }
+    }
+    return image;
+}
+
+} // namespace
 
 /**
  * @brief コーデックを開く。
@@ -35,7 +103,7 @@ H264Decoder::~H264Decoder() {
  */
 bool H264Decoder::isReady() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return context_ != nullptr;
+    return decoder_ != nullptr;
 }
 
 /**
@@ -47,7 +115,7 @@ QString H264Decoder::errorString() const {
 }
 
 /**
- * @brief コーデックを開き直して状態を初期化する。
+ * @brief デコーダを作り直して状態(参照フレーム等)を初期化する。
  */
 void H264Decoder::reset() {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -56,80 +124,75 @@ void H264Decoder::reset() {
 }
 
 /**
- * @brief libavcodec の H.264 デコーダを低遅延設定で開く。
+ * @brief OpenH264 のデコーダを作って初期化する。
+ *
+ * 入力は Annex-B の 1 アクセスユニットずつ。DecodeFrameNoDelay で、入れたアクセスユニットの
+ * フレームをその場で出させる(以前の libavcodec の LOW_DELAY・スレッド 1 本と同じ狙い)。
  */
 bool H264Decoder::openLocked() {
-    const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-    if (codec == nullptr) {
-        error_ = QStringLiteral("FFmpeg has no H.264 decoder");
+    ISVCDecoder *decoder = nullptr;
+    if (WelsCreateDecoder(&decoder) != 0 || decoder == nullptr) {
+        error_ = QStringLiteral("OpenH264 could not create a decoder");
         return false;
     }
-    context_ = avcodec_alloc_context3(codec);
-    frame_ = av_frame_alloc();
-    packet_ = av_packet_alloc();
-    if (context_ == nullptr || frame_ == nullptr || packet_ == nullptr) {
-        error_ = QStringLiteral("FFmpeg memory allocation failed");
-        closeLocked();
+    SDecodingParam param;
+    std::memset(&param, 0, sizeof(param));
+    param.sVideoProperty.eVideoBsType = VIDEO_BITSTREAM_AVC;
+    param.uiTargetDqLayer = static_cast<unsigned char>(0xFF);
+    param.eEcActiveIdc = ERROR_CON_SLICE_COPY; // 壊れた・欠けたスライスは前のフレームで埋める
+    param.bParseOnly = false;
+    param.uiCpuLoad = 0;
+    if (decoder->Initialize(&param) != 0) {
+        error_ = QStringLiteral("OpenH264 decoder initialization failed");
+        WelsDestroyDecoder(decoder);
         return false;
     }
-    context_->flags |= AV_CODEC_FLAG_LOW_DELAY;
-    context_->thread_count = 1; // フレームスレッドは遅延が増えるので使わない
-    if (avcodec_open2(context_, codec, nullptr) < 0) {
-        error_ = QStringLiteral("Could not open the H.264 decoder");
-        closeLocked();
-        return false;
-    }
+    decoder_ = decoder;
     error_.clear();
     return true;
 }
 
 /**
- * @brief 確保済みの FFmpeg オブジェクトをすべて解放する。
+ * @brief 確保済みのデコーダを解放する。
  */
 void H264Decoder::closeLocked() {
-    if (scaler_ != nullptr) {
-        sws_freeContext(scaler_);
-        scaler_ = nullptr;
+    if (decoder_ != nullptr) {
+        decoder_->Uninitialize();
+        WelsDestroyDecoder(decoder_);
+        decoder_ = nullptr;
     }
-    av_packet_free(&packet_);
-    av_frame_free(&frame_);
-    avcodec_free_context(&context_);
 }
 
 /**
- * @brief 1アクセスユニットを送り、出てきたフレームを BGRA→QImage に変換して通知する。
+ * @brief 1アクセスユニットを送り、出てきたフレームを I420→BGRA の QImage に変換して通知する。
  */
 void H264Decoder::decode(const std::uint8_t *data, std::size_t size) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (context_ == nullptr || size == 0) {
+    if (decoder_ == nullptr || data == nullptr || size == 0) {
         return;
     }
-    // av_new_packet はパディング付きで確保するため、入力バッファの余白を気にしなくてよい
-    if (av_new_packet(packet_, static_cast<int>(size)) < 0) {
-        return;
-    }
-    std::memcpy(packet_->data, data, size);
-    const int sendResult = avcodec_send_packet(context_, packet_);
-    av_packet_unref(packet_);
-    if (sendResult < 0 && sendResult != AVERROR(EAGAIN)) {
-        return; // 壊れたデータ。次のアクセスユニットで回復を試みる
+    // 入力の末尾に 0 の余白を付けたコピーを渡す(呼び出し側のバッファの余白に頼らない)
+    input_.assign(data, data + size);
+    input_.insert(input_.end(), kInputPadding, 0);
+
+    std::uint8_t *planes[3] = {nullptr, nullptr, nullptr};
+    SBufferInfo info;
+    std::memset(&info, 0, sizeof(info));
+    const DECODING_STATE state = decoder_->DecodeFrameNoDelay(input_.data(), static_cast<int>(size), planes, &info);
+    (void)state; // 壊れたデータ・SPS/PPS 待ちは、フレームが出ないだけ。次のアクセスユニットで回復を試みる
+    if (info.iBufferStatus != 1) {
+        return; // 出力できるフレームが無い
     }
 
-    while (avcodec_receive_frame(context_, frame_) == 0) {
-        const int width = frame_->width;
-        const int height = frame_->height;
-        scaler_ = sws_getCachedContext(scaler_, width, height, static_cast<AVPixelFormat>(frame_->format), width,
-                                       height, AV_PIX_FMT_BGRA, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
-        if (scaler_ != nullptr) {
-            QImage image(width, height, QImage::Format_RGB32); // リトルエンディアンで BGRA と同じ並び
-            std::uint8_t *dst[4] = {image.bits(), nullptr, nullptr, nullptr};
-            int dstStride[4] = {static_cast<int>(image.bytesPerLine()), 0, 0, 0};
-            sws_scale(scaler_, frame_->data, frame_->linesize, 0, height, dst, dstStride);
-            if (callback_) {
-                callback_(image);
-            }
-        }
-        av_frame_unref(frame_);
+    const SSysMEMBuffer &buf = info.UsrData.sSystemBuffer;
+    if (buf.iFormat != videoFormatI420 || buf.iWidth <= 0 || buf.iHeight <= 0 || planes[0] == nullptr ||
+        planes[1] == nullptr || planes[2] == nullptr) {
+        return;
+    }
+    const QImage image = i420ToImage(planes[0], planes[1], planes[2], buf.iWidth, buf.iHeight, buf.iStride[0],
+                                     buf.iStride[1]);
+    if (!image.isNull() && callback_) {
+        callback_(image);
     }
 }
 
