@@ -171,6 +171,15 @@ qt_add_qml_module(opencruise
         qml/widgets/greeting/GreetingSettings.qml
         qml/widgets/gauge/GaugeWidget.qml
         qml/widgets/gauge/GaugeSettings.qml
+        qml/widgets/gauge/GaugeAltView.qml
+        qml/widgets/gauge/GaugeLookPicker.qml
+        qml/widgets/multi/MultiGaugeWidget.qml
+        qml/widgets/multi/MultiGaugeSettings.qml
+        qml/widgets/multi/MetricListEditor.qml
+        qml/widgets/lamps/LampPanelWidget.qml
+        qml/widgets/lamps/LampPanelSettings.qml
+        qml/widgets/gear/GearWidget.qml
+        qml/widgets/gear/GearSettings.qml
         qml/widgets/phonestatus/PhoneStatusWidget.qml
         qml/widgets/phonestatus/PhoneStatusSettings.qml
         qml/widgets/phonenotice/PhoneNoticeWidget.qml

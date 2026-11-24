@@ -18,6 +18,9 @@
 //   mock          true なら、現状はモックデータで動いている(追加パネルに「モック」と表示)
 //   hidden        true なら追加パネルのジャンルの一覧に出さない(グラフは「車載連携」のグラフ切り替えから、
 //                 計測値ごとの項目として出す。graphEntries())
+//   section       追加パネルの「車両」での分類(省くと計測値の分類)。"special" は先頭の「おすすめの表示」
+//   variant       true ならメーター(gaugeComp)の見た目違いの入り口(シフトライト・燃料タンクなど)。
+//                 計測値ごとの既定(警告ルールの初期値・グラフの項目)には使わない
 pragma Singleton
 import QtQuick
 import OpenCruise
@@ -85,6 +88,12 @@ QtObject {
     property Component navigationSettings: Component { NavigationSettings {} }
     property Component graphComp: Component { GraphWidget {} }        // グラフ(計測値は config.metric)
     property Component graphSettings: Component { GraphSettings {} }
+    property Component multiComp: Component { MultiGaugeWidget {} }   // マルチ(複数の計測値を細いバーで縦に並べる)
+    property Component multiSettings: Component { MultiGaugeSettings {} }
+    property Component lampsComp: Component { LampPanelWidget {} }    // 警告灯パネル
+    property Component lampsSettings: Component { LampPanelSettings {} }
+    property Component gearComp: Component { GearWidget {} }          // ギア表示
+    property Component gearSettings: Component { GearSettings {} }
 
     // ---- メーター(GaugeWidget)で測れる値の定義。種類ごとの defaultConfig の metric で選ぶ ----
     //   title / icon     既定の見出しとアイコン
@@ -179,8 +188,10 @@ QtObject {
         return list
     }
     // 追加パネルの「車両」の分類(表示順)。データ元(VIN / SEN / ECU)では分けず、走行・エンジン・燃料…の分類だけ(VehicleSignals)
+    // 先頭の「おすすめの表示」(special)は、複数の値をまとめるもの・メーターの見た目違いの入り口
     readonly property var vehicleSections: typeof ecu === "undefined" || !ecu ? []
-        : VehicleSignals.numberGroups.map(g => ({ id: g.id, title: g.title, icon: g.icon }))
+        : [{ id: "special", title: "おすすめの表示", icon: "auto_awesome" }]
+          .concat(VehicleSignals.numberGroups.map(g => ({ id: g.id, title: g.title, icon: g.icon })))
     // 追加パネルの項目(種類またはグラフの項目)の分類
     function sectionOf(entry) {
         if (entry.section) return entry.section
@@ -195,6 +206,39 @@ QtObject {
         if (!spec) return true
         if (spec.ecu) return typeof ecu !== "undefined" && ecu && ecu.has(spec.ecu)
         return VehicleSignals.has(cfg.metric)
+    }
+
+    // ---- 計測値を読む(メーター以外のウィジェット用。メーターと同じデータ元: ECU だけの項目は ecu、それ以外は VehicleSignals) ----
+    function metricValue(metric) {
+        const spec = gaugeSpecs[metric]
+        if (!spec) return NaN
+        if (spec.ecu) { ecu.revision; return ecu.value(spec.ecu) }
+        return VehicleSignals.value(metric)
+    }
+    function metricHas(metric) {
+        const spec = gaugeSpecs[metric]
+        if (!spec) return false
+        if (spec.ecu) { ecu.revision; return ecu.has(spec.ecu) }
+        return VehicleSignals.has(metric)
+    }
+    function metricIsMock(metric) {
+        const spec = gaugeSpecs[metric]
+        if (!spec) return false
+        return spec.ecu ? ecu.linkState === "mock" : VehicleSignals.isMock(metric)
+    }
+    // 計測値の既定の範囲と単位(その計測値のメーターの既定。無ければ設定できる範囲)
+    function metricDefaults(metric) {
+        const spec = gaugeSpecs[metric]
+        if (!spec) return { min: 0, max: 100, unit: null }
+        for (let i = 0; i < types.length; ++i) {
+            const t = types[i], c = t.defaultConfig
+            if (t.component === gaugeComp && t.variant !== true && c && c.metric === metric) {
+                let u = spec.units[0]
+                for (const x of spec.units) if (x.id === c.unit) u = x
+                return { min: Number(c.min), max: Number(c.max), unit: u }
+            }
+        }
+        return { min: spec.limitMin, max: spec.limitMax, unit: spec.units[0] }
     }
 
     // メーターの共通の既定値に、種類ごとの値を重ねる
@@ -373,14 +417,99 @@ QtObject {
             defaultConfig: { metric: "boost", windowSec: 60, autoScale: false, fill: true, showStats: true },
             dragStart: "hold", mock: true
         }
-    ].concat(ecuTypes())
+    ].concat(ecuTypes()).concat(specialTypes())
+
+    // ---- 「おすすめの表示」(追加パネルの「車両」の先頭) ----
+    // まとめて見るウィジェット(マルチ・警告灯パネル・ギア)と、メーターの見た目違いの入り口(variant)。
+    // 見た目違いは普通のメーターと同じもの(設定の「見た目」で、ほかの見た目にも変えられる)
+    function specialTypes() {
+        const list = [
+            {
+                type: "multiMeter", genre: "vehicle", section: "special", name: "マルチ表示", icon: "mdi:format-list-bulleted-square",
+                description: "水温・油温・電圧など、いくつかの値を細いバーで縦に並べる(監視用)",
+                component: multiComp, settings: multiSettings,
+                defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+                defaultConfig: { items: ["coolant", "oilTemp", "voltage"], showBars: true },
+                dragStart: "hold", mock: true
+            },
+            {
+                type: "warnLamps", genre: "vehicle", section: "special", name: "警告灯パネル", icon: "mdi:car-wrench",
+                description: "純正の警告灯のように、値ごとの状態(正常・注意・警告)を並べる。ダッシュボード風・注意と警告だけ光る表示もできる。故障コード・チェックランプも出せる",
+                component: lampsComp, settings: lampsSettings,
+                defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 1 }, maxSize: { w: 12, h: 6 },
+                defaultConfig: { items: ["coolant", "oilTemp", "oilPressure", "voltage", "fuel", "dtc", "mil"],
+                                 lampStyle: "readable", okStyle: "green", showNames: true, showValues: true, hideNoData: false },
+                dragStart: "hold", mock: true
+            },
+            {
+                type: "gearIndicator", genre: "vehicle", section: "special", name: "ギア表示", icon: "mdi:car-shift-pattern",
+                description: "今のギアを大きく表示。車両信号にギアが無ければ、速度と回転数から推定する(設定で学習)。シフトの目安も出せる",
+                component: gearComp, settings: gearSettings,
+                defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+                defaultConfig: { source: "auto", gears: 5, ratios: [], hint: true, upRpm: 3500, downRpm: 1500 },
+                dragStart: "hold", mock: true
+            },
+            {
+                type: "shiftLight", genre: "vehicle", section: "special", variant: true, name: "シフトライト", icon: "mdi:led-strip-variant",
+                description: "回転数をランプの列で表示。上限に近づくと光が増え、変速の回転数で全部が点滅する",
+                component: gaugeComp, settings: gaugeSettings,
+                defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 1 }, maxSize: { w: 12, h: 6 },
+                defaultConfig: gaugeConfig({ metric: "rpm", unit: "rpm", min: 0, max: 8000, dialStyle: "shift",
+                                             shiftMode: "center", peakMode: "off" }),
+                dragStart: "hold", mock: true
+            },
+            {
+                type: "fuelTank", genre: "vehicle", section: "special", variant: true, name: "燃料タンク", icon: "mdi:gas-station",
+                description: "燃料の残量を、タンクの中の液面で表示",
+                component: gaugeComp, settings: gaugeSettings,
+                defaultSize: { w: 3, h: 3 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+                defaultConfig: gaugeConfig({ metric: "fuel", unit: "pct", min: 0, max: 100, dialStyle: "tank", peakMode: "off" }),
+                dragStart: "hold", mock: true
+            },
+            {
+                type: "voltTrend", genre: "vehicle", section: "special", variant: true, name: "電圧(数値+推移)", icon: "mdi:chart-line",
+                description: "大きな数値の下に、直近の推移を小さなグラフで表示",
+                component: gaugeComp, settings: gaugeSettings,
+                defaultSize: { w: 3, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+                defaultConfig: gaugeConfig({ metric: "voltage", unit: "v", min: 10, max: 16, dialStyle: "trend",
+                                             trendSec: 60, peakMode: "off" }),
+                dragStart: "hold", mock: true
+            },
+            {
+                type: "rpmHistogram", genre: "vehicle", section: "special", variant: true, name: "回転数の分布", icon: "mdi:chart-bar",
+                description: "この走行で、どの回転域をどれだけ使ったかを棒グラフで表示",
+                component: gaugeComp, settings: gaugeSettings,
+                defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, maxSize: { w: 12, h: 6 },
+                defaultConfig: gaugeConfig({ metric: "rpm", unit: "rpm", min: 0, max: 8000, dialStyle: "histogram",
+                                             histBins: 10, peakMode: "off" }),
+                dragStart: "hold", mock: true
+            }
+        ]
+        // ECU の ± の値(点火時期・燃料補正)は、0 を中心に左右へ伸びるバーで
+        if (typeof ecu !== "undefined" && ecu) {
+            for (const p of ecu.params) {
+                if (!p.gauge || (p.id !== "ignition" && p.id !== "totalTrimB1")) continue
+                list.push({
+                    type: "center_" + p.id, genre: "vehicle", section: "special", variant: true,
+                    name: p.title + "(±)", icon: "mdi:arrow-left-right",
+                    description: "0 を中心に左右へ伸びるバーで表示(マイナスもある値向け)",
+                    component: gaugeComp, settings: gaugeSettings,
+                    defaultSize: { w: 4, h: 2 }, minSize: { w: 2, h: 2 }, maxSize: { w: 8, h: 6 },
+                    defaultConfig: gaugeConfig({ metric: p.id, unit: "base", min: p.min, max: p.max,
+                                                 dialStyle: "center", centerRef: 0, peakMode: "off" }),
+                    dragStart: "hold", mock: true
+                })
+            }
+        }
+        return list
+    }
 
     // ---- グラフ(追加パネルの「車両」→「グラフ」) ----
     // 計測値ごとに、メーターの既定(範囲・警告値)を引き継いだグラフの項目を作る
     function graphConfigFor(metric) {
         for (let i = 0; i < types.length; ++i) {
             const c = types[i].defaultConfig
-            if (types[i].component === gaugeComp && c && c.metric === metric) {
+            if (types[i].component === gaugeComp && types[i].variant !== true && c && c.metric === metric) {
                 return { metric: metric, unit: c.unit, min: c.min, max: c.max, warnEnabled: c.warnEnabled === true,
                          warn: c.warn, windowSec: 60, autoScale: false, fill: true, showStats: true }
             }
@@ -391,7 +520,7 @@ QtObject {
         const list = []
         for (let i = 0; i < types.length; ++i) {
             const t = types[i]
-            if (t.component !== gaugeComp || !t.defaultConfig) continue
+            if (t.component !== gaugeComp || !t.defaultConfig || t.variant === true) continue
             const spec = gaugeSpecs[t.defaultConfig.metric]
             if (!spec) continue
             list.push({ type: "graph", name: spec.title + "のグラフ", icon: spec.icon, mock: t.mock, section: sectionOf(t),
@@ -477,7 +606,7 @@ QtObject {
     }
     // 一緒に変えても写さない項目(計測値ごとに違う範囲・単位・警告値・注意値・目盛り間隔と、タイトル文字)
     readonly property var gaugeOwnKeys: ["metric", "unit", "min", "max", "warn", "caution",
-                                         "majorStep", "negStep", "posStep", "zeroAngle"]
+                                         "majorStep", "negStep", "posStep", "zeroAngle", "centerRef", "shiftFull", "shiftStart"]
     readonly property var graphOwnKeys: ["metric", "unit", "warn"]
     function copiesTogether(type, key) {
         if (key === "titleText") return false

@@ -11,6 +11,8 @@
 //  - 最小値・最大値・単位・開始/終了角度・数値の配置・針の出っ張り・中心円の大きさと色・針の色
 //  - アイコン表示・警告・注意の表示(config.showAlerts)
 //  - 2×2 などの小さいサイズ(短辺 2 マス以下)は小型表示(compact)。名前と数値を少し大きめにする
+//  - 円形ではない見た目(altLook): 数値+推移(trend) / センター基準(center) / シフトライト(shift) / タンク(tank) /
+//    分布(histogram)。描くのは GaugeAltView(このメーターの値・範囲・警告の状態をそのまま使う)。表示方式は使わない
 // 警告・注意は、メーターとは別の AlertRules(設定 > 警告・注意 のルール)が判定し、音・通知も AlertRules が出す
 // (メーターが無くても動く)。メーターは、同じ計測値のルールの範囲を目盛りの帯に描き、出ている間の状態を表示するだけ:
 //   警告: 針・出っ張り・中心円・数値が赤になり、名前の横のアイコンが警告マークになって点滅し、メッセージの帯が重なる
@@ -51,8 +53,11 @@ WidgetBase {
     // ---------------------------------------------------------------- 設定(表示単位に換算済み)
     readonly property string style: config.style === "analog" || config.style === "digital" ? config.style : "both"
     // 以前の「スポーツ」(sport)・「バンド」(band)は廃止し、マーカーとして扱う
-    readonly property string dialStyle: ["minimal", "marker", "retro", "neon", "ring"].indexOf(config.dialStyle) >= 0 ? config.dialStyle
+    readonly property string dialStyle: ["minimal", "marker", "retro", "neon", "ring"].concat(altLooks).indexOf(config.dialStyle) >= 0 ? config.dialStyle
                                         : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
+    // 円形ではない見た目(GaugeAltView が描く)
+    readonly property var altLooks: ["trend", "center", "shift", "tank", "histogram"]
+    readonly property bool altLook: altLooks.indexOf(dialStyle) >= 0
     // マーカー・リングは針を出さず、数値を中央に大きく出す(表示方式が「アナログ」でも数値は出す)
     readonly property bool needleless: dialStyle === "ring" || dialStyle === "marker"
     readonly property bool showReadout: style === "both" || (style === "analog" && needleless)
@@ -522,10 +527,18 @@ WidgetBase {
         id: body
         anchors { fill: parent; margins: root.m }
 
+        // ============================================================ 円形ではない見た目(GaugeAltView)
+        Loader {
+            anchors.fill: parent
+            active: root.altLook
+            visible: active
+            sourceComponent: GaugeAltView { gw: root }
+        }
+
         // ============================================================ アナログ
         Item {
             id: dial
-            visible: root.style !== "digital"
+            visible: root.style !== "digital" && !root.altLook
 
             // ---- 半径 1 の円で考えた配置(中心が原点、0° が真上・時計回り) ----
             // 数値表示の枠。auto のときは弧の空き(開始と終了の間)の方向へ置き、中心円とは重ならないようにする
@@ -1265,7 +1278,7 @@ WidgetBase {
         // ============================================================ デジタルのみ: 大きな数字と横バー
         Item {
             id: digital
-            visible: root.style === "digital"
+            visible: root.style === "digital" && !root.altLook
             anchors.fill: parent
 
             readonly property real barH: Math.max(8, root.s * 0.045)

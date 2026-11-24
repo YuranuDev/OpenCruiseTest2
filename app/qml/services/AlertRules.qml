@@ -589,7 +589,8 @@ QtObject {
             for (const list of lists) {
                 for (const w of list) {
                     const def = WidgetRegistry.find(w.type)
-                    if (!def || def.component !== WidgetRegistry.gaugeComp || !def.defaultConfig) continue
+                    // 見た目違いの入り口(シフトライトなど)は、計測値の既定(警告値)を持たないので読まない
+                    if (!def || def.component !== WidgetRegistry.gaugeComp || !def.defaultConfig || def.variant === true) continue
                     const cfg = Object.assign({}, def.defaultConfig, w.config || {})
                     if (!found[cfg.metric]) found[cfg.metric] = cfg
                 }

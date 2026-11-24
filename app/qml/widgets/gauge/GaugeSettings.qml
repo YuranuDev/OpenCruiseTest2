@@ -1,5 +1,7 @@
 // メーター(GaugeWidget)の設定。ジャンル(タブ)ごとに分ける:
-//   表示(表示方式・種類・単位・範囲・アイコン・ピーク)/ 目盛り・針(角度・目盛りの分割・針と中心円)/ 警告・注意
+//   表示(見た目・表示方式・単位・範囲・アイコン・ピーク)/ 見た目の設定(円形ではない見た目のときだけ)/
+//   目盛り・針(円形の見た目のときだけ。角度・目盛りの分割・針と中心円)/ 警告・注意
+// 見た目は GaugeLookPicker のタイルで選ぶ(計測値に合うものに「おすすめ」)。使わない設定は出さない
 // 警告・注意はメーターとは別のルール(AlertRules。設定 > 警告・注意)。ここでは、この計測値のルールの値とオン/オフだけ変えられる
 // 計測値ごとの単位・範囲・刻みは WidgetRegistry.gaugeSpecs(config.metric)から取る。
 // 値は基本単位(bar / rpm / km/h / ℃ / % / V)で保存し、表示と編集は選んだ単位で行う。
@@ -23,7 +25,21 @@ WidgetSettingsBase {
     readonly property int dec: unitDef.stepDec
     readonly property bool warnBelow: gauge.warnBelow === true
     // メーターの種類(以前の「スポーツ」「バンド」はマーカーとして扱う)
-    readonly property var dialStyles: ["classic", "minimal", "marker", "retro", "neon", "ring"]
+    readonly property var dialStyles: ["classic", "minimal", "marker", "retro", "neon", "ring"].concat(altLooks)
+    // 円形ではない見た目(GaugeAltView が描く)
+    readonly property var altLooks: ["trend", "center", "shift", "tank", "histogram"]
+    readonly property bool altLook: altLooks.indexOf(dialStyle) >= 0
+    // 計測値に合う見た目(タイルに「おすすめ」を出す)
+    readonly property var recommendedLooks: {
+        const m = config.metric
+        if (m === "rpm") return ["shift", "marker"]
+        if (m === "fuel") return ["tank"]
+        if (m === "voltage") return ["trend"]
+        if (m === "speed") return ["classic"]
+        if (gauge.limitMin < 0 && Number(config.min) < 0 && Number(config.max) > 0 && m !== "boost") return ["center"]
+        if (m === "coolant" || m === "oilTemp") return ["minimal", "trend"]
+        return []
+    }
     readonly property string dialStyle: dialStyles.indexOf(config.dialStyle) >= 0 ? config.dialStyle
                                         : (config.dialStyle === "sport" || config.dialStyle === "band" ? "marker" : "classic")
     // 0 をまたぐ範囲のときは、マイナス側・プラス側で目盛りを分けられる(ターボ圧なら負圧・正圧)
@@ -73,21 +89,27 @@ WidgetSettingsBase {
         icon: "speed"
 
         SettingsRow {
+            label: "見た目"
+            description: root.altLook ? "細かい設定は上の「見た目の設定」にあります" : ""
+            stacked: true
+            GaugeLookPicker {
+                width: Math.min(root.width, 980 * Theme.uiScale)
+                current: root.dialStyle
+                recommended: root.recommendedLooks
+                // 円形の見た目を選んだとき、表示方式が「デジタル」だと見た目が変わらないので「アナログ+デジタル」に戻す
+                onPicked: (look) => {
+                    if (root.altLooks.indexOf(look) < 0 && root.config.style === "digital") root.edit("style", "both")
+                    root.edit("dialStyle", look)
+                }
+            }
+        }
+        SettingsRow {
+            visible: !root.altLook
             label: "表示方式"
             SettingsChoice {
                 model: ["アナログ+デジタル", "アナログ", "デジタル"]
                 currentIndex: root.config.style === "analog" ? 1 : (root.config.style === "digital" ? 2 : 0)
                 onPicked: (i) => root.edit("style", i === 1 ? "analog" : (i === 2 ? "digital" : "both"))
-            }
-        }
-        SettingsRow {
-            visible: root.config.style !== "digital"
-            label: "メーターの種類"
-            description: "マーカーとリングは針を出さず、数値を中央に大きく表示します"
-            SettingsChoice {
-                model: ["クラシック", "シンプル", "マーカー", "レトロ", "ネオン", "リング"]
-                currentIndex: root.dialStyles.indexOf(root.dialStyle)
-                onPicked: (i) => root.edit("dialStyle", root.dialStyles[i])
             }
         }
         SettingsRow {
@@ -137,6 +159,7 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
+            visible: root.dialStyle !== "trend" && root.dialStyle !== "histogram"
             label: "オープニング表示"
             description: "針を最小値から最大値まで振ってから、今の値へ戻します。起動画面が消えたとき(データが来ていれば)と、データが無かったところへデータが来たときに行います"
             SettingsSwitch {
@@ -153,6 +176,7 @@ WidgetSettingsBase {
             }
         }
         SettingsRow {
+            visible: !root.altLook
             label: "ピーク表示"
             description: "数値の上に小さく出します。タップでリセットします(再起動してもリセットされます)"
             stacked: true
@@ -164,10 +188,152 @@ WidgetSettingsBase {
         }
     }
 
+    // ---- 円形ではない見た目の設定(選んでいる見た目の分だけ出す) ----
+    WidgetSettingsGroup {
+        title: "見た目の設定"
+        icon: "tune"
+        available: root.altLook
+
+        // 数値+推移
+        SettingsRow {
+            visible: root.dialStyle === "trend"
+            label: "表示する時間"
+            stacked: true
+            SettingsChoice {
+                readonly property var secs: [30, 60, 120, 300, 600]
+                model: ["30 秒", "1 分", "2 分", "5 分", "10 分"]
+                currentIndex: Math.max(0, secs.indexOf(Number(root.config.trendSec) || 60))
+                onPicked: (i) => root.edit("trendSec", secs[i])
+            }
+        }
+        SettingsRow {
+            visible: root.dialStyle === "trend"
+            label: "縦軸"
+            description: "自動: 表示中の値に合わせて広げる(小さな変化も見える) / 固定: 最小値〜最大値"
+            SettingsChoice {
+                model: ["自動", "固定"]
+                currentIndex: root.config.trendScale === "fixed" ? 1 : 0
+                onPicked: (i) => root.edit("trendScale", i === 1 ? "fixed" : "auto")
+            }
+        }
+        // センター基準
+        SettingsRow {
+            visible: root.dialStyle === "center"
+            label: "基準値"
+            description: "バーはこの値から左右へ伸びます(燃料補正・点火時期なら 0)"
+            WSStepper {
+                value: root.toShown(root.centerRefBase)
+                from: root.toShown(root.minBase)
+                to: root.toShown(root.maxBase)
+                step: root.step
+                decimals: root.dec
+                suffix: root.suffix
+                onMoved: (v) => root.save("centerRef", v)
+            }
+        }
+        // シフトライト
+        SettingsRow {
+            visible: root.dialStyle === "shift"
+            label: "変速の回転数(全点滅)"
+            description: "ここを超えるとランプが全部点滅します。決めていなければ、警告の範囲の始まり(無ければ最大値の 85%)"
+            WSStepper {
+                value: root.toShown(root.shiftFullBase)
+                from: root.toShown(root.minBase) + root.step
+                to: root.toShown(root.maxBase)
+                step: root.step / 5
+                decimals: root.dec
+                suffix: root.suffix
+                onMoved: (v) => root.save("shiftFull", v)
+            }
+        }
+        SettingsRow {
+            visible: root.dialStyle === "shift"
+            label: "光り始める回転数"
+            description: "ここからランプが少しずつ増えます"
+            WSStepper {
+                value: root.toShown(root.shiftStartBase)
+                from: root.toShown(root.minBase)
+                to: root.toShown(root.shiftFullBase) - root.step / 5
+                step: root.step / 5
+                decimals: root.dec
+                suffix: root.suffix
+                onMoved: (v) => root.save("shiftStart", v)
+            }
+        }
+        SettingsRow {
+            visible: root.dialStyle === "shift"
+            label: "光り方"
+            stacked: true
+            SettingsChoice {
+                readonly property var modes: ["center", "edges", "left"]
+                model: ["中央から外へ", "外から中央へ", "左から右へ"]
+                currentIndex: Math.max(0, modes.indexOf(root.config.shiftMode))
+                onPicked: (i) => root.edit("shiftMode", modes[i])
+            }
+        }
+        SettingsRow {
+            visible: root.dialStyle === "shift"
+            label: "ランプの数"
+            description: "0 で、ウィジェットの幅に合わせて自動"
+            WSStepper {
+                value: Number(root.config.shiftLeds) || 0
+                from: 0
+                to: 25
+                step: 1
+                onMoved: (v) => root.edit("shiftLeds", v > 0 && v < 5 ? 5 : v)
+            }
+        }
+        SettingsRow {
+            visible: root.dialStyle === "shift"
+            label: "既定の回転数に戻す"
+            description: "上の 2 つを、警告の範囲から決める値に戻します"
+            ActionButton {
+                text: "戻す"
+                onClicked: { root.edit("shiftFull", null); root.edit("shiftStart", null) }
+            }
+        }
+        // タンク
+        SettingsRow {
+            visible: root.dialStyle === "tank"
+            label: "液面を揺らす"
+            description: "液面の波をゆっくり動かします(見えている間だけ)"
+            SettingsSwitch {
+                checked: root.config.tankWave !== false
+                onToggled: (v) => root.edit("tankWave", v)
+            }
+        }
+        // 分布
+        SettingsRow {
+            visible: root.dialStyle === "histogram"
+            label: "区切りの数"
+            description: "最小値〜最大値をいくつの帯に分けるか。記録はアプリの起動から(右下の ↺ でこのメーターだけ数え直し)"
+            WSStepper {
+                value: Number(root.config.histBins) || 10
+                from: 4
+                to: 24
+                step: 1
+                suffix: " 本"
+                onMoved: (v) => root.edit("histBins", v)
+            }
+        }
+    }
+    // 見た目の設定の、決めていないときの値(GaugeAltView と同じ決め方。基本単位)
+    function has(key) { return config[key] !== undefined && config[key] !== null && config[key] !== "" }
+    readonly property real centerRefBase: has("centerRef") ? Number(config.centerRef)
+                                          : (toShown(minBase) < 0 && toShown(maxBase) > 0 ? toBase(0) : (minBase + maxBase) / 2)
+    readonly property var warnRuleZone: {
+        AlertRules.revision
+        const z = AlertRules.zonesFor(config.metric).filter(x => x.level === "warn" && isFinite(x.lo))
+        return z.length > 0 ? z[0] : null
+    }
+    readonly property real shiftFullBase: has("shiftFull") ? Number(config.shiftFull)
+                                          : (warnRuleZone && !warnBelow ? warnRuleZone.lo : minBase + (maxBase - minBase) * 0.85)
+    readonly property real shiftStartBase: has("shiftStart") ? Number(config.shiftStart) : Math.max(minBase, shiftFullBase - (maxBase - minBase) * 0.3)
+
     WidgetSettingsGroup {
         title: "目盛り・針"
         icon: "architecture"
-        available: root.config.style !== "digital"
+        available: root.config.style !== "digital" && !root.altLook
 
         SettingsRow {
             visible: root.config.style !== "digital"
