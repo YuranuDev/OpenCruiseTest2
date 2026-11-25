@@ -520,6 +520,12 @@ report_failure() {
     while read -r f; do
         [ -f "$f" ] || continue
         n=$((n + 1)); cp "$f" "$LOGS/failed-$(date +%H%M%S)-$n-$(basename "$(dirname "$(dirname "$f")")")-$(basename "$f").log" 2>/dev/null
+        # QA の「installed but not shipped」は、ファイルの一覧が ERROR 行の続き(字下げ行)として出る。
+        # 上の grep '^ERROR:' では 1 行目しか拾えず、どのファイルが漏れたのか分からなくなるので、失敗ログから一覧ごと出す
+        if grep -q 'installed but not shipped in any package' "$f" 2>/dev/null; then
+            echo "  ---- パッケージに入らなかったファイル(installed-vs-shipped): $f"
+            grep -A 40 'installed but not shipped in any package' "$f" | sed -n '1,/installed and not shipped files/p' | head -n 60 | sed 's/^/  | /'
+        fi
         echo "  ---- 失敗した作業のログの終わり: $f"
         tail -n 25 "$f" | sed 's/^/  | /'
     done < <(sed -n 's/.*Logfile of failure stored in: \([^ ]*\).*/\1/p' "$log" | sort -u | head -n 3)
