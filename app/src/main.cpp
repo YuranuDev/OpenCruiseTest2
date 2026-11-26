@@ -455,6 +455,10 @@ static int runApplication(int argc, char *argv[]) {
                             }, 4000);
 
     QQmlApplicationEngine engine;
+    // import OpenCruise の qmldir は qrc の :/OpenCruise/qmldir にある。アプリが build/app/ のように
+    // ディスク上の OpenCruise/qmldir と並んで動くときは見つかるが、/usr/bin に置く Yocto では見つからず、
+    // Main.qml の型(ShutdownScreen など)がすべて "is not a type" になる。qrc のルートを import パスに足して解決する
+    engine.addImportPath(QStringLiteral(":/"));
     engine.rootContext()->setContextProperty(QStringLiteral("shutdownManager"), &shutdownManager);
     engine.rootContext()->setContextProperty(QStringLiteral("updater"), &updater);
     engine.rootContext()->setContextProperty(QStringLiteral("wifi"), &wifi);
