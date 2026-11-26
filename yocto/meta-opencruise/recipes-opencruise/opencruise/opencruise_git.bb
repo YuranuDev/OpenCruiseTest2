@@ -1,7 +1,10 @@
 SUMMARY = "OpenCruise 車載システム(Qt Quick + aasdk)"
 DESCRIPTION = "Android Auto の映像・メーター・バックカメラなどを表示する車載システムのアプリ。"
 HOMEPAGE = "https://github.com/YuranuDev/OpenCruiseTest2"
-LICENSE = "CLOSED"
+# アプリは GPL-3.0-or-later。リンクしている aasdk が GPL-3.0-or-later なので、アプリも同じ条件で配る(全文はリポジトリ直下の LICENSE)。
+# 同梱の素材: フォントは OFL-1.1、アイコンフォントは Apache-2.0、効果音は CC-BY-4.0(詳しくは THIRD-PARTY-NOTICES.md)
+LICENSE = "GPL-3.0-or-later & OFL-1.1 & Apache-2.0 & CC-BY-4.0"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=1c76c4cc354acaac30ed4d5eefea7245"
 
 # 取り込み元。scripts/build-os.sh で「このフォルダの中身を使う」を選ぶと、local.conf の externalsrc がこの SRC_URI より優先される。
 SRC_URI = " \

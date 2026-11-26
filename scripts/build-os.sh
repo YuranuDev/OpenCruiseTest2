@@ -8,6 +8,9 @@
 #   scripts/build-os.sh --flash      できたイメージを USB メモリ / SSD へ書き込む(sudo を使う)
 #   scripts/build-os.sh --shell      BitBake を自分で触るシェルを開く
 #   scripts/build-os.sh --status     今の答え・レイヤーの版・前回のビルドの結果を見る
+#   scripts/build-os.sh --release    公開用のビルド(開発用の SSH・パスワードなし root を入れない。ライセンス文とソースを集める)。
+#                                    ウィザード・--build のどちらにも付けられる(答えにも「公開用のビルド: yes」と保存される)
+#   scripts/build-os.sh --release-pack  できたイメージ・ライセンス一覧・ソース・チェックサムを <作業フォルダ>/release/ にまとめる(公開用でビルドしたあとに使う)
 #   scripts/build-os.sh --app-update アプリだけをビルドして、更新ファイル(<作業フォルダ>/updates/opencruise-app-<番号>.ocapp)を作る。
 #                                    車へは USB メモリにコピーするか、scripts/update-server.sh で配る(設定 > システム > アップデート)
 #
@@ -48,7 +51,7 @@ URL_INTEL="${OC_URL_INTEL:-https://git.yoctoproject.org/meta-intel}"
 
 # ============================================================================ 引数
 WORKDIR="${OPENCRUISE_OS_WORKDIR:-$HOME/opencruise-yocto}"
-MODE=wizard; ASSUME_YES=0; ACCEPT_LICENSES=0; USE_TUI=1; CONFIG_ONLY=0; UPDATE=0
+MODE=wizard; ASSUME_YES=0; ACCEPT_LICENSES=0; USE_TUI=1; CONFIG_ONLY=0; UPDATE=0; PUBLISH_FLAG=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --workdir) WORKDIR="${2:-}"; shift 2 ;;
@@ -58,6 +61,8 @@ while [ $# -gt 0 ]; do
         --shell) MODE=shell; shift ;;
         --status) MODE=status; shift ;;
         --app-update) MODE=appupdate; shift ;;
+        --release) PUBLISH_FLAG=1; shift ;;
+        --release-pack) MODE=releasepack; shift ;;
         --config-only) CONFIG_ONLY=1; shift ;;
         --update) UPDATE=1; shift ;;
         --yes|-y) ASSUME_YES=1; shift ;;
@@ -145,8 +150,8 @@ ui_input() {   # ui_input 見出し 本文 既定値
 
 # ============================================================================ 答え(次回の既定)
 # (FFMPEG_OK は古い版からの名前。今は OpenH264 のライセンス区分(commercial)を受け入れたかの答えで、保存済みの答えをそのまま使えるように名前は変えない)
-KEYS="MACHINE TARGET ROOTFS DEV_MODE AASDK SRC_MODE TIMEZONE RM_WORK FFMPEG_OK"
-MACHINE=intel-corei7-64; TARGET=opencruise-image; ROOTFS=rw; DEV_MODE=yes; AASDK=yes
+KEYS="MACHINE TARGET ROOTFS DEV_MODE AASDK SRC_MODE TIMEZONE RM_WORK FFMPEG_OK PUBLISH"
+MACHINE=intel-corei7-64; TARGET=opencruise-image; ROOTFS=rw; DEV_MODE=yes; AASDK=yes; PUBLISH=no
 SRC_MODE=local; TIMEZONE=Asia/Tokyo; RM_WORK=yes; FFMPEG_OK=no
 load_conf() {   # 知っているキーだけを読む(古い版の答えに入っていた RELEASE・STORAGE なども安全に無視する)
     [ -f "$CONF" ] || return 0
@@ -164,9 +169,9 @@ save_conf() {
       local k; for k in $KEYS; do printf '%s=%s\n' "$k" "${!k}"; done; } > "$CONF"
 }
 show_answers() {
-    printf '・機種: %s\n・イメージ: %s\n・ルート: %s\n・開発用の機能: %s\n・Android Auto: %s\n・アプリのソース: %s\n・タイムゾーン: %s\n・作業ファイルの自動削除: %s\n' \
+    printf '・機種: %s\n・イメージ: %s\n・ルート: %s\n・開発用の機能: %s\n・公開用のビルド: %s\n・Android Auto: %s\n・アプリのソース: %s\n・タイムゾーン: %s\n・作業ファイルの自動削除: %s\n' \
         "$MACHINE" "$TARGET" "$([ "$ROOTFS" = ro ] && echo '読み取り専用 + /home' || echo '読み書きできる')" \
-        "$DEV_MODE" "$AASDK" "$([ "$SRC_MODE" = local ] && echo "このフォルダ($REPO)" || echo 'GitHub の main')" "$TIMEZONE" "$RM_WORK"
+        "$DEV_MODE" "$PUBLISH" "$AASDK" "$([ "$SRC_MODE" = local ] && echo "このフォルダ($REPO)" || echo 'GitHub の main')" "$TIMEZONE" "$RM_WORK"
 }
 
 # ============================================================================ PC の確認と準備
@@ -298,8 +303,12 @@ ask_all() {
             rw "読み書きできる(まずはこちら)" \
             ro "読み取り専用 + /home は書き込み用(設定・ログ・背景画像)")" || die "やめました"
     else ROOTFS=rw; fi
-    DEV_MODE="$(ui_menu "開発用の機能" "SSH とパスワードなしの root ログインを入れますか?(実機で直しながら動かすときに便利。完成品では外します)" "$DEV_MODE" \
-        yes "入れる(開発用)" no "入れない(完成品)")" || die "やめました"
+    if ui_yesno "公開用のビルド" "イメージを人に配る(GitHub のリリースなど)ためのビルドにしますか?\n\n「はい」だと、SSH とパスワードなしの root ログインを入れず、ライセンス文(license.manifest)をイメージに入れ、GPL / LGPL のソースを集めます。\n配る場合は、アプリのソースを「GitHub の main」にして、手元の修正を push してからビルドしてください。" "$PUBLISH"; then PUBLISH=yes; else PUBLISH=no; fi
+    if [ "$PUBLISH" = yes ]; then DEV_MODE=no
+    else
+        DEV_MODE="$(ui_menu "開発用の機能" "SSH とパスワードなしの root ログインを入れますか?(実機で直しながら動かすときに便利。完成品では外します)" "$DEV_MODE" \
+            yes "入れる(開発用)" no "入れない(完成品)")" || die "やめました"
+    fi
     if ui_yesno "Android Auto" "Android Auto の接続(aasdk)を含めますか?\n\n「いいえ」だと UI だけのビルドになり、接続は「利用不可」と出ます(protobuf まわりで止まるときの逃げ道)。" "$AASDK"; then AASDK=yes; else AASDK=no; fi
     SRC_MODE="$(ui_menu "アプリのソース" "OpenCruise アプリのソースはどこから取りますか?" "$SRC_MODE" \
         local "このフォルダ($REPO)。手元の修正がそのまま入る" \
@@ -457,9 +466,21 @@ write_auto() {
         echo 'PACKAGECONFIG:append:pn-qtbase = " eglfs kms gbm libinput fontconfig"'
         echo 'PACKAGECONFIG:remove:pn-qtmultimedia = "ffmpeg pulseaudio pipewire"'
         echo 'PACKAGECONFIG:append:pn-qtmultimedia = " gstreamer alsa"'
-        if [ "$DEV_MODE" = yes ]; then
+        if [ "$DEV_MODE" = yes ] && [ "$PUBLISH" != yes ]; then
             echo '# 開発用: SSH・パスワードなしの root ログイン(完成品では外す)'
             echo 'EXTRA_IMAGE_FEATURES:append = " ssh-server-openssh allow-root-login allow-empty-password empty-root-password post-install-logging"'
+        fi
+        if [ "$PUBLISH" = yes ]; then
+            echo '# 公開用: 開発用の SSH・パスワードなし root は入れない(上の開発用の設定は出さない)。'
+            echo '# イメージに license.manifest とパッケージごとのライセンス文を入れ(/usr/share/common-licenses)、GPL / LGPL のソースを deploy/sources に集める'
+            echo 'COPY_LIC_MANIFEST = "1"'
+            echo 'COPY_LIC_DIRS = "1"'
+            echo 'INHERIT += "archiver"'
+            echo 'ARCHIVER_MODE[src] = "original"'
+            echo 'ARCHIVER_MODE[recipe] = "1"'
+            echo 'COPYLEFT_LICENSE_INCLUDE = "GPL* LGPL* AGPL*"'
+            echo 'COPYLEFT_LICENSE_EXCLUDE = "CLOSED Proprietary*"'
+            echo 'COPYLEFT_RECIPE_TYPES = "target"'
         fi
         [ "$AASDK" = no ] && echo 'PACKAGECONFIG:remove:pn-opencruise = "aasdk"'
         if [ "$ROOTFS" = ro ]; then
@@ -489,6 +510,13 @@ write_auto() {
 do_config() {
     step "設定の作成"
     mkdir -p "$BUILD/conf"
+    if [ "$PUBLISH" = yes ]; then
+        info "公開用のビルドです(SSH・パスワードなし root は入れません。ライセンス文を入れ、GPL / LGPL のソースを集めます)"
+        if [ "$SRC_MODE" = local ]; then
+            info "注意: アプリのソースが「このフォルダ」です。配るイメージは GitHub の main から作る(答えを「GitHub の main」にする)と、配布するソースとイメージの中身が一致します"
+            if [ -n "$(git -C "$REPO" status --porcelain 2>/dev/null)" ]; then info "注意: このフォルダには push していない変更があります。配る前に commit と push をしてください"; fi
+        fi
+    fi
     # 以前の版のこのスクリプトが作った local.conf は、答えを auto.conf より強く上書きしてしまうので、ひな形に戻す
     if [ -f "$BUILD/conf/local.conf" ] && grep -q 'scripts/build-os.sh が作った' "$BUILD/conf/local.conf"; then
         mv "$BUILD/conf/local.conf" "$BUILD/conf/local.conf.old-$(date +%Y%m%d%H%M%S)"
@@ -611,6 +639,51 @@ do_app_update() {
     ok "更新ファイル: $WORKDIR/updates/(USB メモリの直下か opencruise-update/ にコピー、または scripts/update-server.sh $WORKDIR/updates)"
 }
 
+# ============================================================================ 公開用ファイルのまとめ
+# 公開用(--release)でビルドしたあとに、配るものを <作業フォルダ>/release/<機種>-<日付>/ に集める。
+do_release_pack() {
+    step "公開用ファイルをまとめる"
+    [ "$PUBLISH" = yes ] || { ng "公開用でビルドしていません。--release を付けて --build をやり直してください(開発用の SSH・パスワードなし root が入ったイメージは配れません)"; return 1; }
+    local dep="$BUILD/tmp/deploy" imgdir="$BUILD/tmp/deploy/images/$MACHINE" out img f lm n
+    [ -d "$imgdir" ] || { ng "イメージがありません($imgdir)。先に --build を実行してください"; return 1; }
+    out="$WORKDIR/release/$MACHINE-$(date +%Y%m%d)"
+    rm -rf "$out"; mkdir -p "$out" || { ng "$out を作れません"; return 1; }
+    command -v zstd >/dev/null 2>&1 || { ng "zstd がありません(sudo apt install zstd)"; return 1; }
+
+    # イメージ(実体のファイルだけ。シンボリックリンクは除く。wic は大きいので zstd で圧縮する)
+    img="$(image_file)"
+    if [ -n "$img" ] && [ -f "$img" ]; then
+        info "圧縮しています: $(basename "$img")"
+        zstd -T0 -q -f "$img" -o "$out/$(basename "$img").zst" || { ng "圧縮に失敗しました"; return 1; }
+        [ -f "$img.bmap" ] && cp -f "$img.bmap" "$out/"
+        ok "イメージ: $(basename "$img").zst"
+    else
+        n=0
+        while IFS= read -r f; do cp -f "$f" "$out/"; n=$((n+1)); done < <(find "$imgdir" -maxdepth 1 -type f \( -name "$TARGET-$MACHINE*.ext4*" -o -name 'bzImage*' -o -name "$TARGET-$MACHINE*.qemuboot.conf" \) 2>/dev/null)
+        if [ "$n" -gt 0 ]; then ok "イメージ: $n ファイル"; else ng "イメージのファイルが見つかりません($imgdir)"; return 1; fi
+    fi
+
+    # ライセンス一覧(イメージに入っている部品とそのライセンス)・ライセンス文
+    lm="$(ls -t "$dep"/licenses/"$TARGET-$MACHINE"*/license.manifest 2>/dev/null | head -n 1)"
+    if [ -n "$lm" ]; then cp -f "$lm" "$out/license.manifest"; ok "ライセンス一覧: license.manifest"
+    else ng "license.manifest が見つかりません($dep/licenses)"; return 1; fi
+    if tar -C "$dep" -cJf "$out/licenses.tar.xz" licenses; then ok "ライセンス文: licenses.tar.xz"; else ng "licenses.tar.xz を作れませんでした"; return 1; fi
+
+    # GPL / LGPL のソース(archiver が集めたもの)
+    if [ -d "$dep/sources" ] && [ -n "$(ls -A "$dep/sources" 2>/dev/null)" ]; then
+        if tar -C "$dep" -cf "$out/sources.tar" sources; then ok "ソース: sources.tar($(du -h "$out/sources.tar" | cut -f1))"; else ng "sources.tar を作れませんでした"; return 1; fi
+    else ng "ソースが見つかりません($dep/sources)。公開用(--release)で --build をやり直してください"; return 1; fi
+
+    # 再現に要る情報(使ったレイヤーの版)と、このリポジトリのライセンス・出典
+    [ -f "$LOCK" ] && cp -f "$LOCK" "$out/layers.lock"
+    for f in LICENSE THIRD-PARTY-NOTICES.md; do [ -f "$REPO/$f" ] && cp -f "$REPO/$f" "$out/"; done
+    if ( cd "$out" && find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS ); then ok "チェックサム: SHA256SUMS"; fi
+    echo
+    ok "公開用の一式: $out"
+    info "このあとの手順: README に「検証専用・公開ネットワークにつながない」などの注意を書き、このフォルダのファイルをリリースに添付します"
+    ls -lh "$out" | sed 's/^/  /'
+}
+
 # ============================================================================ シェル・状態
 do_shell() {
     [ -f "$CORE/oe-init-build-env" ] || die "まだレイヤーがありません。先にウィザードを実行してください"
@@ -639,6 +712,8 @@ print_summary() {
 
 # ============================================================================ 本体
 load_conf
+[ "$PUBLISH_FLAG" -eq 1 ] && PUBLISH=yes
+[ "$PUBLISH" = yes ] && DEV_MODE=no
 init_log
 [ -t 1 ] && [ "${TERM:-}" = linux ] && echo "注意: Linux のコンソール(tty)では日本語が表示されません。SSH かデスクトップの端末から実行してください。" >&2
 [ "$(id -u)" -ne 0 ] || [ "$MODE" = check ] || die "root では実行できません(BitBake は root を拒否します)。普通のユーザーで実行してください。必要なところだけ sudo を使います。"
@@ -647,6 +722,7 @@ case "$MODE" in
     check)  do_check; rc=$?; print_summary; exit "$rc" ;;
     status) do_status ;;
     appupdate) do_app_update; rc=$?; print_summary; exit "$rc" ;;
+    releasepack) do_release_pack; rc=$?; print_summary; exit "$rc" ;;
     shell)  do_shell ;;
     flash)  do_flash; rc=$?; print_summary; exit "$rc" ;;
     build)

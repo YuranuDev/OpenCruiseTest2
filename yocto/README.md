@@ -49,6 +49,20 @@ OS を書き込み直さずに、OpenCruise アプリだけを入れ替えられ
 - 更新できるのはアプリ(実行ファイル・フォント・効果音)だけ。OS・ライブラリ・udev や polkit の設定を変えたときは OS を書き込み直す
   (OS の A/B 更新は次の段階で入れる予定)
 
+## 公開用のビルド(イメージを配るとき)
+
+開発用のビルドは、SSH とパスワードなしの root ログインが入っていて、そのまま配ると誰でも root で入れてしまいます。配るイメージは、次の手順で作ります。
+
+```
+scripts/build-os.sh --release          # 公開用のビルド(ウィザードで「公開用のビルド: はい」でも同じ)
+scripts/build-os.sh --release-pack     # 配るものを <作業フォルダ>/release/<機種>-<日付>/ に集める
+```
+
+- **公開用のビルドでの違い**: SSH・パスワードなしの root を入れません。`license.manifest` とパッケージごとのライセンス文をイメージの `/usr/share/common-licenses/` に入れ、GPL / LGPL のソースを `build/tmp/deploy/sources/` に集めます(`archiver`)。
+- **アプリのソース**: 配るイメージは、アプリのソースを「GitHub の main」にして作ってください(push していない手元の変更が入らず、配るソースとイメージの中身が一致します)。
+- **まとめるもの**: イメージ(`.wic` は zstd で圧縮)、`license.manifest`、`licenses.tar.xz`、`sources.tar`、`layers.lock`(使ったレイヤーの版)、`LICENSE`、`THIRD-PARTY-NOTICES.md`、`SHA256SUMS`。これをそのままリリースに添付します。
+- **まだ手でやること**: README に「検証専用・公開ネットワークにつながない」などの注意を書く。H.264 の特許(`openh264`)と、効果音・音声・画像(`extras/`)の権利を確認する。`linux-firmware` を使うものだけに絞る(今は多くのファームウェアが入ります)。
+
 ## 確認済み・未確認
 
 - 確認済み: 実際の wrynose のレイヤーで、取得 → 設定 → `bitbake -p`(全レシピの読み込み)→ `bitbake -n opencruise-image`(依存関係の解決)がエラー・警告なしで通る(intel-corei7-64 / qemux86-64、Android Auto あり・なし、読み取り専用ルート)

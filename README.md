@@ -393,7 +393,26 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
 - ログは `[aa] [session] ...` `[aa] [video] ...` として標準エラーに出る。どこまで進んだかの切り分けに使える。
 - `--test-video` で映像が出ても aasdk の受信が動いた証拠にはならない（状態表示に「aasdk 経由ではありません」と出る）。
 
-## 使用素材・ライセンス
+## ライセンス
+
+### このアプリ
+
+OpenCruise は **GNU General Public License バージョン 3 またはそれ以降(GPL-3.0-or-later)** で公開しています。全文は [LICENSE](LICENSE) です。
+リンクしている Android Auto 接続ライブラリ(`aasdk/`)が GPL-3.0-or-later のため、アプリも同じ条件にしています。
+このプログラムには、法律で認められる範囲で、いかなる保証もありません。
+
+使っている他者のコード・素材と、OS イメージに入る主な部品のライセンスは [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) にまとめています(アプリの設定「システム > 情報」にも出します)。
+
+Android、Android Auto は Google LLC の商標です。このプロジェクトは Google LLC と提携・承認の関係にありません。
+
+### OS イメージを配るとき
+
+`scripts/build-os.sh` の開発用の設定(SSH・パスワードなしの root ログイン)は、配るイメージには入れません。配る場合は次の順で作ります(詳しくは [yocto/README.md](yocto/README.md))。
+
+1. `scripts/build-os.sh --release`(公開用のビルド。ライセンス文を入れ、GPL / LGPL のソースを集める)
+2. `scripts/build-os.sh --release-pack`(イメージ・`license.manifest`・ソース・チェックサムを `<作業フォルダ>/release/` にまとめる)
+
+イメージには GPL / LGPL の部品が入っています。リリースには、イメージのほかに `license.manifest`・`licenses.tar.xz`・`sources.tar`(ソース)を一緒に添付してください。
 
 ### 効果音: OtoLogic
 
@@ -412,7 +431,7 @@ QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設
 - AivisSpeech 本体: 生成した音声にクレジット表記の義務はありません(任意のクレジットとして記載しています)
 - 音声合成モデル: 使ったモデルごとのライセンスに従います。AivisHub などで公開されている ACML / ACML-NC / CC0 のモデルは
   クレジット表記の義務がありません。ACML-NC のモデルは非商用に限られるため、商用で配布する場合はモデルのライセンスを確認してください
-- 使用した音声合成モデル: (モデル名とライセンスを記入)
+- 使用した音声合成モデル: コハク(ACML 1.0)
 
 ### クレジットの表示場所
 
