@@ -27,7 +27,7 @@ OpenCruise 自体のライセンスは、リポジトリ直下の [LICENSE](LICE
 | 部品 | ライセンス | 補足 |
 |---|---|---|
 | Qt 6(qtbase・qtdeclarative・qtmultimedia など) | LGPL-3.0(Qt Company の商用ライセンスは使っていません) | 共有ライブラリとして使っています。ソースは https://download.qt.io/ と、リリースに添付の `sources.tar` |
-| OpenH264 | BSD-2-Clause | H.264 の特許の扱いは別です(自分でビルドしたものは、Cisco が配布するバイナリの特許保証の対象外とされています) |
+| OpenH264 | BSD-2-Clause | ソースからビルドしたもので、Cisco のビルド済みバイナリではありません。H.264 の特許の許諾は含まれません(非商用・自己責任。README の「H.264 の特許について」を参照) |
 | libusb | LGPL-2.1-or-later | |
 | ALSA(alsa-lib) | LGPL-2.1-only など | |
 | protobuf | BSD-3-Clause | |
