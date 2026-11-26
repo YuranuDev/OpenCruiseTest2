@@ -63,6 +63,27 @@ scripts/build-os.sh --release-pack     # 配るものを <作業フォルダ>/re
 - **まとめるもの**: イメージ(`.wic` は zstd で圧縮)、`license.manifest`、`licenses.tar.xz`、`sources.tar`、`layers.lock`(使ったレイヤーの版)、`LICENSE`、`THIRD-PARTY-NOTICES.md`、`SHA256SUMS`。これをそのままリリースに添付します。
 - **まだ手でやること**: README に「検証専用・公開ネットワークにつながない」などの注意を書く。H.264 の特許(`openh264`)と、効果音・音声・画像(`extras/`)の権利を確認する。`linux-firmware` を使うものだけに絞る(今は多くのファームウェアが入ります)。
 
+## タッチが効かないとき
+
+ゲストに入って(SSH か、シリアルコンソールから root で)、上から順に確かめます。どこで止まるかで原因が分かります。
+
+```
+ls -l /dev/input/                       # event* があるか。group が input で mode が 660 か
+cat /proc/bus/input/devices             # タッチパネルが「入力デバイス」として見えているか(名前・Handlers=eventN)
+libinput list-devices                   # libinput が「タッチスクリーン(Capabilities: touch)」として認識しているか
+systemctl stop opencruise               # アプリを止めてから、指で触りながら次を実行して、TOUCH_DOWN が出るか見る
+libinput debug-events
+evtest /dev/input/eventN                # libinput を通さない生のイベント(N は上の番号)
+```
+
+- **`/proc/bus/input/devices` に無い**: カーネルがタッチパネルを認識していません。`lsusb` で見えるか、`dmesg | grep -i -E 'hid|touch|i2c'` を見ます。I²C 接続のものは、そのドライバ(`i2c-hid` など)が要ります。
+- **`event*` が root:root や 600 で、group が input でない**: udev の規則が効いていません。アプリは `input` グループで動くので、権限があるか `ls -l` と `id opencruise` で確かめます。
+- **`libinput list-devices` に出ない、`debug-events` で何も出ない**: libinput が権限か udev の情報(`udevadm info -q property -n /dev/input/eventN` の `ID_INPUT_TOUCHSCREEN=1`)で認識できていません。
+- **`debug-events` では出るのに、アプリで効かない**: Qt 側の問題です。`/etc/opencruise/opencruise.env` の `QT_LOGGING_RULES=qt.qpa.input=true` を有効にして `systemctl restart opencruise` し、`journalctl -u opencruise` を見ます。それでも直らなければ、`QT_QPA_EGLFS_NO_LIBINPUT=1` と `QT_QPA_EVDEV_TOUCHSCREEN_PARAMETERS=/dev/input/eventN` を有効にして evdev に切り替えて試します。
+- **触った位置がずれる・向きが違う**: `/etc/udev/rules.d/` に `LIBINPUT_CALIBRATION_MATRIX` の規則を入れます(`scripts/install.sh` が Debian 用に作るものと同じ書き方です)。
+- **一覧にタッチパネルが無い(カーネルが認識していない)**: 内蔵のタッチパネルは I²C 接続のことが多く、`files/kernel/opencruise-touch.cfg`(`i2c-hid`・`hid-multitouch`・Intel の LPSS と GPIO のドライバ)を、レイヤーがカーネルに足します。カーネルの作り直し(数十分)が要ります。入ったかは、実機で `zcat /proc/config.gz | grep -E 'I2C_HID|HID_MULTITOUCH|PINCTRL_SUNRISEPOINT'` で確かめます。
+- **QEMU で試すとき**: `-device usb-tablet` は「タッチスクリーン」ではなく、絶対位置のマウスとして見えます。タップやドラッグは効きますが、`Capabilities: touch` にはなりません。タッチ専用の処理(マルチタッチなど)の確認は実機でします。
+
 ## 確認済み・未確認
 
 - 確認済み: 実際の wrynose のレイヤーで、取得 → 設定 → `bitbake -p`(全レシピの読み込み)→ `bitbake -n opencruise-image`(依存関係の解決)がエラー・警告なしで通る(intel-corei7-64 / qemux86-64、Android Auto あり・なし、読み取り専用ルート)
