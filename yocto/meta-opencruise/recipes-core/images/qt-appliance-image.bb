@@ -21,6 +21,8 @@ QT_APPLIANCE_QT = " \
 # MP3 の効果音・起動音(AlsaSoundEffect が QAudioDecoder で読む。Qt 6.12 の中身は playbin3 → appsink)には、
 # MPEG 音声の切り出し(audioparsers の mpegaudioparse)・デコーダ(mpg123)・ID3 タグの読み飛ばし(id3demux)が要る。
 # 同梱の resources/sounds/start/Bell*.mp3 はどれも ID3 タグ付きで、id3demux が無いと「プラグインが無い」で読めない。
+# QAudioOutput(QMediaPlayer の出力)は autoaudiosink(good の autodetect)を、GstPlay は scaletempo(good の audiofx)を要る。
+# 無いと「Could not find the autoaudiosink GStreamer element」「scaletempo element not available」と出て、そのあとアプリが libgobject で落ちた。
 QT_APPLIANCE_GST = " \
     gstreamer1.0 \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-base-playback gstreamer1.0-plugins-base-typefindfunctions \
@@ -29,6 +31,7 @@ QT_APPLIANCE_GST = " \
     gstreamer1.0-plugins-base-app \
     gstreamer1.0-plugins-good-video4linux2 gstreamer1.0-plugins-good-jpeg \
     gstreamer1.0-plugins-good-audioparsers gstreamer1.0-plugins-good-mpg123 gstreamer1.0-plugins-good-id3demux \
+    gstreamer1.0-plugins-good-autodetect gstreamer1.0-plugins-good-audiofx \
 "
 
 # 音は ALSA 直(アプリが機器を占有して中で混ぜる)・USB・カメラ(UVC)・タッチ入力
