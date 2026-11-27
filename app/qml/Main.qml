@@ -10,12 +10,15 @@ ApplicationWindow {
     visible: true
     // アプリのテーマ(昼夜・アクセント色)を Theme へ反映する。Theme 側で補間アニメーションされる
     // (切り替えは themeSnap が受け持つ: 切り替え前の画面を画像にして重ね、テーマを一度で変えてから画像を薄くする)
+    // 編集モードのテーマ・壁紙・飾りでは選択側を一時プレビューし、ウィジェット編集へ戻るとライト連動へ戻す。
     readonly property bool wantNight: androidAuto.nightActive
-    readonly property int wantAccent: wantNight ? themeSettings.nightProfile.accentIndex : themeSettings.dayProfile.accentIndex
-    readonly property string wantAccentCustom: wantNight ? themeSettings.nightProfile.accentCustom : themeSettings.dayProfile.accentCustom
-    readonly property string wantStyle: wantNight ? themeSettings.nightProfile.style : themeSettings.dayProfile.style
+    readonly property bool themePreviewActive: stack.currentItem && stack.currentItem.themePreviewActive === true
+    readonly property bool displayNight: themePreviewActive ? stack.currentItem.themePreviewNight : wantNight
+    readonly property int wantAccent: displayNight ? themeSettings.nightProfile.accentIndex : themeSettings.dayProfile.accentIndex
+    readonly property string wantAccentCustom: displayNight ? themeSettings.nightProfile.accentCustom : themeSettings.dayProfile.accentCustom
+    readonly property string wantStyle: displayNight ? themeSettings.nightProfile.style : themeSettings.dayProfile.style
     property bool themeReady: false
-    onWantNightChanged: themeSnap.request()
+    onDisplayNightChanged: themeSnap.request()
     onWantAccentChanged: themeSnap.request()
     onWantAccentCustomChanged: themeSnap.request()
     onWantStyleChanged: themeSnap.request()
@@ -228,13 +231,13 @@ ApplicationWindow {
         property int waitFrames: 0
 
         function apply() {
-            Theme.night = window.wantNight
+            Theme.night = window.displayNight
             Theme.accentIndex = window.wantAccent
             Theme.accentCustom = window.wantAccentCustom
             Theme.style = window.wantStyle
         }
         function request() {
-            const same = Theme.night === window.wantNight && Theme.accentIndex === window.wantAccent
+            const same = Theme.night === window.displayNight && Theme.accentIndex === window.wantAccent
                          && Theme.style === window.wantStyle
             if (same && Theme.accentCustom === window.wantAccentCustom) return
             // 自由な色をなぞっている間は、そのつど画面を撮り直さず、その場で色だけ変える(滑らかに追従させるため)

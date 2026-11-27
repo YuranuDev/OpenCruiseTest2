@@ -34,6 +34,9 @@ Rectangle {
     // Android Auto 画面のウィジェットの編集モード
     property bool aaEditing: false
     property string aaEditPanel: "widgets"
+    readonly property bool themePreviewActive: root.showAa ? root.aaEditing : launcher.themePreviewActive
+    readonly property bool themePreviewNight: root.showAa ? aaEditBar.editNight : launcher.themePreviewNight
+    onAaEditingChanged: if (aaEditing) aaEditBar.editNight = androidAuto.nightActive
     function openThemeEditor() {
         root.menuOpen = false
         root.goHome()
@@ -108,6 +111,7 @@ Rectangle {
 
         // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
         WidgetEditBar {
+            id: aaEditBar
             anchors.fill: parent
             z: 2
             opacity: root.aaEditing ? 1 : 0

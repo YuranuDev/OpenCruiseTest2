@@ -33,10 +33,12 @@ Item {
     // 編集モードの上パネル。配置・飾り・テーマ・壁紙を分けて、操作を一列に詰め込まない
     property string editPanel: "widgets"
     readonly property bool decorEditing: editPanel === "decor"
+    readonly property bool themePreviewActive: editingOn
+    readonly property bool themePreviewNight: editBar.editNight
     function setEditing(on) {
         editingOn = on
         editPanel = "widgets"
-        if (on) editBar.editNight = Theme.night
+        if (on) editBar.editNight = androidAuto.nightActive
         if (!on) {
             settingsDialog.close()
             decorPicker.close()

@@ -8,7 +8,7 @@ Item {
     property Item area: null
     property Item pages: null
     property string panelMode: "widgets"     // widgets / decor / theme / wallpaper
-    property bool editNight: Theme.night      // テーマ・壁紙・飾りの編集先。表示中の時間帯とは独立
+    property bool editNight: Theme.night      // テーマ・壁紙・飾りの編集先兼プレビュー。編集終了で実際のライト状態に戻る
     signal panelModeRequested(string mode)
     signal addRequested()
     signal settingsRequested(var entries)
@@ -220,6 +220,17 @@ Item {
             height: controlsViewport.height
             spacing: 8 * root.unit
 
+            Text {
+                visible: root.editNight !== androidAuto.nightActive
+                anchors.verticalCenter: parent.verticalCenter
+                font.family: Theme.fontFamily
+                font.pixelSize: Math.max(13, 15 * root.unit)
+                font.bold: true
+                color: Theme.accent
+                text: "プレビュー: " + (root.editNight ? "夜" : "昼")
+                      + " ・ 実ライト: " + (androidAuto.nightActive ? "ON" : "OFF")
+            }
+
             // ウィジェット配置・選択
             Row {
                 id: widgetControls
@@ -330,13 +341,19 @@ Item {
                     icon: "brightness_5"
                     text: "昼の飾り"
                     tone: root.pages && !root.pages.decorationNight ? "accent" : "normal"
-                    onClicked: if (root.pages) root.pages.decorationNight = false
+                    onClicked: {
+                        root.editNight = false
+                        if (root.pages) root.pages.decorationNight = false
+                    }
                 }
                 BarButton {
                     icon: "brightness_2"
                     text: "夜の飾り"
                     tone: root.pages && root.pages.decorationNight ? "accent" : "normal"
-                    onClicked: if (root.pages) root.pages.decorationNight = true
+                    onClicked: {
+                        root.editNight = true
+                        if (root.pages) root.pages.decorationNight = true
+                    }
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -391,7 +408,8 @@ Item {
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.max(13, 15 * root.unit)
                     color: Theme.textSecondary
-                    text: "表示: " + (androidAuto.nightActive ? "夜 (ライト ON)" : "昼 (ライト OFF)") + " ・ Android Auto 連動"
+                    text: "プレビュー: " + (root.editNight ? "夜" : "昼")
+                          + " ・ 実ライト: " + (androidAuto.nightActive ? "ON" : "OFF") + " ・ Android Auto はライト連動"
                 }
                 Rectangle { width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
                 BarButton {
