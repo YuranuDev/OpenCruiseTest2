@@ -1,108 +1,124 @@
-# OpenCruise — Qt + aasdk 車載システム 簡易プロトタイプ
+# OpenCruise — Linux デスクトップ向け Android Auto プレイヤー
 
-x86_64 PC 向けの車載システム試作。Qt Quick(QML) + C++ + CMake。Android Auto の接続・映像は同梱の `aasdk` を利用する。
-**完成品ではなく、各機能を最低限つないだ動作確認用の仮システム**。
+車載ディスプレイやホームサーバー向けの Android Auto 機能を、Qt6 + C++ で Linux デスクトップで実装するアプリケーション。スマホの Android Auto を Linux マルチメディアプレーヤーとして動作させます。
 
-## 構成
+- **プラットフォーム**: Linux（Ubuntu / Debian / Yocto）が主目標。Windows/MacOS も対応可能（ALSA は OS に依存）。
+- **メイン言語**: C++17 + Qt6（QML 主体）。
+- **ライブラリ・依存**: AASDK（Android Auto SDK）、libusb-1.0、Boost、Protobuf、OpenSSL、H.264 デコーダー。
+
+## プロジェクト概要
+
+OpenCruise は Android Auto を Linux で動かす「車載ディスプレイ・マルチメディアプレーヤー」を目指します。同梱した **AASDK**（Android Auto SDK）を USB 接続層として利用し、スマホの映像・音声・車両データ・通話・通知などを Linux デスクトップで制御・表示します。
+
+- **Android Auto 接続**: スマホの Android Auto と「接続」して H.264 映像・PCM 音声・車両情報・ナビゲーション・通話・バッテリー状態を受け取り、QML UI で制御。
+- **車両データ**: 速度・回転数・燃料・ギア・位置などを実車の ECU（K-Line）から取得するほか、モックデータのダミー送信も可能。
+- **UI 構成**: QML ウィジェットシステムで現在地・車両情報・ナビゲーション・スマホ状態（通話/通知/再生曲）などをホーム画面に配置表示。
+- **起動画面管理**: フォント読み込み / 音声設定 / AA 接続待ちなどを BootManager で進捗管理（GUI の起動画面に表示）。
+- **終了処理**: ShutdownManager で電源オフ時の処理順を制御（設定保存 → AA 切断 → ドア解除 → 電源プロファイル復元）。
+- **DRM/外部出力**: eglfs を経由で DRM/KMS 機器への外部モニターミラー可能。
+- **音声直接出力**: ALSA を使うと PulseAudio/PipeWire を通さず直接音出し・録音（Windows/MacOS では Qt 音声用）。
+
+## プロジェクト構成
 
 ```
-OpenCruise/
-├── CMakeLists.txt            トップ。aasdk をサブプロジェクトとして取り込み、app/ をビルド
-├── aasdk/                    既存の aasdk（※ USB/USBWrapper.cpp のみ 1 か所修正。後述）
-├── patches/                  aasdk に当てた修正の diff
-├── scripts/                  install.sh=インストーラー(ウィザード) / make_test_stream.sh=テスト映像(H.264)の生成 / bootsplash/=起動画面
-├── docs/                     設計メモ・調査データ・スクリーンショット
-│   ├── *.md                  実装ガイド・Android Auto 接続フローの仕様
-│   ├── reference/            aasdk_phone_data.csv など調査データ
-│   └── screenshots/          画面の確認用スクリーンショット
-└── app/
-    ├── CMakeLists.txt        アプリ本体のビルド設定(ソース・QML・リソースの登録はここ)
-    ├── src/                  C++(#include は src/ からの相対パス。例: "audio/AudioSettings.h")
-    │   ├── main.cpp          起動・モデル生成・QML 公開・開発用オプション
-    │   ├── core/             アプリ基盤: AppInfo / AppSettings / BootManager / Log / UiText
-    │   ├── audio/            音: AudioSettings / SystemSound / AlsaAudio / AlsaSoundEffect
-    │   ├── display/          画面: BrightnessController / DisplaySettings / DrmDisplay
-    │   ├── ui/               UI 支援: ThemeSettings / WidgetStore / ClockModel / AlbumArtProvider
-    │   ├── vehicle/          車両: VehicleDataManager / ReverseCamera
-    │   ├── system/           SystemStats(CPU・メモリ・温度など)
-    │   ├── notification/     NotificationManager / NotificationHistoryModel
-    │   ├── androidauto/      Qt 側: AndroidAutoController / H264Decoder / VideoSurfaceItem / TestVideoFeeder / PhoneStatus
-    │   └── aabackend/        Qt 非依存の aasdk 接続層（UI と分離。無効時はスタブ）
-    │       ├── AasdkBackend.*    libusb・ioスレッド・USBHub、待機→接続→切断→待機のループ
-    │       ├── AasdkSession.*    1接続ぶん。制御チャネル(バージョン/SSL/認証/サービス探索/Ping/切断)
-    │       ├── AasdkVideoHandler.* 映像チャネル(Open/Setup/Start/データ受信/ACK/フォーカス)
-    │       └── AasdkConfig.h     車載機として申告する値（解像度 dpi 等、暫定値を1か所に集約）
-    ├── qml/                  QML(すべて 1 つのモジュール OpenCruise。他フォルダの型を使うファイルは `import OpenCruise` が必要)
-    │   ├── Main.qml          ルート(ここだけ qml/ 直下)
-    │   ├── theme/            Theme(シングルトン) / ThemeBackground
-    │   ├── components/       共通部品: Panel / ActionButton / MaterialIcon / NumberText / StatCard / MarqueeText など
-    │   ├── screens/          画面: HomeScreen / LauncherScreen / SettingsScreen / SplashScreen / ReverseCamera*
-    │   ├── settings/         設定の部品(Settings* / WSStepper / WSTextField)
-    │   │   └── pages/        設定の各ページ(SettingsPage*。分類・並び・案内の書き方は screens/SettingsScreen.qml の先頭)
-    │   ├── osd/              OSD(音量・明るさ)と通知(NotificationPopup / Bell / HistoryPanel)・AlarmClearButton
-    │   ├── services/         画面を持たないシングルトン: VehicleHistory / WarningAlarm
-    │   └── widgets/          ウィジェット(下の「ウィジェット」参照)
-    └── resources/            実行ファイルに入れる/隣へコピーする素材
-        ├── images/           ロゴなど(qrc に埋め込む)
-        ├── fonts/            アイコンフォント(qrc に埋め込む)と日本語フォント(ビルド時に実行ファイルの隣の fonts/ へコピー)
-        └── sounds/           効果音(ビルド時に実行ファイルの隣の sounds/ へコピー)
+OpenCruiseTest2ForAI/
+├── CMakeLists.txt           # 頂上ビルド：aasdk と app/ をサブプロジェクトとしてビルド
+├── aasdk/                   # Android Auto SDK リポジトリ（同梱ライブラリ）
+│   ├── CMakeLists.txt       # Protobuf / Boost / OpenSSL / libusb の依存、クロスコンパイル対応
+│   ├── include/aasdk/       # 公開ヘッダ（AASDK:: namespace）
+│   └── src/                  # AASDK 実装（Android Auto プラットフォームへ接続・データ受け取り）
+│       ├── AasdkBackend.*    # USB ホットプラグ検出・io スレッド・待機→接続→切断→待機ループ
+│       ├── AasdkSession.*    # 単一セッション。制御チャネル (バージョン/SSL/認証/サービス探索/Ping)
+│       ├── AasdkVideoHandler.*  # 映像チャネル (Open/Setup/Start/データ受信/ACK/フォーカス)
+│       ├── AasdkSensorHandler.* # センサーチャネル（車両情報）
+│       ├── AasdkInputHandler.*  # 入力チャネル（タッチ操作転送）
+│       └── ...               # Microphone / PhoneStatus / SystemAudio など
+├── app/                     # OpenCruise アプリ本体
+│   ├── CMakeLists.txt       # Qt6 + aasdk の依存指定、ソース・QML・リソースの登録
+│   ├── src/                 # アプリ実装（メインループ・設定管理・接続層・車両データ）
+│   │   ├── main.cpp         # 起動・オプション処理・QML ロード・開発用コマンド
+│   │   ├── core/            # アプリ基盤：AppInfo / AppSettings / BootManager / Log / UiText
+│   │   ├── aabackend/       # Qt 非依存の aasdk 接続層（UI と分離。無効時はスタブ）
+│   │   ├── androidauto/     # Qt 側：AndroidAutoController / H264Decoder / VideoSurfaceItem
+│   │   ├── audio/           # 音：AudioSettings / SystemSound / (AlsaAudio)
+│   │   ├── display/         # 画面：BrightnessController / DisplaySettings / DrmDisplay
+│   │   ├── ui/              # UI 支援：ThemeSettings / WidgetStore / ClockModel
+│   │   ├── vehicle/         # 車両：VehicleDataManager / EcuData / ReverseCamera
+│   │   ├── system/          # SystemStats / ShutdownManager / UpdateManager / WifiManager
+│   │   ├── notification/     # NotificationManager / NotificationHistoryModel
+│   │   └── ...              # PhoneStatus / AlbumArtProvider など
+│   ├── qml/                 # QML（1 つのモジュール OpenCruise。他フォルダの型使う場合は `import OpenCruise`）
+│   │   ├── Main.qml         # ルート画面（暗色・時計・AA 接続状態表示・CAN データパネル）
+│   │   ├── theme/           # Theme(シングルトン) / ThemeBackground
+│   │   ├── screens/         # 画面：HomeScreen / SettingsScreen / VehicleScreen / SplashScreen
+│   │   ├── settings/        # 設定の部品（Settings* / WSStepper / WSTextField）と各ページ
+│   │   ├── widgets/         # ウィジェット（配置・設定・データモデル）
+│   │   ├── osd/             # OSD（音量・明るさ）・通知（Popup / HistoryPanel）
+│   │   ├── services/        # 画面を持たないシングルトン：VehicleHistory / WarningAlarm
+│   │   └── components/      # 共通部品（Panel / ActionButton / MaterialIcon / GaugeWidget など）
+│   └── resources/           # フォント / 効果音 / DTC リスト（実行時コピー・qrc 埋め込み）
+├── docs/                    # ドキュメント・設計メモ・スクリーンショット・調査データ
+├── patches/                 # aasdk や OS 向け修正の diff ファイル
+├── scripts/                 # インストーラー / テスト映像生成 / Plymouth 起動画面作成
+└── yocto/                   # Yocto 向けビルド設定
 ```
 
-接続層 (`aabackend`) は Qt を一切含まず、UI は `AasdkBackend` の公開ヘッダだけを見る。
-そのため aasdk が無い/接続できない環境でもアプリ全体が起動する（状態は「利用不可」「待機中」と表示）。
+## まとめに入れる（インストーラー）
 
-## まとめて入れる(インストーラー)
-
-パッケージ・ビルド・権限・タッチパネル・音・起動画面などを、ウィザード形式でまとめて入れる(Debian 系。SSH かデスクトップの端末から):
+Debian/Ubuntu 系で、パッケージ・ビルド・権限・タッチパネル・音・起動画面などをウィザード形式でまとめて入れる。
 
 ```bash
-sudo scripts/install.sh               # 入れるものを選んで、質問に答えて、最後にまとめて入れる
-sudo scripts/install.sh --check       # 権限などの状態を確かめるだけ(何も変えない)
+sudo scripts/install.sh          # 入れるものを選んで質問に答えて、最後にまとめて入れる
+sudo scripts/install.sh --check  # 権限などの状態を確かめるだけ（何も変えない）
 sudo scripts/install.sh --uninstall   # このインストーラーが入れた設定を外す
 ```
 
 | 項目 | 内容 |
 |---|---|
-| パッケージ | ビルド・実行に要るもの(その Debian に無いものは飛ばして知らせる) |
-| ビルド | `build/app/opencruise`(Android Auto の接続を含めるか選べる) |
-| 権限 | グループ(video・render・input・audio・plugdev・dialout)、電源を切る・再起動・電源モードをパスワードなしで(polkit)、バックライトへの書き込み(udev)、蓋を閉じても・放っておいてもスリープしない(logind) |
-| Android Auto | スマホを USB で開ける権限(udev。主なメーカーだけ / すべての USB 機器)。無いと aasdk は黙って無視し「待機中」のまま |
-| タッチパネル | 向きの補正(回転・反転。libinput の補正を udev で入れる)と、触って試す |
-| 音 | audio グループ、PipeWire / PulseAudio を止める(ALSA を直接使うため)、音を出して試す |
-| 起動画面 | `scripts/bootsplash/install.sh` を呼ぶ(自動起動・メッセージを隠す・起動中の明るさを選べる) |
-| CF-MX5 | AC を挿したら起動する(`scripts/cf-mx5/install-afterg3.sh`。CF-MX5 のときだけ出る) |
+| **パッケージ** | ビルド・実行に要るもの（その Debian にないものは飛ばして知らせる） |
+| **ビルド** | `build/app/opencruise`（Android Auto の接続を含めるか選べる） |
+| **権限** | グループ (video/render/input/audio/plugdev/dialout)、電源を切る・再起動・電源モードをパスワードなしで (polkit)、バックライトへの書き込み (udev)、蓋を閉じても・放っておいてもスリープしない (logind) |
+| **Android Auto** | スマホを USB で開ける権限 (udev)。主なメーカーだけ / すべての USB 機器。無いと aasdk は黙って無視し「待機中」のまま |
+| **タッチパネル** | 向きの補正（回転・反転。libinput の補正を udev で入れる）と、触って試す |
+| **音** | audio グループ、PipeWire / PulseAudio を止める (ALSA を直接使うため)、音を出して試す |
+| **起動画面** | `scripts/bootsplash/install.sh`（自動起動・メッセージを隠す・起動中の明るさを選べる） |
+| **CF-MX5** | AC を挿したら起動する (`scripts/cf-mx5/install-afterg3.sh`。CF-MX5 のときだけ出る) |
 
-入れたものは `/etc/opencruise/install.state`、ログは `/var/log/opencruise-install.log`。グループは次のログイン(自動起動ならアプリの次の起動)から効く。
+入れたものは `/etc/opencruise/install.state`、ログは `/var/log/opencruise-install.log`。グループは次のログイン（自動起動ならアプリの次の起動）から効く。
 `--yes` で質問せずにおすすめの内容を入れる、`--no-tui` でダイアログを使わず文字だけで進める、`--user <名前>` でアプリを動かすユーザーを決める。
 
-## ビルド
+## ビルド条件
 
-Ubuntu 24.04 で確認。必要パッケージ:
+Ubuntu 24.04 で確認。必要パッケージ：
 
 ```bash
 sudo apt install build-essential cmake ninja-build pkg-config \
   qt6-base-dev qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls \
   qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates \
-  qml6-module-qtqml qml6-module-qtqml-workerscript \
-  qt6-multimedia-dev qml6-module-qtmultimedia \
-  libopenh264-dev \
+  qml6-module-qtqml qml6-module-qtqml-workerscript qml6-module-qtmultimedia \
+  qt6-multimedia-dev libopenh264-dev \
   libboost-system-dev libboost-log-dev libprotobuf-dev protobuf-compiler libusb-1.0-0-dev libssl-dev \
-  libasound2-dev
-# 日本語表示用フォント（例）
-sudo apt install fonts-noto-cjk
+  libasound2-dev fonts-noto-cjk
+```
 
-cmake -G Ninja -S . -B build -DCMAKE_BUILD_TYPE=Release
-ninja -C build            # aasdk(約300ファイル)を含むため初回は数分〜十数分
+CMake：
+
+```bash
+cmake -G Ninja -S . -B build \
+  -DOPENCRUISE_ENABLE_AASDK=ON \
+  -DCMAKE_BUILD_TYPE=Release
+ninja -C build              # aasdk(約 300 ファイル)を含むため初回は数分〜十数分
+
+# aasdk なしで UI だけビルド:
+cmake ... -DOPENCRUISE_ENABLE_AASDK=OFF \
+  naga...
 ./build/app/opencruise
 ```
 
-- aasdk なしで UI だけビルド: `-DOPENCRUISE_ENABLE_AASDK=OFF`（Boost/libusb/protobuf 不要）
-- aasdk は同梱のものを `SKIP_BUILD_PROTOBUF=ON` / `SKIP_BUILD_ABSL=ON`（システムの protobuf 3.21 を使用）でビルドする。
-  protobuf は `find_package(Protobuf)` で探す(protobuf 自身の CMake 設定があればそれ、無ければ CMake の FindProtobuf)。
-  Abseil が必要な新しい protobuf(22 以降)は、CMake 設定が入っていれば Abseil の依存も付くはずだが未確認。
-- 実機接続には USB 権限が必要。aasdk の `DOCUMENTATION.md` にある udev ルール
-  (`SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"`) を設定する。
-  権限が無い場合、aasdk の `USBHub` は **エラーを出さず黙って無視する**ため、「待機中」のまま進まない。
+- **aasdk オプション**: `SKIP_BUILD_PROTOBUF=ON` / `SKIP_BUILD_ABSL=ON`（システムの protobuf / Abseil を使用）。
+- **ALSA**: `-DOPENCRUISE_ENABLE_ALSA=OFF` で Windows/MacOS でもビルド可（Qt 音声入出力用）。
+- **DRM/KMS**: `pkg_check_modules(LIBDRM ...)` で自動検出。
+- **クロスコンパイル**: Yocto 向けには `coreboot/`, `yocto/` の設定を参照、ARM アーキテクチャ対応。
 
 ### 開発用オプション
 
@@ -112,339 +128,193 @@ ninja -C build            # aasdk(約300ファイル)を含むため初回は数
 | `--screenshot <png> [--screenshot-delay <ms>]` | 画面を保存して終了 |
 | `--open-settings` | 設定画面を開いた状態で起動 |
 | `--fullscreen` | 全画面 |
+| `--skip-boot` | 起動（オープニング）画面を出さずに起動 |
+| `--log-dir <path>` / `--log-level <level>` | ログの保存先と最小レベル指定 |
+| `--export-splash <dir>` | Linux の Plymouth 起動画面用画像を書き出して終了 |
 
-ヘッドレス確認例: `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software ./build/app/opencruise --screenshot out.png`
+ヘッドレス確認例：`QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software ./build/app/opencruise --screenshot out.png`
 
-## 音量・明るさ
+## 音量・明るさの設定とショートカット
 
-設定の「音 > 音量・出力先」「表示と操作 > 画面」から変更できるほか、キーボード(将来はステアリングスイッチ等)のショートカットで操作できる。
-画面の端のボタン(`qml/osd/SideButtonRail.qml`。設定「表示と操作 > 画面 > 画面の端のボタン」で 左端 / 右端 / 出さない。既定は右端)からも操作できる:
-上から メニュー(下から出るメニューの開閉)/ 音量 ＋・今の値・− / 明るさ ＋・今の値・−。押しっぱなしで連続して変わり、
-今の値をタップすると、変えずに音量・明るさの表示を出す。各画面は帯の分だけ狭くなる(重ならない)。起動画面・注意事項の間は出さない。
+設定の「音 > 音量・出力先」「表示と操作 > 画面」から変更できるほか、キーボードショートカットで操作可能。画面端の物理ボタン（OSD）でも操作可能。
+
+### キーボードショートカット
 
 | ショートカット | 内容 |
 |---|---|
-| `Ctrl+Shift+V` / `Ctrl+Shift+B` | マスター音量を 5 % 下げる / 上げる(V = Volume。押しっぱなしで連続)。マスター音量と、マップ音声・音楽音声・システムの各音量バーをまとめて表示し、約 2.5 秒で自動で閉じる。表示中のバーはすべてタッチ/ドラッグで直接変更でき、押している間は閉じない |
-| `Ctrl+Shift+K` / `Ctrl+Shift+L` | 画面の明るさを 10 % 下げる / 上げる(L = Light)。現在値のバーを表示し、約 2 秒で自動で閉じる |
+| `Ctrl+Shift+V` / `Ctrl+Shift+B` | マスター音量を 5 % 下げる / 上げる（押しっぱなしで連続）。音量バー表示、約 2.5 秒で閉じる |
+| `Ctrl+Shift+K` / `Ctrl+Shift+L` | 画面の明るさを 10 % 下げる / 上げる。現在値バー表示、約 2 秒で閉じる |
 
-すべて `Ctrl+Shift+文字` で統一している(将来の物理ボタンも、同じキーイベントを送れば同じ動作になる)。
-音量・明るさは、隣り合う 2 つのキーで「左のキー = 下げる、右のキー = 上げる」にそろえている。
-既存のキー(`Esc` / `F10` / `Menu` / `Meta`・`Super` / `Ctrl+Shift+D`)とは重ならない組み合わせにしてある。
-メディアキーや `Ctrl+Alt+矢印` は、OS 側の音量・画面回転と二重に動くため使っていない。
+### マスター音量 (`audio/AudioSettings`)
 
-- **マスター音量**(`audio/AudioSettings`): 3 つの音声系統すべてに掛かる共通の倍率(0〜100 %)。各系統の個別音量の設定値は変えずに保持する。
-  再生器へ渡す値は `AudioSettings::gain(group)` の 1 か所で「個別 × マスター」に合成しており、`AudioPlayer` / `SystemSound` はこれだけを使う
-  (マスターを別に掛けないこと。二重になる)。マイク(入力)は対象外。保存キーは `audio/masterVolume`。
-- **画面の明るさ**(`display/BrightnessController`): 10〜100 %(0 にして画面が見えなくなるのを防ぐ)。保存キーは `display/brightness`。
-  - Linux で `/sys/class/backlight/*/brightness` に書き込める場合は、バックライトを直接制御する。
-  - 書き込めない場合(Windows、権限なし、外部ディスプレイなど)や書き込みに失敗した場合は、画面全体に黒い幕を重ねて暗くする方式に自動で切り替わる。
-    どちらか一方だけを使うので、二重に暗くはならない。
-  - バックライトを制御するには、そのファイルへ書き込める権限が必要(例: udev ルールでグループ書き込みを許可)。
-  - バックライトは、保存された設定がある場合だけ起動時に値を反映する。終了時に元の値へは戻さない。
+- 3 つの音声系統（マップ・音楽・システム）すべてに掛かる共通倍率 (0〜100 %)。
+- 各系統の個別音量の設定値は変えずに保持する。再生器へ渡す値は「個別 × マスター」で合成。
+- 保存キー：`audio/masterVolume`
 
+### 画面の明るさ (`display/BrightnessController`)
 
-### 音の出し方(ALSA)
+- 10〜100 % (0 にすると画面が見えなくなる)。保存キー：`display/brightness`。
+- Linux で `/sys/class/backlight/*/brightness` へ書き込める場合は、バックライトを直接制御。
+- 書き込めない場合（Windows/権限なし）は、黒い暗幕で暗くする方式に自動切り替え。
+- バックライト制御にはそのファイルへの書き込み権限が必要（udev で許可可能）。
 
-libasound(`libasound2-dev`)があるビルドでは、音を ALSA の機器へ直接出す・録る(PulseAudio / PipeWire を通さない。`audio/AlsaAudio`)。
-設定の出力先・マイクの一覧は ALSA の機器(サウンドカードの PCM ごと。「システム既定」は ALSA の `default`)。
-機器は音を出している間このアプリが使う(占有する。音が止まって 3 秒たつと手放す)が、アプリ内の音(マップ・音楽・システム・効果音)は
-アプリの中で混ぜてから出すので、同じ機器を選んでも同時に鳴り、音量も別々。別々の機器にも分けられる。
-効果音は `AlsaSoundEffect` で鳴らす(WAV は自前で読み、MP3 は QAudioDecoder で読む)。カードの抜き差しは `/proc/asound` を見て一覧を読み直す。
-libasound が無いビルド(Windows など)は、これまでどおり Qt の音声入出力を使う。ログは `[AUDIO]`。
 ## テーマと背景
 
-設定「表示と操作 > テーマ・背景」でアプリ全体の見た目を選べる(`ui/ThemeSettings`、QML では `themeSettings`。色と形は `qml/theme/Theme.qml`)。
+設定「表示と操作 > テーマ・背景」でアプリ全体の見た目を選べる (`ui/ThemeSettings`)。
 
 | テーマ | 内容 |
 |---|---|
-| シンプル | これまでの見た目(平らな面・大きめの角丸・青のアクセント) |
-| クラシック | 2000 年代ごろの車の内装に合う見た目。ガンメタ(夜)/シルバー(昼)の面に、ゆるいグラデーションと内側の細いハイライト、小さめの角丸。アクセント色(照明色)はアンバー・赤・青・緑・アイボリー・シアン |
+| **シンプル** | これまでの見た目（平らな面・大きめの角丸・青のアクセント） |
+| **クラシック** | 2000 年代車の内装に合う見た目。ガンメタ (夜)/シルバー(昼)の面に、ゆるいグラデーションと内側の細いハイライト、小さめの角丸。アンバー・赤・青・緑・アイボリー・シエンなど。 |
 
-背景(設定「表示と操作 > テーマ・背景」): テーマに合わせる(シンプルは無地、クラシックはカーボン)/ 無地 / 模様(カーボン・ヘアライン・パンチング・ストライプ)/ 画像。
-画像は `~/.local/share/OpenCruise/backgrounds` に PNG / JPEG を置くと選べる(並べる・画面を埋める・引き伸ばす)。濃さも変えられる。
-画像は USB メモリからも取り込める(設定「表示と操作 > テーマ・背景」の「USB メモリから画像を取り込む」。`ui/ImageImporter`)。
-USB メモリは読み取り専用でつなぐ(`opencruise-usb-mount`。更新ファイルを守るため)ので、「移動」ではなくコピーになる。
-選んだ画像を背景・飾りのどちらへ入れるか選ぶか、USB メモリの中のフォルダ名(`backgrounds` / `decorations`)で自動で振り分ける。
-1 枚 32 MB・縦横 8192 px まで、本体の空きが 256 MB を下回る取り込みはしない(更新の展開の空きを残すため)。
-取り込み先は更新の置き場(`/home/opencruise/app`)と別なので、アプリの更新・ロールバックで画像は消えない。コピー中は更新の開始・再起動を止める。
-面(カード・ボタン・ダイアログ)は `qml/components/Panel.qml` を使うと、テーマに合わせて描き分けられる。
+### 背景画像
 
-### 飾りの画像(キャラなど)
+- テーマに合わせる（シンプルは無地 / クラシックはカーボン）／無地／模様（カーボン・ヘアライン・パンチング・ストライプ）／画像。
+- `~/.local/share/OpenCruise/backgrounds` に PNG/JPEG を置くと選べる（並べ方：並べる・画面を埋める・引き伸ばし）。濃さも変えられる。
+- **USB メモリから取り込み** (`ui/ImageImporter`)：「設定 > 表示と操作 > テーマ・背景」のチェックで有効。USB メモリは読み取り専用でつなぐ（`opencruise-usb-mount`）。更新時はコピーになるため「移動」不可。
+- 1 枚最大 32 MB・縦横 8192 px。本体の空きが 256 MB を下回る取り込みはしない。
 
-初期画面のページごとに、好きな画像を好きな場所へ置ける(ウィジェットの後ろ・パネルの上・前、ステータスバーやナビバーの上も)。
+### 飾りの画像 (Decoration)
 
-1. `~/.local/share/OpenCruise/decorations` に画像(PNG / JPEG / WebP / GIF。キャラだけを置くなら透過 PNG)を入れる
-2. 初期画面の「編集」→ 上のバーの「画像」→「画像を追加」で選ぶ(今のページの中央に置かれる)
-3. ドラッグで移動(画面の中央・端に近づくと吸い付いて線が出る)。大きさは右下のつまみか、2 本指でつまむ(縦横比はそのまま)
-4. 選ぶと下に操作パネルが出る: 濃さ・左右反転・重ね方・いちばん上へ・複製・削除(2 回押し)。上のバーの「元に戻す」で 1 つずつ戻せる
+初期画面（ウィジェット配置エリア）ごとに、好きな画像を好きな場所へ置く（ウィジェットの後ろ・パネルの上・前、ステータスバーやナビバーの上）。
 
-重ね方:
-
-| 重ね方 | 出る場所 |
+| 操作 | 内容 |
 |---|---|
-| 奥 | ウィジェット・バーの後ろ(ウィジェットの隙間から見える) |
-| パネル | 各ウィジェットのパネル(カード)の上、メーターや文字の下。画面の同じ所にある画像が、パネルの形に切り抜かれて見える |
-| 手前 | ウィジェットの前(タッチは下のウィジェットへ通す) |
+| **追加** | `~/.local/share/OpenCruise/decorations` に PNG/JPEG/WebP/GIF を置く。初期画面「編集」→「画像を追加」で選ぶ（現在のページの中央に置かれる） |
+| **移動・配置調整** | ドラッグで移動。大きさは右下のつまみか 2 本指でつまむ。 |
+| **操作パネル** | 選ぶと濃さ・反転・重ね方・位置・複製・削除等操作が出る。 |
+| **重ね方** | 奥（ウィジェット/バーの後ろ）／パネル（WidgetBase の中）／手前（タッチは通す）。「パネル」層ではパネルの形に切り抜かれる。 |
 
-「パネル」の角丸の切り抜きは、Qt 6.5 以降の MultiEffect、無ければ Qt5Compat の OpacityMask(`qml6-module-qt5compat-graphicaleffects`)を使う。
-どちらも無いとき・ソフトウェア描画のときは四角く切り抜く(パネルの角の丸みの外へ少しはみ出る)。
-
-置いた場所は `widgetStore.layoutJson` のページごとの `decor` に、画面に対する割合で保存する(画面の大きさが変わっても同じ所に出る)。
-画像が見つからないものは、編集中だけ赤い枠で出る(消せる)。Android Auto 画面には出ない。
-実装: `qml/widgets/DecorationStore.qml`(今のページの一覧・元に戻す)/ `DecorationLayer.qml`(奥・手前の表示)/
-`DecorationPanelLayer.qml`(パネルの層。WidgetBase の中)/ `DecorationEditor.qml`・`DecorationPanel.qml`(置き直す操作)/
-`DecorationPicker.qml`(追加パネル)。
+配置と設定は `QSettings` (`widgets/layout`) に保存（画面サイズ変化しても同じ位置）。画像が見つからない場合は編集中だけ赤い枠で表示。Android Auto 画面には出ない。
 
 ## バックカメラ
 
-バック信号が入ると、どの画面でもカメラの映像(全面)に切り替わり、切れると設定の秒数のあとで元の画面に戻る(`vehicle/ReverseCamera`、
-QML では `reverseCamera`。画面は `qml/screens/ReverseCameraView.qml`、設定は「設定 > 車両 > バックカメラ」)。
+バック信号が入ると、どの画面でもカメラ映像（全面）に切り替わり、切れると設定秒数後に元の画面に戻る (`vehicle/ReverseCamera`)。
 
-- バック信号: 今はダミーだけ。**Ctrl+Shift+R** か、設定の「ダミーのバック信号」で入/切する。
-  将来の外部マイコン(バックランプの線を読む)からの入力は `ReverseCamera::setExternalReverse()` で受け、入力元を「外部」にする(通信は未実装)
-- カメラ: Qt Multimedia の映像入力(Linux では V4L2)。UVC で認識されるキャプチャーボード・USB カメラを設定から選ぶ
-  (機器の id で保存。「自動」は最初に見つかったもの。選んだ機器が抜けているときは、ほかのカメラに替えず「見つかりません」と出す)。
-  形式は 1280x720 以下でいちばん大きく、フレームレートの高いものを選ぶ
-- 映し方: 左右反転・ガイド線(距離の目安)・全体を表示 / 画面を埋める・すぐに映す(常にカメラを動かしておく)
-- 映像の上には、左上にギアの表示(R・バック)、上の中央に警告マークつきの「周囲の安全を直接確認してください」を出す。
-  バック中は閉じるボタンを出さない(信号が切れたら戻る)。設定の「映像を確認」で、バック信号なしで映像を確かめられる(右上の「確認を終わる」で戻る)
-- 実行には `qml6-module-qtmultimedia` が要る。ログは `[CAMERA]`
-
-## 車両(車両データと診断)
-
-車両のデータはノードごとに分かれて届く(VIN 車両信号・SEN 外付けセンサー・DIAG エンジン ECU(K-Line / KWP2000、ECU 0x11))が、
-画面・メーター・グラフ・警告では、データ元で分けずに 1 つの車両データとして扱う。まとめるのは `qml/services/VehicleSignals.qml`
-(VIN / SEN は `vehicle/VehicleDataManager` = QML の `can`、DIAG は `vehicle/EcuData` = `ecu`)。分類は 走行・エンジン・燃料・吸気・
-スロットル・排気・EVAP・電装 で、ECU の項目定義(`docs/reference/kei_kline_params.csv`)の分類にそろえる。
-
-- 車速・回転数・水温・電圧・アクセルは、VIN/SEN と ECU の両方から取れるので 1 項目にまとめる。どちらを使うかは
-  「設定 > 車両 > 車両データ」で項目ごとに選ぶ(VIN/SEN 優先(既定)/ ECU 優先 / VIN/SEN だけ / ECU だけ。`ecu.sourcePrefs` に保存)。
-  「すべての項目をまとめて」で、項目ごとの設定に関係なく全部を同じ選び方に上書きできる(`ecu.sourceOverride`。項目ごとの設定は残る)
-- 値の横には、どのノードから来た値かの小さな印(VIN / SEN / ECU)を出す(車両画面)
-
-メニューの「車両」で車両画面(`qml/screens/VehicleScreen.qml`)を開く。
-
-| 項目 | 内容 |
+| 機能 | 内容 |
 |---|---|
-| 概要 | 車両の状態(現在の異常 = 赤 / 過去の記録 = 黄 / 異常なし = 緑。赤・黄のときはタップで故障コードへ)・チェックランプ・主要な値のタイル・燃料系の状態 |
-| ライブデータ | すべての計測値を分類ごとに一覧(データの無い項目は「--」。隠すこともできる) |
-| スイッチ・作動状態 | バック・エンジン始動・ファン・燃料ポンプ・ブレーキ・エアコンなどの ON / OFF |
-| 故障コード | 現在起きている異常と過去の記録を分けて、コード・説明(日本語。原文の英語も)・系統・検出条件・状態バイト。消去はしない |
-| データ元・ECU 情報 | ノードごとの状態、まとめた項目で今どちらを使っているか、ECU の情報(`1A xx`)と通信の状態 |
+| **バック信号** | 今はダミー（`Ctrl+Shift+R` か設定でオンオフ）。将来的な外部マイコンからの入力も可能（通信未実装） |
+| **カメラ** | Qt Multimedia による V4L2/USB カメラ設定。1280x720 以下の最大解像度・高フレームレートを優先選出 |
+| **映し方** | 左右反転・ガイド線（距離の目安）・画面埋め込み・即映像モード |
+| **表示内容** | 左上にギア表示 (R・バック)、上に「周囲の安全を直接確認してください」 |
+| **実行要件** | `qml6-module-qtmultimedia`。ログは `[CAMERA]` |
 
-- メーター・グラフ: ウィジェットの追加 > 車両。分類のチップで絞り込み。今データが来ていないものは最後にまとめ、ボタンで隠せる
-- メーターの針のなめらか表示: 追従にかける時間を、値が変わる間隔(測ってならした値)に合わせる。速いデータは 120ms、
-  遅いデータ(ECU 約 5Hz)は間隔の 1.15 倍(最大 340ms)で、着いて止まる間を作らずカクカクさせない(先読みはしないので行き過ぎない)。
-  メーターごとにオフにでき(メーターの設定「針のなめらか表示」)、設定 > 車両 > 車両データ の「メーターの針」でまとめて上書きできる
-  (`appSettings.gaugeSmoothingOverride`)
-- 警告・注意: 計測値は分類ごと(データ元では分けない)。「車両異常」の分類に 故障コード(現在)・故障コード(過去)・チェックランプ。
-  初期ルールは 現在の異常 = 警告(音あり・出ている間ずっと)、過去の記録 = 注意(音なし・1 回)。本文は故障コードとその説明
-- 故障コードの説明は `app/resources/data/suzuki_dtc_list.csv`(スズキの一覧の日本語訳。日本語が空の項目は英語)
-- 現在 / 過去の区別は、状態バイトのビット 6〜5(ISO 14230-3)からの推定(**実車で未確認**)。チェックランプは `21 00` の位置 7 のビット 7
-- データ元: **今はすべてダミー**。ECU はダミーの車の動きから `21 00` / `21 02` の応答を作り、実データと同じ換算を通す(約 5Hz)。
-  ダミーの故障コードは「設定 > 車両 > 車両データ」で なし / 過去の記録だけ / 現在と過去 を選ぶ。
-  実際の通信(DIAG ノード)は、応答を `EcuData` の受け口(`ingestBlock` / `ingestDtcList` / `ingestEcuInfo` / `setLink`)へ渡すだけでよい。
-  VIN / SEN のノードとの通信が入ったら、`VehicleSignals.nodeHas()` / `nodeStatus()` をノードごとにする。ログは `[ECU]`
+## 車両データと ECU 診断情報
 
-## ウィジェット
+車両のデータはノード別に届くが、画面・メーター・グラフ・警告では 1 つの車両データとして扱う (`qml/services/VehicleSignals.qml`)。分類：走行・エンジン・燃料・吸気・スロットル・排気・EVAP・電装。
 
-初期画面の中央領域は、12 × 6 マスのウィジェット配置エリアになっている(時計・あいさつも、その中のウィジェット)。
+### データ元選択
+
+| データ項目 | VIN/SEN | DIAG(ECU) | 選択方法 |
+|---|---|---|---|
+| **車速** | ヨット（既定） | 車両信号優先 / ECU 優先 / 双方のみ / ECU のみ | 「設定 > 車両 > 車両データ」で項目ごとに選べる |
+| **回転数** | 車両信号優先 | 同上 | 項目ごとの選択・すべての項目をまとめて上書き可能 (`ecu.sourceOverride`) |
+| **水温・電圧・アクセル** | ヨット | 同上 | 同上 |
+
+- **値の表示**: どのノードから来たか（VIN / SEN / ECU）を示す小さな印が車両画面に。
+- **メーター**: ウィジェット追加で車両ジャンルで絞り込み。隠せる項目あり。針のなめらかさは 120ms/340ms に追従、オフも可能。
+
+### 故障コード (DTC)
+
+| 機能 | 内容 |
+|---|---|
+| **表示** | 車両メニューの「故障コード」で現在・過去を分けて一覧（日本語説明）。消去はしない。 |
+| **情報** | 状態バイトからの推定（ビット 6〜5=現在/過去、チェックランプ=2100 位置 7 のビット 7）※実車で未確認 |
+| **ルール** | 「車両異常」分類で警告・注意を出し、音也奏する。説明は `resources/data/suzuki_dtc_list.csv`（スズキの日本語訳）。 |
+
+### データダミーモード
+
+現時点では VIN/SEN/DIAG はすべてダミー（`VehicleDataManager` / `EcuData` はモック車両データの動きから応答を作る）。「設定 > 車両 > 車両データ」で「なし」「過去のみ」「現在・過去あり」を選べる。
+
+## ウィジェットシステム
+
+初期画面の中央領域は 12×6 マスの配置エリア（時計・あいさつもその中）。
 
 | 操作 | 内容 |
 |---|---|
-| 長押し(約 0.3 秒)→ドラッグ | 持ち上げて移動。移動中だけ配置エリア(グリッド)と移動先の枠が滑らかに現れ、離すと最寄りの空きマスへスナップ。空きマスが無ければ元の位置へ戻る |
-| ダブルタップ | 設定画面を持つウィジェットは設定ダイアログ(固有の設定 + サイズ + 削除)を開く |
-| ナビバーの「編集」 | 編集モードに入る・出る(下記) |
+| **ドラッグ移動** | 長押し→ドラッグで持ち上げて移動。空きマスのない場合は元の位置に戻る。 |
+| **ダブルタップ** | 設定画面を持つウィジェットは設定ダイアログを開く（固有設定＋サイズ＋削除）。 |
+| **編集モード** | ナビバーの「編集」で進入。上・下へページ切り替え、選択・まとめて設定・削除・追加操作可能。 |
 
-編集モード(ナビバーの「編集」。Android Auto 画面ではメニューの「編集」):
+### ウィジェットリスト (`app/qml/widgets/`)
 
-| 操作 | 内容 |
-|---|---|
-| 上の編集バー | 「編集中」・ページの切り替え・選んだ数と操作(まとめて設定・削除・選択を解除)・このページを選択・全ページを選択・追加・完了。削除は 2 回押し |
-| ページをまたいだ選択 | ページを移っても選択は残る(選んだ数は全ページの分。「2 個選択中(2 ページ)」)。「全ページを選択」→「まとめて設定」で、全ページのウィジェットの見た目をまとめて変えられる |
-| ウィジェットをタップ | 選択 / 解除(グリッドが出て、各ウィジェットに名前と大きさ「3 x 2」が出る。中身は操作できない) |
-| ウィジェットをドラッグ | すぐ移動(長押しは要らない)。選んだものの 1 つを動かすと、選択中のものが並びを保ってまとめて動く |
-| 左上の丸いボタン(歯車) | そのウィジェットの設定 |
-| 右上の丸いボタン(×) | 削除(1 回目で赤い「削除」に広がり、0.4〜3 秒の間にもう一度押すと消す) |
-| まとめて設定 | 選んだウィジェットに同じ値を入れる。同じ種類だけならその種類の設定すべて、混ざっていれば共通の項目(枠・上部タイトル)だけ。範囲・単位・警告値・注意値・目盛り間隔・タイトル文字・サイズはそれぞれのまま |
-| Android Auto の映像(Android Auto 画面) | ドラッグで置く角を、内側の角のつまみで大きさ(マス数)を変える。離したときに決まる |
-
-追加パネル(編集バーの「追加」)は、ジャンル別タブ。「初期配置に戻す」も、ここ(2 回押しで実行)。
-
-配置と設定は `QSettings`(`widgets/layout`、version つき JSON)へ保存する。
-
-### ファイル構成(`app/qml/widgets/`)
-
-| 場所 | 役割 | ファイル |
+| カテゴリ | ウィジェット | 機能 |
 |---|---|---|
-| `framework/` | 登録(新しいウィジェットを足すときに触る唯一の場所) | `WidgetRegistry.qml`(ジャンル・種類・既定サイズ/設定・初期配置) |
-| `framework/` | 共通基盤 | `WidgetBase`(ウィジェットの土台) / `WidgetHost`(ドラッグ・スナップ・タップ振り分け・表示アニメーション) / `WidgetArea`(グリッド・衝突・保存) / `WidgetPages` / `PageBar` / `PageMenu` / `WidgetEditBar` |
-| `framework/` | 設定・追加 UI | `WidgetSettingsBase` / `WidgetSettingsDialog` / `WidgetSettingsGroup` / `WidgetPicker`(入力部品の `WSStepper` / `WSTextField` は `settings/`) |
-| `decoration/` | 装飾 | `Decoration*`(Store / Layer / Panel / PanelLayer / Editor / Picker / Effects) |
-| `clock/` `greeting/` | 時計・あいさつ | `ClockWidget` / `GreetingWidget`(+ 各 `*Settings`) |
-| `gauge/` `graph/` | 車載連携 | `GaugeWidget` / `GaugeSettings`(メーター共通。ターボ圧計・タコメーター・スピードメーター・水温計・燃料計。計測値の定義は `WidgetRegistry.gaugeSpecs`。アナログ+デジタル、単位切替、警告値・警告メッセージ。**モックデータ**) / `GraphWidget` / `GraphSettings` |
-| `phonestatus/` | Android Auto 連携 | `PhoneStatusWidget`(スマホ状態。バッテリー残量は実データ、電波はモック) |
-| `phonenotice/` `phonecall/` | 通知・通話連携 | `PhoneNoticeWidget`(スマホ通知。表示方法・カテゴリ別メッセージを設定可能。**モックの通知**) / `PhoneCallWidget` |
-| `nowplaying/` `navigation/` | 再生中・ナビ | `NowPlayingWidget` / `NavigationWidget`(+ 各 `*Settings`) |
+| **framework/** | `WidgetRegistry` | 新しいウィジェットの登録（ジャンル・種類・既定サイズ/設定） |
+| **framework/** | `WidgetBase`, `WidgetHost` | 共通基盤（ドラッグ・スナップ・タップ振り分け） |
+| **framework/** | `WidgetArea`, `WidgetPages` | グリッド配置、ページ切り替え |
+| **gauge/** | `GaugeWidget`, `GraphWidget` | タコメーター・水温計・速度メーターなど。モックデータ |
+| **phonestatus/** | `PhoneStatusWidget` | バッテリー残量（実データ）、電波強度（モック） |
+| **phonenotice/phonecall/** | `PhoneNoticeWidget`, `PhoneCallWidget` | スマホ通知・通話表示（モック） |
+| **nowplaying/** | `NowPlayingWidget` | 再生中の曲情報 |
+| **navigation/** | `NavigationWidget` | ルート・目的地経路図 |
 
-新しいウィジェットの追加手順: ① `widgets/<名前>/` フォルダを作り、`WidgetBase` を継承した qml を置く ② 設定が要るなら `WidgetSettingsBase` を継承した qml を作る
-③ `WidgetRegistry.qml` に Component と `types` の 1 項目を足す ④ `app/CMakeLists.txt` の `QML_FILES` に足す(他フォルダの型を使うなら `import OpenCruise` を書く)。
-設定が不要なウィジェットは `settings: null` にする(ダブルタップは何もしない)。独自のダブルタップ動作が欲しい場合は
-`doubleTapAction: "custom"` にして `doubleTapped()` を受ける。
+新しいウィジェットの追加手順：① `widgets/<名前>/` フォルダを作り、`WidgetBase` を継承した QML を置く → ② 設定が必要なら `WidgetSettingsBase` の子を作る → ③ `WidgetRegistry.qml` に登録 → ④ `CMakeLists.txt` の `QML_FILES` に追加。
 
-### Android Auto から取れる情報(`docs/reference/aasdk_phone_data.csv` の確認結果)
+## aasdk（Android Auto SDK）との連携
 
-- 実データ: スマホのバッテリー(残量・残り時間・危険フラグ。`BatteryStatusNotification`。サービス宣言なしで届く)。`AasdkSession` →
-  `AndroidAutoController` → `PhoneStatus::setBattery()`。バッテリー残量の単位(%)は実機での確認が必要。
-- 未宣言のため届かない(現状モック): 電波強度(PhoneStatus サービス)、通知(GenericNotification サービス: id / text / icon のみ)、
-  ナビ・再生中の曲。宣言を足したら `PhoneStatus::setSignal()` / `ingestNotice()` を呼ぶだけでウィジェットは実データに切り替わる。
-- そもそも取れない: 通知の送信元アプリ名・本文、連絡先・通話履歴・メッセージ本文(プロトコルに無い)。通知のカテゴリは文面から推定する。
-
-## 実装状況
-
-### 実装済み
-
-| 機能 | 状態 | 検証 |
-|---|---|---|
-| Qt Quick メイン画面（暗色、時計、接続状態、AA表示領域、CANパネル、設定ボタン） | 実装 | ビルド・起動・画面保存で確認 |
-| 現在時刻表示 | 実装(時計ウィジェットへ移行) | 画面で確認(旧実装) |
-| ウィジェットシステム(配置エリア・ドラッグ・スナップ・設定ダイアログ・追加パネル、時計/あいさつ/ターボ圧計/スマホ状態/スマホ通知) | コード実装 | **ビルド・実行とも未検証** |
-| CAN 情報の仮表示（速度/回転数/水温/燃料、「ダミーデータ」と明示） | 実装 | 画面で確認 |
-| 設定画面への遷移（StackView） | 実装 | 設定画面の描画を確認。ボタンのタップ操作は未確認 |
-| 接続状態表示（利用不可/待機中/接続中/接続済み/映像受信中、切断理由の保持） | 実装 | 「利用不可」「待機中」「映像受信中(テスト)」を画面で確認 |
-| 未接続・失敗時でもアプリ全体が起動 | 実装 | aasdk 無効/有効(USB機器なし)の両方で確認 |
-| H.264 デコード → QImage → QML 表示 | 実装 | テスト映像(800x480)で表示を確認（aasdk 非経由） |
-| aasdk 接続層（USBHub→AOAP→Messenger→制御/映像チャネル→切断→待機復帰） | **コード実装・ビルド成功** | **実機未検証** |
-| 終了処理（スレッド停止・libusb 解放） | 実装 | 待機中の終了(約0.2秒)を確認。セッション中の終了は未検証 |
-| マスター音量・音量ショートカット・音量表示 | コード実装 | **ビルド・実行とも未検証** |
-| 画面の明るさ(設定・ショートカット・表示。バックライト/暗幕の自動切替) | コード実装 | **ビルド・実行とも未検証** |
-
-### 検証できたこと / できていないこと
-
-確認できた: aasdk を含むフルビルド成功(自作コードの警告 0)、起動と待機状態への遷移、10秒間の待機稼働、
-サービス探索応答が protobuf として必須フィールドを満たすこと(`IsInitialized()`)、デコード/表示経路。
-
-**未検証（実機が必要。「動作済み」とは扱わない）**: スマートフォンの検出、AOAP 切替、SSL ハンドシェイク、サービス探索の受理、
-映像チャネルのセットアップ、実際の H.264 受信と表示、ACK の運用、切断時の復帰、再接続。
-
-### aasdk が提供するもの / 追加実装したもの
-
-| aasdk が提供 | 本プロジェクトで追加実装 |
+| aasdk が提供する機能 | OpenCruise での実装内容 |
 |---|---|
-| USB ホットプラグ検出・AOAP 切替 (`USBHub`) | libusb の初期化と **イベントループ専用スレッド**、io スレッド、待機⇄接続のループ |
-| USB 転送・フレーム化・SSL 暗号化 (`USBTransport`/`Messenger`/`Cryptor`) | セッションの組み立てと終了処理 |
-| チャネルの送受信と protobuf デコード（制御/映像） | **各メッセージへの応答ロジック**（ハンドシェイク手順、サービス探索応答の内容、Open/Setup/Start 応答、ACK、フォーカス応答、Ping） |
-| 映像データの受信（H.264 の生バイト列まで） | **H.264 デコード**（OpenH264）と画面表示 |
+| **USB ホットプラグ検出・AOAP 切替** (`USBHub`) | libusb の初期化・イベントループ専用スレッド・io スレッド・待機⇄接続・切断ループ。非 AOAP 機器のフィルタリングも実装。 |
+| **USB 転送・フレーム化・SSL 暗号化** (`USBTransport`/`Messenger`/`Cryptor`) | セッションの組み立て・終了処理 |
+| **チャネル送受信 & デコード**（制御/映像） | ハンドシェイク手順、サービス探索応答、Open/Setup/Start 応答、ACK の運用、フォーカス対応など |
+| **映像データ受信（H.264）** | OpenH264 のデコード → QImage → QML(`VideoSurfaceItem`)表示 |
+| **音声・マイク入力** | PCM データを受け取り再生器へ渡す（Android Auto 側で混成） |
+| **車両情報送受信** | `VehicleSnapshot`（速度・回転数・燃料・ギア・位置など）を EcuData から送信。スマホのセンサーもダミー。 |
+| **スマホ状態（通話/通知/バッテリー）** | `PhoneStatusWidget` へ反映（バッテリーは実データ、電波/通知はモック宣言済み）。 |
 
-同梱の `aasdk/tools/simple` は AOAP ハンドシェイクのスタブで、Messenger/映像は含まない。完全なセッションの手順は
-ヘッダ・実装・`.proto` から読み取った（根拠は各 `.cpp` 冒頭のコメントに記載）。
+## ロジカル設計のポイント
 
-### 未実装
+1. **接続層の独立**: aasdk はサブプロジェクトとしてビルド。OpenCruise アプリと UI は AASDK 側から「公開ヘッダ」のみで制御される。
+2. **BootManager（起動画面）**: フォント・音声・AA 接続待ちなどを段階的に表示し、進捗管理。各ステップの完了状況は GUI で表示可能。
+3. **ShutdownManager（終了処理）**: 電源オフ時の処理順を制御（設定保存→AA 切断→ドア解除→電源プロファイル復元）。
+4. **QML ウィジェットシステム**: `WidgetStore` に配置・設定を保存し、共通のデータモデルを持つ。新しいウィジェットの追加は「登録」のみで済む。
+5. **昼夜モード連動**: アプリテーマに基づき Android Auto の NIGHT_MODE が送信される（自動/手動切り替え）。
+6. **音声・明るさの階層制御**: マスター音量と個別音量、バックライト・暗幕を互いに干渉せず独立操作可能。
 
-- 実 CAN 通信（ダミーのみ）
-- K-Line(エンジン ECU)の実通信(ダミーと受け口のみ)
-- タッチ入力・ステアリング操作の転送（InputSource）、センサー(走行状態等)、音声（再生/マイク）、Bluetooth、無線接続(Wi-Fi/TCP)
-- 車載機側からの Ping 送信・タイムアウト検出
-- 解像度/dpi の最適化（800x480・140dpi の暫定値。`AasdkConfig.h`）、GPU 描画（現状は `QQuickPaintedItem` のソフトウェア描画）
-- 設定の保存、画面の多言語化（UI 文字列は日本語直書き）
+## ビルド・デプロイの注意点
 
-## aasdk で見つけた問題と対処
+| 注意点 | 内容 |
+|---|---|
+| **aasdk の修正パッチ** | `patches/` に aasdk 向け修正（Boost/system、Asio API、protobuf CMake など）。aasdk を更新する場合は再適用が必要。 |
+| **USB 権限の必要性** | スマホを検出するには udev ルールで「plugdev」グループへの書込み権限が必要（`scripts/install.sh` で一括設定可能） |
+| **ALSA の依存** | Windows/MacOS では `-DOPENCRUISE_ENABLE_ALSA=OFF` で Qt 音声入出力へ回帰 |
+| **クロスコンパイル** | Yocto 向けには `yocto/`, `coreboot/` の設定を参照、ARM アーキテクチャ対応 |
+| **開発オプション** | `--test-video <file>` でスマホ無しでのデコード確認。`--screenshot` で起動後スクリーンショット取得 |
 
-1. **`USBWrapper::hotplugRegisterCallback` のダングリングポインタ（修正済み）**
-   スタック上のハンドルのアドレスを `shared_ptr` に渡していたため、`USBHub::cancel()` でホットプラグコールバックが解除されず、
-   破棄済みの `USBHub` に通知が飛ぶ恐れがあった。切断後に `USBHub` を作り直す設計に必須のため、ヒープ確保に修正
-   （`patches/aasdk-usb-hotplug-handle.patch`。aasdk を更新する場合は再適用が必要）。
-2. `Messenger::stop()` は受信キューを空にするだけで保留中の Promise を失敗させない → `transport->stop()` によるキャンセル経由で終了を伝播させている。
-3. `Cryptor::deinit()` 後に `encrypt()` が呼ばれると `SSL*` が null でクラッシュし得る → 最後の参照者が消えた時に `deinit()` する（カスタムデリータ）。
-4. バージョン応答の status は `uint16` を `MessageStatus` に単純キャストしており不一致値が `-1` にならない → 「`STATUS_SUCCESS` 以外は失敗」で判定。
-5. `USBHub` は USB 機器の open 失敗を黙殺し、非 AOAP 機器の検出ごとに 1 秒 sleep する → io スレッドを 2 本にして影響を緩和。権限エラーは UI から判別できない。
-6. `ControlServiceChannel::sendVoiceSessionFocusResponse` は実装が空（Promise が解決されない）→ 使っていない。
-7. **`aasdk/protobuf/CMakeLists.txt` の protobuf の探し方（修正済み）**
-   protobuf を手作業で探して `include(FindProtobuf)` していたため、2 回目以降の CMake 構成で `Protobuf_PROTOC_EXECUTABLE` が空のまま残り、
-   `protobuf::protoc` ターゲットが作られず、生成コマンドが文字列 `protobuf::protoc` のままになって
-   ビルドが失敗していた（make: `target pattern contains no '%'`）。`find_package(Protobuf)` に置き換え、
-   リンクは `protobuf::libprotobuf` ターゲットにした。古いビルドディレクトリの空のキャッシュも消して立て直す
-   （`patches/aasdk-protobuf-cmake.patch`。aasdk を更新する場合は再適用が必要）。
-8. **`aasdk/CMakeLists.txt` が Boost の `system` を要求していた（修正済み）**
-   Boost.System は 1.69 からヘッダーだけになり、1.89 で中身の無いライブラリと `boost_system` の CMake 設定が削除された。
-   そのため Boost 1.89 以降（Yocto wrynose は 1.90）では `find_package(Boost COMPONENTS system ...)` が構成の段階で失敗する。
-   要求から `system` を外した（ヘッダーは Boost 本体に含まれ、リンクするものは無い）。アプリ側（`app/CMakeLists.txt`）も
-   `Boost::system` をやめて `Boost::headers` にした。古い Boost（1.69 以降）でもそのまま通る
-   （`patches/aasdk-boost-system.patch`。aasdk を更新する場合は再適用が必要）。
-9. **Boost 1.87 で削除された Asio の古い API を使っていた（修正済み）**
-   aasdk は `boost::asio::io_service`・`strand.dispatch()` / `strand.post()`・`strand.get_io_service()` を使っていた。
-   Boost 1.87 でこれらが削除され（`io_service` の別名、`io_context` / `io_context::strand` の `post`・`dispatch` メンバーなど）、
-   Yocto wrynose（Boost 1.90）ではコンパイルできなかった。`io_context`・`boost::asio::dispatch(strand, …)` /
-   `boost::asio::post(…)`・`strand.context()` に置き換えた（どれも Boost 1.66 からある書き方で、古い Boost でもそのまま通る）。
-   アプリの接続層（`app/src/aabackend`）も同じ置き換えに加え、`strand->wrap()` を `boost::asio::bind_executor()`、
-   タイマーの `expires_from_now()` を `expires_after()` にした。aasdk の単体テスト（`*.ut.cpp`。ビルドしていない）は手を入れていない
-   （`patches/aasdk-boost-asio-1.87.patch`。aasdk を更新する場合は再適用が必要）。
-9. **`USBHub` がすべての USB 機器を開いて AOAP の問い合わせをしていた（修正済み）**
-   ホットプラグの検出(作り直すたびに既存の機器も列挙する)で、ハブ・カメラ・Bluetooth なども `libusb_open` していた。
-   使用中・省電力中の機器(バックカメラなど)では、この open がカーネルの中で数秒〜戻らないことがあり、
-   io スレッドと libusb のイベントスレッドが止まって、アプリの終了で「`io=pending / USB=pending`」と切り離していた
-   (スマートフォンをつないでいなくても、10 秒ごとの検出の作り直しで起きる)。
-   ディスクリプタだけで「スマートフォンかもしれない機器」を判定し(`USBHub::mayBeAndroidDevice`。ハブ・音声・HID・カメラ・
-   Bluetooth・USB メモリなどは開かない)、それ以外は開かないようにした
-   （`patches/aasdk-usb-device-filter.patch`。aasdk を更新する場合は再適用が必要）。
-   あわせて接続層(`AasdkBackend`)は、待機中の停止では切断の手順を待たずに短い上限で終え、切り離したスレッドが
-   あとからアプリを呼ばないようにした。切り離したときは、どの USB の処理で止まっていたかをログに出す。
+## ライセンスとクレジット
 
-## 実機検証の際の見どころ（リスク）
-
-- サービス探索で**映像サービスのみ**申告している。センサー/入力サービスが無いとスマートフォンが接続を維持しない可能性がある（未確認）。
-  切断された場合は `AasdkVideoHandler::fillFeatures` と同様に `SensorSource`/`InputSource` の追加を検討する。
-- `driver_position` は右ハンドル、音声フォーカス要求には「喪失」、ナビフォーカスには PROJECTED を返す暫定実装。
-- ログは `[aa] [session] ...` `[aa] [video] ...` として標準エラーに出る。どこまで進んだかの切り分けに使える。
-- `--test-video` で映像が出ても aasdk の受信が動いた証拠にはならない（状態表示に「aasdk 経由ではありません」と出る）。
-
-## ライセンス
-
-### このアプリ
-
-OpenCruise は **GNU General Public License バージョン 3 またはそれ以降(GPL-3.0-or-later)** で公開しています。全文は [LICENSE](LICENSE) です。
-リンクしている Android Auto 接続ライブラリ(`aasdk/`)が GPL-3.0-or-later のため、アプリも同じ条件にしています。
-このプログラムには、法律で認められる範囲で、いかなる保証もありません。
-
-使っている他者のコード・素材と、OS イメージに入る主な部品のライセンスは [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) にまとめています(アプリの設定「システム > 情報」にも出します)。
+### 本プロジェクト
+OpenCruise は **GNU General Public License バージョン 3 またはそれ以降 (GPL-3.0-or-later)** で公開しています。全文は [LICENSE](LICENSE) です。
 
 Android、Android Auto は Google LLC の商標です。このプロジェクトは Google LLC と提携・承認の関係にありません。
 
-### OS イメージを配るとき
+### aasdk（Android Auto SDK）
+同梱ライブラリ `aasdk/` も GPL-3.0-or-later です。OpenCruise 全体として GPL-3.0-or-later の条件が適用されます。
 
-`scripts/build-os.sh` の開発用の設定(SSH・パスワードなしの root ログイン)は、配るイメージには入れません。配る場合は次の順で作ります(詳しくは [yocto/README.md](yocto/README.md))。
+### H.264 パッセンジャー
+アプリは Android Auto の映像（H.264）をデコードします。**OpenH264** を使用しています。Cisco が配布するビルド済みバイナリではなく、ソースからビルドされたものです。
+- **非商用**：個人・趣味での利用を対象とします。販売・業務利用・製品組み込みは想定していません。
+- **特許許諾**: 取っていません。使う・配る場合は自己責任でお願いします。
 
-1. `scripts/build-os.sh --release`(公開用のビルド。ライセンス文を入れ、GPL / LGPL のソースを集める)
-2. `scripts/build-os.sh --release-pack`(イメージ・`license.manifest`・ソース・チェックサムを `<作業フォルダ>/release/` にまとめる)
+### 効果音：OtoLogic
+アプリの効果音 (`app/resources/sounds/`) は [OtoLogic](https://otologic.jp) から提供されています。
+- ライセンス: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- クレジット表示場所：設定 > システム > 情報 > 使用素材・ライセンス
 
-イメージには GPL / LGPL の部品が入っています。リリースには、イメージのほかに `license.manifest`・`licenses.tar.xz`・`sources.tar`(ソース)を一緒に添付してください。
+### 音声合成：AivisSpeech
+起動時のあいさつなど（`app/resources/sounds/start/`）は [AivisSpeech](https://aivis-project.com) で生成されています。
+- 合成モデル：コハク (ACML 1.0)
+- クレジット表示場所：同上
 
-### H.264 の特許について
+### OS イメージの配布
+開発用の設定（SSH・パスワードなしの root ログイン）はリリースには含めません。`.wic` イメージを配布する場合は：
+1. `scripts/build-os.sh --release`（ライセンス文入れ、GPL/LGPL のソース集める）
+2. `scripts/build-os.sh --release-pack`（イメージ・license.manifest・ソース・チェックサムをまとめ）
 
-- アプリは、Android Auto の映像(H.264)のデコードに OpenH264 を使っています。OpenH264 は **ソースからビルドしたもの**で、Cisco が配布しているビルド済みバイナリではありません。Cisco が負担している H.264 の特許料の対象外です。
-- このプロジェクトは **非商用(個人・趣味)で使う・配ることだけ**を想定しています。販売、業務での利用、製品への組み込みは想定していません。
-- H.264 の特許の許諾は取っていません。使う・配るときは **自己責任**でお願いします。特許の状況は国や地域によって違います。ここに書いたことは法的な助言ではありません。
-- OS イメージ(`.wic`)を配る場合は、上のことを配布ページにも書いてください。
+リリースには、`license.manifest` / `licenses.tar.xz` / `sources.tar` も添付してください。
 
-### 効果音: OtoLogic
+---
 
-アプリの効果音(`app/resources/sounds/`)には、[OtoLogic](https://otologic.jp) が配布している素材音源を使用しています。
-
-- 素材: OtoLogic (https://otologic.jp)
-- ライセンス: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)
-- 利用規約: https://otologic.jp/free/license.html
-
-素材を再配布するとき(このリポジトリを配布する場合も含む)は、このクレジット表記を引き継いでください。
-
-### 音声: AivisSpeech
-
-起動時のあいさつなどの音声(`app/resources/sounds/start/` の読み上げ音声)は、[AivisSpeech](https://aivis-project.com) で作成しました。
-
-- AivisSpeech 本体: 生成した音声にクレジット表記の義務はありません(任意のクレジットとして記載しています)
-- 音声合成モデル: 使ったモデルごとのライセンスに従います。AivisHub などで公開されている ACML / ACML-NC / CC0 のモデルは
-  クレジット表記の義務がありません。ACML-NC のモデルは非商用に限られるため、商用で配布する場合はモデルのライセンスを確認してください
-- 使用した音声合成モデル: コハク(ACML 1.0)
-
-### クレジットの表示場所
-
-アプリの画面内にも、同じクレジットを表示しています(設定 > システム > 情報 > 使用素材・ライセンス)。
+**開発者**: YuranuDev
+**最終更新**: 2026-11-27

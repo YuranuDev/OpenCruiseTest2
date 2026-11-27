@@ -50,6 +50,7 @@ Rectangle {
     property list<SettingsCategory> categories: [
         SettingsCategory { group: "display"; icon: "monitor";       title: "画面";           description: "明るさ・回転・端のボタン・外部モニター"; page: SettingsPageDisplay {} },
         SettingsCategory { group: "display"; icon: "palette";       title: "テーマ・背景";   description: "テーマ・昼夜・アクセント色・背景";       page: SettingsPageTheme {} },
+        SettingsCategory { group: "display"; icon: "usb";          title: "USB メモリと画像";    description: "USB メモリから背景・飾りの画像を取り込む";     page: SettingsPageUsb {} },
         SettingsCategory { group: "display"; icon: "person";        title: "ユーザー・文字"; description: "ユーザー名・フォント";                   page: SettingsPageGeneral {} },
         SettingsCategory { group: "sound";   icon: "volume_up";     title: "音量・出力先";   description: "マスター音量・各音量・出力先";           page: SettingsPageAudio {} },
         SettingsCategory { group: "sound";   icon: "music_note";    title: "効果音";         description: "操作音・起動音・警告音・注意音";         page: SettingsPageSounds {} },
