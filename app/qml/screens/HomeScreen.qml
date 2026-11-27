@@ -105,14 +105,17 @@ Rectangle {
             top: parent.top; left: parent.left; right: parent.right
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
-        height: root.aaEditing ? Math.max(128, Math.round(136 * Theme.uiScale)) : 52
+        // 編集バーは本体に重ね、ウィジェット配置エリアの開始位置を通常時から動かさない。
+        height: 52
+        z: root.aaEditing ? 17 : 0
         opacity: root.aaFade
         visible: root.aaFade > 0 && !root.immersive
 
         // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
         WidgetEditBar {
             id: aaEditBar
-            anchors.fill: parent
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: Math.max(128, Math.round(136 * Theme.uiScale))
             z: 2
             opacity: root.aaEditing ? 1 : 0
             visible: opacity > 0

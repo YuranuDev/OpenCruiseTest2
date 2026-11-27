@@ -145,14 +145,16 @@ Item {
             top: parent.top; left: parent.left; right: parent.right
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
-        height: root.editing ? Math.max(128, Math.round(136 * root.unit)) : 52
+        // ヘッダーの高さは通常時のまま。編集バーだけを上へ重ね、配置グリッドの高さを変えない。
+        height: 52
         // 画像を置き直している間は、編集用のバーのボタンを画像の操作の層より上にする(ボタン以外はタッチを下へ通す)
         z: root.editing ? 17 : 0
 
         // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
         WidgetEditBar {
             id: editBar
-            anchors.fill: parent
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: Math.max(128, Math.round(136 * root.unit))
             z: 2
             opacity: root.editing ? 1 : 0
             visible: opacity > 0
@@ -236,7 +238,7 @@ Item {
         store: decorStore
         pages: widgetPages
         handleBottom: decorStore.selectedId !== "" ? bar.y - 6 : root.height
-        tagTop: topBar.y + topBar.height
+        tagTop: topBar.y + (root.editing ? editBar.height : topBar.height)
     }
     // 選んだ画像の操作(ナビバーの場所に重ねる)
     DecorationPanel {
