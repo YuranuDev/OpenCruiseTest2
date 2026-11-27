@@ -577,6 +577,7 @@ do_build() {
     in_env bitbake -p > "$LOGS/parse.log" 2>&1; rc=$?
     if [ "$rc" -ne 0 ]; then ng "レシピの確認に失敗しました: $LOGS/parse.log"; report_failure "$LOGS/parse.log"; return 1; fi
     ok "レシピの確認ができました"
+    app_source_banner
     info "bitbake $TARGET を始めます。初回は数時間かかります(止めても --build で続きから再開できます)。ログ: $log"
     in_env bitbake "$TARGET" 2>&1 | tee "$log"; rc="${PIPESTATUS[0]}"
     if [ "$rc" -ne 0 ]; then ng "ビルドに失敗しました(終了コード $rc)。ログ: $log"; report_failure "$log"; return 1; fi
@@ -621,6 +622,41 @@ do_flash() {
     ok "書き込みました: $dev(外して対象の PC につなぎ、UEFI の起動メニューで USB を選んで起動)"
 }
 
+# ============================================================================ アプリのソースの表示
+# アプリのソースがどこから来るかを、bitbake が実際に読む設定(EXTERNALSRC)から調べて、はっきり表示する。
+#   手元のフォルダ(externalsrc): git からは取得せず、いまのファイルをそのままビルドする
+#   GitHub の main: bitbake が git で取得(AUTOREV = main の先頭のコミット)してビルドする。手元の push していない変更は入らない
+APP_GIT_URL="$(sed -n 's|^.*git://\([^;]*\);.*|https://\1|p' "$REPO/yocto/meta-opencruise/recipes-opencruise/opencruise/opencruise_git.bb" 2>/dev/null | head -n 1)"
+app_source_banner() {
+    local ext head ahead
+    ext="$(in_env bitbake-getvar -r opencruise --value -q EXTERNALSRC 2>/dev/null | tail -n 1)"
+    if [ -n "$ext" ] && [ -d "$ext" ]; then
+        info "アプリのソース: ★手元のフォルダ★ $ext(git からは取得しません。いまのファイルをそのままビルドします)"
+        info "  いちばん新しいコミット: $(git -C "$ext" log -1 --format='%h %s' 2>/dev/null || echo 'git の情報なし')"
+        [ -n "$(git -C "$ext" status --porcelain 2>/dev/null)" ] && info "  commit していない変更も入ります"
+    else
+        info "アプリのソース: ★GitHub の main から git で取得★ ${APP_GIT_URL:-(URL 不明)}"
+        head="$(GIT_TERMINAL_PROMPT=0 timeout 15 git ls-remote "$APP_GIT_URL" refs/heads/main 2>/dev/null | cut -c1-10)"
+        if [ -n "$head" ]; then info "  ビルドされるコミット(いまの main の先頭): $head"
+        else info "  main の先頭を確認できませんでした(ネットワーク?)。bitbake が取得した最新のものをビルドします"; fi
+        ahead="$(git -C "$REPO" rev-list --count '@{u}..HEAD' 2>/dev/null)"
+        [ "${ahead:-0}" -gt 0 ] && info "  注意: 手元に push していないコミットが $ahead 件あります(ビルドには入りません)"
+        [ -n "$(git -C "$REPO" status --porcelain 2>/dev/null)" ] && info "  注意: 手元に commit していない変更があります(ビルドには入りません)"
+    fi
+    return 0
+}
+# ビルドが終わったあと、実際にビルドされたソースを表示する(レシピが image に書く source-info)
+app_source_built() {
+    local si="$1/usr/share/opencruise/source-info" k v mode="" commit="" branch="" dirty="" subject=""
+    [ -f "$si" ] || { info "ビルドされたソース: 記録がありません(古いレシピ)"; return 0; }
+    while IFS='=' read -r k v; do
+        case "$k" in source) mode="$v" ;; commit) commit="$v" ;; branch) branch="$v" ;; dirty) dirty="$v" ;; subject) subject="$v" ;; esac
+    done < "$si"
+    if [ "$mode" = github ]; then ok "ビルドされたソース: GitHub の $branch ${commit:0:10}($subject)"
+    else ok "ビルドされたソース: 手元のフォルダ $branch ${commit:0:10}($subject)$([ "$dirty" = yes ] && echo ' + commit していない変更')"; fi
+    return 0
+}
+
 # ============================================================================ アプリの更新ファイル
 # bitbake opencruise でアプリだけをビルドし、インストール先(image。rm_work の対象外)から更新ファイルを作る(scripts/make-app-update.sh)
 do_app_update() {
@@ -628,12 +664,14 @@ do_app_update() {
     [ -f "$BUILD/conf/auto.conf" ] || { ng "設定がありません。先にウィザードを実行してください"; return 1; }
     apparmor_ready || { ng "ユーザー名前空間が使えないままです(AppArmor)"; return 1; }
     local log rc img
+    app_source_banner
     log="$LOGS/app-update-$(date +%Y%m%d-%H%M%S).log"
     info "bitbake opencruise(アプリだけ)。ログ: $log"
     in_env bitbake opencruise 2>&1 | tee "$log"; rc="${PIPESTATUS[0]}"
     [ "$rc" -eq 0 ] || { ng "アプリのビルドに失敗しました"; report_failure "$log"; return 1; }
     img="$(in_env bitbake-getvar -r opencruise --value -q D 2>/dev/null | tail -n 1)"
     [ -x "$img/usr/bin/opencruise" ] || { ng "ビルドしたアプリが見つかりません($img)"; return 1; }
+    app_source_built "$img"
     mkdir -p "$WORKDIR/updates"
     bash "$HERE/make-app-update.sh" "$img" "$WORKDIR/updates" || { ng "更新ファイルを作れませんでした"; return 1; }
     ok "更新ファイル: $WORKDIR/updates/(USB メモリの直下か opencruise-update/ にコピー、または scripts/update-server.sh $WORKDIR/updates)"

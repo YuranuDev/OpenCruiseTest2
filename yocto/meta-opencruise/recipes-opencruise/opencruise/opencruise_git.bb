@@ -7,8 +7,10 @@ LICENSE = "GPL-3.0-or-later & OFL-1.1 & Apache-2.0 & CC-BY-4.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1c76c4cc354acaac30ed4d5eefea7245"
 
 # 取り込み元。scripts/build-os.sh で「このフォルダの中身を使う」を選ぶと、local.conf の externalsrc がこの SRC_URI より優先される。
+OC_GIT_URL = "https://github.com/YuranuDev/OpenCruiseTest2.git"
+OC_GIT_BRANCH = "main"
 SRC_URI = " \
-    git://github.com/YuranuDev/OpenCruiseTest2.git;protocol=https;branch=main;destsuffix=opencruise-src \
+    git://github.com/YuranuDev/OpenCruiseTest2.git;protocol=https;branch=${OC_GIT_BRANCH};destsuffix=opencruise-src \
     file://opencruise.service \
     file://opencruise.env \
     file://opencruise-tmpfiles.conf \
@@ -110,6 +112,30 @@ do_install() {
     # (更新ファイルと比べて新しいかを決める。scripts/make-app-update.sh も同じファイルを読む)
     install -m 0755 ${OC_UNPACK}/opencruise-launch ${D}${bindir}/opencruise-launch
     date -u +%Y%m%d%H%M%S > ${D}${datadir}/opencruise/build-id
+
+    # どのソースからビルドしたか(GitHub から git で取得したか、手元のフォルダ = externalsrc か)とコミットを残す。
+    # scripts/make-app-update.sh が更新ファイルの manifest・メモに入れ、scripts/build-os.sh がビルド後に表示する。
+    # (build-id は時刻なので、どのコミットのビルドかは分からない。ここがその記録になる)
+    oc_mode="${@'local' if d.getVar('EXTERNALSRC') else 'github'}"
+    # externalsrc のフォルダは持ち主が違って見える(pseudo)ので、git の safe.directory の確認を外して読む
+    oc_git() { git -c safe.directory='*' -C "${S}" "$@"; }
+    {
+        echo "source=$oc_mode"
+        if [ "$oc_mode" = github ]; then
+            echo "repo=${OC_GIT_URL}"
+            echo "branch=${OC_GIT_BRANCH}"
+        else
+            echo "repo=${S}"
+            echo "branch=$(oc_git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+        fi
+        echo "commit=$(oc_git rev-parse HEAD 2>/dev/null || echo unknown)"
+        echo "subject=$(oc_git log -1 --format=%s 2>/dev/null | head -n 1 || true)"
+        if [ "$oc_mode" = local ] && [ -n "$(oc_git status --porcelain 2>/dev/null)" ]; then
+            echo "dirty=yes"
+        else
+            echo "dirty=no"
+        fi
+    } > ${D}${datadir}/opencruise/source-info
 
     # USB メモリを挿したら読み取り専用でつなぐ(更新ファイルを USB から入れる)
     install -d ${D}${libexecdir}
