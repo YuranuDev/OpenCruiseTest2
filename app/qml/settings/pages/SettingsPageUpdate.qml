@@ -12,6 +12,19 @@ SettingsPage {
     // 画像を USB メモリから取り込んでいる間(ImageImporter)は、更新の開始・再起動をしない(コピーが途中で止まらないように)
     readonly property bool copying: imageImporter.importing
     readonly property bool canStart: !busy && !moving && !copying
+    // 作業中の経過時間と段階の表示。作業が始まるたびに数え直す(USB の更新はダウンロードの段階が無いので、見たときだけ出す)
+    property int elapsed: 0
+    property bool sawDownload: updater.stage === 1
+    readonly property string elapsedText: Math.floor(elapsed / 60) + ":" + (elapsed % 60 < 10 ? "0" : "") + (elapsed % 60)
+    readonly property var stepNames: sawDownload ? ["ダウンロード", "確認", "展開", "切り替え"] : ["確認", "展開", "切り替え"]
+    readonly property int stepIndex: sawDownload ? updater.stage - 1 : updater.stage - 2   // 今の段階(0 始まり)
+    onBusyChanged: { elapsed = 0; if (!busy) sawDownload = false }
+    Connections {
+        target: updater
+        function onStateChanged() { if (updater.stage === 1) page.sawDownload = true }
+    }
+    Timer { interval: 1000; repeat: true; running: page.busy; onTriggered: page.elapsed++ }
+
     function sizeText(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB" }
     function buildText(b) {
         const s = String(b || "")
@@ -32,6 +45,63 @@ SettingsPage {
             selected: ur.entry.newer === true
             opacity: page.canStart ? 1 : 0.4
             onClicked: if (page.canStart) ur.install()
+        }
+    }
+
+    // 段階の表示 1 コマ(●と名前、次へのつなぎ線)。state: 0=まだ / 1=今 / 2=済み
+    component StepMark: Row {
+        id: sm
+        property string name: ""
+        property int state: 0
+        property bool last: false
+        property bool active: true   // false の間は光の輪のアニメーションを止める
+        readonly property real unit: Theme.uiScale
+        spacing: 8 * unit
+
+        Item {
+            width: 16 * sm.unit; height: 16 * sm.unit
+            anchors.verticalCenter: parent.verticalCenter
+            // 今の段階の光の輪(広がって消えるのを繰り返す)
+            Rectangle {
+                id: ring
+                anchors.fill: parent
+                radius: width / 2
+                color: "transparent"
+                border.color: Theme.accent
+                border.width: 2 * sm.unit
+                visible: sm.state === 1
+                opacity: 0
+                ParallelAnimation {
+                    running: sm.active && sm.state === 1
+                    loops: Animation.Infinite
+                    NumberAnimation { target: ring; property: "scale"; from: 1; to: 2.1; duration: 1100; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: ring; property: "opacity"; from: 0.8; to: 0; duration: 1100; easing.type: Easing.OutQuad }
+                }
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: sm.state === 0 ? "transparent" : Theme.accent
+                border.color: sm.state === 0 ? Theme.textSecondary : Theme.accent
+                border.width: 2 * sm.unit
+                Behavior on color { ColorAnimation { duration: 250 } }
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: sm.name
+            font.family: Theme.fontFamily
+            font.pixelSize: 19 * sm.unit
+            font.bold: sm.state === 1
+            color: sm.state === 1 ? Theme.textPrimary : Theme.textSecondary
+            opacity: sm.state === 0 ? 0.6 : 1
+        }
+        Rectangle {   // 次の段階へのつなぎ線(済んだら色がつく)
+            visible: !sm.last
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22 * sm.unit; height: 2 * sm.unit
+            color: sm.state === 2 ? Theme.accent : Theme.mix(Theme.panel, Theme.textSecondary, 0.35)
+            Behavior on color { ColorAnimation { duration: 250 } }
         }
     }
 
@@ -62,37 +132,52 @@ SettingsPage {
             stacked: page.busy
             Item {
                 width: page.busy ? Math.min(page.width - 40, 700 * Theme.uiScale) : row.implicitWidth
-                height: page.busy ? 64 * Theme.uiScale : row.implicitHeight
-                // 進み具合(分からないときは動くだけのバー)
-                Rectangle {
+                height: page.busy ? busyCol.implicitHeight : row.implicitHeight
+                Column {
+                    id: busyCol
                     visible: page.busy
-                    anchors { left: parent.left; right: cancelBtn.left; rightMargin: 16 * Theme.uiScale; verticalCenter: parent.verticalCenter }
-                    height: 14 * Theme.uiScale
-                    radius: height / 2
-                    color: Theme.mix(Theme.panel, Theme.textSecondary, 0.25)
-                    clip: true
-                    Rectangle {
-                        id: bar
-                        height: parent.height
-                        radius: height / 2
-                        color: Theme.accent
-                        width: updater.progress >= 0 ? parent.width * updater.progress : parent.width * 0.3
-                        property real slide: 0
-                        x: updater.progress >= 0 ? 0 : (parent.width - width) * slide
-                        SequentialAnimation on slide {
-                            running: page.busy && updater.progress < 0
-                            loops: Animation.Infinite
-                            NumberAnimation { from: 0; to: 1; duration: 900; easing.type: Easing.InOutSine }
-                            NumberAnimation { from: 1; to: 0; duration: 900; easing.type: Easing.InOutSine }
+                    width: parent.width
+                    spacing: 6 * Theme.uiScale
+                    Item {
+                        width: parent.width
+                        height: 56 * Theme.uiScale
+                        // 進み具合のバー(分かるときは伸びる塗り、分からないときは左右に往復する光。右に % か経過時間)
+                        ActivityBar {
+                            anchors { left: parent.left; right: cancelBtn.left; rightMargin: 16 * Theme.uiScale; verticalCenter: parent.verticalCenter }
+                            height: 18 * Theme.uiScale
+                            unit: Theme.uiScale
+                            running: page.busy
+                            progress: updater.progress
+                            text: updater.progress >= 0 ? Math.round(updater.progress * 100) + "%" : page.elapsedText
+                            barColor: Theme.accent
+                            trackColor: Theme.mix(Theme.panel, Theme.textSecondary, 0.25)
+                            textColor: Theme.textSecondary
+                            fontFamily: Theme.fontFamily
+                        }
+                        ActionButton {
+                            id: cancelBtn
+                            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                            text: "やめる"
+                            opacity: updater.canCancel ? 1 : 0.4   // 最後の切り替えの間はやめられない
+                            onClicked: if (updater.canCancel) updater.cancel()
                         }
                     }
-                }
-                ActionButton {
-                    id: cancelBtn
-                    visible: page.busy
-                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                    text: "やめる"
-                    onClicked: updater.cancel()
+                    // 今どの段階か(ダウンロード → 確認 → 展開 → 切り替え)
+                    Flow {
+                        width: parent.width
+                        spacing: 6 * Theme.uiScale
+                        Repeater {
+                            model: page.stepNames
+                            StepMark {
+                                required property int index
+                                required property string modelData
+                                name: modelData
+                                last: index === page.stepNames.length - 1
+                                active: page.busy
+                                state: index < page.stepIndex ? 2 : index === page.stepIndex ? 1 : 0
+                            }
+                        }
+                    }
                 }
                 Row {
                     id: row

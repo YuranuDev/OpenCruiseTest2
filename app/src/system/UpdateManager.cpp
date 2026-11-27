@@ -10,6 +10,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -17,14 +18,20 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QProcess>
+#include <QMetaObject>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QThread>
 #include <QUrl>
 
 #include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <unistd.h>
+#ifdef Q_OS_LINUX
+#include <sys/resource.h>
+#include <sys/syscall.h>
+#endif
 
 namespace opencruise {
 
@@ -70,6 +77,8 @@ UpdateManager::UpdateManager(QObject *parent) : QObject(parent) {
     builtinBuild_ = readTrimmed(QStringLiteral("/usr/share/opencruise/build-id"));
     const QString versions = QDir(appDir_ + QStringLiteral("/versions")).canonicalPath();
     runningUpdate_ = !versions.isEmpty() && QDir(exeDir).canonicalPath().startsWith(versions + QLatin1Char('/'));
+    // 動いている版のフォルダ名(versions/<これ>)。別スレッドの cleanupVersions からも読むので、ここで一度だけ決める
+    exeVersion_ = QFileInfo(QDir(exeDir + QStringLiteral("/../..")).canonicalPath()).fileName();
     log::info("UPDATE", QStringLiteral("running build %1 (%2), app dir %3, server %4")
                             .arg(currentBuild_, runningUpdate_ ? QStringLiteral("update") : QStringLiteral("builtin"),
                                  appDir_, serverUrl_));
@@ -92,6 +101,16 @@ UpdateManager::UpdateManager(QObject *parent) : QObject(parent) {
     goodTimer_.setInterval(30000);
     connect(&goodTimer_, &QTimer::timeout, this, &UpdateManager::markGood);
     if (runningUpdate_) goodTimer_.start();
+}
+
+UpdateManager::~UpdateManager() {
+    // 動いている別スレッドを止めて待つ(QThread を動いたまま壊さない)
+    for (QThread *t : std::as_const(workers_)) t->requestInterruption();
+    for (QThread *t : std::as_const(workers_)) {
+        t->wait();
+        delete t;   // finished の後始末(deleteLater)はもう届かないので、ここで消す
+    }
+    workers_.clear();
 }
 
 QString UpdateManager::appPath(const QString &rel) const { return appDir_ + QLatin1Char('/') + rel; }
@@ -140,6 +159,7 @@ QString UpdateManager::rollbackTarget() const {
 void UpdateManager::setState(const QString &state, const QString &message) {
     state_ = state;
     message_ = message;
+    if (state != QStringLiteral("downloading") && state != QStringLiteral("installing")) stage_ = 0;
     emit stateChanged();
 }
 
@@ -269,6 +289,7 @@ void UpdateManager::installNetwork() {
         return;
     }
     setProgress(0);
+    stage_ = 1;
     setState(QStringLiteral("downloading"), QStringLiteral("ダウンロードしています"));
     QNetworkRequest req(QUrl(serverUrl_ + QLatin1Char('/') + QString::fromUtf8(QUrl::toPercentEncoding(file))));
     req.setTransferTimeout(30000);
@@ -295,6 +316,7 @@ void UpdateManager::finishDownload() {
         fail(QStringLiteral("ダウンロードできませんでした(%1)").arg(r->errorString()));
         return;
     }
+    stage_ = 2;
     setState(QStringLiteral("downloading"), QStringLiteral("ダウンロードしたファイルを確かめています"));
     const int serial = serial_;
     hashFile(part, [this, part, serial](const QByteArray &sha) {
@@ -306,14 +328,18 @@ void UpdateManager::finishDownload() {
         }
         QFile::remove(downloadPath_);
         QFile::rename(part, downloadPath_);
-        setState(QStringLiteral("idle"));
+        // installFile は idle のときだけ始まる。ここで setState(idle) を通知すると、画面の「作業中」の表示が一瞬消えて
+        // 作り直されるので、通知せずに状態だけ戻す(すぐ installFile が installing を通知する)
+        state_ = QStringLiteral("idle");
         installFile(downloadPath_);
     });
 }
 
 void UpdateManager::cancel() {
+    if (finalizing_) return;   // 版の切り替えは、途中で止めると半端になるので最後までやる(短い)
     cancelled_ = true;
     ++serial_;
+    for (QThread *t : std::as_const(workers_)) t->requestInterruption();   // 確認(sha256)の途中なら読むのをやめる
     if (reply_) reply_->abort();
     QDir(appPath(QStringLiteral("tmp"))).removeRecursively();
     setProgress(-1);
@@ -336,26 +362,55 @@ void UpdateManager::runTar(const QStringList &args, std::function<void(bool, con
         if (serial != serial_) return;
         done(false, QStringLiteral("tar を起動できません"));
     });
+#ifdef Q_OS_LINUX
+    // tar と gzip は CPU とディスクを使い切るので、画面・タッチ(同じ CPU・ディスクを使う)が止まらないよう後回しにする。
+    // 子プロセスの exec 前に呼ばれる(async-signal-safe な呼び出しだけ)。ioprio は I/O スケジューラが対応していれば効く
+    p->setChildProcessModifier([]() {
+        ::setpriority(PRIO_PROCESS, 0, 19);
+        ::syscall(SYS_ioprio_set, 1 /* IOPRIO_WHO_PROCESS */, 0, (2 << 13) | 7 /* ベストエフォートの最低 */);
+    });
+#endif
     p->start(QStringLiteral("tar"), args);
 }
 
-// 大きなファイルの sha256 を、画面を止めないよう少しずつ求める
+// 止まりうる処理を別スレッドで行い、終わったら画面のスレッドで done を呼ぶ(work の中で画面の QObject に触らない)
+void UpdateManager::runWorker(std::function<void()> work, std::function<void()> done) {
+    QThread *t = QThread::create(std::move(work));
+    workers_.append(t);
+    connect(t, &QThread::finished, this, [this, t, done = std::move(done)]() {
+        workers_.removeOne(t);
+        t->deleteLater();
+        if (done) done();
+    });
+    t->start();
+}
+
+// 大きなファイルの sha256 を別スレッドで求める(USB・SD の読み取りで画面を止めない)。
+// 読めなかった・やめたときは、空の QByteArray で done を呼ぶ
 void UpdateManager::hashFile(const QString &path, std::function<void(const QByteArray &)> done) {
-    auto file = std::make_shared<QFile>(path);
-    if (!file->open(QIODevice::ReadOnly)) { done(QByteArray()); return; }
-    auto hash = std::make_shared<QCryptographicHash>(QCryptographicHash::Sha256);
-    const qint64 total = std::max<qint64>(1, file->size());
-    auto step = std::make_shared<std::function<void()>>();
-    *step = [this, file, hash, total, done, step]() {
-        for (int i = 0; i < 4 && !file->atEnd(); ++i) hash->addData(file->read(4 << 20));
-        setProgress(double(file->pos()) / double(total));
-        if (!file->atEnd()) { QTimer::singleShot(0, this, *step); return; }
-        file->close();
-        const QByteArray r = hash->result().toHex();
-        *step = nullptr;   // 自分への参照を切る
-        done(r);
-    };
-    QTimer::singleShot(0, this, *step);
+    auto result = std::make_shared<QByteArray>();
+    const int serial = serial_;
+    runWorker([this, path, result, serial]() {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) return;
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        const qint64 total = std::max<qint64>(1, file.size());
+        QElapsedTimer sinceReport;
+        sinceReport.start();
+        while (!file.atEnd()) {
+            if (QThread::currentThread()->isInterruptionRequested()) return;   // cancel()
+            const QByteArray chunk = file.read(1 << 20);
+            if (chunk.isEmpty()) return;   // 読み取りエラー
+            hash.addData(chunk);
+            if (sinceReport.elapsed() >= 100) {   // 進み具合は 0.1 秒ごとに知らせる(知らせすぎて画面を忙しくしない)
+                sinceReport.restart();
+                const double p = double(file.pos()) / double(total);
+                QMetaObject::invokeMethod(this, [this, p, serial]() { if (serial == serial_) setProgress(p); },
+                                          Qt::QueuedConnection);
+            }
+        }
+        *result = hash.result().toHex();
+    }, [result, done = std::move(done)]() { done(*result); });
 }
 
 void UpdateManager::installFile(const QString &path) {
@@ -368,6 +423,7 @@ void UpdateManager::installFile(const QString &path) {
     QDir(tmp).removeRecursively();
     QDir().mkpath(tmp);
     setProgress(-1);
+    stage_ = 2;
     setState(QStringLiteral("installing"), QStringLiteral("更新ファイルを開いています"));
     runTar({ QStringLiteral("-xf"), path, QStringLiteral("-C"), tmp, QStringLiteral("manifest.json"), QStringLiteral("payload.tar.gz") },
            [this, tmp](bool ok, const QString &err) {
@@ -386,6 +442,7 @@ void UpdateManager::continueInstall(const QString &tmpDir) {
         return;
     }
     const QByteArray want = m.value(QStringLiteral("payloadSha256")).toString().toLatin1().toLower();
+    stage_ = 2;
     setState(QStringLiteral("installing"), QStringLiteral("壊れていないか確かめています"));
     const int serial = serial_;
     hashFile(tmpDir + QStringLiteral("/payload.tar.gz"), [this, tmpDir, build, want, serial](const QByteArray &sha) {
@@ -395,6 +452,7 @@ void UpdateManager::continueInstall(const QString &tmpDir) {
         QDir(newDir).removeRecursively();
         QDir().mkpath(newDir);
         setProgress(-1);
+        stage_ = 3;
         setState(QStringLiteral("installing"), QStringLiteral("展開しています"));
         runTar({ QStringLiteral("-xzf"), tmpDir + QStringLiteral("/payload.tar.gz"), QStringLiteral("-C"), newDir },
                [this, build, newDir](bool ok, const QString &err) {
@@ -405,10 +463,30 @@ void UpdateManager::continueInstall(const QString &tmpDir) {
 }
 
 void UpdateManager::finishInstall(const QString &build, const QString &newDir) {
+    // 版を置く・current を切り替える(sync)・古い版を消す は、ディスクが遅いと数秒かかる。画面のスレッドでやると
+    // その間バーも操作も止まるので、別スレッドで行う。途中でやめると半端になるので、この間は cancel() を受けない
+    finalizing_ = true;
+    setProgress(-1);
+    stage_ = 4;
+    setState(QStringLiteral("installing"), QStringLiteral("起動する版を切り替えています"));
+    auto err = std::make_shared<QString>();
+    runWorker([this, build, newDir, err]() { *err = switchVersion(build, newDir); },
+              [this, build, err]() {
+                  finalizing_ = false;
+                  if (!err->isEmpty()) { fail(*err); return; }
+                  pendingBuild_ = build;
+                  setProgress(-1);
+                  log::info("UPDATE", QStringLiteral("installed build %1; restart to apply").arg(build));
+                  setState(QStringLiteral("ready"), QStringLiteral("%1 の版を入れました。再起動すると反映されます").arg(prettyBuild(build)));
+                  scanUsb();   // 「今の版」の印を付け直す(再起動まではまだ前の版)
+              });
+}
+
+// finishInstall の中身(別スレッドで動く: 画面の QObject・メンバーの書き換えをしない。読むのは起動時に決まる値だけ)
+QString UpdateManager::switchVersion(const QString &build, const QString &newDir) {
     if (!QFileInfo(newDir + QStringLiteral("/usr/bin/opencruise")).isExecutable()) {
         QDir(newDir).removeRecursively();
-        fail(QStringLiteral("更新ファイルにアプリが入っていません"));
-        return;
+        return QStringLiteral("更新ファイルにアプリが入っていません");
     }
     const QString rel = QStringLiteral("versions/") + build;
     const QString finalDir = appPath(rel);
@@ -418,24 +496,19 @@ void UpdateManager::finishInstall(const QString &build, const QString &newDir) {
         QDir(old).removeRecursively();
         QDir().rename(finalDir, old);
     }
-    if (!QDir().rename(newDir, finalDir)) { fail(QStringLiteral("展開した版を置けませんでした")); return; }
-    if (!pointCurrentTo(rel)) { fail(QStringLiteral("起動する版を切り替えられませんでした")); return; }
+    if (!QDir().rename(newDir, finalDir)) return QStringLiteral("展開した版を置けませんでした");
+    if (!pointCurrentTo(rel)) return QStringLiteral("起動する版を切り替えられませんでした");
     QFile::remove(appPath(QStringLiteral("tries")));
     QFile::remove(appPath(QStringLiteral("bad")));
     QDir(appPath(QStringLiteral("tmp"))).removeRecursively();
     cleanupVersions();
-    pendingBuild_ = build;
-    setProgress(-1);
-    log::info("UPDATE", QStringLiteral("installed build %1; restart to apply").arg(build));
-    setState(QStringLiteral("ready"), QStringLiteral("%1 の版を入れました。再起動すると反映されます").arg(prettyBuild(build)));
-    scanUsb();   // 「今の版」の印を付け直す(再起動まではまだ前の版)
+    return QString();
 }
 
 // 残す版: current・good・今動いている版。それ以外(古い版・途中で止まった .new / .old)は消す
 void UpdateManager::cleanupVersions() {
     QStringList keep = { linkTarget(QStringLiteral("current")), readTrimmed(appPath(QStringLiteral("good"))) };
-    const QString exeVer = QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/../..")).canonicalPath();
-    if (runningUpdate_) keep << QStringLiteral("versions/") + QFileInfo(exeVer).fileName();
+    if (runningUpdate_) keep << QStringLiteral("versions/") + exeVersion_;
     const QDir vdir(appPath(QStringLiteral("versions")));
     for (const QString &d : vdir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         if (keep.contains(QStringLiteral("versions/") + d)) continue;
@@ -465,8 +538,7 @@ void UpdateManager::rollback() {
 
 void UpdateManager::markGood() {
     const QString cur = linkTarget(QStringLiteral("current"));
-    const QString exeVer = QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/../..")).canonicalPath();
-    if (cur.isEmpty() || cur != QStringLiteral("versions/") + QFileInfo(exeVer).fileName()) return;   // 切り替え済み・戻した後
+    if (cur.isEmpty() || cur != QStringLiteral("versions/") + exeVersion_) return;   // 切り替え済み・戻した後
     if (readTrimmed(appPath(QStringLiteral("good"))) == cur) return;
     writeText(appPath(QStringLiteral("good")), cur);
     QFile::remove(appPath(QStringLiteral("tries")));

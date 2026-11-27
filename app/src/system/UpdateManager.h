@@ -21,6 +21,7 @@
 #include <QByteArray>
 #include <QFileSystemWatcher>
 #include <QHash>
+#include <QList>
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QPointer>
@@ -34,6 +35,7 @@
 
 class QFile;
 class QNetworkReply;
+class QThread;
 
 namespace opencruise {
 
@@ -52,6 +54,10 @@ class UpdateManager : public QObject {
     /// "idle" / "checking" / "downloading" / "installing" / "ready"(入れ終わった。再起動で反映) / "error"
     Q_PROPERTY(QString state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString message READ message NOTIFY stateChanged)
+    /// 今どの段階か: 0=なし / 1=ダウンロード / 2=確認 / 3=展開 / 4=切り替え(downloading・installing のときだけ 0 以外)
+    Q_PROPERTY(int stage READ stage NOTIFY stateChanged)
+    /// やめられるか(最後の「切り替え」の途中だけ false。切り替えは途中で止めると半端になるため)
+    Q_PROPERTY(bool canCancel READ canCancel NOTIFY stateChanged)
     /// 入れ終わって再起動を待っている版(無ければ空)
     Q_PROPERTY(QString pendingBuild READ pendingBuild NOTIFY stateChanged)
     /// ダウンロード・展開の進み具合(0〜1。分からなければ -1)
@@ -73,6 +79,7 @@ public:
     static constexpr const char *kServerUrl = "http://opencruise-dev.local:8765";
 
     explicit UpdateManager(QObject *parent = nullptr);
+    ~UpdateManager() override;
 
     QString serverUrl() const { return serverUrl_; }
     QString currentBuild() const { return currentBuild_; }
@@ -81,6 +88,8 @@ public:
     QString rolledBackFrom() const;
     QString state() const { return state_; }
     QString message() const { return message_; }
+    int stage() const { return stage_; }
+    bool canCancel() const { return !finalizing_; }
     QString pendingBuild() const { return pendingBuild_; }
     double progress() const { return progress_; }
     QVariantList usbUpdates() const { return usbUpdates_; }
@@ -124,8 +133,13 @@ private:
     QVariantMap readManifest(const QString &ocapp) const;
     void runTar(const QStringList &args, std::function<void(bool, const QString &)> done);
     void hashFile(const QString &path, std::function<void(const QByteArray &)> done);
+    /// 止まりうる処理(大きなファイルの読み取り・sync・フォルダ削除)を別スレッドで行う。work は画面(QObject)に触らないこと。
+    /// done は終わったあと、画面のスレッドで呼ぶ
+    void runWorker(std::function<void()> work, std::function<void()> done);
     void continueInstall(const QString &tmpDir);
     void finishInstall(const QString &build, const QString &newDir);
+    /// 展開した版を置き、current を切り替え、古い版を消す(別スレッド用。失敗の理由を返す。成功は空)
+    QString switchVersion(const QString &build, const QString &newDir);
     void cleanupVersions();
     void markGood();
     void finishDownload();
@@ -139,6 +153,10 @@ private:
     QString state_ = QStringLiteral("idle");
     QString message_;
     QString pendingBuild_;
+    int stage_ = 0;
+    bool finalizing_ = false;   // 切り替えの最中(やめられない)
+    QString exeVersion_;        // 今動いている版のフォルダ名(versions/<これ>)。起動時に決めて、別スレッドからも読む
+    QList<QThread *> workers_;  // 動いている別スレッド(cancel() で止める・終了時に待つ)
     double progress_ = -1;
     QVariantList usbUpdates_;
     bool usbPresent_ = false;

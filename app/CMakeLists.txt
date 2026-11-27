@@ -197,6 +197,7 @@ qt_add_qml_module(opencruise
         qml/widgets/nowplaying/NowPlayingWidget.qml
         qml/widgets/nowplaying/NowPlayingSettings.qml
         qml/components/MarqueeText.qml
+        qml/components/ActivityBar.qml
         qml/components/NumberText.qml
         qml/widgets/navigation/NavigationWidget.qml
         qml/widgets/navigation/NavigationSettings.qml
