@@ -63,6 +63,7 @@
 #include "androidauto/AndroidAutoController.h"
 #include "core/AppInfo.h"
 #include "core/AppSettings.h"
+#include "ui/ImageImporter.h"
 #include "ui/ThemeSettings.h"
 #ifdef OPENCRUISE_WITH_ALSA
 #include "audio/AlsaAudio.h"
@@ -425,6 +426,14 @@ static int runApplication(int argc, char *argv[]) {
     opencruise::ShutdownManager shutdownManager;
     // アプリの更新(USB メモリ・ネット)と Wi-Fi(設定 > システム > アップデート / ネットワーク)。QML より長生きさせるため engine より先に作る
     opencruise::UpdateManager updater;
+    // USB メモリなどの画像を、背景・飾りのフォルダへ取り込む(設定 > テーマ・背景)。取り込んだら画像の一覧を読み直す。
+    // コピー中は更新の開始・再起動を止める(QML 側)。themeSettings より後に作るので、先に壊れることはない
+    opencruise::ImageImporter imageImporter(themeSettings.backgroundFolder(), themeSettings.decorationFolder());
+    QObject::connect(&imageImporter, &opencruise::ImageImporter::imported, &themeSettings,
+                     [&themeSettings](const QString &kind) {
+                         if (kind == QStringLiteral("background")) themeSettings.refreshBackgroundImages();
+                         else themeSettings.refreshDecorationImages();
+                     });
     opencruise::WifiManager wifi;
     shutdownManager.addTask(QStringLiteral("save-settings"), QStringLiteral("設定の保存"),
                             [](const opencruise::ShutdownManager::Done &done) {
@@ -461,6 +470,7 @@ static int runApplication(int argc, char *argv[]) {
     engine.addImportPath(QStringLiteral(":/"));
     engine.rootContext()->setContextProperty(QStringLiteral("shutdownManager"), &shutdownManager);
     engine.rootContext()->setContextProperty(QStringLiteral("updater"), &updater);
+    engine.rootContext()->setContextProperty(QStringLiteral("imageImporter"), &imageImporter);
     engine.rootContext()->setContextProperty(QStringLiteral("wifi"), &wifi);
     engine.rootContext()->setContextProperty(QStringLiteral("clock"), &clock);
     engine.rootContext()->setContextProperty(QStringLiteral("appInfo"), &appInfo);

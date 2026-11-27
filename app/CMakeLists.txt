@@ -49,6 +49,7 @@ qt_add_executable(opencruise
     src/core/AppInfo.cpp
     src/core/AppSettings.cpp
     src/ui/ThemeSettings.cpp
+    src/ui/ImageImporter.cpp
     src/vehicle/ReverseCamera.cpp
     src/audio/AudioSettings.cpp
     src/display/BrightnessController.cpp

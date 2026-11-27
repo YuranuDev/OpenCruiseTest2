@@ -9,7 +9,9 @@ SettingsPage {
     id: page
     readonly property bool busy: updater.state === "downloading" || updater.state === "installing"
     readonly property bool moving: VehicleSignals.has("speed") && VehicleSignals.value("speed") >= 5
-    readonly property bool canStart: !busy && !moving
+    // 画像を USB メモリから取り込んでいる間(ImageImporter)は、更新の開始・再起動をしない(コピーが途中で止まらないように)
+    readonly property bool copying: imageImporter.importing
+    readonly property bool canStart: !busy && !moving && !copying
     function sizeText(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB" }
     function buildText(b) {
         const s = String(b || "")
@@ -100,8 +102,8 @@ SettingsPage {
                         visible: updater.state === "ready"
                         text: "今すぐ再起動"
                         selected: true
-                        opacity: page.moving ? 0.4 : 1
-                        onClicked: if (!page.moving) updater.restartApp()
+                        opacity: (page.moving || page.copying) ? 0.4 : 1
+                        onClicked: if (!page.moving && !page.copying) updater.restartApp()
                     }
                 }
             }
