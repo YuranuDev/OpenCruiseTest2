@@ -1100,7 +1100,7 @@ WidgetBase {
                     readonly property color edgeColor: root.warning ? root.warnEdge : root.outlineColor
                     readonly property color tailEdgeColor: root.warning ? root.warnEdge : root.dialLine
                     readonly property real edgeW: Math.max(1, base * 0.14)
-                    readonly property real pad: 3   // 縁取りがはみ出さないよう、周りに空ける
+                    readonly property real pad: Math.max(3, base * 0.95)   // 発光線・縁取りが切れない余白
                     x: -width / 2
                     y: -tip - pad
                     width: Math.ceil(Math.max(base, tailHalf * 2) + 2 * pad)
@@ -1125,23 +1125,78 @@ WidgetBase {
                         ctx.lineWidth = edgeW
                         ctx.strokeStyle = edgeColor
                         ctx.fillStyle = needleFill
-                        ctx.beginPath()
-                        ctx.moveTo(c - tipHalf, 0)
-                        ctx.lineTo(c + tipHalf, 0)
-                        ctx.lineTo(c + baseHalf, tip)
-                        if (tail > 0 && sameColor) {   // 同じ色なら 1 つの形で描く(つなぎ目の線が出ないように)
+                        const traceNeedle = () => {
+                            ctx.beginPath()
+                            ctx.moveTo(c - tipHalf, 0)
+                            ctx.lineTo(c + tipHalf, 0)
+                            ctx.lineTo(c + baseHalf, tip)
+                            if (tail > 0 && sameColor) {   // 同色なら一体形状にして、つなぎ目の線を出さない
+                                ctx.lineTo(c + tailHalf, tip + tail)
+                                ctx.lineTo(c - tailHalf, tip + tail)
+                            }
+                            ctx.lineTo(c - baseHalf, tip)
+                            ctx.closePath()
+                        }
+                        const traceNeedleGlow = () => {
+                            if (!(tail > 0 && !sameColor)) {
+                                traceNeedle()
+                                return
+                            }
+                            // 別色の出っ張りと接する根元の線は内側なので、発光の輪郭から除く。
+                            ctx.beginPath()
+                            ctx.moveTo(c - tipHalf, 0)
+                            ctx.lineTo(c + tipHalf, 0)
+                            ctx.lineTo(c + baseHalf, tip)
+                            ctx.moveTo(c - baseHalf, tip)
+                            ctx.lineTo(c - tipHalf, 0)
+                        }
+                        const traceTail = () => {
+                            ctx.beginPath()
+                            ctx.moveTo(c - baseHalf, tip)
+                            ctx.lineTo(c + baseHalf, tip)
                             ctx.lineTo(c + tailHalf, tip + tail)
                             ctx.lineTo(c - tailHalf, tip + tail)
+                            ctx.closePath()
                         }
-                        ctx.lineTo(c - baseHalf, tip)
-                        ctx.closePath()
-                        // ぼかしや shadowBlur は使わず、針の輪郭を広めの半透明線で 1 回描く。
-                        // 形は値の更新中も回転するだけなので、再描画コストを増やさない。
-                        const glowAlpha = Theme.night ? 0.18 : 0.1
+                        const traceTailOuter = () => {
+                            // 針と共有する上辺は閉じず、外周だけ発光・縁取りする。
+                            ctx.beginPath()
+                            ctx.moveTo(c - baseHalf, tip)
+                            ctx.lineTo(c - tailHalf, tip + tail)
+                            ctx.lineTo(c + tailHalf, tip + tail)
+                            ctx.lineTo(c + baseHalf, tip)
+                        }
+                        const glowGradient = (color, peak) => {
+                            const extent = Math.max(baseHalf, tailHalf) + pad
+                            const g = ctx.createLinearGradient(c - extent, 0, c + extent, 0)
+                            const rgba = (a) => Qt.rgba(color.r, color.g, color.b, a)
+                            g.addColorStop(0, rgba(0))
+                            g.addColorStop(0.14, rgba(peak * 0.04))
+                            g.addColorStop(0.3, rgba(peak * 0.22))
+                            g.addColorStop(0.5, rgba(peak * 0.72))
+                            g.addColorStop(0.7, rgba(peak * 0.22))
+                            g.addColorStop(0.86, rgba(peak * 0.04))
+                            g.addColorStop(1, rgba(0))
+                            return g
+                        }
+
+                        // ぼかし効果ではなく、固定 Canvas 上の薄い幅方向グラデーションで外側へなじませる。
+                        // 針の値が変わる間は Canvas を描き直さず、Item の回転だけで追従する。
+                        ctx.lineCap = "round"
                         ctx.lineJoin = "round"
-                        ctx.lineWidth = Math.max(2, base * 0.72)
-                        ctx.strokeStyle = Qt.rgba(needleFill.r, needleFill.g, needleFill.b, glowAlpha)
+                        ctx.lineWidth = Math.max(2, base * 1.8)
+                        ctx.strokeStyle = glowGradient(needleFill, Theme.night ? 0.2 : 0.13)
+                        traceNeedleGlow()
                         ctx.stroke()
+                        // 色や縁取りが別の出っ張りにも、その色の薄い光を先に敷いてから本体を重ねる。
+                        if (tail > 0 && !sameColor) {
+                            ctx.strokeStyle = glowGradient(tailFill, Theme.night ? 0.16 : 0.1)
+                            traceTailOuter()
+                            ctx.stroke()
+                        }
+
+                        ctx.lineCap = "butt"
+                        traceNeedle()
                         ctx.fill()
                         if (needleEdge) {
                             ctx.lineWidth = edgeW
@@ -1150,15 +1205,12 @@ WidgetBase {
                         }
                         if (tail > 0 && !sameColor) {
                             ctx.fillStyle = tailFill
-                            ctx.beginPath()
-                            ctx.moveTo(c - baseHalf, tip)
-                            ctx.lineTo(c + baseHalf, tip)
-                            ctx.lineTo(c + tailHalf, tip + tail)
-                            ctx.lineTo(c - tailHalf, tip + tail)
-                            ctx.closePath()
+                            traceTail()
                             ctx.fill()
                             if (tailEdge) {
+                                ctx.lineWidth = edgeW
                                 ctx.strokeStyle = tailEdgeColor
+                                traceTailOuter()
                                 ctx.stroke()
                             }
                         }
@@ -1166,21 +1218,36 @@ WidgetBase {
                 }
             }
 
-            // ---- 針の中心の控えめな照り返し(ぼかしを使わない単色リング) ----
-            Rectangle {
-                z: 3.5
+            // ---- 針の中心の照り返し。小さな radial gradient を針と中心キャップの後ろに敷く ----
+            Canvas {
+                id: hubGlow
+                z: 2
                 visible: !root.needleless
-                readonly property real halo: Math.max(3, dial.rpx * 0.075)
+                readonly property real hubR: dial.rpx * root.hubSize / 2
+                readonly property real halo: Math.max(8, dial.rpx * 0.12)
+                width: Math.ceil((hubR + halo) * 2)
+                height: width
                 x: dial.cx - width / 2
                 y: dial.cy - height / 2
-                width: dial.rpx * root.hubSize + halo * 2
-                height: width
-                radius: width / 2
-                color: Qt.rgba(needleShape.needleFill.r, needleShape.needleFill.g, needleShape.needleFill.b,
-                               Theme.night ? 0.12 : 0.07)
-                border.width: Math.max(1, halo * 0.22)
-                border.color: Qt.rgba(needleShape.needleFill.r, needleShape.needleFill.g, needleShape.needleFill.b,
-                                      Theme.night ? 0.2 : 0.12)
+                renderStrategy: Canvas.Cooperative
+                readonly property string key: [width, height, hubR, halo, needleShape.needleFill, Theme.night].join("|")
+                onKeyChanged: if (visible) requestPaint()
+                onVisibleChanged: if (visible) requestPaint()
+                onPaint: {
+                    const ctx = getContext("2d")
+                    ctx.reset()
+                    const cx = width / 2, cy = height / 2
+                    const outer = Math.min(width, height) / 2
+                    const color = needleShape.needleFill
+                    const strength = Theme.night ? 0.2 : 0.13
+                    const glow = ctx.createRadialGradient(cx, cy, hubGlow.hubR * 0.55, cx, cy, outer)
+                    glow.addColorStop(0, Qt.rgba(color.r, color.g, color.b, strength * 0.62))
+                    glow.addColorStop(0.45, Qt.rgba(color.r, color.g, color.b, strength * 0.28))
+                    glow.addColorStop(0.78, Qt.rgba(color.r, color.g, color.b, strength * 0.07))
+                    glow.addColorStop(1, Qt.rgba(color.r, color.g, color.b, 0))
+                    ctx.fillStyle = glow
+                    ctx.fillRect(0, 0, width, height)
+                }
             }
 
             // ---- 名前(中心円の上、内側の細い円の内側。針はこの上を通る = z で針より奥に置く) ----
