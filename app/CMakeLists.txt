@@ -123,6 +123,7 @@ qt_add_qml_module(opencruise
         qml/screens/ReverseCameraVideo.qml
         qml/settings/pages/SettingsPageSystem.qml
         qml/settings/pages/SettingsPageUpdate.qml
+        qml/settings/pages/SettingsPageUsb.qml
         qml/settings/pages/SettingsPageNetwork.qml
         qml/components/OnScreenKeyboard.qml
         qml/settings/pages/SettingsPageAbout.qml
