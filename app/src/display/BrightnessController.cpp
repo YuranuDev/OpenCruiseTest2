@@ -48,21 +48,28 @@ int typeRank(const QString &type) {
 BrightnessController::BrightnessController(QObject *parent) : QObject(parent) {
     detectBacklight();
 
-    const QSettings store = openStore();
-    const QString key = QStringLiteral("display/brightness");
-    if (store.contains(key)) {
-        brightness_ = std::clamp(store.value(key, kMaximum).toInt(), kMinimum, kMaximum);
-        applyToBacklight(); // 保存された設定があるときだけ、起動時にバックライトへ反映する
-    } else if (hardwareControl()) {
+    QSettings store = openStore();
+    const QString legacyKey = QStringLiteral("display/brightness");
+    int initial = store.contains(legacyKey) ? std::clamp(store.value(legacyKey).toInt(), kMinimum, kMaximum) : kMaximum;
+    if (!store.contains(legacyKey) && hardwareControl()) {
         // 設定が無いときは、現在のバックライトの値を初期値にする(起動で明るさを勝手に変えない)
         const int now = readBacklightPercent();
-        if (now >= 0) {
-            brightness_ = std::clamp(now, kMinimum, kMaximum);
-        }
+        if (now >= 0) initial = std::clamp(now, kMinimum, kMaximum);
+    }
+    dayBrightness_ = std::clamp(store.value(QStringLiteral("display/dayBrightness"), initial).toInt(), kMinimum, kMaximum);
+    nightBrightness_ = std::clamp(store.value(QStringLiteral("display/nightBrightness"), initial).toInt(), kMinimum, kMaximum);
+    brightness_ = dayBrightness_;
+    const bool hasSavedBrightness = store.contains(legacyKey) || store.contains(QStringLiteral("display/dayBrightness"))
+                                    || store.contains(QStringLiteral("display/nightBrightness"));
+    if (hasSavedBrightness) {
+        // 旧版の単一値や片側だけを保存した状態から移行するときに、未設定側も現在値で確定する。
+        store.setValue(QStringLiteral("display/dayBrightness"), dayBrightness_);
+        store.setValue(QStringLiteral("display/nightBrightness"), nightBrightness_);
+        applyToBacklight(); // 保存された設定があるときだけ、起動時にバックライトへ反映する
     }
 
-    log::info("DISPLAY", QStringLiteral("brightness: %1% / %2")
-                             .arg(brightness_)
+    log::info("DISPLAY", QStringLiteral("brightness: day %1% / night %2% / %3")
+                             .arg(dayBrightness_).arg(nightBrightness_)
                              .arg(hardwareControl() ? QStringLiteral("backlight (%1)").arg(backlightName_)
                                                     : QStringLiteral("software dimming")));
 }
@@ -133,12 +140,42 @@ void BrightnessController::fallBackToSoftware(const QString &reason) {
 }
 
 void BrightnessController::setBrightness(int percent) {
+    setProfileBrightness(nightMode_, percent);
+}
+
+void BrightnessController::setDayBrightness(int percent) {
+    setProfileBrightness(false, percent);
+}
+
+void BrightnessController::setNightBrightness(int percent) {
+    setProfileBrightness(true, percent);
+}
+
+void BrightnessController::setProfileBrightness(bool night, int percent) {
     percent = std::clamp(percent, kMinimum, kMaximum);
-    if (percent == brightness_) {
-        return;
+    int &profileBrightness = night ? nightBrightness_ : dayBrightness_;
+    if (percent == profileBrightness) return;
+    profileBrightness = percent;
+    QSettings store = openStore();
+    store.setValue(QStringLiteral("display/dayBrightness"), dayBrightness_);
+    store.setValue(QStringLiteral("display/nightBrightness"), nightBrightness_);
+    if (night == nightMode_) {
+        brightness_ = percent;
+        store.setValue(QStringLiteral("display/brightness"), brightness_); // 旧版との設定互換
+        applyToBacklight();
+        emit overlayOpacityChanged();
     }
-    brightness_ = percent;
-    openStore().setValue(QStringLiteral("display/brightness"), brightness_);
+    emit brightnessChanged();
+}
+
+void BrightnessController::setNightMode(bool night) {
+    if (night == nightMode_) return;
+    nightMode_ = night;
+    brightness_ = nightMode_ ? nightBrightness_ : dayBrightness_;
+    QSettings store = openStore();
+    store.setValue(QStringLiteral("display/dayBrightness"), dayBrightness_);
+    store.setValue(QStringLiteral("display/nightBrightness"), nightBrightness_);
+    store.setValue(QStringLiteral("display/brightness"), brightness_); // 旧版との設定互換
     applyToBacklight();
     emit brightnessChanged();
     emit overlayOpacityChanged();

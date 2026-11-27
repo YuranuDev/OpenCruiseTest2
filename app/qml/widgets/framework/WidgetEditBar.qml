@@ -254,6 +254,24 @@ Item {
                     onClicked: if (!root.decorMode) root.decorModeRequested(true)
                 }
             }
+            Row {
+                visible: root.decorMode && root.pages !== null
+                spacing: 4 * root.unit
+                BarButton {
+                    icon: "brightness_5"
+                    text: "昼"
+                    showText: !root.compact
+                    tone: root.pages && !root.pages.decorationNight ? "accent" : "normal"
+                    onClicked: if (root.pages) root.pages.decorationNight = false
+                }
+                BarButton {
+                    icon: "brightness_2"
+                    text: "夜"
+                    showText: !root.compact
+                    tone: root.pages && root.pages.decorationNight ? "accent" : "normal"
+                    onClicked: if (root.pages) root.pages.decorationNight = true
+                }
+            }
             BarButton {
                 visible: !root.decorMode && root.widgetCount > 0 && root.pageSelCount < root.widgetCount
                 icon: "select_all"

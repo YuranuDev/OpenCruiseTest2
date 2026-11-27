@@ -3,7 +3,7 @@
 //    そのページのタブが赤くなる)。隠れているページは描画しない
 //  - 切り替え: ページのタブ(PageBar)をタップ、またはウィジェットの無い所を左右にスワイプ
 //  - 保存: widgetStore.layoutJson に { version: 2, current, pages: [{ id, name, widgets: [...], decor: [...] }] }。
-//    decor はそのページに置いた飾りの画像(キャラなど。DecorationStore が読み書きする。無ければ空)
+//    decorDay / decorNight は昼夜別の飾り画像。古い decor 配列は両方へ引き継ぐ
 //    以前の形式(version 1 = 1 ページ分の widgets)は、1 ページ目として読み込む
 //    未保存のときは「ページ 1(初期配置)+ ページ 2(空)」で始める
 //  - 外からは currentArea(追加パネル・設定ダイアログの対象)と、addPage / removePage / renamePage / movePage /
@@ -24,6 +24,8 @@ Item {
     // 飾りの画像(ページ id → 配列)。読み込み・ページの増減のたびに増える decorRevision で、DecorationStore が読み直す
     property var decorStore: ({})
     property int decorRevision: 0
+    // 表示中の昼夜に追従し、画像編集バーから編集対象を切り替えられる
+    property bool decorationNight: Theme.night
     readonly property Item currentArea: rep.count > current ? rep.itemAt(current) : null
     // 編集モード(全ページ共通)。選択はページごとに持つが、ページを移っても外さない(ページをまたいで選べる)
     property bool editMode: false
@@ -99,9 +101,11 @@ Item {
         for (let i = 0; i < pageModel.count; ++i) {
             const pg = pageModel.get(i)
             const w = store[pg.pid]
-            const d = decorStore[pg.pid]
+            const d = decorStore[pg.pid] || ({})
             pages.push({ id: pg.pid, name: pg.name, widgets: Array.isArray(w) ? w : null,
-                         decor: Array.isArray(d) ? d : [] })
+                         decor: Array.isArray(d.day) ? d.day : [],
+                         decorDay: Array.isArray(d.day) ? d.day : [],
+                         decorNight: Array.isArray(d.night) ? d.night : [] })
         }
         widgetStore.layoutJson = JSON.stringify({ version: 2, current: current, pages: pages })
     }
@@ -131,7 +135,11 @@ Item {
             const pid = (p.id && !used[p.id]) ? p.id : newPid()
             used[pid] = true
             st[pid] = Array.isArray(p.widgets) ? p.widgets : (i === 0 ? null : [])
-            dst[pid] = Array.isArray(p.decor) ? p.decor : []
+            const legacyDecor = Array.isArray(p.decor) ? p.decor : []
+            dst[pid] = {
+                day: Array.isArray(p.decorDay) ? p.decorDay : legacyDecor,
+                night: Array.isArray(p.decorNight) ? p.decorNight : legacyDecor
+            }
             entries.push({ pid: pid, name: String(p.name || ("ページ " + (i + 1))) })
         }
         pageModel.clear()
@@ -144,14 +152,20 @@ Item {
     }
 
     // 飾りの画像(DecorationStore から呼ばれる)
-    function pageDecor(index) {
+    function pageDecor(index, night) {
         if (index < 0 || index >= pageModel.count) return []
         const d = decorStore[pageModel.get(index).pid]
-        return Array.isArray(d) ? d : []
+        if (Array.isArray(d)) return d   // 旧データを読み込んだ直後の互換用
+        const useNight = night === undefined ? decorationNight : night
+        return d && Array.isArray(d[useNight ? "night" : "day"]) ? d[useNight ? "night" : "day"] : []
     }
-    function savePageDecor(index, list) {
+    function savePageDecor(index, list, night) {
         if (index < 0 || index >= pageModel.count) return
-        decorStore[pageModel.get(index).pid] = list
+        const pid = pageModel.get(index).pid
+        const previous = decorStore[pid]
+        const d = Array.isArray(previous) ? { day: previous, night: previous } : Object.assign({ day: [], night: [] }, previous || {})
+        d[night === true ? "night" : night === false ? "day" : (decorationNight ? "night" : "day")] = list
+        decorStore[pid] = d
         persist()
     }
 
@@ -188,7 +202,7 @@ Item {
         }
         const pid = newPid()
         store[pid] = []
-        decorStore[pid] = []
+        decorStore[pid] = { day: [], night: [] }
         pageModel.append({ pid: pid, name: "ページ " + n })
         refreshNames()
         current = pageModel.count - 1
@@ -229,11 +243,12 @@ Item {
     }
     function resetAll() {
         // 飾りの画像はウィジェットの配置とは別なので、1 ページ目に置いていたものは残す
-        const keepDecor = pageDecor(0)
+        const keepDecorDay = pageDecor(0, false)
+        const keepDecorNight = pageDecor(0, true)
         widgetStore.layoutJson = ""
         load()
-        if (keepDecor.length > 0) {
-            decorStore[pageModel.get(0).pid] = keepDecor
+        if (keepDecorDay.length > 0 || keepDecorNight.length > 0) {
+            decorStore[pageModel.get(0).pid] = { day: keepDecorDay, night: keepDecorNight }
             persist()
             decorRevision++
         }

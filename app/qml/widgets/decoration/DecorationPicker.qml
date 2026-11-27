@@ -48,7 +48,7 @@ Item {
                 font.bold: true
                 font.pixelSize: 30 * root.unit
                 color: Theme.textPrimary
-                text: "画像を追加"
+                text: "画像を追加 (" + (root.store && root.store.profileNight ? "夜" : "昼") + ")"
             }
             Row {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }

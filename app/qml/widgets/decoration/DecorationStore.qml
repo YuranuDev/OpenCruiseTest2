@@ -18,7 +18,9 @@ import OpenCruise
 Item {
     id: root
     property Item pages: null           // WidgetPages
+    property bool editing: false
     readonly property int pageIndex: pages ? pages.current : -1
+    readonly property bool profileNight: editing && pages ? pages.decorationNight : Theme.night
     readonly property alias model: items
     readonly property int count: items.count
     readonly property var layers: ["back", "panel", "front"]
@@ -43,7 +45,7 @@ Item {
     function reload() {
         selectedId = ""
         undoStack = []
-        fill(pages && pageIndex >= 0 ? pages.pageDecor(pageIndex) : [])
+        fill(pages && pageIndex >= 0 ? pages.pageDecor(pageIndex, profileNight) : [])
         lastSaved = JSON.stringify(toArray())
         reloaded()
     }
@@ -95,7 +97,7 @@ Item {
             undoStack = st
         }
         lastSaved = now
-        if (pages && pageIndex >= 0) pages.savePageDecor(pageIndex, list)
+        if (pages && pageIndex >= 0) pages.savePageDecor(pageIndex, list, profileNight)
     }
     function undo() {
         if (undoStack.length === 0) return
@@ -106,7 +108,7 @@ Item {
         try { fill(JSON.parse(prev)) } catch (e) { return }
         selectedId = indexOf(keepSel) >= 0 ? keepSel : ""
         lastSaved = prev
-        if (pages && pageIndex >= 0) pages.savePageDecor(pageIndex, toArray())
+        if (pages && pageIndex >= 0) pages.savePageDecor(pageIndex, toArray(), profileNight)
     }
 
     function newId() { return "d" + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36) }
@@ -194,6 +196,7 @@ Item {
     }
 
     onPageIndexChanged: reload()
+    onProfileNightChanged: reload()
     Connections {
         target: root.pages
         function onDecorRevisionChanged() { root.reload() }

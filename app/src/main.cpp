@@ -347,7 +347,7 @@ static int runApplication(int argc, char *argv[]) {
 
     // 同梱フォントの読み込みと既定フォントの設定は、QML を読み込む前に済ませる
     opencruise::AppSettings appSettings;
-    opencruise::ThemeSettings themeSettings;   // テーマ(シンプル / クラシック)と背景(模様・画像)
+    opencruise::ThemeSettings themeSettings;   // 昼夜別テーマ・アクセント色・背景(模様・画像)
     opencruise::ReverseCamera reverseCamera;   // バックカメラ(バック信号での切り替え・UVC カメラ)
     {
         const QString family = appSettings.fontFamily();

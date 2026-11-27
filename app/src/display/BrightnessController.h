@@ -2,8 +2,8 @@
  * @file BrightnessController.h
  * @brief 画面の明るさ(輝度)の設定と、実際の画面への反映。
  *
- * QML へは context property `brightnessController` として公開する。設定は他の設定と同じ
- * QSettings(IniFormat, UserScope, "OpenCruise"/"OpenCruise")の display/brightness に保存する。
+ * QML へは context property `brightnessController` として公開する。昼・夜の値は display/dayBrightness と
+ * display/nightBrightness に保存し、brightness は現在表示中の側の値を表す。
  *
  * 明るさは 10..100(%)。0 にしないのは、運転中に画面が真っ暗になって操作できなくなるのを防ぐため。
  *
@@ -31,6 +31,9 @@ class BrightnessController : public QObject {
     Q_OBJECT
     /** 明るさ(minimum..100 %) */
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
+    Q_PROPERTY(int dayBrightness READ dayBrightness WRITE setDayBrightness NOTIFY brightnessChanged)
+    Q_PROPERTY(int nightBrightness READ nightBrightness WRITE setNightBrightness NOTIFY brightnessChanged)
+    Q_PROPERTY(bool nightMode READ nightMode WRITE setNightMode NOTIFY brightnessChanged)
     /** 設定できる最小の明るさ(%) */
     Q_PROPERTY(int minimum READ minimum CONSTANT)
     /** バックライトを直接制御しているか(false のときは画面を暗幕で暗くしている) */
@@ -47,9 +50,15 @@ public:
     explicit BrightnessController(QObject *parent = nullptr);
 
     int brightness() const { return brightness_; }
+    int dayBrightness() const { return dayBrightness_; }
+    int nightBrightness() const { return nightBrightness_; }
+    bool nightMode() const { return nightMode_; }
     int minimum() const { return kMinimum; }
     /** @brief 明るさを minimum..100 に丸めて変更し、保存して画面へ反映する。 */
     void setBrightness(int percent);
+    void setDayBrightness(int percent);
+    void setNightBrightness(int percent);
+    void setNightMode(bool night);
     /** @brief 明るさを delta(%)だけ増減する。ショートカット用。 */
     Q_INVOKABLE void adjustBrightness(int delta);
 
@@ -71,8 +80,12 @@ private:
     int readBacklightPercent() const;
     /** @brief ハードウェア制御をやめ、暗幕へ切り替える。 */
     void fallBackToSoftware(const QString &reason);
+    void setProfileBrightness(bool night, int percent);
 
     int brightness_ = kMaximum;
+    int dayBrightness_ = kMaximum;
+    int nightBrightness_ = kMaximum;
+    bool nightMode_ = false;
     QString backlightPath_; ///< 制御に使う brightness ファイルのパス。空ならソフトウェア方式
     QString backlightName_; ///< 表示用の機器名
     int backlightMax_ = 0;

@@ -9,15 +9,27 @@ SettingsPage {
         icon: "brightness_medium"
 
         SettingsRow {
-            label: "画面の明るさ"
-            description: "Ctrl+Shift+K で暗く、L で明るくできます"
+            label: "昼の明るさ"
+            description: brightnessController.nightMode ? "昼表示に切り替えたときの明るさです。現在の表示にかかわらず調整できます" : "現在の昼表示にすぐ反映します。Ctrl+Shift+K で暗く、L で明るくできます"
 
             SettingsSlider {
                 from: brightnessController.minimum
                 iconName: "brightness_high"
                 iconMinName: "brightness_low"
-                value: brightnessController.brightness
-                onMoved: (v) => brightnessController.brightness = v
+                value: brightnessController.dayBrightness
+                onMoved: (v) => brightnessController.dayBrightness = v
+            }
+        }
+
+        SettingsRow {
+            label: "夜の明るさ"
+            description: !brightnessController.nightMode ? "夜表示に切り替えたときの明るさです。現在の表示にかかわらず調整できます" : "現在の夜表示にすぐ反映します。Ctrl+Shift+K で暗く、L で明るくできます"
+            SettingsSlider {
+                from: brightnessController.minimum
+                iconName: "brightness_high"
+                iconMinName: "brightness_low"
+                value: brightnessController.nightBrightness
+                onMoved: (v) => brightnessController.nightBrightness = v
             }
         }
 

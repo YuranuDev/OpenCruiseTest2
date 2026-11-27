@@ -42,6 +42,7 @@ Item {
     }
     function setDecorEditing(on) {
         decorEditing = on
+        if (on) widgetPages.decorationNight = Theme.night
         decorStore.selectedId = ""
         if (on) settingsDialog.close()
         else decorPicker.close()
@@ -52,6 +53,7 @@ Item {
     DecorationStore {
         id: decorStore
         pages: widgetPages
+        editing: root.decorEditing
         areaW: root.width
         areaH: root.height
     }

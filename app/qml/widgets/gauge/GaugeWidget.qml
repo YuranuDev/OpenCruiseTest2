@@ -1107,7 +1107,7 @@ WidgetBase {
                     height: Math.ceil(tip + tail + 2 * pad)
                     renderStrategy: Canvas.Cooperative
                     readonly property string key: [width, height, tip, tail, base, tailHalf, needleFill, tailFill,
-                                                   needleEdge, tailEdge, edgeColor, tailEdgeColor, root.warning].join("|")
+                                                   needleEdge, tailEdge, edgeColor, tailEdgeColor, root.warning, Theme.night].join("|")
                     onKeyChanged: if (visible) root.paintCanvas(needleShape)
                     onVisibleChanged: if (visible) root.paintCanvas(needleShape)
 
@@ -1135,8 +1135,19 @@ WidgetBase {
                         }
                         ctx.lineTo(c - baseHalf, tip)
                         ctx.closePath()
+                        // ぼかしや shadowBlur は使わず、針の輪郭を広めの半透明線で 1 回描く。
+                        // 形は値の更新中も回転するだけなので、再描画コストを増やさない。
+                        const glowAlpha = Theme.night ? 0.18 : 0.1
+                        ctx.lineJoin = "round"
+                        ctx.lineWidth = Math.max(2, base * 0.72)
+                        ctx.strokeStyle = Qt.rgba(needleFill.r, needleFill.g, needleFill.b, glowAlpha)
+                        ctx.stroke()
                         ctx.fill()
-                        if (needleEdge) ctx.stroke()
+                        if (needleEdge) {
+                            ctx.lineWidth = edgeW
+                            ctx.strokeStyle = edgeColor
+                            ctx.stroke()
+                        }
                         if (tail > 0 && !sameColor) {
                             ctx.fillStyle = tailFill
                             ctx.beginPath()
@@ -1153,6 +1164,23 @@ WidgetBase {
                         }
                     }
                 }
+            }
+
+            // ---- 針の中心の控えめな照り返し(ぼかしを使わない単色リング) ----
+            Rectangle {
+                z: 3.5
+                visible: !root.needleless
+                readonly property real halo: Math.max(3, dial.rpx * 0.075)
+                x: dial.cx - width / 2
+                y: dial.cy - height / 2
+                width: dial.rpx * root.hubSize + halo * 2
+                height: width
+                radius: width / 2
+                color: Qt.rgba(needleShape.needleFill.r, needleShape.needleFill.g, needleShape.needleFill.b,
+                               Theme.night ? 0.12 : 0.07)
+                border.width: Math.max(1, halo * 0.22)
+                border.color: Qt.rgba(needleShape.needleFill.r, needleShape.needleFill.g, needleShape.needleFill.b,
+                                      Theme.night ? 0.2 : 0.12)
             }
 
             // ---- 名前(中心円の上、内側の細い円の内側。針はこの上を通る = z で針より奥に置く) ----

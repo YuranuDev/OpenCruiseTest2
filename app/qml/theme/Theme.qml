@@ -29,16 +29,22 @@ QtObject {
 
     // アクセント色のプリセット（設定画面のパレットの選択肢）。保存するのは番号なので、先頭の 6 色の順番は変えない
     // (後ろへ足すだけ)。accentNames は同じ順の名前
-    readonly property var accentPresets: classic
-        ? ["#ff9a2e", "#ff5244", "#4fa8ff", "#78d35c", "#e9e2cf", "#35cfd6",
-           "#f5cf47", "#b7dc4a", "#b48cff", "#ff7fa8", "#3fcf9b", "#f4f4f4"]
-        : ["#4da3ff", "#3ddc84", "#ffa040", "#ff6fa5", "#a78bfa", "#2dd4d4",
-           "#ff5a5f", "#ffd23f", "#a3e635", "#6c7bff", "#ff8a65", "#d5dae3"]
-    readonly property var accentNames: classic
-        ? ["アンバー", "レッド", "ブルー", "グリーン", "アイボリー", "シアン",
-           "イエロー", "ライム", "パープル", "ピンク", "ミント", "ホワイト"]
-        : ["ブルー", "グリーン", "オレンジ", "ピンク", "パープル", "ティール",
-           "レッド", "イエロー", "ライム", "インディゴ", "コーラル", "シルバー"]
+    function accentPresetsFor(styleName) {
+        return styleName === "classic"
+            ? ["#ff9a2e", "#ff5244", "#4fa8ff", "#78d35c", "#e9e2cf", "#35cfd6",
+               "#f5cf47", "#b7dc4a", "#b48cff", "#ff7fa8", "#3fcf9b", "#f4f4f4"]
+            : ["#4da3ff", "#3ddc84", "#ffa040", "#ff6fa5", "#a78bfa", "#2dd4d4",
+               "#ff5a5f", "#ffd23f", "#a3e635", "#6c7bff", "#ff8a65", "#d5dae3"]
+    }
+    function accentNamesFor(styleName) {
+        return styleName === "classic"
+            ? ["アンバー", "レッド", "ブルー", "グリーン", "アイボリー", "シアン",
+               "イエロー", "ライム", "パープル", "ピンク", "ミント", "ホワイト"]
+            : ["ブルー", "グリーン", "オレンジ", "ピンク", "パープル", "ティール",
+               "レッド", "イエロー", "ライム", "インディゴ", "コーラル", "シルバー"]
+    }
+    readonly property var accentPresets: accentPresetsFor(style)
+    readonly property var accentNames: accentNamesFor(style)
 
     // 昼夜の補間係数(0 = 昼 / 1 = 夜)
     readonly property real nightLevel: night ? 1 : 0

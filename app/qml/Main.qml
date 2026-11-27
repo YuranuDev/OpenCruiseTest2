@@ -11,9 +11,10 @@ ApplicationWindow {
     // アプリのテーマ(昼夜・アクセント色)を Theme へ反映する。Theme 側で補間アニメーションされる
     // (切り替えは themeSnap が受け持つ: 切り替え前の画面を画像にして重ね、テーマを一度で変えてから画像を薄くする)
     readonly property bool wantNight: androidAuto.nightActive
-    readonly property int wantAccent: androidAuto.accentIndex
-    readonly property string wantAccentCustom: androidAuto.accentCustom
-    readonly property string wantStyle: themeSettings.style   // テーマ(シンプル / クラシック)
+    readonly property int wantAccent: wantNight ? themeSettings.nightProfile.accentIndex : themeSettings.dayProfile.accentIndex
+    readonly property string wantAccentCustom: wantNight ? themeSettings.nightProfile.accentCustom : themeSettings.dayProfile.accentCustom
+    readonly property string wantStyle: wantNight ? themeSettings.nightProfile.style : themeSettings.dayProfile.style
+    property bool themeReady: false
     onWantNightChanged: themeSnap.request()
     onWantAccentChanged: themeSnap.request()
     onWantAccentCustomChanged: themeSnap.request()
@@ -25,6 +26,9 @@ ApplicationWindow {
     // 数値用のフォント(空なら文章と同じ)と、数値の斜体
     Binding { target: Theme; property: "numberFontFamily"; value: appSettings.numberFontFamily !== "" ? appSettings.numberFontFamily : Theme.fontFamily }
     Binding { target: Theme; property: "numberItalic"; value: appSettings.numberItalic }
+    // 表示中テーマの設定プロファイルをそろえる。Theme の昼夜は themeSnap の切替完了後に変わるため、背景や明るさも同時に切り替わる
+    Binding { target: themeSettings; property: "nightMode"; value: Theme.night }
+    Binding { target: brightnessController; property: "nightMode"; value: Theme.night; when: window.themeReady }
 
     // 映像表示中かつ「接続後フルスクリーン」設定が有効で、メイン画面を見ているとき
     readonly property bool immersive: androidAuto.fullscreenOnStream && androidAuto.stateKey === "streaming"
@@ -48,6 +52,7 @@ ApplicationWindow {
     // 何も表示されない。eglfs では操作する画面(DrmDisplay が起動前に決める)に任せ、画面は動かさない
     Component.onCompleted: {
         themeSnap.apply()   // 起動時はそのまま反映する
+        themeReady = true   // 初回テーマを適用してから昼夜別輝度を選ぶ(起動時の一瞬の誤切替を防ぐ)
         if (!displaySettings.isEglfs)
             window.screen = Qt.binding(() => window.findScreen(displaySettings.targetScreenName))
         if (!splashExport) systemSound.play("start")   // 起動画面の書き出し(--export-splash)では鳴らさない

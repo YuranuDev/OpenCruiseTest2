@@ -2,10 +2,11 @@
  * @file ThemeSettings.h
  * @brief アプリ全体の見た目(テーマ)と背景の設定。QML へは context property `themeSettings` として公開する。
  *
- *  - style: テーマ。"simple"(シンプル。これまでの見た目)/ "classic"(クラシック。2000 年代ごろの車の内装に合う、
- *           ガンメタの面・控えめな立体感・アンバーの照明色)。色や形は Theme.qml が style に合わせて変える
- *  - background: 背景。"auto"(テーマに合わせる: シンプルは無地、クラシックはカーボン)/ "none"(無地)/
- *           模様 "carbon"(カーボン)・"brushed"(ヘアライン)・"dots"(パンチング)・"stripes"(ストライプ)/ "image"(画像)
+ *  - dayProfile / nightProfile: 昼夜ごとのテーマ(style / accent)と背景(background / image / fit / opacity)。
+ *    古い共通設定は、新しいプロファイルが無い間は昼夜双方の初期値として読む。
+ *  - style: 現在表示中のプロファイルのテーマ。"simple"(これまでの見た目)/ "classic"(ガンメタの面・控えめな立体感・
+ *           アンバーの照明色)。色や形は Theme.qml が style に合わせて変える
+ *  - background: 現在表示中のプロファイルの背景。"auto"(テーマに合わせる)/ "none"(無地)/ 模様・画像
  *  - 画像: backgroundFolder(~/.local/share/OpenCruise/backgrounds)に PNG / JPEG を置くと、選択肢(backgroundImages)に出る。
  *          表示のしかた(backgroundFit)は 0 = 並べる / 1 = 画面を埋める(はみ出しは切る)/ 2 = 引き伸ばす
  *  - backgroundOpacity: 模様・画像の濃さ(0〜100 %)。濃いと文字が読みにくくなるので、既定は控えめ
@@ -18,19 +19,28 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QVariant>
+#include <QVariantMap>
 
 namespace opencruise {
 
 class ThemeSettings : public QObject {
     Q_OBJECT
+    /** 現在表示中(Theme.night に追従)の昼夜テーマ。 */
+    Q_PROPERTY(bool nightMode READ nightMode WRITE setNightMode NOTIFY changed)
     Q_PROPERTY(QString style READ style WRITE setStyle NOTIFY changed)
+    Q_PROPERTY(int accentIndex READ accentIndex WRITE setAccentIndex NOTIFY changed)
+    Q_PROPERTY(QString accentCustom READ accentCustom WRITE setAccentCustom NOTIFY changed)
     Q_PROPERTY(QString background READ background WRITE setBackground NOTIFY changed)
     Q_PROPERTY(QString backgroundImage READ backgroundImage WRITE setBackgroundImage NOTIFY changed)
     /// 選んだ画像のファイルの URL(画像を使わない・見つからないときは空)
     Q_PROPERTY(QString backgroundImageUrl READ backgroundImageUrl NOTIFY changed)
     Q_PROPERTY(int backgroundFit READ backgroundFit WRITE setBackgroundFit NOTIFY changed)
     Q_PROPERTY(int backgroundOpacity READ backgroundOpacity WRITE setBackgroundOpacity NOTIFY changed)
+    /** 設定画面から昼夜どちらも編集できるプロファイル。 */
+    Q_PROPERTY(QVariantMap dayProfile READ dayProfile WRITE setDayProfile NOTIFY changed)
+    Q_PROPERTY(QVariantMap nightProfile READ nightProfile WRITE setNightProfile NOTIFY changed)
     Q_PROPERTY(QStringList backgroundImages READ backgroundImages NOTIFY imagesChanged)
     Q_PROPERTY(QString backgroundFolder READ backgroundFolder CONSTANT)
     Q_PROPERTY(QStringList decorationImages READ decorationImages NOTIFY decorationImagesChanged)
@@ -39,17 +49,27 @@ class ThemeSettings : public QObject {
 public:
     explicit ThemeSettings(QObject *parent = nullptr);
 
-    QString style() const { return style_; }
+    bool nightMode() const { return nightMode_; }
+    void setNightMode(bool night);
+    QString style() const;
     void setStyle(const QString &style);
-    QString background() const { return background_; }
+    int accentIndex() const;
+    void setAccentIndex(int index);
+    QString accentCustom() const;
+    void setAccentCustom(const QString &color);
+    QString background() const;
     void setBackground(const QString &background);
-    QString backgroundImage() const { return backgroundImage_; }
+    QString backgroundImage() const;
     void setBackgroundImage(const QString &fileName);
     QString backgroundImageUrl() const;
-    int backgroundFit() const { return backgroundFit_; }
+    int backgroundFit() const;
     void setBackgroundFit(int fit);
-    int backgroundOpacity() const { return backgroundOpacity_; }
+    int backgroundOpacity() const;
     void setBackgroundOpacity(int percent);
+    QVariantMap dayProfile() const;
+    void setDayProfile(const QVariantMap &profile);
+    QVariantMap nightProfile() const;
+    void setNightProfile(const QVariantMap &profile);
     QStringList backgroundImages() const { return images_; }
     QString backgroundFolder() const;
     QStringList decorationImages() const { return decorations_; }
@@ -68,13 +88,19 @@ signals:
     void decorationImagesChanged();
 
 private:
-    void save(const QString &key, const QVariant &value);
+    QVariantMap readProfile(bool night) const;
+    QVariantMap readStoredProfile(bool night) const;
+    void writeProfile(bool night, const QVariantMap &profile);
+    void setActiveValue(const QString &key, const QVariant &value);
+    void savePendingAccentCustom();
 
-    QString style_ = QStringLiteral("simple");
-    QString background_ = QStringLiteral("auto");
-    QString backgroundImage_;
-    int backgroundFit_ = 1;
-    int backgroundOpacity_ = 60;
+    bool nightMode_ = true;
+    bool profilesLoaded_ = false;
+    QVariantMap dayProfile_;
+    QVariantMap nightProfile_;
+    bool dayAccentPending_ = false;
+    bool nightAccentPending_ = false;
+    QTimer accentSaveTimer_;
     QStringList images_;
     QStringList decorations_;
 };
