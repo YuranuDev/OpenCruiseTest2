@@ -9,6 +9,7 @@ Item {
     property Item pages: null
     property string panelMode: "widgets"     // widgets / decor / theme / wallpaper
     property bool editNight: Theme.night      // テーマ・壁紙・飾りの編集先兼プレビュー。編集終了で実際のライト状態に戻る
+    property bool expanded: true              // 上のグリッドを見たいときは折りたたみ、左上のボタンから戻せる
     signal panelModeRequested(string mode)
     signal addRequested()
     signal settingsRequested(var entries)
@@ -91,11 +92,12 @@ Item {
         property bool showText: true
         property string tone: "normal"       // normal / accent / danger / dangerSolid
         property bool buttonEnabled: true
+        property real buttonHeight: root.actionHeight
         signal clicked()
         readonly property bool solid: tone === "accent" || tone === "dangerSolid"
         readonly property color toneColor: tone === "danger" || tone === "dangerSolid" ? Theme.error : Theme.accent
         readonly property color onSolid: tone === "dangerSolid" ? "#ffffff" : Theme.textOnAccent
-        height: root.actionHeight
+        height: b.buttonHeight
         width: Math.max(height, buttonRow.implicitWidth + 24 * root.unit)
         radius: height / 2
         opacity: buttonEnabled ? 1 : 0.4
@@ -135,6 +137,7 @@ Item {
     }
 
     Rectangle {
+        visible: root.expanded
         anchors.fill: parent
         anchors.margins: -4 * root.unit
         radius: 24 * root.unit
@@ -149,10 +152,12 @@ Item {
         id: headerRow
         anchors { top: parent.top; left: parent.left; right: parent.right; topMargin: 4 * root.unit
                   leftMargin: 10 * root.unit; rightMargin: 10 * root.unit }
-        height: root.actionHeight
+        height: root.expanded ? root.actionHeight
+                              : Math.max(30, Math.min(root.actionHeight, root.height - 8 * root.unit))
 
         Row {
             id: sectionLabel
+            visible: root.expanded
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             spacing: 7 * root.unit
             MaterialIcon {
@@ -174,16 +179,38 @@ Item {
         BarButton {
             id: doneButton
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            visible: root.expanded
             tone: "accent"
             icon: "check"
             text: "完了"
             onClicked: root.doneRequested()
         }
 
+        BarButton {
+            id: collapseButton
+            anchors { right: doneButton.left; rightMargin: 8 * root.unit; verticalCenter: parent.verticalCenter }
+            visible: root.expanded
+            icon: "expand_less"
+            text: "折りたたむ"
+            onClicked: root.expanded = false
+        }
+
+        BarButton {
+            id: revealButton
+            anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+            visible: !root.expanded
+            buttonHeight: Math.max(30, headerRow.height - 4 * root.unit)
+            tone: "accent"
+            icon: "expand_more"
+            text: "編集バーを表示"
+            onClicked: root.expanded = true
+        }
+
         Flickable {
             id: modeViewport
-            anchors { left: sectionLabel.right; right: doneButton.left; verticalCenter: parent.verticalCenter
+            anchors { left: sectionLabel.right; right: collapseButton.left; verticalCenter: parent.verticalCenter
                       leftMargin: 10 * root.unit; rightMargin: 10 * root.unit }
+            visible: root.expanded
             height: parent.height
             clip: true
             contentWidth: modeRow.implicitWidth
@@ -216,6 +243,7 @@ Item {
                   leftMargin: 10 * root.unit; rightMargin: 10 * root.unit
                   topMargin: 4 * root.unit; bottomMargin: 5 * root.unit }
         clip: true
+        visible: root.expanded
         contentWidth: controlsRow.implicitWidth
         contentHeight: height
         flickableDirection: Flickable.HorizontalFlick
@@ -350,6 +378,13 @@ Item {
                     tone: "accent"
                     onClicked: root.toggleEditNight()
                 }
+                BarButton {
+                    buttonEnabled: root.pages !== null
+                    icon: root.pages && root.pages.decorationsSame ? "mdi:link-variant" : "mdi:link-variant-off"
+                    text: root.pages && root.pages.decorationsSame ? "昼夜同じ" : "昼夜別"
+                    tone: root.pages && root.pages.decorationsSame ? "accent" : "normal"
+                    onClicked: if (root.pages) root.pages.setDecorationsSame(!root.pages.decorationsSame)
+                }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
@@ -481,7 +516,7 @@ Item {
 
     Rectangle {
         id: scrollTrack
-        visible: controlsViewport.contentWidth > controlsViewport.width
+        visible: root.expanded && controlsViewport.contentWidth > controlsViewport.width
         x: controlsViewport.x
         y: controlsViewport.y + controlsViewport.height - height
         width: controlsViewport.width

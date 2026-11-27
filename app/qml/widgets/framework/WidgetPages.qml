@@ -3,7 +3,8 @@
 //    そのページのタブが赤くなる)。隠れているページは描画しない
 //  - 切り替え: ページのタブ(PageBar)をタップ、またはウィジェットの無い所を左右にスワイプ
 //  - 保存: widgetStore.layoutJson に { version: 2, current, pages: [{ id, name, widgets: [...], decor: [...] }] }。
-//    decorDay / decorNight は昼夜別の飾り画像。古い decor 配列は両方へ引き継ぐ
+//    decorDay / decorNight は昼夜別の飾り画像。decorationsSame が true なら全ページで共有する。
+//    古い decor 配列は両方へ引き継ぐ
 //    以前の形式(version 1 = 1 ページ分の widgets)は、1 ページ目として読み込む
 //    未保存のときは「ページ 1(初期配置)+ ページ 2(空)」で始める
 //  - 外からは currentArea(追加パネル・設定ダイアログの対象)と、addPage / removePage / renamePage / movePage /
@@ -26,6 +27,8 @@ Item {
     property int decorRevision: 0
     // 表示中の昼夜に追従し、画像編集バーから編集対象を切り替えられる
     property bool decorationNight: Theme.night
+    // true の間は全ページで昼夜の飾りを共有する
+    property bool decorationsSame: false
     readonly property Item currentArea: rep.count > current ? rep.itemAt(current) : null
     // 編集モード(全ページ共通)。選択はページごとに持つが、ページを移っても外さない(ページをまたいで選べる)
     property bool editMode: false
@@ -102,22 +105,24 @@ Item {
             const pg = pageModel.get(i)
             const w = store[pg.pid]
             const d = decorStore[pg.pid] || ({})
+            const day = Array.isArray(d.day) ? d.day : []
+            const night = decorationsSame ? day : (Array.isArray(d.night) ? d.night : [])
             pages.push({ id: pg.pid, name: pg.name, widgets: Array.isArray(w) ? w : null,
-                         decor: Array.isArray(d.day) ? d.day : [],
-                         decorDay: Array.isArray(d.day) ? d.day : [],
-                         decorNight: Array.isArray(d.night) ? d.night : [] })
+                         decor: day, decorDay: day, decorNight: night })
         }
-        widgetStore.layoutJson = JSON.stringify({ version: 2, current: current, pages: pages })
+        widgetStore.layoutJson = JSON.stringify({ version: 2, current: current, decorationsSame: decorationsSame, pages: pages })
     }
 
     function load() {
         let pages = null
         let cur = 0
+        let sameDecorations = false
         try {
             const o = JSON.parse(widgetStore.layoutJson)
             if (o && o.version === 2 && Array.isArray(o.pages) && o.pages.length > 0) {
                 pages = o.pages
                 cur = o.current || 0
+                sameDecorations = o.decorationsSame === true
             } else if (o && o.version === 1 && Array.isArray(o.widgets)) {
                 pages = [{ name: "ページ 1", widgets: o.widgets }]   // 以前の形式(1 ページだけ)
             }
@@ -140,11 +145,13 @@ Item {
                 day: Array.isArray(p.decorDay) ? p.decorDay : legacyDecor,
                 night: Array.isArray(p.decorNight) ? p.decorNight : legacyDecor
             }
+            if (sameDecorations) dst[pid].night = dst[pid].day
             entries.push({ pid: pid, name: String(p.name || ("ページ " + (i + 1))) })
         }
         pageModel.clear()
         store = st
         decorStore = dst
+        decorationsSame = sameDecorations
         current = Math.max(0, Math.min(entries.length - 1, cur))
         for (let i = 0; i < entries.length; ++i) pageModel.append(entries[i])
         refreshNames()
@@ -156,6 +163,7 @@ Item {
         if (index < 0 || index >= pageModel.count) return []
         const d = decorStore[pageModel.get(index).pid]
         if (Array.isArray(d)) return d   // 旧データを読み込んだ直後の互換用
+        if (decorationsSame) return d && Array.isArray(d.day) ? d.day : []
         const useNight = night === undefined ? decorationNight : night
         return d && Array.isArray(d[useNight ? "night" : "day"]) ? d[useNight ? "night" : "day"] : []
     }
@@ -164,9 +172,35 @@ Item {
         const pid = pageModel.get(index).pid
         const previous = decorStore[pid]
         const d = Array.isArray(previous) ? { day: previous, night: previous } : Object.assign({ day: [], night: [] }, previous || {})
-        d[night === true ? "night" : night === false ? "day" : (decorationNight ? "night" : "day")] = list
+        if (decorationsSame) {
+            d.day = list
+            d.night = list
+        } else {
+            d[night === true ? "night" : night === false ? "day" : (decorationNight ? "night" : "day")] = list
+        }
         decorStore[pid] = d
         persist()
+    }
+    function setDecorationsSame(same) {
+        same = same === true
+        if (same === decorationsSame) return
+        if (same) {
+            // 今バーで選んでいる昼夜を各ページの共通データとして両方へ複製する。
+            const sourceKey = decorationNight ? "night" : "day"
+            const next = Object.assign({}, decorStore)
+            for (let i = 0; i < pageModel.count; ++i) {
+                const pid = pageModel.get(i).pid
+                const previous = next[pid]
+                const d = Array.isArray(previous) ? { day: previous, night: previous } : (previous || {})
+                const source = Array.isArray(d[sourceKey]) ? d[sourceKey] : []
+                const shared = source.map(item => Object.assign({}, item))
+                next[pid] = { day: shared, night: shared }
+            }
+            decorStore = next
+        }
+        decorationsSame = same
+        persist()
+        decorRevision++
     }
 
     // index 番目のページの WidgetArea(設定ダイアログの「一緒に変える」が、全ページのウィジェットを探すのに使う)
@@ -245,10 +279,16 @@ Item {
         // 飾りの画像はウィジェットの配置とは別なので、1 ページ目に置いていたものは残す
         const keepDecorDay = pageDecor(0, false)
         const keepDecorNight = pageDecor(0, true)
+        const keepDecorationsSame = decorationsSame
         widgetStore.layoutJson = ""
         load()
-        if (keepDecorDay.length > 0 || keepDecorNight.length > 0) {
-            decorStore[pageModel.get(0).pid] = { day: keepDecorDay, night: keepDecorNight }
+        if (keepDecorationsSame || keepDecorDay.length > 0 || keepDecorNight.length > 0) {
+            const shared = decorationNight ? keepDecorNight : keepDecorDay
+            decorStore[pageModel.get(0).pid] = {
+                day: keepDecorationsSame ? shared : keepDecorDay,
+                night: keepDecorationsSame ? shared : keepDecorNight
+            }
+            decorationsSame = keepDecorationsSame
             persist()
             decorRevision++
         }

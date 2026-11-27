@@ -38,7 +38,10 @@ Item {
     function setEditing(on) {
         editingOn = on
         editPanel = "widgets"
-        if (on) editBar.editNight = androidAuto.nightActive
+        if (on) {
+            editBar.editNight = androidAuto.nightActive
+            editBar.expanded = true
+        }
         if (!on) {
             settingsDialog.close()
             decorPicker.close()
@@ -145,7 +148,7 @@ Item {
             top: parent.top; left: parent.left; right: parent.right
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
-        // ヘッダーの高さは通常時のまま。編集バーだけを上へ重ね、配置グリッドの高さを変えない。
+        // ヘッダーの高さは通常時のまま。編集バーは別の高さで上に重ねる。
         height: 52
         // 画像を置き直している間は、編集用のバーのボタンを画像の操作の層より上にする(ボタン以外はタッチを下へ通す)
         z: root.editing ? 17 : 0
@@ -154,7 +157,8 @@ Item {
         WidgetEditBar {
             id: editBar
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: Math.max(128, Math.round(136 * root.unit))
+            height: root.editing && editBar.expanded ? Math.max(128, Math.round(136 * root.unit)) : 52
+            Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
             z: 2
             opacity: root.editing ? 1 : 0
             visible: opacity > 0

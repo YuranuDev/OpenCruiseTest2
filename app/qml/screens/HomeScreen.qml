@@ -36,7 +36,10 @@ Rectangle {
     property string aaEditPanel: "widgets"
     readonly property bool themePreviewActive: root.showAa ? root.aaEditing : launcher.themePreviewActive
     readonly property bool themePreviewNight: root.showAa ? aaEditBar.editNight : launcher.themePreviewNight
-    onAaEditingChanged: if (aaEditing) aaEditBar.editNight = androidAuto.nightActive
+    onAaEditingChanged: if (aaEditing) {
+        aaEditBar.editNight = androidAuto.nightActive
+        aaEditBar.expanded = true
+    }
     function openThemeEditor() {
         root.menuOpen = false
         root.goHome()
@@ -105,7 +108,7 @@ Rectangle {
             top: parent.top; left: parent.left; right: parent.right
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
-        // 編集バーは本体に重ね、ウィジェット配置エリアの開始位置を通常時から動かさない。
+        // ヘッダー高は固定し、編集バー自身をその下へ重ねる。
         height: 52
         z: root.aaEditing ? 17 : 0
         opacity: root.aaFade
@@ -115,7 +118,8 @@ Rectangle {
         WidgetEditBar {
             id: aaEditBar
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: Math.max(128, Math.round(136 * Theme.uiScale))
+            height: root.aaEditing && aaEditBar.expanded ? Math.max(128, Math.round(136 * Theme.uiScale)) : 52
+            Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
             z: 2
             opacity: root.aaEditing ? 1 : 0
             visible: opacity > 0
