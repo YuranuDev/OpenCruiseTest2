@@ -131,6 +131,20 @@ SettingsPage {
         }
 
         SettingsRow {
+            label: "モックのヘッドライト"
+            description: "昼夜テーマと Android Auto の昼夜表示を切り替えます。ライト ON で夜、OFF で昼になります(時刻では切り替わりません)"
+            SettingsSwitch {
+                checked: can.mockHeadlightsOn
+                onToggled: (value) => can.mockHeadlightsOn = value
+            }
+        }
+
+        SettingsInfoRow {
+            label: "連動中の表示"
+            value: can.mockHeadlightsOn ? "夜テーマ ・ Android Auto 夜" : "昼テーマ ・ Android Auto 昼"
+        }
+
+        SettingsRow {
             label: "Android Auto へ送信"
 
             SettingsSwitch {

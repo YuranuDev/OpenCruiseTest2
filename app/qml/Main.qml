@@ -86,6 +86,23 @@ ApplicationWindow {
         if (stack.currentItem) stack.currentItem.menuOpen = !stack.currentItem.menuOpen
     }
 
+    // 設定のテーマ・背景ページから、ホームの編集モードへ移る。
+    function openThemeEditor() {
+        if (stack.depth > 1) {
+            stack.pop()
+            Qt.callLater(() => window.openThemeEditor())
+            return
+        }
+        if (stack.depth === 1 && stack.currentItem && stack.currentItem.openThemeEditor) {
+            stack.currentItem.openThemeEditor()
+            return
+        }
+        // --settings 起動ではホーム画面を作っていないため、設定を閉じてから作成する。
+        if (stack.depth > 0) stack.clear(StackView.Immediate)
+        homeLoader.openThemeEditorOnReady = true
+        if (!homeLoader.waiting) homeLoader.create()
+    }
+
     // 起動画面中の Esc はスキップ。メニューが開いていれば閉じ、フルスクリーン中はメニューを開閉し、ホームでは終了確認を出す。
     Shortcut {
         sequence: "Esc"
@@ -118,7 +135,7 @@ ApplicationWindow {
     }
 
     // ---- 音量・明るさのショートカット ----
-    // 既存のキー(Esc / F10 / Menu / Meta・Super / Ctrl+Shift+D)や、OS・ブラウザが奪いやすい
+    // 既存のキー(Esc / F10 / Menu / Meta・Super)や、OS・ブラウザが奪いやすい
     // メディアキー(Volume Up など。OS 側の音量とも二重になる)・Alt 系・Ctrl+Alt+矢印は使わない。
     // すべて Ctrl+Shift+文字。将来の物理ボタンも、同じキーイベントを送れば同じ動作になる。
     // どちらも「キーボードで左のキー = 下げる、右のキー = 上げる」にそろえる(隣り合う 2 つのキー)。
@@ -294,11 +311,6 @@ ApplicationWindow {
                     window.toggleMenu()
                     event.accepted = true
                 }
-                // 昼夜モード切り替え（Ctrl+Shift+D）
-                if (!event.isAutoRepeat && event.key === Qt.Key_D && event.modifiers & Qt.ControlModifier && event.modifiers & Qt.ShiftModifier) {
-                    androidAuto.themeMode = androidAuto.nightActive ? 0 : 1
-                    event.accepted = true
-                }
             }
         }
 
@@ -470,6 +482,7 @@ ApplicationWindow {
             property var incubator: null
             property bool ready: false     // メイン画面ができた(できるまで起動画面を消さない)
             property real startedAt: 0
+            property bool openThemeEditorOnReady: false
             function create() {
                 startedAt = Date.now()
                 boot.report("home", 1, "作成中", "creating")                         // 1 = Running
@@ -481,6 +494,10 @@ ApplicationWindow {
                         stallWatch.mark = "main screen added"
                         stallWatch.pushedAt = Date.now()
                         stack.push(inc.object, {}, StackView.Immediate)
+                        if (homeLoader.openThemeEditorOnReady) {
+                            homeLoader.openThemeEditorOnReady = false
+                            inc.object.openThemeEditor()
+                        }
                         homeLoader.ready = true
                         const ms = Date.now() - startedAt
                         boot.report("home", 2, ms + " ms")                // 2 = Ready
@@ -792,6 +809,7 @@ ApplicationWindow {
         id: settingsComponent
         SettingsScreen {
             onBack: stack.pop()
+            onOpenThemeEditorRequested: window.openThemeEditor()
         }
     }
 

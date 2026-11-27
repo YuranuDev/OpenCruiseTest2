@@ -28,6 +28,7 @@ Rectangle {
     id: root
     color: "transparent"   // 背景は Main.qml の ThemeBackground(テーマの背景色・模様・画像)
     signal back()
+    signal openThemeEditorRequested()
 
     readonly property real unit: Theme.uiScale
     // 選択中のジャンル(categories の番号)
@@ -49,7 +50,7 @@ Rectangle {
     // ---- ジャンル一覧(表示順。同じ分類はまとめて並べる)。ここに足すだけで左の一覧と右のページへ反映される ----
     property list<SettingsCategory> categories: [
         SettingsCategory { group: "display"; icon: "monitor";       title: "画面";           description: "昼夜別の明るさ・回転・端のボタン・外部モニター"; page: SettingsPageDisplay {} },
-        SettingsCategory { group: "display"; icon: "palette";       title: "テーマ・背景";   description: "昼夜別テーマ・アクセント色・背景・飾り";       page: SettingsPageTheme {} },
+        SettingsCategory { group: "display"; icon: "palette";       title: "テーマ・背景";   description: "編集モードのテーマ設定を開く";               page: SettingsPageTheme {} },
         SettingsCategory { group: "display"; icon: "usb";          title: "USB メモリと画像";    description: "USB メモリから背景・飾りの画像を取り込む";     page: SettingsPageUsb {} },
         SettingsCategory { group: "display"; icon: "person";        title: "ユーザー・文字"; description: "ユーザー名・フォント";                   page: SettingsPageGeneral {} },
         SettingsCategory { group: "sound";   icon: "volume_up";     title: "音量・出力先";   description: "マスター音量・各音量・出力先";           page: SettingsPageAudio {} },
@@ -271,6 +272,11 @@ Rectangle {
             // ジャンルを切り替えたとき、中身がぱっと変わらないよう軽くフェードインする
             onLoaded: fadeIn.restart()
             NumberAnimation { id: fadeIn; target: pageLoader; property: "opacity"; from: 0; to: 1; duration: 160; easing.type: Easing.OutCubic }
+
+            Connections {
+                target: pageLoader.item
+                function onOpenThemeEditorRequested() { root.openThemeEditorRequested() }
+            }
         }
     }
 }

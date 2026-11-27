@@ -10,6 +10,7 @@ import OpenCruise
 Flickable {
     id: root
     default property alias content: column.data
+    signal openThemeEditorRequested()
 
     readonly property real unit: Theme.uiScale
 

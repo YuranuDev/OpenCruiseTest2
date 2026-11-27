@@ -16,8 +16,6 @@
 #include <QSettings>
 #include <QVariantMap>
 
-#include <QTime>
-
 #include "VideoSurfaceItem.h"
 #include "notification/NotificationManager.h"
 #include "vehicle/VehicleDataManager.h"
@@ -97,17 +95,6 @@ QString textFor(aa::LinkState state) {
 
 } // namespace
 
-/**
- * @brief デコーダとテスト送出を初期化し、状態を「利用不可」にしておく。
- */
-namespace {
-/// 自動モードの昼夜判定。簡易的に 6:00〜18:00 を昼とする（日の出日の入りは考慮しない）
-bool isNightByClock() {
-    const int hour = QTime::currentTime().hour();
-    return hour < 6 || hour >= 18;
-}
-} // namespace
-
 AndroidAutoController::AndroidAutoController(QObject *parent)
     : QObject(parent),
       decoder_([this](const QImage &image) { handleDecodedFrame(image); }),
@@ -119,17 +106,11 @@ AndroidAutoController::AndroidAutoController(QObject *parent)
         settings_.fps = store.value(QStringLiteral("stream/fps"), 30).toInt();
         settings_ = settings_.sanitized();
         fullscreenOnStream_ = store.value(QStringLiteral("ui/fullscreenOnStream"), false).toBool();
-        themeMode_ = qBound(0, store.value(QStringLiteral("ui/themeMode"), 2).toInt(), 2);
         accentIndex_ = qMax(0, store.value(QStringLiteral("ui/accentIndex"), 0).toInt());
         const QColor custom(store.value(QStringLiteral("ui/accentCustom")).toString());
         accentCustom_ = custom.isValid() ? custom.name() : QString();
-        aaFollowsTheme_ = store.value(QStringLiteral("ui/aaFollowsTheme"), true).toBool();
         mockVehicleData_ = store.value(QStringLiteral("mock/vehicleData"), false).toBool();
     }
-    nightActive_ = themeMode_ == 1 || (themeMode_ == 2 && isNightByClock());
-    themeTimer_.setInterval(60 * 1000);
-    connect(&themeTimer_, &QTimer::timeout, this, [this]() { updateNight(); });
-    themeTimer_.start();
     accentSaveTimer_.setSingleShot(true);
     accentSaveTimer_.setInterval(500);
     connect(&accentSaveTimer_, &QTimer::timeout, this, [this]() { saveAccentCustom(); });
@@ -187,6 +168,18 @@ AndroidAutoController::~AndroidAutoController() {
         restartThread_.join();
     }
     stop();
+}
+
+void AndroidAutoController::setVehicleSource(VehicleDataManager *source) {
+    if (vehicleSource_ == source) return;
+    QObject::disconnect(vehicleNightConnection_);
+    vehicleNightConnection_ = QMetaObject::Connection();
+    vehicleSource_ = source;
+    if (vehicleSource_) {
+        vehicleNightConnection_ = connect(vehicleSource_, &VehicleDataManager::nightModeChanged, this,
+                                          [this](bool) { updateNight(); });
+    }
+    updateNight();
 }
 
 /**
@@ -399,7 +392,7 @@ void AndroidAutoController::start() {
     callbacks.onLog = [](const std::string &message) { qInfo().noquote() << "[aa]" << QString::fromStdString(message); };
 
     backend_ = std::make_unique<aa::AasdkBackend>(std::move(callbacks), settings_);
-    backend_->setNightMode(aaFollowsTheme_ && nightActive_); // 接続確立時の初期値としてスマホへ送られる
+    backend_->setNightMode(nightActive_); // 接続確立時の初期値としてスマホへ送られる
     std::string error;
     if (!backend_->start(error)) {
         qWarning().noquote() << "[aa] cannot start the connection layer:" << QString::fromStdString(error);
@@ -515,7 +508,7 @@ void AndroidAutoController::pushVehicleData() {
     case aa::VehicleGear::Neutral: gearText = QStringLiteral("N (ニュートラル)"); break;
     case aa::VehicleGear::Drive: gearText = QStringLiteral("D (ドライブ)"); break;
     }
-    const bool nightSent = aaFollowsTheme_ && nightActive_;
+    const bool nightSent = nightActive_;
     mockVehicleItems_ = QVariantList{
         item(QStringLiteral("走行状態"), QStringLiteral("制限なし")),
         item(QStringLiteral("昼夜モード"), nightSent ? QStringLiteral("夜") : QStringLiteral("昼")),
@@ -538,20 +531,8 @@ void AndroidAutoController::pushVehicleData() {
     }
 }
 
-/**
- * @brief テーマ(昼/夜/自動)を変更して保存する。
- */
-void AndroidAutoController::setThemeMode(int mode) {
-    mode = qBound(0, mode, 2);
-    if (mode == themeMode_) {
-        return;
-    }
-    themeMode_ = mode;
-    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
-        .setValue(QStringLiteral("ui/themeMode"), themeMode_);
-    emit themeChanged();
-    updateNight();
-}
+/** @brief 互換用。昼夜モードはモックのヘッドライトに固定で連動する。 */
+void AndroidAutoController::setThemeMode(int) {}
 
 /**
  * @brief アクセント色を変更して保存する。
@@ -598,25 +579,14 @@ void AndroidAutoController::saveAccentCustom() {
     }
 }
 
-/**
- * @brief Android Auto の昼夜をアプリのテーマに連動させるかを変更する。
- */
-void AndroidAutoController::setAaFollowsTheme(bool enabled) {
-    if (enabled == aaFollowsTheme_) {
-        return;
-    }
-    aaFollowsTheme_ = enabled;
-    QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("OpenCruise"), QStringLiteral("OpenCruise"))
-        .setValue(QStringLiteral("ui/aaFollowsTheme"), aaFollowsTheme_);
-    emit themeChanged();
-    pushNightToBackend();
-}
+/** @brief 互換用。Android Auto は常にアプリの昼夜状態へ連動する。 */
+void AndroidAutoController::setAaFollowsTheme(bool) {}
 
 /**
  * @brief 昼夜を再計算する。変化があれば QML と Android Auto の両方へ反映する。
  */
 void AndroidAutoController::updateNight() {
-    const bool night = themeMode_ == 1 || (themeMode_ == 2 && isNightByClock());
+    const bool night = vehicleSource_ && vehicleSource_->isNightMode();
     if (night == nightActive_) {
         return;
     }
@@ -630,7 +600,7 @@ void AndroidAutoController::updateNight() {
  */
 void AndroidAutoController::pushNightToBackend() {
     if (backend_) {
-        backend_->setNightMode(aaFollowsTheme_ && nightActive_);
+        backend_->setNightMode(nightActive_);
     }
 }
 

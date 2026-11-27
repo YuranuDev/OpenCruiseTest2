@@ -17,6 +17,7 @@
 #include <atomic>
 
 #include <QObject>
+#include <QMetaObject>
 #include <QString>
 #include <QTimer>
 #include <QVariantList>
@@ -57,15 +58,15 @@ class AndroidAutoController : public QObject {
     Q_PROPERTY(int resolutionIndex READ resolutionIndex WRITE setResolutionIndex NOTIFY settingsChanged)
     /** フレームレート (30 / 60)。変更時の挙動は resolutionIndex と同じ */
     Q_PROPERTY(int fps READ fps WRITE setFps NOTIFY settingsChanged)
-    /** テーマ: 0=昼 / 1=夜 / 2=自動(時刻で切替)。アプリ表示と Android Auto の昼夜モードに反映される */
+    /** 互換用プロパティ。昼夜はモックのヘッドライトで自動判定するため常に 2(自動) */
     Q_PROPERTY(int themeMode READ themeMode WRITE setThemeMode NOTIFY themeChanged)
-    /** 現在実際に夜として表示しているか（themeMode=自動のときは時刻から決まる） */
+    /** 現在実際に夜として表示しているか(モックのヘッドライト ON に連動) */
     Q_PROPERTY(bool nightActive READ nightActive NOTIFY themeChanged)
     /** アクセント色のプリセット番号（色の実体は QML の Theme が持つ） */
     Q_PROPERTY(int accentIndex READ accentIndex WRITE setAccentIndex NOTIFY themeChanged)
     /** 自由に決めたアクセント色("#rrggbb")。空なら使わず、accentIndex のプリセットを使う */
     Q_PROPERTY(QString accentCustom READ accentCustom WRITE setAccentCustom NOTIFY themeChanged)
-    /** Android Auto の昼夜モードをアプリのテーマに連動させるか（OFF なら常に昼） */
+    /** 互換用プロパティ。Android Auto は常にアプリの昼夜へ連動する */
     Q_PROPERTY(bool aaFollowsTheme READ aaFollowsTheme WRITE setAaFollowsTheme NOTIFY themeChanged)
     /** 映像表示中にウィンドウ全体を映像にする */
     Q_PROPERTY(bool fullscreenOnStream READ fullscreenOnStream WRITE setFullscreenOnStream NOTIFY settingsChanged)
@@ -126,11 +127,11 @@ public:
     bool fullscreenOnStream() const { return fullscreenOnStream_; }
     bool mockVehicleData() const { return mockVehicleData_; }
     QVariantList mockVehicleItems() const { return mockVehicleItems_; }
-    int themeMode() const { return themeMode_; }
+    int themeMode() const { return 2; }
     bool nightActive() const { return nightActive_; }
     int accentIndex() const { return accentIndex_; }
     QString accentCustom() const { return accentCustom_; }
-    bool aaFollowsTheme() const { return aaFollowsTheme_; }
+    bool aaFollowsTheme() const { return true; }
     void setThemeMode(int mode);
     void setAccentIndex(int index);
     void setAccentCustom(const QString &color);
@@ -169,7 +170,7 @@ public:
     /**
      * @brief 車両データの取得元を登録する(所有はしない。アプリ終了まで有効なこと)。
      */
-    void setVehicleSource(VehicleDataManager *source) { vehicleSource_ = source; }
+    void setVehicleSource(VehicleDataManager *source);
 
     /**
      * @brief スマホ状態の保持先を登録する(所有はしない。アプリ終了まで有効なこと)。
@@ -271,23 +272,21 @@ private:
     bool mockVehicleData_ = false;
     QVariantList mockVehicleItems_;               ///< 画面表示用: 送信中の値の一覧
     VehicleDataManager *vehicleSource_ = nullptr; ///< 車両データの取得元(非所有)
+    QMetaObject::Connection vehicleNightConnection_;
     PhoneStatus *phoneStatus_ = nullptr;          ///< スマホ状態の保持先(非所有)
     QTimer vehicleTimer_;                         ///< 車両データ送信の周期タイマー
     double mockAngleRad_ = 0.0;                   ///< モック位置: 周回コース上の現在角度
     qint64 mockLastMs_ = 0;                       ///< モック位置: 前回計算した時刻
-    /** @brief 設定と時刻から昼夜を再計算し、変化があれば通知して Android Auto へ送る。 */
+    /** @brief モックのヘッドライトから昼夜を再計算し、変化があれば通知して Android Auto へ送る。 */
     void updateNight();
-    /** @brief 現在の昼夜を接続層へ渡す（Android Auto が連動しない設定なら常に昼）。 */
+    /** @brief 現在の昼夜を接続層へ渡す。Android Auto は常にテーマへ連動する。 */
     void pushNightToBackend();
 
-    int themeMode_ = 2;
     int accentIndex_ = 0;
     QString accentCustom_;      ///< 自由に決めたアクセント色("#rrggbb"。空ならプリセット)
     QTimer accentSaveTimer_;    ///< 色をなぞっている間に何度も保存しないよう、止まってから保存する
     void saveAccentCustom();
-    bool aaFollowsTheme_ = true;
     bool nightActive_ = false;
-    QTimer themeTimer_; ///< 自動モードの昼夜判定を定期的に見直す
     bool restarting_ = false;       ///< 非同期の再起動中(UI スレッドでのみ触る)
     std::thread restartThread_;     ///< 再起動中の停止処理スレッド
 

@@ -1,5 +1,5 @@
 // 横並びの大型選択ボタン(排他選択)。選択中はアクセント色の塗り + チェックマークで、色が分からなくても判別できる。
-//   SettingsChoice { model: ["昼", "夜", "自動"]; currentIndex: androidAuto.themeMode; onPicked: (i) => androidAuto.themeMode = i }
+//   SettingsChoice { model: ["候補 A", "候補 B"]; currentIndex: settings.choice; onPicked: (i) => settings.choice = i }
 // 押しても currentIndex は自動では変わらない。picked で受けた側が設定を書き換え、currentIndex の束縛で見た目へ反映する。
 // 選択肢が多くて 1 行に入りきらないときは、折り返して 2 行以上にする。使える幅は、置かれた SettingsRow の
 // controlMaxWidth(項目名の下に置くときは行の幅、右に置くときは行の幅の約 6 割)。maxWidth で直接決めてもよい。

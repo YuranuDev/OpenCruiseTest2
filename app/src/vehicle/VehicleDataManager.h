@@ -98,6 +98,8 @@ class VehicleDataManager : public QObject {
     Q_PROPERTY(bool dataAvailable READ dataAvailable NOTIFY dataAvailableChanged)
     /// メーター・グラフにダミーデータを使うか。保存される
     Q_PROPERTY(bool mockGauges READ mockGauges WRITE setMockGauges NOTIFY dataAvailableChanged)
+    /// 昼夜判定に使うモックのヘッドライト状態。ON なら夜テーマ
+    Q_PROPERTY(bool mockHeadlightsOn READ mockHeadlightsOn WRITE setMockHeadlightsOn NOTIFY mockHeadlightsChanged)
     /// エンジンが始動しているとみなすか
     Q_PROPERTY(bool engineRunning READ engineRunning NOTIFY engineStateChanged)
     /// メーターの警告を有効にするか(始動とみなして少し経ってから true。一度 true になったらそのまま)
@@ -168,6 +170,8 @@ public:
     bool dataAvailable() const { return mockGauges_; }
     bool mockGauges() const { return mockGauges_; }
     void setMockGauges(bool enabled);
+    bool mockHeadlightsOn() const { return headlightState_ == HeadlightState::ON; }
+    void setMockHeadlightsOn(bool enabled);
     bool engineRunning() const { return engineRunning_; }
     /** @brief 警告を有効にするか。データが無いときは出さない。 */
     bool warningsArmed() const { return warningsArmed_ && dataAvailable(); }
@@ -202,6 +206,9 @@ signals:
 
     /** @brief メーター・グラフに出すデータの有無(dataAvailable / mockGauges / sourceText)が変わったとき。 */
     void dataAvailableChanged();
+
+    /** @brief モックのヘッドライト状態が変わったとき。 */
+    void mockHeadlightsChanged();
 
 private:
     /// 運転者の行動(走行パターンの 1 区間)

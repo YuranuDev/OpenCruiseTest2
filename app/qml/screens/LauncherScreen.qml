@@ -30,22 +30,29 @@ Item {
     // ウィジェットの編集モード(ナビバーの「編集」で入る・出る。上に編集用のバーが出る)
     readonly property bool editing: editingOn
     property bool editingOn: false
-    // 編集モードのうち、飾りの画像を置き直している間(false ならウィジェットの編集)
-    property bool decorEditing: false
+    // 編集モードの上パネル。配置・飾り・テーマ・壁紙を分けて、操作を一列に詰め込まない
+    property string editPanel: "widgets"
+    readonly property bool decorEditing: editPanel === "decor"
     function setEditing(on) {
         editingOn = on
+        editPanel = "widgets"
+        if (on) editBar.editNight = Theme.night
         if (!on) {
-            decorEditing = false
             settingsDialog.close()
             decorPicker.close()
         }
     }
-    function setDecorEditing(on) {
-        decorEditing = on
-        if (on) widgetPages.decorationNight = Theme.night
+    function setEditPanel(mode) {
+        if (["widgets", "decor", "theme", "wallpaper"].indexOf(mode) < 0) return
+        if (mode === "decor") widgetPages.decorationNight = editBar.editNight
+        else if (editPanel === "decor") editBar.editNight = widgetPages.decorationNight
+        editPanel = mode
         decorStore.selectedId = ""
-        if (on) settingsDialog.close()
-        else decorPicker.close()
+        if (mode !== "decor") decorPicker.close()
+        if (mode !== "widgets") settingsDialog.close()
+    }
+    function setDecorEditing(on) {
+        setEditPanel(on ? "decor" : "widgets")
     }
     onDecorEditingChanged: if (!decorEditing) decorStore.selectedId = ""
 
@@ -136,12 +143,13 @@ Item {
             top: parent.top; left: parent.left; right: parent.right
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
-        height: 52
+        height: root.editing ? Math.max(128, Math.round(136 * root.unit)) : 52
         // 画像を置き直している間は、編集用のバーのボタンを画像の操作の層より上にする(ボタン以外はタッチを下へ通す)
-        z: root.decorEditing ? 17 : 0
+        z: root.editing ? 17 : 0
 
         // 編集モードの間は、ステータスバーの代わりに編集用のバーを出す
         WidgetEditBar {
+            id: editBar
             anchors.fill: parent
             z: 2
             opacity: root.editing ? 1 : 0
@@ -149,9 +157,8 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 180 } }
             area: widgetPages.currentArea
             pages: widgetPages
-            decorAvailable: true
-            decorMode: root.decorEditing
-            onDecorModeRequested: (on) => root.setDecorEditing(on)
+            panelMode: root.editPanel
+            onPanelModeRequested: (mode) => root.setEditPanel(mode)
             onAddDecorRequested: decorPicker.show()
             canUndo: decorStore.canUndo
             onUndoRequested: decorStore.undo()
@@ -200,8 +207,8 @@ Item {
         WidgetPages {
             id: widgetPages
             anchors.fill: parent
-            editMode: root.editingOn && !root.decorEditing
-            showEmptyState: !root.decorEditing
+            editMode: root.editingOn && root.editPanel === "widgets"
+            showEmptyState: root.editPanel === "widgets"
             decorSource: decorStore
             decorRoot: root
             // 画像を置き直している間は、ウィジェットを薄くして、後ろ(奥)の画像も見えるようにする

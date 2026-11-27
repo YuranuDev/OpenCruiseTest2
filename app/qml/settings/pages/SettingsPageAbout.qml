@@ -44,7 +44,6 @@ SettingsPage {
         SettingsInfoRow { label: "Ctrl+Shift+K / L"; value: "画面の明るさを下げる / 上げる(押しっぱなしで連続)" }
         SettingsInfoRow { label: "F10・Menu・Windows キー"; value: "下から出るメニューを開く / 閉じる" }
         SettingsInfoRow { label: "Esc"; value: "閉じる・戻る(起動画面では読み込みを飛ばす。ホームでは終了の確認)" }
-        SettingsInfoRow { label: "Ctrl+Shift+D"; value: "昼 / 夜のテーマを切り替える" }
         SettingsInfoRow { label: "Ctrl+Shift+R"; value: "ダミーのバック信号を入れる / 切る(バックカメラ)" }
         SettingsInfoRow { label: "Ctrl+Shift+P"; value: "ACC OFF の終了を試す(外部マイコンの代わり)" }
         SettingsInfoRow { label: "Ctrl+Alt+F1〜F6・Backspace"; value: "アプリを終了してコンソールへ(画面を直接使っているときだけ)" }

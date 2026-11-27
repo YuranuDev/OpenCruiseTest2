@@ -29,10 +29,17 @@ Rectangle {
     property bool immersive: false
     // 下から出るメニュー(シート)が開いているか。フルスクリーンの切り替わりや画面の切り替えでは閉じる
     property bool menuOpen: false
-    onImmersiveChanged: { menuOpen = false; aaEditing = false }
-    onShowAaChanged: { menuOpen = false; aaEditing = false }
+    onImmersiveChanged: { menuOpen = false; aaEditing = false; aaEditPanel = "widgets" }
+    onShowAaChanged: { menuOpen = false; aaEditing = false; aaEditPanel = "widgets" }
     // Android Auto 画面のウィジェットの編集モード
     property bool aaEditing: false
+    property string aaEditPanel: "widgets"
+    function openThemeEditor() {
+        root.menuOpen = false
+        root.goHome()
+        launcher.setEditing(true)
+        launcher.setEditPanel("theme")
+    }
     function openAaSettingsFor(entries) {
         if (entries.length === 0) return
         aaSettings.area = aaWidgets
@@ -95,7 +102,7 @@ Rectangle {
             top: parent.top; left: parent.left; right: parent.right
             topMargin: Theme.margin * 1.5; leftMargin: Theme.margin * 1.5; rightMargin: Theme.margin * 1.5
         }
-        height: 52
+        height: root.aaEditing ? Math.max(128, Math.round(136 * Theme.uiScale)) : 52
         opacity: root.aaFade
         visible: root.aaFade > 0 && !root.immersive
 
@@ -109,7 +116,9 @@ Rectangle {
             area: aaWidgets
             onAddRequested: aaPicker.show()
             onSettingsRequested: (entries) => root.openAaSettingsFor(entries)
-            onDoneRequested: root.aaEditing = false
+            panelMode: root.aaEditPanel
+            onPanelModeRequested: (mode) => root.aaEditPanel = mode
+            onDoneRequested: { root.aaEditing = false; root.aaEditPanel = "widgets" }
         }
 
         ConnectionBadge {
@@ -175,7 +184,7 @@ Rectangle {
             pages: aaStore
             blocked: root.aaRect
             showEmptyState: false
-            editMode: root.aaEditing
+            editMode: root.aaEditing && root.aaEditPanel === "widgets"
             onSettingsRequested: (wid) => aaSettings.show(wid)
             onPickerRequested: aaPicker.show()
         }
@@ -256,7 +265,7 @@ Rectangle {
             Item {
                 id: aaEdit
                 anchors.fill: parent
-                visible: root.aaEditing && !root.immersive
+                visible: root.aaEditing && root.aaEditPanel === "widgets" && !root.immersive
                 readonly property real u: Theme.uiScale
                 readonly property int corner: widgetStore.aaCorner
                 readonly property bool atRight: corner === 1 || corner === 3

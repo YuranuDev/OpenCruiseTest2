@@ -97,6 +97,9 @@ VehicleDataManager::VehicleDataManager(QObject *parent)
                                                                                           : Transmission::At;
         style_ = static_cast<DriveStyle>(std::clamp(store.value(QStringLiteral("mock/driveStyle"), 1).toInt(), 0, 2));
         mockGauges_ = store.value(QStringLiteral("mock/gaugeData"), true).toBool();
+        headlightState_ = store.value(QStringLiteral("mock/headlightsOn"), false).toBool()
+                              ? HeadlightState::ON
+                              : HeadlightState::OFF;
     }
     std::uniform_real_distribution<double> fuel(0.4, 0.8);
     fuelLiters_ = kTankLiters * fuel(rng_);
@@ -152,6 +155,14 @@ void VehicleDataManager::setMockGauges(bool enabled) {
     qInfo() << "[vehicle] dummy data for gauges and graphs:" << (enabled ? "on" : "off (no data)");
     emit dataAvailableChanged();
     emit engineStateChanged();   // warningsArmed も変わる
+}
+
+void VehicleDataManager::setMockHeadlightsOn(bool enabled) {
+    const HeadlightState next = enabled ? HeadlightState::ON : HeadlightState::OFF;
+    if (next == headlightState_) return;
+    setHeadlightState(next);
+    openStore().setValue(QStringLiteral("mock/headlightsOn"), enabled);
+    emit mockHeadlightsChanged();
 }
 
 void VehicleDataManager::setMockDriveStyle(int value) {
