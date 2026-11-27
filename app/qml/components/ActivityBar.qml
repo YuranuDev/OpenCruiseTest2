@@ -1,6 +1,6 @@
 // 「作業中」を表すバー(アップデートの進み具合など)。
 //   progress >= 0(進み具合が分かる): なめらかに伸びる塗り + 塗りの上を流れる光 + 先頭でゆっくり明滅する光
-//   progress <  0(分からない)     : 左右を往復する光の帯。端では縮み、真ん中では伸びて、進む向きの先頭が明るく、後ろに尾を引く
+//   progress <  0(分からない)     : Google(Material)風の流れるバー。2 本のバーが左端から伸びながら入り、右端の外へ抜けきるまで進む(一方向)
 // 分かる・分からないが切り替わるときは、2 つの表示が重なったまま入れ替わる(ぱっと変わらない)。
 // 色・文字は呼び出し側から渡す(テーマに依存しない部品)。running が false の間はアニメーションを止める。
 import QtQuick
@@ -37,7 +37,11 @@ Item {
         color: root.trackColor
         clip: true
 
-        // ---- 進み具合が分からないとき: 往復する光の帯 ----
+        // ---- 進み具合が分からないとき: Google(Material)風の流れるバー ----
+        // 2 本のバーが 2.1 秒周期で左から右へ流れる(Material の indeterminate と同じ動き・同じ曲線)。
+        //   1 本目: 左端の外から伸びながら入り、右端の外へ抜けきるまで進む(バーの左端が溝の右端に着くまで動く)
+        //   2 本目: 1.15 秒遅れで同じ動きをする(1 本目が抜けていく間に次のバーが入ってくる)
+        // 一方向にしか進まない。バー全体が右へ消えきってから、次の周期が左から始まる
         Item {
             id: scan
             anchors.fill: parent
@@ -45,48 +49,54 @@ Item {
             visible: opacity > 0.01
             Behavior on opacity { NumberAnimation { duration: 280 } }
 
-            property real slide: 0          // 0 → 1 → 0 と往復する位置(0 = 左端、1 = 右端)
-            property bool goingRight: true  // 進む向き(先頭の明るい側を決める)
-            readonly property real headWidth: track.width * (0.14 + 0.18 * Math.sin(Math.PI * slide))   // 端で縮み、真ん中で伸びる
+            readonly property int cycle: 2100                 // 1 周期(ms)
+            readonly property int travel: cycle * 6 / 10      // 動いている時間(残りは次が入るまでの間)
+            readonly property int secondDelay: 1150           // 2 本目が遅れて始まる時間
 
+            // バー 1 本。a = 左端、b = 右端の位置(溝の幅に対する割合。0 = 溝の左端、1 = 右端)。範囲外の値もとる。
+            // 描くのは溝の中にある部分だけ(0〜1 に収める)ので、角丸のまま左端から伸び、右端へ縮みながら消える。
+            // 親(scan)は溝いっぱいに広がっているので、幅は parent.width を使う(inline component は外の id を見られない)
+            component Strip: Rectangle {
+                property real a: 0
+                property real b: 0
+                readonly property real lo: Math.max(0, Math.min(1, a))
+                readonly property real hi: Math.max(0, Math.min(1, b))
+                visible: hi - lo > 0.0005
+                x: parent.width * lo
+                width: parent.width * (hi - lo)
+                height: parent.height
+                radius: height / 2
+                color: root.barColor
+            }
+
+            Strip { id: bar1 }
+            Strip { id: bar2 }
+
+            // 1 本目(a: 左端 -35% → 100%、b: 右端 0% → 190%)。曲線は Material の indeterminate 1 本目と同じ
             SequentialAnimation {
                 running: root.running && scan.visible
                 loops: Animation.Infinite
-                ScriptAction { script: scan.goingRight = true }
-                NumberAnimation { target: scan; property: "slide"; from: 0; to: 1; duration: 1150; easing.type: Easing.InOutSine }
-                PauseAnimation { duration: 90 }
-                ScriptAction { script: scan.goingRight = false }
-                NumberAnimation { target: scan; property: "slide"; from: 1; to: 0; duration: 1150; easing.type: Easing.InOutSine }
-                PauseAnimation { duration: 90 }
-            }
-
-            // 尾: 本体より少し遅れて付いてくる、だんだん薄く短い影。
-            // 遅らせるのは x ではなく 0〜1 の位置(pos)。x で遅らせると、帯が伸びたときに右端からはみ出して切れて見える
-            Repeater {
-                model: 3
-                Rectangle {
-                    required property int index
-                    property real pos: scan.slide
-                    Behavior on pos { NumberAnimation { duration: 60 * (index + 1); easing.type: Easing.OutQuad } }
-                    width: scan.headWidth * (1 - 0.14 * (index + 1))
-                    height: scan.height
-                    radius: height / 2
-                    color: root.barColor
-                    opacity: 0.32 / (index + 1)
-                    x: (track.width - width) * pos
+                ParallelAnimation {
+                    NumberAnimation { target: bar1; property: "a"; from: -0.35; to: 1.0; duration: scan.travel
+                                      easing.type: Easing.BezierSpline; easing.bezierCurve: [0.65, 0.815, 0.735, 0.395, 1, 1] }
+                    NumberAnimation { target: bar1; property: "b"; from: 0.0; to: 1.9; duration: scan.travel
+                                      easing.type: Easing.BezierSpline; easing.bezierCurve: [0.65, 0.815, 0.735, 0.395, 1, 1] }
                 }
+                PauseAnimation { duration: scan.cycle - scan.travel }
             }
-            // 本体: 進む向きの先頭が明るく、後ろへ薄くなる
-            Rectangle {
-                width: scan.headWidth
-                height: scan.height
-                radius: height / 2
-                x: (track.width - width) * scan.slide
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: scan.goingRight ? Qt.alpha(root.barColor, 0.35) : Qt.lighter(root.barColor, 1.25) }
-                    GradientStop { position: 0.5; color: root.barColor }
-                    GradientStop { position: 1.0; color: scan.goingRight ? Qt.lighter(root.barColor, 1.25) : Qt.alpha(root.barColor, 0.35) }
+            // 2 本目(a: 左端 -200% → 107%、b: 右端 0% → 108%)。最初だけ secondDelay 遅れる
+            SequentialAnimation {
+                running: root.running && scan.visible
+                PauseAnimation { duration: scan.secondDelay }
+                SequentialAnimation {
+                    loops: Animation.Infinite
+                    ParallelAnimation {
+                        NumberAnimation { target: bar2; property: "a"; from: -2.0; to: 1.07; duration: scan.travel
+                                          easing.type: Easing.BezierSpline; easing.bezierCurve: [0.165, 0.84, 0.44, 1, 1, 1] }
+                        NumberAnimation { target: bar2; property: "b"; from: 0.0; to: 1.08; duration: scan.travel
+                                          easing.type: Easing.BezierSpline; easing.bezierCurve: [0.165, 0.84, 0.44, 1, 1, 1] }
+                    }
+                    PauseAnimation { duration: scan.cycle - scan.travel }
                 }
             }
         }

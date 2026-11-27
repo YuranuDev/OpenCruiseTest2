@@ -141,7 +141,7 @@ SettingsPage {
                     Item {
                         width: parent.width
                         height: 56 * Theme.uiScale
-                        // 進み具合のバー(分かるときは伸びる塗り、分からないときは左右に往復する光。右に % か経過時間)
+                        // 進み具合のバー(分かるときは伸びる塗り、分からないときは Google 風に左から右へ流れるバー。右に % か経過時間)
                         ActivityBar {
                             anchors { left: parent.left; right: cancelBtn.left; rightMargin: 16 * Theme.uiScale; verticalCenter: parent.verticalCenter }
                             height: 18 * Theme.uiScale
