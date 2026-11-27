@@ -220,8 +220,12 @@ void ThemeSettings::refreshDecorationImages() {
 }
 
 QString ThemeSettings::backgroundImageUrl() const {
-    const QString fileName = backgroundImage();
-    if (fileName.isEmpty()) return QString();
+    return backgroundUrl(backgroundImage());
+}
+
+QString ThemeSettings::backgroundUrl(const QString &fileName) const {
+    // フォルダの外を指すファイル名(../ など)は使わない
+    if (fileName.isEmpty() || fileName.contains(QLatin1Char('/')) || fileName.contains(QLatin1Char('\\'))) return QString();
     const QString path = backgroundFolder() + QLatin1Char('/') + fileName;
     return QFileInfo::exists(path) ? QUrl::fromLocalFile(path).toString() : QString();
 }

@@ -12,16 +12,24 @@ import OpenCruise
 
 Rectangle {
     id: root
+    // 選択画面のサムネイルから種類・画像を指定できるよう、任意のプレビュー値を受け付ける。
+    // 既定値のままなら、従来どおり現在の themeSettings を表示する。
+    property string kindOverride: ""
+    property int fitOverride: -1
+    property int opacityOverride: -1
     color: Theme.background
 
     readonly property string kind: {
-        const k = typeof themeSettings !== "undefined" ? themeSettings.background : "auto"
+        const k = root.kindOverride !== "" ? root.kindOverride
+                : (typeof themeSettings !== "undefined" ? themeSettings.background : "auto")
         if (k === "auto") return Theme.classic ? "carbon" : "none"
         return k
     }
-    readonly property real strength: typeof themeSettings !== "undefined" ? themeSettings.backgroundOpacity / 100 : 0.6
+    readonly property real strength: root.opacityOverride >= 0 ? root.opacityOverride / 100
+                                     : (typeof themeSettings !== "undefined" ? themeSettings.backgroundOpacity / 100 : 0.6)
     readonly property string imageUrl: typeof themeSettings !== "undefined" ? themeSettings.backgroundImageUrl : ""
-    readonly property int fit: typeof themeSettings !== "undefined" ? themeSettings.backgroundFit : 1
+    readonly property int fit: root.fitOverride >= 0 ? root.fitOverride
+                              : (typeof themeSettings !== "undefined" ? themeSettings.backgroundFit : 1)
 
     // ---- 模様 ----
     Canvas {

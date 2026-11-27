@@ -296,25 +296,21 @@ ApplicationWindow {
         height: quarter ? parent.width : parent.height
         rotation: displaySettings.rotation
 
+        // Windows キー(Meta / Super)で下から出るメニューを開閉する。
+        // フォーカス専用の兄弟 Item に置くと、TextField などへフォーカスが移った後に
+        // キーイベントを受け取れない。rotor は各画面の親なので、未処理のイベントをここで拾う。
+        Keys.onPressed: (event) => {
+            if (!event.isAutoRepeat
+                    && (event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R)) {
+                window.toggleMenu()
+                event.accepted = true
+            }
+        }
+
         // 背景(テーマの背景色と、模様・画像)。各画面は背景を塗らず、これが見える
         ThemeBackground {
             anchors.fill: parent
             z: -1
-        }
-
-        // Windows キー(Meta / Super)で下から出るメニューを開閉する(どの画面でも。設定画面からはメイン画面へ戻って開く)
-        Item {
-            id: keyCatcher
-            anchors.fill: parent
-            focus: true
-            Component.onCompleted: forceActiveFocus()
-            Keys.onPressed: (event) => {
-                if (!event.isAutoRepeat
-                        && (event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R)) {
-                    window.toggleMenu()
-                    event.accepted = true
-                }
-            }
         }
 
         // 通知履歴パネル(ベルボタンで開く。ポップアップより下、各画面より上)

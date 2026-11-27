@@ -46,6 +46,13 @@ Item {
         { label: "ストライプ", value: "stripes" },
         { label: "画像", value: "image" }
     ]
+    readonly property string backgroundName: {
+        if (root.profile.background === "image") return root.profile.backgroundImage || "画像を選ぶ"
+        for (let i = 0; i < root.backgroundKinds.length; ++i) {
+            if (root.backgroundKinds[i].value === root.profile.background) return root.backgroundKinds[i].label
+        }
+        return "壁紙"
+    }
 
     function selectedEntries() {
         if (pages) return pages.selectedEntries()
@@ -62,11 +69,11 @@ Item {
         values[key] = value
         updateProfile(values)
     }
+    function toggleEditNight() {
+        root.editNight = !root.editNight
+        if (root.panelMode === "decor" && root.pages) root.pages.decorationNight = root.editNight
+    }
     function openColorPicker() {
-        if (root.profile.accentCustom === "") {
-            const presets = Theme.accentPresetsFor(root.profile.style)
-            updateProfile({ accentCustom: presets[Math.min(root.profile.accentIndex, presets.length - 1)] })
-        }
         colorPopup.open()
     }
 
@@ -338,22 +345,10 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8 * root.unit
                 BarButton {
-                    icon: "brightness_5"
-                    text: "昼の飾り"
-                    tone: root.pages && !root.pages.decorationNight ? "accent" : "normal"
-                    onClicked: {
-                        root.editNight = false
-                        if (root.pages) root.pages.decorationNight = false
-                    }
-                }
-                BarButton {
-                    icon: "brightness_2"
-                    text: "夜の飾り"
-                    tone: root.pages && root.pages.decorationNight ? "accent" : "normal"
-                    onClicked: {
-                        root.editNight = true
-                        if (root.pages) root.pages.decorationNight = true
-                    }
+                    icon: root.editNight ? "brightness_2" : "brightness_5"
+                    text: root.editNight ? "夜の飾り" : "昼の飾り"
+                    tone: "accent"
+                    onClicked: root.toggleEditNight()
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -374,12 +369,6 @@ Item {
                     text: "画像を追加"
                     onClicked: root.addDecorRequested()
                 }
-                Text {
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(12, 14 * root.unit)
-                    color: Theme.textSecondary
-                    text: "画像フォルダ: " + themeSettings.decorationFolder
-                }
             }
 
             // テーマ設定: プロファイル、適用モード、スタイル、アクセント色をまとめる。
@@ -391,16 +380,10 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 7 * root.unit
                 BarButton {
-                    icon: "brightness_5"
-                    text: "昼の設定"
-                    tone: !root.editNight ? "accent" : "normal"
-                    onClicked: root.editNight = false
-                }
-                BarButton {
-                    icon: "brightness_2"
-                    text: "夜の設定"
-                    tone: root.editNight ? "accent" : "normal"
-                    onClicked: root.editNight = true
+                    icon: root.editNight ? "brightness_2" : "brightness_5"
+                    text: root.editNight ? "夜を編集中" : "昼を編集中"
+                    tone: "accent"
+                    onClicked: root.toggleEditNight()
                 }
                 Rectangle { width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
                 Text {
@@ -413,62 +396,20 @@ Item {
                 }
                 Rectangle { width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
                 BarButton {
-                    icon: "dashboard"
-                    text: "シンプル"
-                    tone: root.profile.style === "simple" ? "accent" : "normal"
-                    onClicked: root.updateProfile({ style: "simple" })
-                }
-                BarButton {
-                    icon: "view_quilt"
-                    text: "クラシック"
-                    tone: root.profile.style === "classic" ? "accent" : "normal"
-                    onClicked: root.updateProfile({ style: "classic" })
+                    icon: root.profile.style === "simple" ? "dashboard" : "view_quilt"
+                    text: "スタイル: " + (root.profile.style === "simple" ? "シンプル" : "クラシック")
+                    tone: "accent"
+                    onClicked: root.updateProfile({ style: root.profile.style === "simple" ? "classic" : "simple" })
                 }
                 Rectangle { width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(13, 15 * root.unit)
-                    color: Theme.textSecondary
-                    text: "アクセント: " + (root.profile.accentCustom !== "" ? "カスタム" : Theme.accentNamesFor(root.profile.style)[root.profile.accentIndex])
-                }
-                Repeater {
-                    model: Theme.accentPresetsFor(root.profile.style)
-                    Item {
-                        required property int index
-                        required property var modelData
-                        width: Math.max(36, 42 * root.unit)
-                        height: root.actionHeight
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: Math.max(30, 36 * root.unit)
-                            height: width
-                            radius: width / 2
-                            color: modelData
-                            border.width: root.profile.accentCustom === "" && root.profile.accentIndex === index ? 3 : 1
-                            border.color: root.profile.accentCustom === "" && root.profile.accentIndex === index ? Theme.textPrimary : Theme.panelBorder
-                            MaterialIcon {
-                                anchors.centerIn: parent
-                                visible: root.profile.accentCustom === "" && root.profile.accentIndex === index
-                                name: "check"
-                                size: parent.width * 0.55
-                                color: "#111111"
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: root.updateProfile({ accentCustom: "", accentIndex: index })
-                            }
-                        }
-                    }
-                }
                 BarButton {
-                    icon: "colorize"
-                    text: "色を調整"
+                    icon: "palette"
+                    text: "アクセント色"
                     onClicked: root.openColorPicker()
                 }
             }
 
-            // 壁紙設定: 種類、画像、表示方式、濃さを同じプロファイルで編集する。
+            // 壁紙設定: 昼夜の切り替え、画像・種類のプレビュー選択、表示方式、透明度をまとめる。
             Row {
                 id: wallpaperControls
                 visible: root.panelMode === "wallpaper"
@@ -477,50 +418,25 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 7 * root.unit
                 BarButton {
-                    icon: "brightness_5"
-                    text: "昼の設定"
-                    tone: !root.editNight ? "accent" : "normal"
-                    onClicked: root.editNight = false
-                }
-                BarButton {
-                    icon: "brightness_2"
-                    text: "夜の設定"
-                    tone: root.editNight ? "accent" : "normal"
-                    onClicked: root.editNight = true
+                    icon: root.editNight ? "brightness_2" : "brightness_5"
+                    text: root.editNight ? "夜を編集中" : "昼を編集中"
+                    tone: "accent"
+                    onClicked: root.toggleEditNight()
                 }
                 Rectangle { width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
-                Repeater {
-                    model: root.backgroundKinds
-                    BarButton {
-                        required property var modelData
-                        text: modelData.label
-                        tone: root.profile.background === modelData.value ? "accent" : "normal"
-                        onClicked: root.updateProfile({ background: modelData.value })
-                    }
-                }
-                Repeater {
-                    model: root.profile.background === "image" ? themeSettings.backgroundImages : []
-                    BarButton {
-                        required property var modelData
-                        icon: "image"
-                        text: modelData
-                        tone: root.profile.backgroundImage === modelData ? "accent" : "normal"
-                        onClicked: root.updateProfile({ backgroundImage: modelData })
-                    }
+                BarButton {
+                    icon: "wallpaper"
+                    text: "壁紙を選ぶ"
+                    onClicked: backgroundPicker.show()
                 }
                 Text {
-                    visible: root.profile.background === "image" && themeSettings.backgroundImages.length === 0
                     anchors.verticalCenter: parent.verticalCenter
+                    width: 150 * root.unit
+                    elide: Text.ElideMiddle
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.max(13, 15 * root.unit)
                     color: Theme.textSecondary
-                    text: "画像がありません: " + themeSettings.backgroundFolder
-                }
-                BarButton {
-                    visible: root.profile.background === "image"
-                    icon: "refresh"
-                    text: "画像を読み直す"
-                    onClicked: themeSettings.refreshBackgroundImages()
+                    text: root.backgroundName
                 }
                 Rectangle { visible: root.profile.background === "image"; width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
                 Text {
@@ -533,64 +449,29 @@ Item {
                 }
                 BarButton {
                     visible: root.profile.background === "image"
-                    icon: "grid_on"
-                    text: "並べる"
-                    tone: root.profile.backgroundFit === 0 ? "accent" : "normal"
-                    onClicked: root.updateProfile({ backgroundFit: 0 })
-                }
-                BarButton {
-                    visible: root.profile.background === "image"
-                    icon: "fit_screen"
-                    text: "埋める"
-                    tone: root.profile.backgroundFit === 1 ? "accent" : "normal"
-                    onClicked: root.updateProfile({ backgroundFit: 1 })
-                }
-                BarButton {
-                    visible: root.profile.background === "image"
-                    icon: "aspect_ratio"
-                    text: "引き伸ばす"
-                    tone: root.profile.backgroundFit === 2 ? "accent" : "normal"
-                    onClicked: root.updateProfile({ backgroundFit: 2 })
+                    icon: root.profile.backgroundFit === 0 ? "grid_on"
+                         : (root.profile.backgroundFit === 2 ? "aspect_ratio" : "fit_screen")
+                    text: ["並べる", "埋める", "引き伸ばす"][Math.max(0, Math.min(2, root.profile.backgroundFit))]
+                    onClicked: backgroundPicker.showFit()
                 }
                 Rectangle { visible: root.profile.background === "image"; width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
                 Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.max(13, 15 * root.unit)
-                    color: Theme.textSecondary
-                    text: "画面の明るさ"
-                }
-                SettingsSlider {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 230 * root.unit
-                    height: Math.min(parent.height, 64 * root.unit)
-                    from: brightnessController.minimum
-                    iconName: "brightness_high"
-                    iconMinName: "brightness_low"
-                    value: root.editNight ? brightnessController.nightBrightness : brightnessController.dayBrightness
-                    onMoved: (v) => {
-                        if (root.editNight) brightnessController.nightBrightness = v
-                        else brightnessController.dayBrightness = v
-                    }
-                }
-                Rectangle { width: 1; height: parent.height * 0.65; anchors.verticalCenter: parent.verticalCenter; color: Theme.panelBorder }
-                Text {
                     visible: root.profile.background !== "none"
                              && !(root.profile.background === "auto" && root.profile.style !== "classic")
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
                     font.pixelSize: Math.max(13, 15 * root.unit)
                     color: Theme.textSecondary
-                    text: "背景の濃さ"
+                    text: "透明度"
                 }
                 SettingsSlider {
                     visible: root.profile.background !== "none"
                              && !(root.profile.background === "auto" && root.profile.style !== "classic")
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 250 * root.unit
+                    width: 540 * root.unit
                     height: Math.min(parent.height, 64 * root.unit)
-                    iconName: "wallpaper"
-                    iconMinName: "wallpaper"
+                    iconName: "opacity"
+                    iconMinName: "opacity"
                     value: root.profile.backgroundOpacity
                     onMoved: (v) => root.setProfileValue("backgroundOpacity", v)
                 }
@@ -615,6 +496,23 @@ Item {
                * (scrollTrack.width - width)
             color: Theme.accent
         }
+    }
+
+    BackgroundPicker {
+        id: backgroundPicker
+        parent: Overlay.overlay
+        anchors.fill: parent
+        z: 1000
+        selectedKind: root.profile.background
+        selectedImage: root.profile.backgroundImage
+        previewOpacity: root.profile.backgroundOpacity
+        previewFit: root.profile.backgroundFit
+        onPicked: (kind, file) => {
+            const values = { background: kind }
+            if (file !== "") values.backgroundImage = file
+            root.updateProfile(values)
+        }
+        onFitPicked: (fit) => root.updateProfile({ backgroundFit: fit })
     }
 
     Popup {
@@ -644,6 +542,45 @@ Item {
                 font.pixelSize: 22 * root.unit
                 font.bold: true
                 color: Theme.textPrimary
+            }
+            Text {
+                text: "色見本"
+                font.family: Theme.fontFamily
+                font.pixelSize: 16 * root.unit
+                color: Theme.textSecondary
+            }
+            Flow {
+                width: colorPopup.width - colorPopup.padding * 2
+                spacing: 8 * root.unit
+                Repeater {
+                    model: Theme.accentPresetsFor(root.profile.style)
+                    Item {
+                        required property int index
+                        required property var modelData
+                        width: 48 * root.unit
+                        height: 48 * root.unit
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 40 * root.unit
+                            height: width
+                            radius: width / 2
+                            color: modelData
+                            border.width: root.profile.accentCustom === "" && root.profile.accentIndex === index ? 3 : 1
+                            border.color: root.profile.accentCustom === "" && root.profile.accentIndex === index ? Theme.textPrimary : Theme.panelBorder
+                            MaterialIcon {
+                                anchors.centerIn: parent
+                                visible: root.profile.accentCustom === "" && root.profile.accentIndex === index
+                                name: "check"
+                                size: parent.width * 0.55
+                                color: "#111111"
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: root.updateProfile({ accentCustom: "", accentIndex: index })
+                            }
+                        }
+                    }
+                }
             }
             SettingsColorPicker {
                 width: colorPopup.width - colorPopup.padding * 2

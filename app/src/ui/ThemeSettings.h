@@ -72,6 +72,8 @@ public:
     void setNightProfile(const QVariantMap &profile);
     QStringList backgroundImages() const { return images_; }
     QString backgroundFolder() const;
+    /** @brief 背景画像のファイル名から URL を返す(見つからなければ空)。 */
+    Q_INVOKABLE QString backgroundUrl(const QString &fileName) const;
     QStringList decorationImages() const { return decorations_; }
     QString decorationFolder() const;
     /** @brief 飾りの画像のファイル名から URL を返す(見つからなければ空)。 */

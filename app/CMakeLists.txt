@@ -89,6 +89,7 @@ qt_add_qml_module(opencruise
     QML_FILES
         qml/Main.qml
         qml/theme/Theme.qml
+        qml/theme/BackgroundPicker.qml
         qml/screens/HomeScreen.qml
         qml/screens/SettingsScreen.qml
         qml/screens/VehicleScreen.qml
